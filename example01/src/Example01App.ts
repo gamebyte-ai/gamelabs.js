@@ -7,37 +7,50 @@ import * as PIXI from "pixi.js";
 export class Example01App extends GamelabsApp {
   readonly stageEl: HTMLElement;
 
-  readonly renderer: THREE.WebGLRenderer;
-  readonly scene: THREE.Scene;
-  readonly camera: THREE.PerspectiveCamera;
+  renderer!: THREE.WebGLRenderer;
+  scene!: THREE.Scene;
+  camera!: THREE.PerspectiveCamera;
 
   uiApp!: PIXI.Application;
   cube!: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
 
-  private readonly clock = new THREE.Clock();
-  private readonly onWindowResize = () => this.resizeToStage();
-
-  static async create(stageEl: HTMLElement): Promise<Example01App> {
-    const app = new Example01App(stageEl);
-    await app.init();
-    return app;
-  }
-
   constructor(stageEl: HTMLElement) {
     super({ mode: "3d" });
     this.stageEl = stageEl;
+  }
+
+  override async initialize(): Promise<void> {
+    
+    this.initWorld();
+    await this.initUI();  
+
+    this.createWorld();
+    this.createUI();
+    this.onResize();
+  }
+
+  override step(timestepSeconds: number): void {
+    this.cube.rotation.x += timestepSeconds * 0.6;
+    this.cube.rotation.y += timestepSeconds * 0.9;
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  private initWorld(): void {
 
     // --- Three.js: 3D world canvas (bottom layer)
     this.canvas.className = "layer world3d";
     this.stageEl.appendChild(this.canvas);
 
+    // --- Three.js renderer (WebGL)
     this.renderer = create3DRenderer({
       canvas: this.canvas,
       antialias: true,
       powerPreference: "high-performance"
     });
     this.renderer.setClearColor(0x0b0f14, 1);
+  }
 
+  private createWorld(): void {
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(0x0b0f14, 4, 20);
 
@@ -61,8 +74,8 @@ export class Example01App extends GamelabsApp {
     this.scene.add(grid);
   }
 
-  private async init(): Promise<void> {
-    // --- PixiJS: 2D UI canvas (top layer, transparent)
+  private async initUI(): Promise<void> {
+
     this.uiApp = await create2DApp({
       backgroundAlpha: 0,
       antialias: true
@@ -70,15 +83,9 @@ export class Example01App extends GamelabsApp {
 
     this.uiApp.canvas.className = "layer ui2d";
     this.stageEl.appendChild(this.uiApp.canvas);
-
-    this.buildUI();
-
-    window.addEventListener("resize", this.onWindowResize, { passive: true });
-    this.resizeToStage();
-    this.startLoop();
   }
 
-  private buildUI(): void {
+  private createUI(): void {
     const label = new PIXI.Text({
       text: "Pixi UI over Three world",
       style: {
@@ -130,21 +137,17 @@ export class Example01App extends GamelabsApp {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
 
-    this.uiApp.renderer.resize(width, height);
+    if (this.uiApp) this.uiApp.renderer.resize(width, height);
   }
 
-  private startLoop(): void {
-    this.renderer.setAnimationLoop(() => {
-      const t = this.clock.getElapsedTime();
-      this.cube.rotation.x = t * 0.6;
-      this.cube.rotation.y = t * 0.9;
-      this.renderer.render(this.scene, this.camera);
-    });
+  override onResize(): void {
+    // Guard against resize firing before `initialize()` finishes.
+    if (!this.renderer || !this.scene || !this.camera) return;
+    this.resizeToStage();
   }
 
   destroy(): void {
-    window.removeEventListener("resize", this.onWindowResize);
-    this.renderer.setAnimationLoop(null);
+    super.destroy();
 
     this.renderer.dispose();
     this.uiApp.destroy(true, { children: true, texture: true, textureSource: true });

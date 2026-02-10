@@ -4,5 +4,8 @@ import { Example01App } from "./Example01App";
 
 const stage = document.getElementById("stage");
 if (!stage) throw new Error("Missing #stage element");
-await Example01App.create(stage);
+
+const app = new Example01App(stage);
+await app.initialize();
+app.mainLoop();
 
