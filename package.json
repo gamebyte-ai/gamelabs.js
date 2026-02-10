@@ -1,0 +1,75 @@
+{
+  "name": "gamelabsjs",
+  "version": "0.1.0",
+  "description": "Gamelabsjs: a game framework powered by Three.js (3D) and PixiJS (2D).",
+  "license": "MIT",
+  "author": "Oguz Sandikci",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./2d": {
+      "types": "./dist/2d/index.d.ts",
+      "import": "./dist/2d/index.js",
+      "require": "./dist/2d/index.cjs"
+    },
+    "./3d": {
+      "types": "./dist/3d/index.d.ts",
+      "import": "./dist/3d/index.js",
+      "require": "./dist/3d/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oguzsan/Gamelab.js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/oguzsan/Gamelab.js/issues"
+  },
+  "homepage": "https://github.com/oguzsan/Gamelab.js#readme",
+  "keywords": [
+    "game",
+    "framework",
+    "threejs",
+    "three",
+    "pixijs",
+    "pixi",
+    "2d",
+    "3d"
+  ],
+  "peerDependencies": {
+    "@types/three": "^0.160.0",
+    "pixi.js": "^8.0.0",
+    "three": "^0.160.0"
+  },
+  "peerDependenciesMeta": {
+    "@types/three": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "pixi.js": "^8.0.0",
+    "three": "^0.160.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "prepare": "npm run build",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
