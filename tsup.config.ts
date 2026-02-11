@@ -7,7 +7,9 @@ export default defineConfig({
   outDir: "dist",
   dts: true,
   sourcemap: true,
-  clean: true,
+  // We run cleaning via npm script to avoid rare race issues
+  // when multiple formats/entries clean concurrently.
+  clean: false,
   treeshake: true,
   splitting: false,
   esbuildOptions(options) {

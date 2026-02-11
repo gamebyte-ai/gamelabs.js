@@ -61,15 +61,16 @@
   "devDependencies": {
     "@types/three": "^0.160.0",
     "pixi.js": "^8.0.0",
+    "rimraf": "^6.0.0",
     "three": "^0.160.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },
   "scripts": {
     "prepare": "npm run build",
-    "build": "tsup",
+    "build": "npm run clean && tsup",
     "dev": "tsup --watch",
-    "clean": "rm -rf dist",
+    "clean": "rimraf dist",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
