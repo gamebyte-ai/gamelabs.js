@@ -8,7 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "gamelabsjs": "file:..",
+    "gamelabsjs": "file:../..",
     "pixi.js": "^8.16.0",
     "three": "^0.182.0",
     "typescript": "^5.9.3",

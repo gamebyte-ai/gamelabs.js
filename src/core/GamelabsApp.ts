@@ -1,6 +1,6 @@
 import type { GamelabsAppConfig, GamelabsAppMode } from "./types.js";
-import { Binder } from "./Binder.js";
-import { UpdateService } from "./UpdateService.js";
+import { ViewBinder } from "./ViewBinder.js";
+import { UpdateService } from "../services/UpdateService.js";
 
 export class GamelabsApp {
   readonly mode: GamelabsAppMode;
@@ -11,18 +11,45 @@ export class GamelabsApp {
    * You can use these in your composition root to bind view/controller pairs
    * and to run ordered per-frame updates.
    */
-  readonly binder = new Binder();
+  readonly binder = new ViewBinder();
   readonly updates = new UpdateService();
 
+  /**
+   * Optional fixed logical dimensions provided via config.
+   * If set, auto-resize will use these instead of measured DOM size.
+   */
+  private readonly _fixedWidth: number | undefined;
+  private readonly _fixedHeight: number | undefined;
+
+  /**
+   * Last known logical dimensions (not DPR-scaled).
+   */
   private _width: number | undefined;
   private _height: number | undefined;
   private _rafId: number | null = null;
   private _lastFrameTimeMs: number | null = null;
-  private readonly _onWindowResize = () => this.onResize();
+  private readonly _onWindowResize = (): void => {
+    const dpr = typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1;
+
+    const rect =
+      typeof this.canvas.getBoundingClientRect === "function" ? this.canvas.getBoundingClientRect() : null;
+
+    const measuredWidth = rect?.width ?? this.canvas.clientWidth ?? this.canvas.width;
+    const measuredHeight = rect?.height ?? this.canvas.clientHeight ?? this.canvas.height;
+
+    // Important: do NOT use the last known size as an override here.
+    // Otherwise the resize handler will stop tracking DOM size changes and canvases will be CSS-scaled (stretched).
+    const width = Math.max(1, Math.floor(this._fixedWidth ?? measuredWidth));
+    const height = Math.max(1, Math.floor(this._fixedHeight ?? measuredHeight));
+
+    this.onResize(width, height, dpr);
+  };
 
   constructor(config: GamelabsAppConfig) {
     this.mode = config.mode;
     this.canvas = config.canvas ?? document.createElement("canvas");
+    this._fixedWidth = config.width;
+    this._fixedHeight = config.height;
     this._width = config.width;
     this._height = config.height;
 
@@ -48,7 +75,15 @@ export class GamelabsApp {
    * This is automatically called on the browser's `window.resize` event.
    */
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  onResize(): void {}
+  onResize(_width: number, _height: number, _dpr: number): void {}
+
+  /**
+   * Manually triggers a resize calculation and calls `onResize(width, height, dpr)`.
+   * Useful for an initial layout pass after mounting.
+   */
+  requestResize(): void {
+    this._onWindowResize();
+  }
 
   /**
    * Per-frame hook called by `mainLoop()`.

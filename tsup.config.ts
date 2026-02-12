@@ -2,7 +2,7 @@ import { defineConfig } from "tsup";
 import pkg from "./package.json";
 
 export default defineConfig({
-  entry: ["src/index.ts", "src/2d/index.ts", "src/3d/index.ts"],
+  entry: ["src/index.ts"],
   format: ["esm", "cjs"],
   outDir: "dist",
   dts: true,

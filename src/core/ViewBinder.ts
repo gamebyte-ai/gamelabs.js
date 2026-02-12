@@ -20,7 +20,7 @@ export type ControllerCtor<TView extends IView, TDeps extends object, TControlle
  * - Calls `controller.initialize()`
  * - Tracks pairs for cleanup
  */
-export class Binder {
+export class ViewBinder {
   private readonly pairs: Array<{ view: IView; controller: IController }> = [];
 
   bind<TView extends IView, TDeps extends object, TController extends IController>(

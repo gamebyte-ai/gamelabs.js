@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import type { IExample01CubeView } from "./IExample01CubeView";
+import type { ICubeView } from "./ICubeView";
 
-export class Example01CubeView extends THREE.Group implements IExample01CubeView {
+export class CubeView extends THREE.Group implements ICubeView {
   private readonly mesh: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
 
   constructor() {

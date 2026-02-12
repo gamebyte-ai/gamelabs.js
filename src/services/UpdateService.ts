@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "./subscriptions.js";
+import type { Unsubscribe } from "../core/subscriptions.js";
 
 export type UpdateCallback = (dtSeconds: number) => void;
 

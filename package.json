@@ -15,16 +15,6 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./2d": {
-      "types": "./dist/2d/index.d.ts",
-      "import": "./dist/2d/index.js",
-      "require": "./dist/2d/index.cjs"
-    },
-    "./3d": {
-      "types": "./dist/3d/index.d.ts",
-      "import": "./dist/3d/index.js",
-      "require": "./dist/3d/index.cjs"
-    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",

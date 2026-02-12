@@ -18,20 +18,25 @@ npm i gamelabsjs three pixi.js
 ### 2D (PixiJS)
 
 ```ts
-import { create2DApp } from "gamelabsjs/2d";
+import { Hud } from "gamelabsjs";
 
-const app = await create2DApp({ background: "#111111", resizeTo: window });
-document.body.appendChild(app.canvas);
+const hud = await Hud.create(document.body, { pixiOptions: { background: "#111111", resizeTo: window } });
 ```
 
 ### 3D (Three.js)
 
 ```ts
-import { create3DRenderer } from "gamelabsjs/3d";
+import { World } from "gamelabsjs";
 
-const renderer = create3DRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+const world = World.create(undefined, { mount: document.body });
+
+function resize() {
+  world.resize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio || 1, 2));
+}
+window.addEventListener("resize", resize);
+resize();
+
+world.render();
 ```
 
 ## Dev
