@@ -1,4 +1,5 @@
 import * as PIXI from "pixi.js";
+import type { IViewController } from "gamelabsjs";
 import type { IDebugBarView, Unsubscribe } from "./IDebugBarView";
 
 export class DebugBarView extends PIXI.Container implements IDebugBarView {
@@ -13,6 +14,7 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
   private readonly bar = new PIXI.Container();
   private readonly barBg = new PIXI.Graphics();
   private readonly barButtons: PIXI.Container[] = [];
+  private controller: IViewController | null = null;
 
   constructor() {
     super();
@@ -81,6 +83,10 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
     this.bar.visible = visible;
   }
 
+  setController(controller: IViewController | null): void {
+    this.controller = controller;
+  }
+
   resize(width: number, height: number): void {
     const margin = DebugBarView.margin;
 
@@ -113,6 +119,9 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
   }
 
   destroy(): void {
+    this.controller?.destroy();
+    this.controller = null;
+
     for (const btn of this.barButtons) btn.removeAllListeners();
     this.removeFromParent();
   }

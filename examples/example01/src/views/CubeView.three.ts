@@ -1,8 +1,10 @@
 import * as THREE from "three";
+import type { IViewController } from "gamelabsjs";
 import type { ICubeView } from "./ICubeView";
 
 export class CubeView extends THREE.Group implements ICubeView {
   private readonly mesh: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
+  private controller: IViewController | null = null;
 
   constructor() {
     super();
@@ -23,7 +25,14 @@ export class CubeView extends THREE.Group implements ICubeView {
     this.mesh.material.color.set(hex);
   }
 
+  setController(controller: IViewController | null): void {
+    this.controller = controller;
+  }
+
   destroy(): void {
+    this.controller?.destroy();
+    this.controller = null;
+
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
     this.removeFromParent();

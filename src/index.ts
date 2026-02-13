@@ -1,5 +1,7 @@
 export * from "./core/GamelabsApp.js";
 export * from "./views/ViewBinder.js";
+export * from "./views/ViewFactory.js";
+export * from "./views/IViewFactory.js";
 export * from "./views/IView.js";
 export * from "./views/IViewController.js";
 export * from "./services/UpdateService.js";
@@ -9,6 +11,7 @@ export * from "./ui/IScreenView.js";
 export * from "./ui/ScreenTransition.js";
 export * from "./ui/ScreenView.pixi.js";
 export type { Unsubscribe } from "./core/subscriptions.js";
+export { UnsubscribeBag } from "./core/subscriptions.js";
 export * from "./core/types.js";
 export * from "./core/version.js";
 

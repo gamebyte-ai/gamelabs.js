@@ -171,7 +171,6 @@ export class GamelabsApp {
     if (typeof window !== "undefined") {
       window.removeEventListener("resize", this._onWindowResize);
     }
-    this.binder.destroyAll();
     this.updates.clear();
   }
 }

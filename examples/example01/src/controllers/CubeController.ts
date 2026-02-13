@@ -1,4 +1,4 @@
-import type { IViewController, UpdateService } from "gamelabsjs";
+import { UnsubscribeBag, type IViewController, type UpdateService } from "gamelabsjs";
 import type { ICubeView } from "../views/ICubeView";
 import type { GameEvents } from "../events/GameEvents";
 
@@ -6,9 +6,7 @@ export class CubeController implements IViewController {
   private readonly view: ICubeView;
   private readonly update: UpdateService;
   private readonly events: GameEvents;
-  private unsubscribeUpdate: (() => void) | null = null;
-  private unsubscribeCubeColor: (() => void) | null = null;
-  private unsubscribeToggleRotation: (() => void) | null = null;
+  private readonly subs = new UnsubscribeBag();
   private rotationEnabled = true;
 
   constructor(deps: { view: ICubeView; update: UpdateService; events: GameEvents }) {
@@ -19,13 +17,13 @@ export class CubeController implements IViewController {
 
   initialize(): void {
     // Run early in the frame so rendering happens consistently.
-    this.unsubscribeUpdate = this.update.register((dt: number) => this.onUpdate(dt), 0);
-    this.unsubscribeCubeColor = this.events.onChangeCubeColor((hex: number) => {
+    this.subs.add(this.update.register((dt: number) => this.onUpdate(dt), 0));
+    this.subs.add(this.events.onChangeCubeColor((hex: number) => {
       this.view.setColor(hex);
-    });
-    this.unsubscribeToggleRotation = this.events.onToggleCubeRotation(() => {
+    }));
+    this.subs.add(this.events.onToggleCubeRotation(() => {
       this.rotationEnabled = !this.rotationEnabled;
-    });
+    }));
   }
 
   private onUpdate(dt: number): void {
@@ -34,11 +32,6 @@ export class CubeController implements IViewController {
   }
 
   destroy(): void {
-    this.unsubscribeUpdate?.();
-    this.unsubscribeUpdate = null;
-    this.unsubscribeCubeColor?.();
-    this.unsubscribeCubeColor = null;
-    this.unsubscribeToggleRotation?.();
-    this.unsubscribeToggleRotation = null;
+    this.subs.flush();
   }
 }

@@ -1,4 +1,5 @@
 import * as PIXI from "pixi.js";
+import type { IViewController } from "gamelabsjs";
 import type { ITopBarView, Unsubscribe } from "./ITopBarView";
 
 export class TopBarView extends PIXI.Container implements ITopBarView {
@@ -34,6 +35,8 @@ export class TopBarView extends PIXI.Container implements ITopBarView {
   private readonly toggleButton = new PIXI.Container();
   private readonly rotationButton = new PIXI.Container();
   private readonly debugButton = new PIXI.Container();
+
+  private controller: IViewController | null = null;
 
   constructor() {
     super();
@@ -119,6 +122,10 @@ export class TopBarView extends PIXI.Container implements ITopBarView {
     this.bar.position.set(TopBarView.margin, 0);
   }
 
+  setController(controller: IViewController | null): void {
+    this.controller = controller;
+  }
+
   private createBarBackground(): void {
     // Background width is computed in `resize()` to fill available canvas width.
     const barHeight = TopBarView.barPadding * 2 + TopBarView.buttonHeight;
@@ -193,6 +200,9 @@ export class TopBarView extends PIXI.Container implements ITopBarView {
   }
 
   destroy(): void {
+    this.controller?.destroy();
+    this.controller = null;
+
     this.toggleButton.removeAllListeners();
     this.rotationButton.removeAllListeners();
     this.debugButton.removeAllListeners();

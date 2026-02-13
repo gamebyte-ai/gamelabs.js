@@ -1,8 +1,8 @@
 import * as PIXI from "pixi.js";
-import { ScreenView, type ScreenTransition } from "gamelabsjs";
+import { ScreenView, type IViewFactory, type ScreenTransition } from "gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView";
-import type { TopBarView } from "./TopBarView.pixi";
-import type { DebugBarView } from "./DebugBarView.pixi";
+import { TopBarView } from "./TopBarView.pixi";
+import { DebugBarView } from "./DebugBarView.pixi";
 
 /**
  * Example01 gameplay screen (Pixi).
@@ -15,24 +15,20 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   private topBar: TopBarView | null = null;
   private debugBar: DebugBarView | null = null;
+  private readonly viewFactory: IViewFactory | null;
 
-  constructor() {
+  constructor(deps?: { viewFactory: IViewFactory }) {
     super();
 
     // Keep an invisible overlay so the screen has bounds and can later host interactions.
     this.addChild(this.overlay);
-  }
 
-  attachTopBar(view: TopBarView): void {
-    this.topBar?.removeFromParent();
-    this.topBar = view;
-    this.addChild(view);
-  }
-
-  attachDebugBar(view: DebugBarView): void {
-    this.debugBar?.removeFromParent();
-    this.debugBar = view;
-    this.addChild(view);
+    this.viewFactory = deps?.viewFactory ?? null;
+    if (this.viewFactory) {
+      // View owns subview creation.
+      this.topBar = this.viewFactory.createView(TopBarView, this);
+      this.debugBar = this.viewFactory.createView(DebugBarView, this);
+    }
   }
 
   override onEnter(_transition: ScreenTransition): void | Promise<void> {
@@ -53,6 +49,15 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   }
 
   override destroy(): void {
+    this.controller?.destroy();
+    this.controller = null;
+
+    // View owns subview teardown.
+    this.topBar?.destroy();
+    this.topBar = null;
+    this.debugBar?.destroy();
+    this.debugBar = null;
+
     // Keep it consistent with other Example01 Pixi views:
     // - do not Pixi-destroy recursively
     // - just detach and remove listeners
