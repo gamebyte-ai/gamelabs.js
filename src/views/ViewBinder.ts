@@ -1,15 +1,8 @@
-import type { Unsubscribe } from "./subscriptions.js";
+import type { Unsubscribe } from "../core/subscriptions.js";
+import type { IView } from "./IView.js";
+import type { IViewController } from "./IViewController.js";
 
-export interface IView {
-  destroy(): void;
-}
-
-export interface IController {
-  initialize(): void;
-  destroy(): void;
-}
-
-export type ControllerCtor<TView extends IView, TDeps extends object, TController extends IController> = new (
+export type ControllerCtor<TView extends IView, TDeps extends object, TController extends IViewController> = new (
   deps: { view: TView } & TDeps
 ) => TController;
 
@@ -21,9 +14,9 @@ export type ControllerCtor<TView extends IView, TDeps extends object, TControlle
  * - Tracks pairs for cleanup
  */
 export class ViewBinder {
-  private readonly pairs: Array<{ view: IView; controller: IController }> = [];
+  private readonly pairs: Array<{ view: IView; controller: IViewController }> = [];
 
-  bind<TView extends IView, TDeps extends object, TController extends IController>(
+  bind<TView extends IView, TDeps extends object, TController extends IViewController>(
     view: TView,
     Controller: ControllerCtor<TView, TDeps, TController>,
     deps: TDeps
@@ -45,4 +38,6 @@ export class ViewBinder {
     this.pairs.length = 0;
   }
 }
+
+export type { Unsubscribe };
 

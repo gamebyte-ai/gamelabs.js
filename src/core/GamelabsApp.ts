@@ -1,10 +1,10 @@
-import type { GamelabsAppConfig, GamelabsAppMode } from "./types.js";
-import { ViewBinder } from "./ViewBinder.js";
+import type { GamelabsAppConfig } from "./types.js";
+import { ViewBinder } from "../views/ViewBinder.js";
 import { UpdateService } from "../services/UpdateService.js";
 
 export class GamelabsApp {
-  readonly mode: GamelabsAppMode;
   readonly canvas: HTMLCanvasElement;
+  readonly mount: HTMLElement | undefined;
 
   /**
    * Optional framework helpers available to all apps.
@@ -31,11 +31,13 @@ export class GamelabsApp {
   private readonly _onWindowResize = (): void => {
     const dpr = typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1;
 
+    const measureEl = this.mount ?? this.canvas;
     const rect =
-      typeof this.canvas.getBoundingClientRect === "function" ? this.canvas.getBoundingClientRect() : null;
+      typeof measureEl.getBoundingClientRect === "function" ? measureEl.getBoundingClientRect() : null;
 
-    const measuredWidth = rect?.width ?? this.canvas.clientWidth ?? this.canvas.width;
-    const measuredHeight = rect?.height ?? this.canvas.clientHeight ?? this.canvas.height;
+    const measuredWidth = rect?.width ?? measureEl.clientWidth ?? this.canvas.clientWidth ?? this.canvas.width;
+    const measuredHeight =
+      rect?.height ?? measureEl.clientHeight ?? this.canvas.clientHeight ?? this.canvas.height;
 
     // Important: do NOT use the last known size as an override here.
     // Otherwise the resize handler will stop tracking DOM size changes and canvases will be CSS-scaled (stretched).
@@ -46,8 +48,8 @@ export class GamelabsApp {
   };
 
   constructor(config: GamelabsAppConfig) {
-    this.mode = config.mode;
     this.canvas = config.canvas ?? document.createElement("canvas");
+    this.mount = config.mount;
     this._fixedWidth = config.width;
     this._fixedHeight = config.height;
     this._width = config.width;

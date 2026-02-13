@@ -5,15 +5,11 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
   private static readonly margin = 16;
   private static readonly gap = 10;
 
-  private static readonly toggleWidth = 120;
-  private static readonly toggleHeight = 44;
-
   private static readonly barPadding = 10;
   private static readonly barButtonWidth = 92;
   private static readonly barButtonHeight = 40;
   private static readonly barButtonCount = 1;
 
-  private readonly toggleButton = new PIXI.Container();
   private readonly bar = new PIXI.Container();
   private readonly barBg = new PIXI.Graphics();
   private readonly barButtons: PIXI.Container[] = [];
@@ -21,36 +17,11 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
   constructor() {
     super();
 
-    this.createToggleButton();
     this.createBar();
 
     this.addChild(this.bar);
-    this.addChild(this.toggleButton);
 
     this.setBarVisible(false);
-  }
-
-  private createToggleButton(): void {
-    this.toggleButton.eventMode = "static";
-    this.toggleButton.cursor = "pointer";
-
-    const bg = new PIXI.Graphics()
-      .roundRect(0, 0, DebugBarView.toggleWidth, DebugBarView.toggleHeight, 12)
-      .fill({ color: 0x111827, alpha: 0.92 })
-      .stroke({ color: 0x334155, width: 1 });
-    this.toggleButton.addChild(bg);
-
-    const text = new PIXI.Text({
-      text: "Debug",
-      style: {
-        fill: 0xe8eef6,
-        fontSize: 14,
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-        fontWeight: "600"
-      }
-    });
-    text.position.set(14, 12);
-    this.toggleButton.addChild(text);
   }
 
   private createBar(): void {
@@ -97,12 +68,6 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
     return button;
   }
 
-  onToggleDebug(cb: () => void): Unsubscribe {
-    const handler = () => cb();
-    this.toggleButton.on("pointertap", handler);
-    return () => this.toggleButton.off("pointertap", handler);
-  }
-
   onToggleGroundGrid(cb: () => void): Unsubscribe {
     const gridButton = this.barButtons[0];
     if (!gridButton) return () => {};
@@ -119,16 +84,13 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
   resize(width: number, height: number): void {
     const margin = DebugBarView.margin;
 
-    const toggleX = Math.max(0, width - margin - DebugBarView.toggleWidth);
     const rowBottom = Math.max(0, height - margin);
-    const toggleY = Math.max(0, rowBottom - DebugBarView.toggleHeight);
-    this.toggleButton.position.set(toggleX, toggleY);
 
     const barHeight = DebugBarView.barPadding * 2 + DebugBarView.barButtonHeight;
 
-    // Bar sits next to the Debug button and fills remaining width.
+    // Bar fills available width along the bottom edge.
     const barLeft = margin;
-    const barRight = Math.max(barLeft, toggleX - DebugBarView.gap);
+    const barRight = Math.max(barLeft, width - margin);
     const barWidth = Math.max(0, barRight - barLeft);
 
     // Redraw stretch background.
@@ -151,7 +113,6 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
   }
 
   destroy(): void {
-    this.toggleButton.removeAllListeners();
     for (const btn of this.barButtons) btn.removeAllListeners();
     this.removeFromParent();
   }

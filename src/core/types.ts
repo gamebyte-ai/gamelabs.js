@@ -1,5 +1,3 @@
-export type GamelabsAppMode = "2d" | "3d" | "hybrid";
-
 export type WithCanvas = {
   /**
    * If omitted, the engine will create and manage a canvas.
@@ -8,7 +6,11 @@ export type WithCanvas = {
 };
 
 export type GamelabsAppConfig = WithCanvas & {
-  mode: GamelabsAppMode;
+  /**
+   * Optional mount element for measuring layout and/or attaching rendering layers.
+   * If provided, `GamelabsApp` will use this element's bounding rect for resize measurements.
+   */
+  mount?: HTMLElement;
 
   /**
    * Optional size; if omitted and a canvas is provided, uses canvas client size.

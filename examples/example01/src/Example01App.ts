@@ -2,15 +2,12 @@ import { GamelabsApp, Hud, World } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
-import { TopBarView } from "./views/TopBarView.pixi";
-import { TopBarController } from "./controllers/TopBarController";
-import { DebugBarView } from "./views/DebugBarView.pixi";
-import { DebugBarController } from "./controllers/DebugBarController";
+import { GameScreenView } from "./views/GameScreenView.pixi";
+import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { GameEvents } from "./events/GameEvents";
 import { DebugEvents } from "./events/DebugEvents";
 
 export class Example01App extends GamelabsApp {
-  readonly stageEl: HTMLElement;
   readonly events = new GameEvents();
   readonly debugEvents = new DebugEvents();
 
@@ -22,23 +19,20 @@ export class Example01App extends GamelabsApp {
   private cubeView: CubeView | null = null;
 
   private hud: Hud | null = null;
-  private topBar: TopBarView | null = null;
-  private debugBar: DebugBarView | null = null;
+  private gameScreen: GameScreenView | null = null;
 
   constructor(stageEl: HTMLElement) {
-    super({ mode: "hybrid" });
-    this.stageEl = stageEl;
+    super({ mount: stageEl });
   }
 
   override async initialize(): Promise<void> {
-    this.createWorld();
+    await this.createWorld();
 
     await this.createHud();
 
-    this.createCube();
+    this.createGameScreen();
 
-    this.createTopBar();
-    this.createDebugBar();
+    this.createCube();
 
     // Force first layout pass.
     this.requestResize();
@@ -54,8 +48,7 @@ export class Example01App extends GamelabsApp {
     this.world?.resize(w, h, clampedDpr);
 
     this.hud?.resize(w, h);
-    this.topBar?.resize(w, h);
-    this.debugBar?.resize(w, h);
+    this.gameScreen?.resize(w, h);
   }
 
   override onStep(timestepSeconds: number): void {
@@ -63,8 +56,9 @@ export class Example01App extends GamelabsApp {
     this.world?.render();
   }
 
-  private createWorld(): void {
-    this.world = World.create(this.canvas, { mount: this.stageEl, canvasClassName: "layer world3d" });
+  private async createWorld(): Promise<void> {
+    if (!this.mount) throw new Error("Missing mount element");
+    this.world = await World.create(this.canvas, { mount: this.mount, canvasClassName: "layer world3d" });
     this.groundGrid = this.world.showGroundGrid({
       size: 20,
       divisions: 20,
@@ -81,25 +75,21 @@ export class Example01App extends GamelabsApp {
   }
 
   private async createHud(): Promise<void> {
-    this.hud = await Hud.create(this.stageEl);
+    if (!this.mount) throw new Error("Missing mount element");
+    this.hud = await Hud.create(this.mount);
   }
 
-  private createTopBar(): void {
+  private createGameScreen(): void {
     if (!this.hud) throw new Error("HUD is not initialized");
 
-    this.topBar = new TopBarView();
-    this.hud.app.stage.addChild(this.topBar);
+    this.gameScreen = new GameScreenView();
+    this.hud.app.stage.addChild(this.gameScreen);
 
-    this.binder.bind(this.topBar, TopBarController, { events: this.events });
-  }
-
-  private createDebugBar(): void {
-    if (!this.hud) throw new Error("HUD is not initialized");
-
-    this.debugBar = new DebugBarView();
-    this.hud.app.stage.addChild(this.debugBar);
-
-    this.binder.bind(this.debugBar, DebugBarController, { events: this.debugEvents });
+    // Create at application start with an instant transition.
+    this.binder.bind(this.gameScreen, GameScreenViewController, {
+      events: this.events,
+      debugEvents: this.debugEvents
+    });
   }
 
   private createCube(): void {
@@ -121,8 +111,7 @@ export class Example01App extends GamelabsApp {
 
     this.hud?.destroy();
     this.hud = null;
-    this.topBar = null;
-    this.debugBar = null;
+    this.gameScreen = null;
 
     this.world?.destroy();
     this.world = null;

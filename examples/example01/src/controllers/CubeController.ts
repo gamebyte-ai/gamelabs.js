@@ -1,8 +1,8 @@
-import type { IController, UpdateService } from "gamelabsjs";
+import type { IViewController, UpdateService } from "gamelabsjs";
 import type { ICubeView } from "../views/ICubeView";
 import type { GameEvents } from "../events/GameEvents";
 
-export class CubeController implements IController {
+export class CubeController implements IViewController {
   private readonly view: ICubeView;
   private readonly update: UpdateService;
   private readonly events: GameEvents;

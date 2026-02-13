@@ -28,7 +28,7 @@ const hud = await Hud.create(document.body, { pixiOptions: { background: "#11111
 ```ts
 import { World } from "gamelabsjs";
 
-const world = World.create(undefined, { mount: document.body });
+const world = await World.create(undefined, { mount: document.body });
 
 function resize() {
   world.resize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio || 1, 2));

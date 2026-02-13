@@ -20,7 +20,7 @@ export type WorldCreateOptions = {
 };
 
 export class World {
-  static create(canvas?: HTMLCanvasElement, options: WorldCreateOptions = {}): World {
+  static async create(canvas?: HTMLCanvasElement, options: WorldCreateOptions = {}): Promise<World> {
     const c = canvas ?? document.createElement("canvas");
     if (options.canvasClassName !== undefined) c.className = options.canvasClassName;
     if (options.mount && !c.isConnected) options.mount.appendChild(c);

@@ -1,8 +1,8 @@
-import type { IController } from "gamelabsjs";
+import type { IViewController } from "gamelabsjs";
 import type { ITopBarView } from "../views/ITopBarView";
 import type { GameEvents } from "../events/GameEvents";
 
-export class TopBarController implements IController {
+export class TopBarController implements IViewController {
   private readonly view: ITopBarView;
   private readonly events: GameEvents;
 
