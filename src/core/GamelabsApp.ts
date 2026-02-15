@@ -1,5 +1,8 @@
 import type { GamelabsAppConfig } from "./types.js";
+import { Container } from "./di/Container.js";
+import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewBinder } from "../views/ViewBinder.js";
+import { ViewFactory } from "../views/ViewFactory.js";
 import { UpdateService } from "../services/UpdateService.js";
 
 export class GamelabsApp {
@@ -11,8 +14,22 @@ export class GamelabsApp {
    * You can use these in your composition root to bind view/controller pairs
    * and to run ordered per-frame updates.
    */
-  readonly binder = new ViewBinder();
-  readonly updates = new UpdateService();
+  readonly viewBinder = new ViewBinder();
+  readonly updateService = new UpdateService();
+
+  /**
+   * App-level singleton container.
+   * Intended as the root resolver passed into controllers.
+   */
+  readonly di = new Container();
+
+  /**
+   * View + controller factory for the app.
+   * Controllers receive `{ view, resolver }` via `ViewBinder` and resolve deps from `di`.
+   */
+  readonly viewFactory = new ViewFactory<IInstanceResolver>(this.viewBinder, this.di);
+
+  private _compositionRootConfigured = false;
 
   /**
    * Optional fixed logical dimensions provided via config.
@@ -59,6 +76,11 @@ export class GamelabsApp {
     if (typeof window !== "undefined") {
       window.addEventListener("resize", this._onWindowResize, { passive: true });
     }
+
+    // Base DI bindings (always available).
+    this.di.bindInstance(UpdateService, this.updateService);
+    this.di.bindInstance(ViewBinder, this.viewBinder);
+    this.di.bindInstance(GamelabsApp, this);
   }
 
   /**
@@ -67,8 +89,39 @@ export class GamelabsApp {
    *
    * Users should call this manually in their app lifecycle.
    */
+  async initialize(): Promise<void> {
+    this.setupCompositionRoot();
+  }
+
+  /**
+   * Composition root hook for binding app-level singletons.
+   * Intended to be overridden by child classes.
+   */
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  async initialize(): Promise<void> {}
+  protected configureDI(): void {}
+
+  /**
+   * Composition root hook for view/controller registrations.
+   * Intended to be overridden by child classes.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  protected configureViews(): void {}
+
+  /**
+   * Runs the composition root hooks once.
+   * Apps should call this before creating any views/controllers.
+   */
+  protected setupCompositionRoot(): void {
+    if (this._compositionRootConfigured) return;
+    this._compositionRootConfigured = true;
+    try {
+      this.configureDI();
+      this.configureViews();
+    } catch (e) {
+      this._compositionRootConfigured = false;
+      throw e;
+    }
+  }
 
   /**
    * Resize hook.
@@ -90,11 +143,11 @@ export class GamelabsApp {
   /**
    * Per-frame hook called by `mainLoop()`.
    *
-   * By default this runs the ordered callbacks registered in `updates`.
+   * By default this runs the ordered callbacks registered in `updateService`.
    * If you need custom per-frame logic, override `onStep()` instead of `step()`.
    */
   step(timestepSeconds: number): void {
-    this.updates.tick(timestepSeconds);
+    this.updateService.tick(timestepSeconds);
     this.onStep(timestepSeconds);
   }
 
@@ -171,7 +224,7 @@ export class GamelabsApp {
     if (typeof window !== "undefined") {
       window.removeEventListener("resize", this._onWindowResize);
     }
-    this.updates.clear();
+    this.updateService.clear();
   }
 }
 

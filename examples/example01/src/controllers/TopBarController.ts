@@ -1,30 +1,30 @@
-import { UnsubscribeBag, type IViewController } from "gamelabsjs";
+import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "gamelabsjs";
 import type { ITopBarView } from "../views/ITopBarView";
-import type { GameEvents } from "../events/GameEvents";
-import type { DebugEvents } from "../events/DebugEvents";
+import { GameEvents } from "../events/GameEvents";
+import { DebugEvents } from "../events/DebugEvents";
 
 export class TopBarController implements IViewController {
   private readonly view: ITopBarView;
-  private readonly events: GameEvents;
+  private readonly gameEvents: GameEvents;
   private readonly debugEvents: DebugEvents;
 
   private readonly subs = new UnsubscribeBag();
   private toggled = false;
 
-  constructor(deps: { view: ITopBarView; events: GameEvents; debugEvents: DebugEvents }) {
+  constructor(deps: { view: ITopBarView; resolver: IInstanceResolver }) {
     this.view = deps.view;
-    this.events = deps.events;
-    this.debugEvents = deps.debugEvents;
+    this.gameEvents = deps.resolver.getInstance(GameEvents);
+    this.debugEvents = deps.resolver.getInstance(DebugEvents);
   }
 
   initialize(): void {
     this.subs.add(this.view.onToggleColor(() => {
       this.toggled = !this.toggled;
-      this.events.emitChangeCubeColor(this.toggled ? 0xf97316 : 0x3b82f6);
+      this.gameEvents.emitChangeCubeColor(this.toggled ? 0xf97316 : 0x3b82f6);
     }));
 
     this.subs.add(this.view.onToggleRotation(() => {
-      this.events.emitToggleCubeRotation();
+      this.gameEvents.emitToggleCubeRotation();
     }));
 
     this.subs.add(this.view.onToggleDebug(() => {

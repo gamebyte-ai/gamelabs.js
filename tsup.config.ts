@@ -7,11 +7,15 @@ export default defineConfig({
   outDir: "dist",
   dts: true,
   sourcemap: true,
+  define: {
+    __GAMELABSJS_VERSION__: JSON.stringify(pkg.version)
+  },
   // We run cleaning via npm script to avoid rare race issues
   // when multiple formats/entries clean concurrently.
   clean: false,
   treeshake: true,
   splitting: false,
+  // Also set via esbuildOptions for older tsup behavior.
   esbuildOptions(options) {
     options.define = {
       ...(options.define ?? {}),

@@ -1,4 +1,4 @@
-import { GamelabsApp, Hud, type IViewFactory, type UpdateService, ViewFactory, World } from "gamelabsjs";
+import { GamelabsApp, Hud, type IViewFactory, World } from "gamelabsjs";
 import type { Container } from "pixi.js";
 
 import { CubeView } from "./views/CubeView.three";
@@ -12,27 +12,29 @@ import { DebugBarController } from "./controllers/DebugBarController";
 import { GameEvents } from "./events/GameEvents";
 import { DebugEvents } from "./events/DebugEvents";
 
-type Example01ViewContext = {
-  events: GameEvents;
-  debugEvents: DebugEvents;
-  updates: UpdateService;
-};
-
 export class Example01App extends GamelabsApp {
-  readonly events = new GameEvents();
+  readonly gameEvents = new GameEvents();
   readonly debugEvents = new DebugEvents();
 
   private unsubscribeToggleGroundGrid: (() => void) | null = null;
   private groundGrid: ReturnType<World["showGroundGrid"]> | null = null;
   private groundGridVisible = true;
 
-  private viewFactory: ViewFactory<Example01ViewContext> | null = null;
-
   private world: World | null = null;
   private cubeView: CubeView | null = null;
 
   private hud: Hud | null = null;
   private gameScreen: GameScreenView | null = null;
+
+  private readonly attachToHud = (parent: unknown, view: unknown): void => {
+    // Pixi-style containers (e.g. HUD stage, GameScreenView) use addChild(view)
+    (parent as Container).addChild(view as any);
+  };
+
+  private readonly attachToWorld = (parent: unknown, view: unknown): void => {
+    // Three-style worlds use add(view)
+    (parent as World).add(view as any);
+  };
 
   constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -43,7 +45,7 @@ export class Example01App extends GamelabsApp {
 
     await this.createHud();
 
-    this.createViewFactory();
+    this.setupCompositionRoot();
 
     this.createGameScreen();
 
@@ -94,58 +96,48 @@ export class Example01App extends GamelabsApp {
     this.hud = await Hud.create(this.mount);
   }
 
-  private createViewFactory(): void {
-    this.viewFactory = new ViewFactory(this.binder, {
-      events: this.events,
-      debugEvents: this.debugEvents,
-      updates: this.updates
-    });
+  protected override configureDI(): void {
+    this.di.bindInstance(GameEvents, this.gameEvents);
+    this.di.bindInstance(DebugEvents, this.debugEvents);
+  }
 
+  protected override configureViews(): void {
     // Pixi screen layer (HUD stage).
-    this.viewFactory.register<GameScreenView, object, GameScreenViewController>(
+    this.viewFactory.register<GameScreenView, GameScreenViewController>(
       GameScreenView,
       {
         create: () => new GameScreenView({ viewFactory: this.viewFactory as IViewFactory }),
         Controller: GameScreenViewController,
-        attachToParent: (parent: unknown, view: unknown) =>
-          (parent as Container).addChild(view as GameScreenView),
-        deps: (_ctx: Example01ViewContext) => ({})
+        attachToParent: this.attachToHud,
       }
     );
 
     // GameScreen subviews (parent = GameScreenView). These are created by `GameScreenView` via injected `IViewFactory`.
-    this.viewFactory.register<TopBarView, { events: GameEvents; debugEvents: DebugEvents }, TopBarController>(TopBarView, {
+    this.viewFactory.register<TopBarView, TopBarController>(TopBarView, {
       Controller: TopBarController,
-      attachToParent: (parent: unknown, view: unknown) =>
-        (parent as GameScreenView).addChild(view as TopBarView),
-      deps: (ctx: Example01ViewContext) => ({ events: ctx.events, debugEvents: ctx.debugEvents })
+      attachToParent: this.attachToHud,
     });
 
-    this.viewFactory.register<DebugBarView, { events: DebugEvents }, DebugBarController>(DebugBarView, {
+    this.viewFactory.register<DebugBarView, DebugBarController>(DebugBarView, {
       Controller: DebugBarController,
-      attachToParent: (parent: unknown, view: unknown) =>
-        (parent as GameScreenView).addChild(view as DebugBarView),
-      deps: (ctx: Example01ViewContext) => ({ events: ctx.debugEvents })
+      attachToParent: this.attachToHud,
     });
 
     // Three world layer.
-    this.viewFactory.register<CubeView, { update: UpdateService; events: GameEvents }, CubeController>(CubeView, {
+    this.viewFactory.register<CubeView, CubeController>(CubeView, {
       Controller: CubeController,
-      attachToParent: (parent: unknown, view: unknown) => (parent as World).add(view as CubeView),
-      deps: (ctx: Example01ViewContext) => ({ update: ctx.updates, events: ctx.events })
+      attachToParent: this.attachToWorld,
     });
   }
 
   private createGameScreen(): void {
     if (!this.hud) throw new Error("HUD is not initialized");
-    if (!this.viewFactory) throw new Error("ViewFactory is not initialized");
 
     this.gameScreen = this.viewFactory.createView(GameScreenView, this.hud.app.stage);
   }
 
   private createCube(): void {
     if (!this.world) throw new Error("Three world is not initialized");
-    if (!this.viewFactory) throw new Error("ViewFactory is not initialized");
 
     this.cubeView = this.viewFactory.createView(CubeView, this.world);
   }
@@ -154,7 +146,6 @@ export class Example01App extends GamelabsApp {
     this.unsubscribeToggleGroundGrid?.();
     this.unsubscribeToggleGroundGrid = null;
     this.groundGrid = null;
-    this.viewFactory = null;
 
     // Views now own controller cleanup; destroy views explicitly.
     this.gameScreen?.destroy();

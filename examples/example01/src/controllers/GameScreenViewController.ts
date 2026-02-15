@@ -1,4 +1,4 @@
-import { NO_SCREEN_TRANSITION, UnsubscribeBag, type IViewController, type ScreenTransition } from "gamelabsjs";
+import { NO_SCREEN_TRANSITION, UnsubscribeBag, type IInstanceResolver, type IViewController, type ScreenTransition } from "gamelabsjs";
 import { GameScreenView } from "../views/GameScreenView.pixi";
 
 const INSTANT_TRANSITION: ScreenTransition = { type: "instant", durationMs: 0 };
@@ -8,12 +8,9 @@ export class GameScreenViewController implements IViewController {
   private readonly enterTransition: ScreenTransition;
   private readonly subs = new UnsubscribeBag();
 
-  constructor(deps: {
-    view: GameScreenView;
-    transition?: ScreenTransition;
-  }) {
+  constructor(deps: { view: GameScreenView; resolver: IInstanceResolver }) {
     this.view = deps.view;
-    this.enterTransition = deps.transition ?? INSTANT_TRANSITION;
+    this.enterTransition = INSTANT_TRANSITION;
   }
 
   initialize(): void {

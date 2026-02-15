@@ -1,6 +1,6 @@
-import { UnsubscribeBag, type IViewController } from "gamelabsjs";
+import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "gamelabsjs";
 import type { IDebugBarView } from "../views/IDebugBarView";
-import type { DebugEvents } from "../events/DebugEvents";
+import { DebugEvents } from "../events/DebugEvents";
 
 export class DebugBarController implements IViewController {
   private readonly view: IDebugBarView;
@@ -8,9 +8,9 @@ export class DebugBarController implements IViewController {
   private readonly subs = new UnsubscribeBag();
   private visible = false;
 
-  constructor(deps: { view: IDebugBarView; events: DebugEvents }) {
+  constructor(deps: { view: IDebugBarView; resolver: IInstanceResolver }) {
     this.view = deps.view;
-    this.events = deps.events;
+    this.events = deps.resolver.getInstance(DebugEvents);
   }
 
   initialize(): void {
