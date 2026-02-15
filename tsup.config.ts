@@ -7,6 +7,9 @@ export default defineConfig({
   outDir: "dist",
   dts: true,
   sourcemap: true,
+  // IMPORTANT: keep peer deps external so apps use a single runtime instance.
+  // Otherwise, mixing different `three` or `pixi` copies will crash at runtime.
+  external: ["three", "pixi.js", "@pixi/layout", "@pixi/ui"],
   define: {
     __GAMELABSJS_VERSION__: JSON.stringify(pkg.version)
   },

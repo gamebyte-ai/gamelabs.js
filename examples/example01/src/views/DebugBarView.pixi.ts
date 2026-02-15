@@ -1,59 +1,78 @@
 import * as PIXI from "pixi.js";
+import { Button } from "@pixi/ui";
 import type { IViewController } from "gamelabsjs";
 import type { IDebugBarView, Unsubscribe } from "./IDebugBarView";
 
 export class DebugBarView extends PIXI.Container implements IDebugBarView {
-  private static readonly margin = 16;
   private static readonly gap = 10;
 
   private static readonly barPadding = 10;
-  private static readonly barButtonWidth = 92;
   private static readonly barButtonHeight = 40;
-  private static readonly barButtonCount = 1;
+
+  // Must be initialized before any field initializer calls `createButtonView()`.
+  private readonly cleanup: Array<() => void> = [];
 
   private readonly bar = new PIXI.Container();
   private readonly barBg = new PIXI.Graphics();
-  private readonly barButtons: PIXI.Container[] = [];
+
+  private readonly gridButtonView = this.createButtonView("Grid");
+  private readonly gridButton = new Button(this.gridButtonView);
   private controller: IViewController | null = null;
 
   constructor() {
     super();
 
-    this.createBar();
+    (this as any).layout = {
+      width: "100%",
+      padding: 16
+    };
 
+    (this.bar as any).layout = {
+      width: "100%",
+      flexDirection: "row",
+      padding: DebugBarView.barPadding,
+      gap: DebugBarView.gap
+    };
+
+    (this.barBg as any).layout = {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: "100%",
+      height: "100%"
+    };
+
+    this.createBar();
     this.addChild(this.bar);
 
     this.setBarVisible(false);
   }
 
   private createBar(): void {
-    const barHeight = DebugBarView.barPadding * 2 + DebugBarView.barButtonHeight;
-
-    // Background width is computed in `resize()` to fill available canvas width.
-    this.barBg
-      .roundRect(0, 0, 10, barHeight, 14)
-      .fill({ color: 0x0b1220, alpha: 0.9 })
-      .stroke({ color: 0x334155, width: 1 });
     this.bar.addChild(this.barBg);
 
-    const labels = ["Grid"];
-    for (let i = 0; i < DebugBarView.barButtonCount; i++) {
-      const btn = this.createSmallButton(labels[i] ?? `Btn ${i + 1}`);
-      this.barButtons.push(btn);
-      this.bar.addChild(btn);
-    }
+    // Fixed height; width is controlled by layout.
+    (this.gridButtonView as any).layout = {
+      height: DebugBarView.barButtonHeight
+    };
+    this.bar.addChild(this.gridButtonView);
+
+    const onBarLayout = (layout: any) => {
+      const w = Math.max(1, Math.floor(layout.computedLayout.width));
+      const h = Math.max(1, Math.floor(layout.computedLayout.height));
+      this.barBg.clear();
+      this.barBg.roundRect(0, 0, w, h, 14).fill({ color: 0x0b1220, alpha: 0.9 }).stroke({ color: 0x334155, width: 1 });
+    };
+    this.bar.on("layout", onBarLayout);
+    this.cleanup.push(() => this.bar.off("layout", onBarLayout));
   }
 
-  private createSmallButton(label: string): PIXI.Container {
-    const button = new PIXI.Container();
-    button.eventMode = "static";
-    button.cursor = "pointer";
+  private createButtonView(label: string): PIXI.Container {
+    const view = new PIXI.Container();
 
-    const bg = new PIXI.Graphics()
-      .roundRect(0, 0, DebugBarView.barButtonWidth, DebugBarView.barButtonHeight, 10)
-      .fill({ color: 0x111827, alpha: 0.92 })
-      .stroke({ color: 0x334155, width: 1 });
-    button.addChild(bg);
+    const bg = new PIXI.Graphics();
+    (bg as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    view.addChild(bg);
 
     const text = new PIXI.Text({
       text: label,
@@ -63,20 +82,25 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial"
       }
     });
-    // Approximate centering without relying on text anchors.
     text.position.set(12, 11);
-    button.addChild(text);
+    view.addChild(text);
 
-    return button;
+    const onLayout = (layout: any) => {
+      const w = Math.max(1, Math.floor(layout.computedLayout.width));
+      const h = Math.max(1, Math.floor(layout.computedLayout.height));
+      bg.clear();
+      bg.roundRect(0, 0, w, h, 10).fill({ color: 0x111827, alpha: 0.92 }).stroke({ color: 0x334155, width: 1 });
+    };
+    view.on("layout", onLayout);
+    this.cleanup.push(() => view.off("layout", onLayout));
+
+    return view;
   }
 
   onToggleGroundGrid(cb: () => void): Unsubscribe {
-    const gridButton = this.barButtons[0];
-    if (!gridButton) return () => {};
-
     const handler = () => cb();
-    gridButton.on("pointertap", handler);
-    return () => gridButton.off("pointertap", handler);
+    this.gridButton.onPress.connect(handler);
+    return () => this.gridButton.onPress.disconnect(handler);
   }
 
   setBarVisible(visible: boolean): void {
@@ -88,41 +112,17 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
   }
 
   resize(width: number, height: number): void {
-    const margin = DebugBarView.margin;
-
-    const rowBottom = Math.max(0, height - margin);
-
-    const barHeight = DebugBarView.barPadding * 2 + DebugBarView.barButtonHeight;
-
-    // Bar fills available width along the bottom edge.
-    const barLeft = margin;
-    const barRight = Math.max(barLeft, width - margin);
-    const barWidth = Math.max(0, barRight - barLeft);
-
-    // Redraw stretch background.
-    this.barBg.clear();
-    this.barBg
-      .roundRect(0, 0, barWidth, barHeight, 14)
-      .fill({ color: 0x0b1220, alpha: 0.9 })
-      .stroke({ color: 0x334155, width: 1 });
-
-    // Left-align buttons inside the stretched bar.
-    const x = DebugBarView.barPadding;
-    for (let i = 0; i < this.barButtons.length; i++) {
-      const btn = this.barButtons[i];
-      btn.position.set(x + i * (DebugBarView.barButtonWidth + DebugBarView.gap), DebugBarView.barPadding);
-    }
-
-    const barX = barLeft;
-    const barY = Math.max(0, rowBottom - barHeight);
-    this.bar.position.set(barX, barY);
+    // Layout handles sizing/positioning; keep the method for API compatibility.
+    void width;
+    void height;
   }
 
   destroy(): void {
     this.controller?.destroy();
     this.controller = null;
 
-    for (const btn of this.barButtons) btn.removeAllListeners();
+    for (const c of this.cleanup) c();
+    this.cleanup.length = 0;
     this.removeFromParent();
   }
 }

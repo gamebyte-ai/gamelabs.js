@@ -1,4 +1,5 @@
 import "./style.css";
+import "@pixi/layout";
 
 import { Example01App } from "./Example01App";
 

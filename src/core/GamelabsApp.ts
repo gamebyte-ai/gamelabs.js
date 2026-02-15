@@ -1,35 +1,26 @@
 import type { GamelabsAppConfig } from "./types.js";
+import { World } from "./World.js";
 import { Container } from "./di/Container.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewBinder } from "../views/ViewBinder.js";
 import { ViewFactory } from "../views/ViewFactory.js";
 import { UpdateService } from "../services/UpdateService.js";
+import { Hud } from "../index.js";
+import type { Container as PixiContainer } from "pixi.js";
 
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
   readonly mount: HTMLElement | undefined;
 
-  /**
-   * Optional framework helpers available to all apps.
-   * You can use these in your composition root to bind view/controller pairs
-   * and to run ordered per-frame updates.
-   */
+  world: World | null = null;
+  hud: Hud | null = null;
+
   readonly viewBinder = new ViewBinder();
   readonly updateService = new UpdateService();
-
-  /**
-   * App-level singleton container.
-   * Intended as the root resolver passed into controllers.
-   */
   readonly di = new Container();
-
-  /**
-   * View + controller factory for the app.
-   * Controllers receive `{ view, resolver }` via `ViewBinder` and resolve deps from `di`.
-   */
   readonly viewFactory = new ViewFactory<IInstanceResolver>(this.viewBinder, this.di);
 
-  private _compositionRootConfigured = false;
+  private _isInitialized = false;
 
   /**
    * Optional fixed logical dimensions provided via config.
@@ -61,6 +52,13 @@ export class GamelabsApp {
     const width = Math.max(1, Math.floor(this._fixedWidth ?? measuredWidth));
     const height = Math.max(1, Math.floor(this._fixedHeight ?? measuredHeight));
 
+    this._width = width;
+    this._height = height;
+    this.canvas.width = width;
+    this.canvas.height = height;
+
+    this.hud?.resize(width, height);
+    this.world?.resize(width, height, dpr);
     this.onResize(width, height, dpr);
   };
 
@@ -83,45 +81,48 @@ export class GamelabsApp {
     this.di.bindInstance(GamelabsApp, this);
   }
 
-  /**
-   * Initialization hook for apps/framework layers.
-   * Intended to be overridden by child classes.
-   *
-   * Users should call this manually in their app lifecycle.
-   */
   async initialize(): Promise<void> {
-    this.setupCompositionRoot();
+    if (this._isInitialized) return;
+    
+    this._isInitialized = true;
+    
+    await this.createWorld();
+    await this.createHud();
+
+    this.configureDI();
+    this.configureViews();
+
+    this.postInitialize();
+
+    this.requestResize();
   }
 
-  /**
-   * Composition root hook for binding app-level singletons.
-   * Intended to be overridden by child classes.
-   */
+  private async createWorld(): Promise<void> {
+    if (!this.mount) throw new Error("Missing mount element");
+    this.world = await World.create(this.canvas, { mount: this.mount, canvasClassName: "layer world3d" });
+  }
+
+  protected readonly attachToWorld = (parent: unknown, child: unknown): void => {
+    (parent as World).add(child as any);
+  };
+
+  private async createHud(): Promise<void> {
+    if (!this.mount) throw new Error("Missing mount element");
+    this.hud = await Hud.create(this.mount);
+  }
+
+  protected readonly attachToHud = (parent: unknown, view: unknown): void => {
+    (parent as PixiContainer).addChild(view as any);
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  protected postInitialize(): void {}
+
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected configureDI(): void {}
 
-  /**
-   * Composition root hook for view/controller registrations.
-   * Intended to be overridden by child classes.
-   */
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected configureViews(): void {}
-
-  /**
-   * Runs the composition root hooks once.
-   * Apps should call this before creating any views/controllers.
-   */
-  protected setupCompositionRoot(): void {
-    if (this._compositionRootConfigured) return;
-    this._compositionRootConfigured = true;
-    try {
-      this.configureDI();
-      this.configureViews();
-    } catch (e) {
-      this._compositionRootConfigured = false;
-      throw e;
-    }
-  }
 
   /**
    * Resize hook.
@@ -136,19 +137,8 @@ export class GamelabsApp {
    * Manually triggers a resize calculation and calls `onResize(width, height, dpr)`.
    * Useful for an initial layout pass after mounting.
    */
-  requestResize(): void {
+  private requestResize(): void {
     this._onWindowResize();
-  }
-
-  /**
-   * Per-frame hook called by `mainLoop()`.
-   *
-   * By default this runs the ordered callbacks registered in `updateService`.
-   * If you need custom per-frame logic, override `onStep()` instead of `step()`.
-   */
-  step(timestepSeconds: number): void {
-    this.updateService.tick(timestepSeconds);
-    this.onStep(timestepSeconds);
   }
 
   /**
@@ -171,7 +161,9 @@ export class GamelabsApp {
       const dtSeconds = Math.max(0, (nowMs - this._lastFrameTimeMs) / 1000);
       this._lastFrameTimeMs = nowMs;
 
-      this.step(dtSeconds);
+      this.updateService.tick(dtSeconds);
+      this.onStep(dtSeconds);
+      this.world?.render();
       this._rafId = requestAnimationFrame(tick);
     };
 
@@ -201,16 +193,6 @@ export class GamelabsApp {
    */
   get height(): number {
     return this._height ?? this.canvas.clientHeight ?? this.canvas.height;
-  }
-
-  /**
-   * Minimal resize hook. Rendering backends (Pixi/Three) will be added later.
-   */
-  resize(width: number, height: number): void {
-    this._width = width;
-    this._height = height;
-    this.canvas.width = width;
-    this.canvas.height = height;
   }
 
   /**

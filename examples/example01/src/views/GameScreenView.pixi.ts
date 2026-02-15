@@ -20,7 +20,18 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   constructor(deps?: { viewFactory: IViewFactory }) {
     super();
 
-    // Keep an invisible overlay so the screen has bounds and can later host interactions.
+    // Enable flex layout: top bar at top, debug bar at bottom.
+    (this as any).layout = {
+      width: 1,
+      height: 1,
+      flexDirection: "column",
+      justifyContent: "space-between",
+      padding: 16,
+      gap: 12
+    };
+
+    // Invisible overlay to define bounds + potential future interactions.
+    (this.overlay as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this.addChild(this.overlay);
 
     this.viewFactory = deps?.viewFactory ?? null;
@@ -28,6 +39,10 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       // View owns subview creation.
       this.topBar = this.viewFactory.createView(TopBarView, this);
       this.debugBar = this.viewFactory.createView(DebugBarView, this);
+
+      // Layout children: fill width, take intrinsic height.
+      if (this.topBar) (this.topBar as any).layout = { width: "100%" };
+      if (this.debugBar) (this.debugBar as any).layout = { width: "100%" };
     }
   }
 
@@ -40,10 +55,14 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   }
 
   resize(width: number, height: number): void {
+    // Drive layout sizing from the app.
+    (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
+
     this.overlay.clear();
     // Transparent overlay; keeps the screen non-obtrusive while defining bounds.
     this.overlay.rect(0, 0, Math.max(1, width), Math.max(1, height)).fill({ color: 0x000000, alpha: 0 });
 
+    // Keep these calls for the current view contracts; layout does most of the work.
     this.topBar?.resize(width, height);
     this.debugBar?.resize(width, height);
   }

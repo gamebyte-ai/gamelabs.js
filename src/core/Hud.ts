@@ -1,3 +1,4 @@
+import "@pixi/layout";
 import { Application, type ApplicationOptions } from "pixi.js";
 
 export type HudCreateOptions = {
@@ -45,7 +46,27 @@ export class Hud {
       backgroundAlpha: options.backgroundAlpha ?? 0,
       resolution,
       autoDensity: true,
-      preference: options.preference ?? "webgl"
+      preference: options.preference ?? "webgl",
+      layout: {
+        layout: {
+          autoUpdate: true,
+          enableDebug: false,
+          debugModificationCount: 0,
+          throttle: 100
+        }
+      }
+    });
+
+    // IMPORTANT: @pixi/layout loads Yoga asynchronously.
+    // Pixi's `app.init()` does not guarantee async system init is complete before returning,
+    // so ensure Yoga is ready before any views set `.layout = ...`.
+    await app.renderer.layout.init({
+      layout: {
+        autoUpdate: true,
+        enableDebug: false,
+        debugModificationCount: 0,
+        throttle: 100
+      }
     });
 
     const canvas = app.canvas as unknown as HTMLCanvasElement;

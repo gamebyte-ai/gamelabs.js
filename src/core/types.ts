@@ -25,4 +25,3 @@ export type GamelabsAppConfig = WithCanvas & {
   pixi?: Record<string, unknown>;
   three?: Record<string, unknown>;
 };
-

@@ -1,22 +1,36 @@
 import * as PIXI from "pixi.js";
+import { Button } from "@pixi/ui";
 import type { IViewController } from "gamelabsjs";
 import type { ITopBarView, Unsubscribe } from "./ITopBarView";
 
 export class TopBarView extends PIXI.Container implements ITopBarView {
-  private static readonly margin = 16;
   private static readonly gap = 10;
-  private static readonly titleY = 12;
-  private static readonly buttonsY = 50;
-
-  private static readonly buttonWidth = 220;
   private static readonly buttonHeight = 44;
-  private static readonly buttonCount = 3;
-
+  private static readonly buttonMaxWidth = 220;
   private static readonly barPadding = 10;
   private static readonly barRadius = 14;
 
-  private readonly bar = new PIXI.Container();
-  private readonly barBg = new PIXI.Graphics();
+  // Must be initialized before any field initializer calls `createButtonView()`.
+  private readonly cleanup: Array<() => void> = [];
+
+  private readonly bar = new PIXI.Container({
+    layout: {
+      width: "100%",
+      flexDirection: "column",
+      padding: TopBarView.barPadding,
+      gap: TopBarView.gap
+    }
+  });
+
+  private readonly barBg = new PIXI.Graphics({
+    layout: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: "100%",
+      height: "100%"
+    }
+  });
 
   private readonly title = new PIXI.Text({
     text: "Example 01",
@@ -28,184 +42,138 @@ export class TopBarView extends PIXI.Container implements ITopBarView {
     }
   });
 
-  private readonly toggleBg = new PIXI.Graphics();
-  private readonly rotationBg = new PIXI.Graphics();
-  private readonly debugBg = new PIXI.Graphics();
+  private readonly buttonsRow = new PIXI.Container({
+    layout: { width: "100%", flexDirection: "row", gap: TopBarView.gap }
+  });
 
-  private readonly toggleButton = new PIXI.Container();
-  private readonly rotationButton = new PIXI.Container();
-  private readonly debugButton = new PIXI.Container();
+  private readonly toggleButtonView = this.createButtonView("Toggle cube color");
+  private readonly rotationButtonView = this.createButtonView("Toggle cube rotation");
+  private readonly debugButtonView = this.createButtonView("Debug", { strong: true });
+
+  private readonly toggleButton = new Button(this.toggleButtonView);
+  private readonly rotationButton = new Button(this.rotationButtonView);
+  private readonly debugButton = new Button(this.debugButtonView);
 
   private controller: IViewController | null = null;
 
   constructor() {
-    super();
+    super({
+      layout: {
+        width: "100%",
+        padding: 16
+      }
+    });
 
-    this.createBarBackground();
+    this.bar.addChild(this.barBg);
 
-    this.title.position.set(0, TopBarView.titleY);
+    // Title should size intrinsically and center itself.
+    (this.title as any).layout = { alignSelf: "center" };
     this.bar.addChild(this.title);
 
-    this.toggleButton.eventMode = "static";
-    this.toggleButton.cursor = "pointer";
-    this.toggleButton.position.set(0, 0);
+    // Buttons row fills horizontally; buttons flex to available width with a max.
+    for (const v of [this.toggleButtonView, this.rotationButtonView, this.debugButtonView]) {
+      (v as any).layout = {
+        height: TopBarView.buttonHeight,
+        flexGrow: 1,
+        flexShrink: 1,
+        maxWidth: TopBarView.buttonMaxWidth
+      };
+      this.buttonsRow.addChild(v);
+    }
+    this.bar.addChild(this.buttonsRow);
 
-    this.toggleBg
-      .roundRect(0, 0, 10, TopBarView.buttonHeight, 12)
-      .fill({ color: 0x111827, alpha: 0.85 })
-      .stroke({ color: 0x334155, width: 1 });
-    this.toggleButton.addChild(this.toggleBg);
-
-    const btnText = new PIXI.Text({
-      text: "Toggle cube color",
-      style: {
-        fill: 0xe8eef6,
-        fontSize: 14,
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial"
-      }
-    });
-    btnText.position.set(14, 12);
-    this.toggleButton.addChild(btnText);
-
-    this.bar.addChild(this.toggleButton);
-
-    this.rotationButton.eventMode = "static";
-    this.rotationButton.cursor = "pointer";
-    this.rotationButton.position.set(0, 0);
-
-    this.rotationBg
-      .roundRect(0, 0, 10, TopBarView.buttonHeight, 12)
-      .fill({ color: 0x111827, alpha: 0.85 })
-      .stroke({ color: 0x334155, width: 1 });
-    this.rotationButton.addChild(this.rotationBg);
-
-    const rotText = new PIXI.Text({
-      text: "Toggle cube rotation",
-      style: {
-        fill: 0xe8eef6,
-        fontSize: 14,
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial"
-      }
-    });
-    rotText.position.set(14, 12);
-    this.rotationButton.addChild(rotText);
-
-    this.bar.addChild(this.rotationButton);
-
-    this.debugButton.eventMode = "static";
-    this.debugButton.cursor = "pointer";
-    this.debugButton.position.set(0, 0);
-
-    this.debugBg
-      .roundRect(0, 0, 10, TopBarView.buttonHeight, 12)
-      .fill({ color: 0x111827, alpha: 0.85 })
-      .stroke({ color: 0x334155, width: 1 });
-    this.debugButton.addChild(this.debugBg);
-
-    const debugText = new PIXI.Text({
-      text: "Debug",
-      style: {
-        fill: 0xe8eef6,
-        fontSize: 14,
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-        fontWeight: "600"
-      }
-    });
-    debugText.position.set(14, 12);
-    this.debugButton.addChild(debugText);
-
-    this.bar.addChild(this.debugButton);
+    // Redraw bar background whenever layout changes.
+    const onBarLayout = (layout: any) => {
+      const w = Math.max(1, Math.floor(layout.computedLayout.width));
+      const h = Math.max(1, Math.floor(layout.computedLayout.height));
+      this.barBg.clear();
+      this.barBg
+        .roundRect(0, 0, w, h, TopBarView.barRadius)
+        .fill({ color: 0x0b1220, alpha: 0.9 })
+        .stroke({ color: 0x334155, width: 1 });
+    };
+    this.bar.on("layout", onBarLayout);
+    this.cleanup.push(() => this.bar.off("layout", onBarLayout));
 
     this.addChild(this.bar);
-
-    // Initial layout (proper sizing happens on first real resize pass).
-    this.bar.position.set(TopBarView.margin, 0);
   }
 
   setController(controller: IViewController | null): void {
     this.controller = controller;
   }
 
-  private createBarBackground(): void {
-    // Background width is computed in `resize()` to fill available canvas width.
-    const barHeight = TopBarView.barPadding * 2 + TopBarView.buttonHeight;
-    this.barBg
-      .roundRect(0, 0, 10, barHeight, TopBarView.barRadius)
-      .fill({ color: 0x0b1220, alpha: 0.9 })
-      .stroke({ color: 0x334155, width: 1 });
-    this.bar.addChild(this.barBg);
+  private createButtonView(label: string, opts: { strong?: boolean } = {}): PIXI.Container {
+    const view = new PIXI.Container();
+
+    // Layout: the parent assigns width; we handle height + maxWidth.
+    (view as any).layout = { height: TopBarView.buttonHeight };
+
+    const bg = new PIXI.Graphics({
+      layout: {
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: "100%",
+        height: "100%"
+      }
+    });
+    view.addChild(bg);
+
+    const text = new PIXI.Text({
+      text: label,
+      style: {
+        fill: 0xe8eef6,
+        fontSize: 14,
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        ...(opts.strong ? { fontWeight: "600" } : null)
+      }
+    });
+    // Keep it simple: padding-based placement. Layout will keep the view sized.
+    text.position.set(14, 12);
+    view.addChild(text);
+
+    const onLayout = (layout: any) => {
+      const w = Math.max(1, Math.floor(layout.computedLayout.width));
+      const h = Math.max(1, Math.floor(layout.computedLayout.height));
+      bg.clear();
+      bg.roundRect(0, 0, w, h, 12).fill({ color: 0x111827, alpha: 0.85 }).stroke({ color: 0x334155, width: 1 });
+    };
+    view.on("layout", onLayout);
+    this.cleanup.push(() => view.off("layout", onLayout));
+
+    return view;
   }
 
   onToggleColor(cb: () => void): Unsubscribe {
     const handler = () => cb();
-    this.toggleButton.on("pointertap", handler);
-    return () => this.toggleButton.off("pointertap", handler);
+    this.toggleButton.onPress.connect(handler);
+    return () => this.toggleButton.onPress.disconnect(handler);
   }
 
   onToggleRotation(cb: () => void): Unsubscribe {
     const handler = () => cb();
-    this.rotationButton.on("pointertap", handler);
-    return () => this.rotationButton.off("pointertap", handler);
+    this.rotationButton.onPress.connect(handler);
+    return () => this.rotationButton.onPress.disconnect(handler);
   }
 
   onToggleDebug(cb: () => void): Unsubscribe {
     const handler = () => cb();
-    this.debugButton.on("pointertap", handler);
-    return () => this.debugButton.off("pointertap", handler);
+    this.debugButton.onPress.connect(handler);
+    return () => this.debugButton.onPress.disconnect(handler);
   }
 
   resize(width: number, height: number): void {
-    const margin = TopBarView.margin;
-    const barHeight = TopBarView.buttonsY + TopBarView.buttonHeight + TopBarView.barPadding;
-
-    const desiredBarX = margin;
-    const desiredBarY = 0;
-
-    const barWidth = Math.max(0, width - margin * 2);
-
-    // Clamp Y so it doesn't drift off small viewports.
-    const maxY = Math.max(0, height - barHeight);
-    const barY = Math.max(0, Math.min(desiredBarY, maxY));
-
-    // Redraw stretch background.
-    this.barBg.clear();
-    this.barBg
-      .roundRect(0, 0, barWidth, barHeight, TopBarView.barRadius)
-      .fill({ color: 0x0b1220, alpha: 0.9 })
-      .stroke({ color: 0x334155, width: 1 });
-
-    const innerWidth = Math.max(0, barWidth - TopBarView.barPadding * 2);
-    const totalGap = TopBarView.gap * (TopBarView.buttonCount - 1);
-    const perButtonWidth = Math.max(0, Math.floor((innerWidth - totalGap) / TopBarView.buttonCount));
-    const buttonWidth = Math.min(TopBarView.buttonWidth, perButtonWidth);
-
-    // Center the title horizontally within the stretched bar.
-    const titleX = Math.max(0, (barWidth - this.title.width) / 2);
-    this.title.position.set(titleX, TopBarView.titleY);
-
-    // Redraw button backgrounds to match computed width.
-    for (const bg of [this.toggleBg, this.rotationBg, this.debugBg]) {
-      bg.clear();
-      bg.roundRect(0, 0, buttonWidth, TopBarView.buttonHeight, 12)
-        .fill({ color: 0x111827, alpha: 0.85 })
-        .stroke({ color: 0x334155, width: 1 });
-    }
-
-    const y = TopBarView.buttonsY;
-    this.toggleButton.position.set(TopBarView.barPadding, y);
-    this.rotationButton.position.set(TopBarView.barPadding + (buttonWidth + TopBarView.gap) * 1, y);
-    this.debugButton.position.set(TopBarView.barPadding + (buttonWidth + TopBarView.gap) * 2, y);
-
-    this.bar.position.set(desiredBarX, barY);
+    // Layout handles sizing/positioning; keep the method for API compatibility.
+    void width;
+    void height;
   }
 
   destroy(): void {
     this.controller?.destroy();
     this.controller = null;
 
-    this.toggleButton.removeAllListeners();
-    this.rotationButton.removeAllListeners();
-    this.debugButton.removeAllListeners();
+    for (const c of this.cleanup) c();
+    this.cleanup.length = 0;
     this.removeFromParent();
   }
 }

@@ -39,9 +39,11 @@
     "3d"
   ],
   "peerDependencies": {
-    "@types/three": "^0.160.0",
+    "@pixi/layout": "^3.2.0",
+    "@pixi/ui": "^2.3.2",
+    "@types/three": "^0.160.0 || ^0.182.0",
     "pixi.js": "^8.0.0",
-    "three": "^0.160.0"
+    "three": "^0.160.0 || ^0.182.0"
   },
   "peerDependenciesMeta": {
     "@types/three": {
@@ -49,10 +51,12 @@
     }
   },
   "devDependencies": {
-    "@types/three": "^0.160.0",
+    "@pixi/layout": "^3.2.0",
+    "@pixi/ui": "^2.3.2",
+    "@types/three": "^0.182.0",
     "pixi.js": "^8.0.0",
     "rimraf": "^6.0.0",
-    "three": "^0.160.0",
+    "three": "^0.182.0",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },

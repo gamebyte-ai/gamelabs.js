@@ -1,5 +1,4 @@
 import { GamelabsApp, Hud, type IViewFactory, World } from "gamelabsjs";
-import type { Container } from "pixi.js";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
@@ -20,62 +19,35 @@ export class Example01App extends GamelabsApp {
   private groundGrid: ReturnType<World["showGroundGrid"]> | null = null;
   private groundGridVisible = true;
 
-  private world: World | null = null;
   private cubeView: CubeView | null = null;
 
-  private hud: Hud | null = null;
   private gameScreen: GameScreenView | null = null;
-
-  private readonly attachToHud = (parent: unknown, view: unknown): void => {
-    // Pixi-style containers (e.g. HUD stage, GameScreenView) use addChild(view)
-    (parent as Container).addChild(view as any);
-  };
-
-  private readonly attachToWorld = (parent: unknown, view: unknown): void => {
-    // Three-style worlds use add(view)
-    (parent as World).add(view as any);
-  };
 
   constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
   }
 
-  override async initialize(): Promise<void> {
-    await this.createWorld();
+  protected override postInitialize(): void {
 
-    await this.createHud();
-
-    this.setupCompositionRoot();
+    this.createGroundGrid();
 
     this.createGameScreen();
 
     this.createCube();
-
-    // Force first layout pass.
-    this.requestResize();
   }
 
   override onResize(width: number, height: number, dpr: number): void {
-    const w = Math.max(1, Math.floor(width));
-    const h = Math.max(1, Math.floor(height));
-    const clampedDpr = Math.min(dpr || 1, 2);
 
-    super.resize(w, h);
-
-    this.world?.resize(w, h, clampedDpr);
-
-    this.hud?.resize(w, h);
-    this.gameScreen?.resize(w, h);
+    this.gameScreen?.resize(width, height);
   }
 
   override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
-    this.world?.render();
   }
 
-  private async createWorld(): Promise<void> {
-    if (!this.mount) throw new Error("Missing mount element");
-    this.world = await World.create(this.canvas, { mount: this.mount, canvasClassName: "layer world3d" });
+  private createGroundGrid(): void {
+    if (!this.world) throw new Error("World is not initialized");
+
     this.groundGrid = this.world.showGroundGrid({
       size: 20,
       divisions: 20,
@@ -89,11 +61,6 @@ export class Example01App extends GamelabsApp {
       this.groundGridVisible = !this.groundGridVisible;
       if (this.groundGrid) this.groundGrid.visible = this.groundGridVisible;
     });
-  }
-
-  private async createHud(): Promise<void> {
-    if (!this.mount) throw new Error("Missing mount element");
-    this.hud = await Hud.create(this.mount);
   }
 
   protected override configureDI(): void {

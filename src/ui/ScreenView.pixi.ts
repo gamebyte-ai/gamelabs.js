@@ -1,3 +1,4 @@
+import "@pixi/layout";
 import * as PIXI from "pixi.js";
 import type { IScreenView } from "./IScreenView.js";
 import type { ScreenTransition } from "./ScreenTransition.js";
@@ -17,6 +18,12 @@ import type { IViewController } from "../views/IViewController.js";
 export class ScreenView extends PIXI.Container implements IScreenView {
   protected controller: IViewController | null = null;
 
+  constructor() {
+    super();
+    // Enable layout by default for Pixi screens. Apps can override styles in subclasses.
+    (this as any).layout = { width: 1, height: 1 };
+  }
+
   setController(controller: IViewController | null): void {
     this.controller = controller;
   }
@@ -29,6 +36,14 @@ export class ScreenView extends PIXI.Container implements IScreenView {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onExit(_transition: ScreenTransition): void | Promise<void> {
     // Default: no-op.
+  }
+
+  /**
+   * Optional convenience for layout-enabled screens.
+   * If you don't use layouts, you can ignore this.
+   */
+  resize(width: number, height: number): void {
+    (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
   }
 
   override destroy(): void {
