@@ -1,9 +1,9 @@
 import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
-import type { IViewController } from "gamelabsjs";
+import { HudViewBase } from "gamelabsjs";
 import type { ITopBarView, Unsubscribe } from "./ITopBarView";
 
-export class TopBarView extends PIXI.Container implements ITopBarView {
+export class TopBarView extends HudViewBase implements ITopBarView {
   private static readonly gap = 10;
   private static readonly buttonHeight = 44;
   private static readonly buttonMaxWidth = 220;
@@ -54,8 +54,6 @@ export class TopBarView extends PIXI.Container implements ITopBarView {
   private readonly rotationButton = new Button(this.rotationButtonView);
   private readonly debugButton = new Button(this.debugButtonView);
 
-  private controller: IViewController | null = null;
-
   constructor() {
     super({
       layout: {
@@ -96,10 +94,6 @@ export class TopBarView extends PIXI.Container implements ITopBarView {
     this.cleanup.push(() => this.bar.off("layout", onBarLayout));
 
     this.addChild(this.bar);
-  }
-
-  setController(controller: IViewController | null): void {
-    this.controller = controller;
   }
 
   private createButtonView(label: string, opts: { strong?: boolean } = {}): PIXI.Container {
@@ -169,12 +163,9 @@ export class TopBarView extends PIXI.Container implements ITopBarView {
   }
 
   destroy(): void {
-    this.controller?.destroy();
-    this.controller = null;
-
     for (const c of this.cleanup) c();
     this.cleanup.length = 0;
-    this.removeFromParent();
+    super.destroy();
   }
 }
 

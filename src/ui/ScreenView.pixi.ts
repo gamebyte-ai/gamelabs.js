@@ -1,8 +1,8 @@
 import "@pixi/layout";
-import * as PIXI from "pixi.js";
 import type { IScreenView } from "./IScreenView.js";
 import type { ScreenTransition } from "./ScreenTransition.js";
 import type { IViewController } from "../views/IViewController.js";
+import { HudViewBase } from "../views/HudViewBase.js";
 
 /**
  * Base PixiJS screen view.
@@ -15,7 +15,7 @@ import type { IViewController } from "../views/IViewController.js";
  *
  * Concrete screens can extend this and add their own children and logic.
  */
-export class ScreenView extends PIXI.Container implements IScreenView {
+export class ScreenView extends HudViewBase implements IScreenView {
   protected controller: IViewController | null = null;
 
   constructor() {
@@ -50,7 +50,6 @@ export class ScreenView extends PIXI.Container implements IScreenView {
     this.controller?.destroy();
     this.controller = null;
 
-    // Prefer explicit cleanup for interactive UI.
     this.removeAllListeners();
     this.removeFromParent();
     super.destroy();

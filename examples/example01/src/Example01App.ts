@@ -1,4 +1,4 @@
-import { GamelabsApp, Hud, type IViewFactory, World } from "gamelabsjs";
+import { GamelabsApp, Hud, type IViewFactory } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
@@ -16,8 +16,6 @@ export class Example01App extends GamelabsApp {
   readonly debugEvents = new DebugEvents();
 
   private unsubscribeToggleGroundGrid: (() => void) | null = null;
-  private groundGrid: ReturnType<World["showGroundGrid"]> | null = null;
-  private groundGridVisible = true;
 
   private cubeView: CubeView | null = null;
 
@@ -46,20 +44,18 @@ export class Example01App extends GamelabsApp {
   }
 
   private createGroundGrid(): void {
-    if (!this.world) throw new Error("World is not initialized");
+    if (!this.worldDebugger) throw new Error("WorldDebugger is not initialized");
 
-    this.groundGrid = this.world.showGroundGrid({
+    this.worldDebugger.createGroundGrid({
       size: 20,
       divisions: 20,
       color1: 0x223047,
       color2: 0x152033,
       y: -0.75
     });
-    this.groundGridVisible = true;
 
     this.unsubscribeToggleGroundGrid = this.debugEvents.onToggleGroundGrid(() => {
-      this.groundGridVisible = !this.groundGridVisible;
-      if (this.groundGrid) this.groundGrid.visible = this.groundGridVisible;
+      this.worldDebugger?.showGroundGrid(!this.worldDebugger.isGroundGridVisible);
     });
   }
 
@@ -69,7 +65,6 @@ export class Example01App extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    // Pixi screen layer (HUD stage).
     this.viewFactory.register<GameScreenView, GameScreenViewController>(
       GameScreenView,
       {
@@ -79,7 +74,6 @@ export class Example01App extends GamelabsApp {
       }
     );
 
-    // GameScreen subviews (parent = GameScreenView). These are created by `GameScreenView` via injected `IViewFactory`.
     this.viewFactory.register<TopBarView, TopBarController>(TopBarView, {
       Controller: TopBarController,
       attachToParent: this.attachToHud,
@@ -90,7 +84,6 @@ export class Example01App extends GamelabsApp {
       attachToParent: this.attachToHud,
     });
 
-    // Three world layer.
     this.viewFactory.register<CubeView, CubeController>(CubeView, {
       Controller: CubeController,
       attachToParent: this.attachToWorld,
@@ -100,36 +93,24 @@ export class Example01App extends GamelabsApp {
   private createGameScreen(): void {
     if (!this.hud) throw new Error("HUD is not initialized");
 
-    this.gameScreen = this.viewFactory.createView(GameScreenView, this.hud.app.stage);
+    this.gameScreen = this.viewFactory.createView(GameScreenView, null);
   }
 
   private createCube(): void {
     if (!this.world) throw new Error("Three world is not initialized");
 
-    this.cubeView = this.viewFactory.createView(CubeView, this.world);
+    this.cubeView = this.viewFactory.createView(CubeView, null);
   }
 
-  override destroy(): void {
+  protected override preDestroy(): void {
     this.unsubscribeToggleGroundGrid?.();
     this.unsubscribeToggleGroundGrid = null;
-    this.groundGrid = null;
 
-    // Views now own controller cleanup; destroy views explicitly.
     this.gameScreen?.destroy();
     this.gameScreen = null;
 
     this.cubeView?.destroy();
     this.cubeView = null;
-
-    this.hud?.destroy();
-    this.hud = null;
-
-    this.world?.destroy();
-    this.world = null;
-
-    this.canvas.remove();
-
-    super.destroy();
   }
 }
 

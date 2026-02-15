@@ -1,18 +1,19 @@
 import type { GamelabsAppConfig } from "./types.js";
 import { World } from "./World.js";
+import { WorldDebugger } from "./WorldDebugger.js";
 import { Container } from "./di/Container.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewBinder } from "../views/ViewBinder.js";
 import { ViewFactory } from "../views/ViewFactory.js";
 import { UpdateService } from "../services/UpdateService.js";
 import { Hud } from "../index.js";
-import type { Container as PixiContainer } from "pixi.js";
 
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
   readonly mount: HTMLElement | undefined;
 
   world: World | null = null;
+  worldDebugger: WorldDebugger | null = null;
   hud: Hud | null = null;
 
   readonly viewBinder = new ViewBinder();
@@ -100,10 +101,27 @@ export class GamelabsApp {
   private async createWorld(): Promise<void> {
     if (!this.mount) throw new Error("Missing mount element");
     this.world = await World.create(this.canvas, { mount: this.mount, canvasClassName: "layer world3d" });
+    this.worldDebugger = new WorldDebugger(this.world);
   }
 
-  protected readonly attachToWorld = (parent: unknown, child: unknown): void => {
-    (parent as World).add(child as any);
+  protected readonly attachToWorld = (parent: unknown | null, child: unknown): void => {
+    const p = parent as any;
+    const c = child as any;
+
+    // Allow `null` to mean "attach to World root (scene)".
+    if (p === null) {
+      if (!this.world) throw new Error("World is not initialized");
+      this.world.add(c);
+      return;
+    }
+
+    // Support both `World` and `THREE.Object3D` (and any custom parent with an `.add()` method).
+    if (p && typeof p.add === "function") {
+      p.add(c);
+      return;
+    }
+
+    throw new Error("Invalid world parent: expected a World/THREE.Object3D with .add(), or null");
   };
 
   private async createHud(): Promise<void> {
@@ -111,8 +129,24 @@ export class GamelabsApp {
     this.hud = await Hud.create(this.mount);
   }
 
-  protected readonly attachToHud = (parent: unknown, view: unknown): void => {
-    (parent as PixiContainer).addChild(view as any);
+  protected readonly attachToHud = (parent: unknown | null, view: unknown): void => {
+    const p = parent as any;
+    const v = view as any;
+
+    // Allow `null` to mean "attach to HUD root (stage)".
+    if (p === null) {
+      if (!this.hud) throw new Error("HUD is not initialized");
+      this.hud.app.stage.addChild(v);
+      return;
+    }
+
+    // Support any Pixi container-like parent with `.addChild()`.
+    if (p && typeof p.addChild === "function") {
+      p.addChild(v);
+      return;
+    }
+
+    throw new Error("Invalid HUD parent: expected a Pixi Container with .addChild(), or null");
   };
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -123,6 +157,9 @@ export class GamelabsApp {
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected configureViews(): void {}
+
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  protected preDestroy(): void {}
 
   /**
    * Resize hook.
@@ -206,7 +243,20 @@ export class GamelabsApp {
     if (typeof window !== "undefined") {
       window.removeEventListener("resize", this._onWindowResize);
     }
+    
+    this.preDestroy();
+
     this.updateService.clear();
+
+    this.worldDebugger?.destroy();
+
+    this.hud?.destroy();
+    this.hud = null;
+
+    this.world?.destroy();
+    this.world = null;
+
+    this.canvas.remove();
   }
 }
 

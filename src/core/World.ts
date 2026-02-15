@@ -30,7 +30,6 @@ export class World {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
-  private groundGrid: THREE.GridHelper | null = null;
 
   constructor(params: { canvas: HTMLCanvasElement }) {
     this.renderer = create3DRenderer({
@@ -53,36 +52,6 @@ export class World {
     this.scene.add(dir);
   }
 
-  showGroundGrid(options: {
-    size?: number;
-    divisions?: number;
-    color1?: THREE.ColorRepresentation;
-    color2?: THREE.ColorRepresentation;
-    y?: number;
-  } = {}): THREE.GridHelper {
-    const size = options.size ?? 20;
-    const divisions = options.divisions ?? 20;
-    const color1 = options.color1 ?? 0x223047;
-    const color2 = options.color2 ?? 0x152033;
-    const y = options.y ?? 0;
-
-    if (this.groundGrid) {
-      // Replace the existing grid if parameters changed.
-      this.scene.remove(this.groundGrid);
-      this.groundGrid.geometry.dispose();
-      const material = this.groundGrid.material;
-      if (Array.isArray(material)) material.forEach((m) => m.dispose());
-      else material.dispose();
-      this.groundGrid = null;
-    }
-
-    const grid = new THREE.GridHelper(size, divisions, color1, color2);
-    grid.position.y = y;
-    this.scene.add(grid);
-    this.groundGrid = grid;
-    return grid;
-  }
-
   add(object: THREE.Object3D): void {
     this.scene.add(object);
   }
@@ -99,14 +68,6 @@ export class World {
   }
 
   destroy(): void {
-    if (this.groundGrid) {
-      this.scene.remove(this.groundGrid);
-      this.groundGrid.geometry.dispose();
-      const material = this.groundGrid.material;
-      if (Array.isArray(material)) material.forEach((m) => m.dispose());
-      else material.dispose();
-      this.groundGrid = null;
-    }
     this.renderer.dispose();
   }
 }

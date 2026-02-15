@@ -1,9 +1,9 @@
 import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
-import type { IViewController } from "gamelabsjs";
+import { HudViewBase } from "gamelabsjs";
 import type { IDebugBarView, Unsubscribe } from "./IDebugBarView";
 
-export class DebugBarView extends PIXI.Container implements IDebugBarView {
+export class DebugBarView extends HudViewBase implements IDebugBarView {
   private static readonly gap = 10;
 
   private static readonly barPadding = 10;
@@ -17,7 +17,6 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
 
   private readonly gridButtonView = this.createButtonView("Grid");
   private readonly gridButton = new Button(this.gridButtonView);
-  private controller: IViewController | null = null;
 
   constructor() {
     super();
@@ -107,10 +106,6 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
     this.bar.visible = visible;
   }
 
-  setController(controller: IViewController | null): void {
-    this.controller = controller;
-  }
-
   resize(width: number, height: number): void {
     // Layout handles sizing/positioning; keep the method for API compatibility.
     void width;
@@ -118,12 +113,9 @@ export class DebugBarView extends PIXI.Container implements IDebugBarView {
   }
 
   destroy(): void {
-    this.controller?.destroy();
-    this.controller = null;
-
     for (const c of this.cleanup) c();
     this.cleanup.length = 0;
-    this.removeFromParent();
+    super.destroy();
   }
 }
 
