@@ -16,18 +16,22 @@ export class Example01App extends GamelabsApp {
   readonly debugEvents = new DebugEvents();
 
   private unsubscribeToggleGroundGrid: (() => void) | null = null;
+  private unsubscribeToggleStats: (() => void) | null = null;
+  private statsVisible = false;
 
   private cubeView: CubeView | null = null;
 
   private gameScreen: GameScreenView | null = null;
 
   constructor(stageEl: HTMLElement) {
-    super({ mount: stageEl });
+    // Enable shared WebGL context: Three.js + PixiJS render into the same canvas.
+    super({ mount: stageEl, sharedContext: true });
   }
 
   protected override postInitialize(): void {
 
     this.createGroundGrid();
+    this.createStatsToggle();
 
     this.createGameScreen();
 
@@ -56,6 +60,16 @@ export class Example01App extends GamelabsApp {
 
     this.unsubscribeToggleGroundGrid = this.debugEvents.onToggleGroundGrid(() => {
       this.worldDebugger?.showGroundGrid(!this.worldDebugger.isGroundGridVisible);
+    });
+  }
+
+  private createStatsToggle(): void {
+    this.statsVisible = false;
+    this.hud?.showStats(false);
+
+    this.unsubscribeToggleStats = this.debugEvents.onToggleStats(() => {
+      this.statsVisible = !this.statsVisible;
+      this.hud?.showStats(this.statsVisible);
     });
   }
 
@@ -105,6 +119,9 @@ export class Example01App extends GamelabsApp {
   protected override preDestroy(): void {
     this.unsubscribeToggleGroundGrid?.();
     this.unsubscribeToggleGroundGrid = null;
+
+    this.unsubscribeToggleStats?.();
+    this.unsubscribeToggleStats = null;
 
     this.gameScreen?.destroy();
     this.gameScreen = null;

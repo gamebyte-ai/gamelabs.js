@@ -11,6 +11,7 @@ import { Hud } from "../index.js";
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
   readonly mount: HTMLElement | undefined;
+  readonly sharedContext: boolean;
 
   world: World | null = null;
   worldDebugger: WorldDebugger | null = null;
@@ -37,6 +38,7 @@ export class GamelabsApp {
   private _height: number | undefined;
   private _rafId: number | null = null;
   private _lastFrameTimeMs: number | null = null;
+  private _statsVisible = false;
   private readonly _onWindowResize = (): void => {
     const dpr = typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1;
 
@@ -58,14 +60,15 @@ export class GamelabsApp {
     this.canvas.width = width;
     this.canvas.height = height;
 
-    this.hud?.resize(width, height);
     this.world?.resize(width, height, dpr);
+    this.hud?.resize(width, height, dpr);
     this.onResize(width, height, dpr);
   };
 
   constructor(config: GamelabsAppConfig) {
     this.canvas = config.canvas ?? document.createElement("canvas");
     this.mount = config.mount;
+    this.sharedContext = config.sharedContext ?? false;
     this._fixedWidth = config.width;
     this._fixedHeight = config.height;
     this._width = config.width;
@@ -126,7 +129,24 @@ export class GamelabsApp {
 
   private async createHud(): Promise<void> {
     if (!this.mount) throw new Error("Missing mount element");
+
+    if (this.sharedContext) {
+      if (!this.world) throw new Error("World is not initialized");
+
+      // Reuse the SAME canvas + WebGL context created/owned by Three.js.
+      // Rendering is driven manually in `mainLoop()` so we can do Three → Pixi ordering.
+      this.hud = await Hud.create(this.mount, {
+        canvas: this.canvas,
+        context: this.world.renderer.getContext() as WebGL2RenderingContext,
+        manualRender: true
+      });
+      this.hud.showStats(this._statsVisible);
+      return;
+    }
+
+    // Legacy: separate Pixi canvas layer (auto-rendered by Pixi).
     this.hud = await Hud.create(this.mount);
+    this.hud.showStats(this._statsVisible);
   }
 
   protected readonly attachToHud = (parent: unknown | null, view: unknown): void => {
@@ -201,6 +221,7 @@ export class GamelabsApp {
       this.updateService.tick(dtSeconds);
       this.onStep(dtSeconds);
       this.world?.render();
+      if (this.hud?.manualRender) this.hud.render();
       this._rafId = requestAnimationFrame(tick);
     };
 
@@ -230,6 +251,14 @@ export class GamelabsApp {
    */
   get height(): number {
     return this._height ?? this.canvas.clientHeight ?? this.canvas.height;
+  }
+
+  /**
+   * Toggles a small HUD stats panel (top-left).
+   */
+  showStats(show: boolean): void {
+    this._statsVisible = show;
+    this.hud?.showStats(show);
   }
 
   /**

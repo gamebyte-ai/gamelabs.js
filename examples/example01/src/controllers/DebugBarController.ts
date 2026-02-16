@@ -21,6 +21,10 @@ export class DebugBarController implements IViewController {
       this.events.emitToggleGroundGrid();
     }));
 
+    this.subs.add(this.view.onToggleStats(() => {
+      this.events.emitToggleStats();
+    }));
+
     this.subs.add(this.events.onToggleDebugPanel(() => {
       this.visible = !this.visible;
       this.view.setBarVisible(this.visible);

@@ -8,38 +8,44 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
 
   private static readonly barPadding = 10;
   private static readonly barButtonHeight = 40;
+  private static readonly barButtonMinWidth = 92;
+  private static readonly barRadius = 14;
 
   // Must be initialized before any field initializer calls `createButtonView()`.
   private readonly cleanup: Array<() => void> = [];
 
-  private readonly bar = new PIXI.Container();
-  private readonly barBg = new PIXI.Graphics();
-
-  private readonly gridButtonView = this.createButtonView("Grid");
-  private readonly gridButton = new Button(this.gridButtonView);
-
-  constructor() {
-    super();
-
-    (this as any).layout = {
-      width: "100%",
-      padding: 16
-    };
-
-    (this.bar as any).layout = {
+  private readonly bar = new PIXI.Container({
+    layout: {
       width: "100%",
       flexDirection: "row",
+      justifyContent: "flex-start",
       padding: DebugBarView.barPadding,
       gap: DebugBarView.gap
-    };
-
-    (this.barBg as any).layout = {
+    }
+  });
+  private readonly barBg = new PIXI.Graphics({
+    layout: {
       position: "absolute",
       left: 0,
       top: 0,
       width: "100%",
       height: "100%"
-    };
+    }
+  });
+
+  private readonly gridButtonView = this.createButtonView("Grid");
+  private readonly gridButton = new Button(this.gridButtonView);
+
+  private readonly statsButtonView = this.createButtonView("Stats");
+  private readonly statsButton = new Button(this.statsButtonView);
+
+  constructor() {
+    super({
+      layout: {
+        width: "100%",
+        padding: 16
+      }
+    });
 
     this.createBar();
     this.addChild(this.bar);
@@ -50,17 +56,26 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
   private createBar(): void {
     this.bar.addChild(this.barBg);
 
-    // Fixed height; width is controlled by layout.
-    (this.gridButtonView as any).layout = {
-      height: DebugBarView.barButtonHeight
-    };
-    this.bar.addChild(this.gridButtonView);
+    // IMPORTANT: @pixi/layout doesn't measure intrinsic content width for plain Containers,
+    // so we must provide width constraints; otherwise children can overlap at x=0.
+    for (const v of [this.gridButtonView, this.statsButtonView]) {
+      (v as any).layout = {
+        height: DebugBarView.barButtonHeight,
+        minWidth: DebugBarView.barButtonMinWidth,
+        flexGrow: 0,
+        flexShrink: 0
+      };
+      this.bar.addChild(v);
+    }
 
     const onBarLayout = (layout: any) => {
       const w = Math.max(1, Math.floor(layout.computedLayout.width));
       const h = Math.max(1, Math.floor(layout.computedLayout.height));
       this.barBg.clear();
-      this.barBg.roundRect(0, 0, w, h, 14).fill({ color: 0x0b1220, alpha: 0.9 }).stroke({ color: 0x334155, width: 1 });
+      this.barBg
+        .roundRect(0, 0, w, h, DebugBarView.barRadius)
+        .fill({ color: 0x0b1220, alpha: 0.9 })
+        .stroke({ color: 0x334155, width: 1 });
     };
     this.bar.on("layout", onBarLayout);
     this.cleanup.push(() => this.bar.off("layout", onBarLayout));
@@ -100,6 +115,12 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     const handler = () => cb();
     this.gridButton.onPress.connect(handler);
     return () => this.gridButton.onPress.disconnect(handler);
+  }
+
+  onToggleStats(cb: () => void): Unsubscribe {
+    const handler = () => cb();
+    this.statsButton.onPress.connect(handler);
+    return () => this.statsButton.onPress.disconnect(handler);
   }
 
   setBarVisible(visible: boolean): void {

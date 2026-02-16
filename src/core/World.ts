@@ -35,6 +35,7 @@ export class World {
     this.renderer = create3DRenderer({
       canvas: params.canvas,
       antialias: true,
+      stencil: true,
       powerPreference: "high-performance"
     });
     this.renderer.setClearColor(0x0b0f14, 1);
@@ -64,6 +65,8 @@ export class World {
   }
 
   render(): void {
+    // Important when sharing a WebGL context with another renderer (e.g. PixiJS).
+    this.renderer.resetState();
     this.renderer.render(this.scene, this.camera);
   }
 
