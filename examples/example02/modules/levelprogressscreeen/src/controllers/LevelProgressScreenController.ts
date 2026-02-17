@@ -3,7 +3,7 @@ import {
   type IInstanceResolver,
   type IViewController
 } from "gamelabsjs";
-import type { ILevelProgressScreenView } from "../views/ILevelProgressScreen.js";
+import type { ILevelProgressScreenView } from "../views/ILevelProgressScreenView.js";
 import { LevelProgressScreenEvents } from "../events/LevelProgressScreenEvents.js";
 
 /**

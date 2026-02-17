@@ -1,5 +1,5 @@
 import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "gamelabsjs";
-import type { IMainScreenView } from "../views/IMainScreen.js";
+import type { IMainScreenView } from "../views/IMainScreenView.js";
 import { MainScreenEvents } from "../events/MainScreenEvents.js";
 
 /**

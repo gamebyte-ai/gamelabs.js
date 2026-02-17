@@ -4,7 +4,6 @@ import type { IScreen, IView } from "gamelabsjs";
  * Example02 level progress screen contract.
  */
 export interface ILevelProgressScreenView extends IView, IScreen {
-  onResize(width: number, height: number, dpr: number): void;
 
   /**
    * Sets the current level number (1-indexed).

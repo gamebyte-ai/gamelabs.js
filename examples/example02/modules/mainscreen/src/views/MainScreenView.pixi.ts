@@ -1,7 +1,7 @@
 import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
 import { ScreenView, type ScreenTransition } from "gamelabsjs";
-import type { IMainScreenView } from "./IMainScreen.js";
+import type { IMainScreenView } from "./IMainScreenView.js";
 import playButtonBgUrl from "../../assets/play_button_bg.png";
 import settingsButtonBgUrl from "../../assets/settings_button_bg.png";
 import backgroundUrl from "../../assets/background.jpg";

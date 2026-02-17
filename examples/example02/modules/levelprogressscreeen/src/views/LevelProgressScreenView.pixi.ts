@@ -1,7 +1,7 @@
 import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
 import { ScreenView, type ScreenTransition } from "gamelabsjs";
-import type { ILevelProgressScreenView } from "./ILevelProgressScreen.js";
+import type { ILevelProgressScreenView } from "./ILevelProgressScreenView.js";
 
 type LevelItemRefs = {
   view: PIXI.Container;
