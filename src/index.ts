@@ -13,7 +13,7 @@ export * from "./services/UpdateService.js";
 export * from "./core/Hud.js";
 export * from "./core/World.js";
 export * from "./core/WorldDebugger.js";
-export * from "./ui/IScreenView.js";
+export * from "./ui/IScreen.js";
 export * from "./ui/ScreenTransition.js";
 export * from "./ui/ScreenView.pixi.js";
 export type { Unsubscribe } from "./core/subscriptions.js";

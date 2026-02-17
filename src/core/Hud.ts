@@ -47,6 +47,16 @@ export class Hud {
   readonly app: Application;
   readonly mount: HTMLElement;
   readonly manualRender: boolean;
+  /**
+   * Root container for normal HUD views.
+   * Everything attached here will render below `overlayLayer`.
+   */
+  readonly contentLayer: Container;
+  /**
+   * Top-most HUD overlay container (always on top of `contentLayer`).
+   * The stats panel is attached here.
+   */
+  readonly overlayLayer: Container;
 
   private _statsRoot: Container | null = null;
   private _statsBg: Graphics | null = null;
@@ -60,6 +70,19 @@ export class Hud {
     this.app = app;
     this.mount = mount;
     this.manualRender = manualRender;
+
+    // Stage layers: keep overlay always on top, regardless of future HUD view attachments.
+    // Use zIndex sorting so add order doesn't matter.
+    this.app.stage.sortableChildren = true;
+
+    this.contentLayer = new Container();
+    this.contentLayer.zIndex = 0;
+
+    this.overlayLayer = new Container();
+    this.overlayLayer.zIndex = 1000;
+
+    this.app.stage.addChild(this.contentLayer);
+    this.app.stage.addChild(this.overlayLayer);
 
     const r = (this.app.renderer as any).resolution;
     if (typeof r === "number" && Number.isFinite(r)) this._lastDpr = r;
@@ -183,7 +206,7 @@ export class Hud {
     root.addChild(bg);
     root.addChild(text);
 
-    this.app.stage.addChild(root);
+    this.overlayLayer.addChild(root);
 
     this._statsRoot = root;
     this._statsBg = bg;

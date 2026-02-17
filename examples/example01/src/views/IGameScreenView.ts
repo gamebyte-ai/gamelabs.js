@@ -1,4 +1,4 @@
-import type { IScreenView } from "gamelabsjs";
+import type { IScreen, IView } from "gamelabsjs";
 
 /**
  * Example01 "gameplay" screen contract.
@@ -6,7 +6,6 @@ import type { IScreenView } from "gamelabsjs";
  * For now this is just a resize-aware screen view, but it gives us a stable
  * place to add screen-specific APIs later (HUD hooks, overlays, etc.).
  */
-export interface IGameScreenView extends IScreenView {
-  resize(width: number, height: number): void;
+export interface IGameScreenView extends IView, IScreen {
 }
 

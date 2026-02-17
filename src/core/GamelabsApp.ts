@@ -62,7 +62,7 @@ export class GamelabsApp {
 
     this.world?.resize(width, height, dpr);
     this.hud?.resize(width, height, dpr);
-    this.onResize(width, height, dpr);
+    this.viewFactory.resize(width, height, dpr);
   };
 
   constructor(config: GamelabsAppConfig) {
@@ -153,10 +153,10 @@ export class GamelabsApp {
     const p = parent as any;
     const v = view as any;
 
-    // Allow `null` to mean "attach to HUD root (stage)".
+    // Allow `null` to mean "attach to HUD root".
     if (p === null) {
       if (!this.hud) throw new Error("HUD is not initialized");
-      this.hud.app.stage.addChild(v);
+      this.hud.contentLayer.addChild(v);
       return;
     }
 
@@ -182,16 +182,7 @@ export class GamelabsApp {
   protected preDestroy(): void {}
 
   /**
-   * Resize hook.
-   * Intended to be overridden by child classes.
-   *
-   * This is automatically called on the browser's `window.resize` event.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  onResize(_width: number, _height: number, _dpr: number): void {}
-
-  /**
-   * Manually triggers a resize calculation and calls `onResize(width, height, dpr)`.
+   * Manually triggers a resize calculation and forwards it to the active screen.
    * Useful for an initial layout pass after mounting.
    */
   private requestResize(): void {

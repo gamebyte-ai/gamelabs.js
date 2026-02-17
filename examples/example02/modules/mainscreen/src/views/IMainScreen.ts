@@ -1,11 +1,12 @@
-import type { IScreenView } from "gamelabsjs";
+import type { IScreen, IView } from "gamelabsjs";
 
 /**
  * Example02 main HUD screen contract.
  * Kept empty for now; add screen-specific APIs as needed.
  */
-export interface IMainScreen extends IScreenView {
+export interface IMainScreenView extends IView, IScreen {
   onPlayClick(cb: () => void): () => void;
-  resize(width: number, height: number): void;
+  onSettingsClick(cb: () => void): () => void;
+  onResize(width: number, height: number, dpr: number): void;
 }
 

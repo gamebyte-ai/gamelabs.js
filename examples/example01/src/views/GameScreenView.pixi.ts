@@ -54,7 +54,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     // No-op for now; hook for future teardown/animations.
   }
 
-  resize(width: number, height: number): void {
+  override onResize(width: number, height: number, _dpr: number): void {
     // Drive layout sizing from the app.
     (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
 
@@ -68,20 +68,13 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   }
 
   override destroy(): void {
-    this.controller?.destroy();
-    this.controller = null;
 
-    // View owns subview teardown.
     this.topBar?.destroy();
     this.topBar = null;
     this.debugBar?.destroy();
     this.debugBar = null;
-
-    // Keep it consistent with other Example01 Pixi views:
-    // - do not Pixi-destroy recursively
-    // - just detach and remove listeners
-    this.removeAllListeners();
-    this.removeFromParent();
+    
+    super.destroy();
   }
 }
 

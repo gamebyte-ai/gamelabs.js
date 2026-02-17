@@ -3,26 +3,24 @@ import type { IInstanceResolver } from "../core/di/IInstanceResolver.js";
 import type { IView } from "./IView.js";
 import type { IViewController } from "./IViewController.js";
 
-export type ControllerCtor<TView extends IView, TController extends IViewController> = new (deps: {
-  view: TView;
-  resolver: IInstanceResolver;
-}) => TController;
+export type ControllerCtor<TView extends IView, TController extends IViewController<TView>> = new () => TController;
 
 /**
  * Semi-automatic View ↔ Controller binder.
  *
- * - Creates controller with `{ view, resolver }`
- * - Calls `controller.initialize()`
+ * - Creates controller
+ * - Sets controller on view
+ * - Calls `controller.initialize(view, resolver)`
  */
 export class ViewBinder {
-  bind<TView extends IView, TController extends IViewController>(
+  bind<TView extends IView, TController extends IViewController<TView>>(
     view: TView,
     Controller: ControllerCtor<TView, TController>,
     resolver: IInstanceResolver
   ): TController {
-    const controller = new Controller({ view, resolver });
+    const controller = new Controller();
     view.setController(controller);
-    controller.initialize();
+    controller.initialize(view, resolver);
     return controller;
   }
 }

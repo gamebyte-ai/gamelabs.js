@@ -9,7 +9,7 @@ import type { IViewController } from "./IViewController.js";
  * - Implements `IView` controller lifecycle.
  */
 export class WorldViewBase extends THREE.Group implements IView {
-  protected controller: IViewController | null = null;
+  private controller: IViewController | null = null;
 
   setController(controller: IViewController | null): void {
     this.controller = controller;

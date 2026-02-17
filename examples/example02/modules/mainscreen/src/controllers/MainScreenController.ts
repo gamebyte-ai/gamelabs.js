@@ -1,32 +1,27 @@
-import { NO_SCREEN_TRANSITION, UnsubscribeBag, type IInstanceResolver, type IViewController, type ScreenTransition } from "gamelabsjs";
-import { MainScreen } from "../views/MainScreen.pixi.js";
+import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "gamelabsjs";
+import type { IMainScreenView } from "../views/IMainScreen.js";
 import { MainScreenEvents } from "../events/MainScreenEvents.js";
 
-const INSTANT_TRANSITION: ScreenTransition = { type: "instant", durationMs: 0 };
-
 /**
- * Minimal controller to drive `onEnter` / `onExit` hooks.
+ * Main screen controller.
  */
-export class MainScreenController implements IViewController {
-  private readonly view: MainScreen;
-  private readonly enterTransition: ScreenTransition;
+export class MainScreenController implements IViewController<IMainScreenView> {
+  private view: IMainScreenView | null = null;
   private readonly subs = new UnsubscribeBag();
-  private readonly events: MainScreenEvents;
+  private events: MainScreenEvents | null = null;
 
-  constructor(deps: { view: MainScreen; resolver: IInstanceResolver }) {
-    this.view = deps.view;
-    this.events = deps.resolver.getInstance(MainScreenEvents);
-    this.enterTransition = INSTANT_TRANSITION;
-  }
+  initialize(view: IMainScreenView, resolver: IInstanceResolver): void {
+    this.view = view;
+    this.events = resolver.getInstance(MainScreenEvents);
 
-  initialize(): void {
-    void this.view.onEnter?.(this.enterTransition);
-    this.subs.add(this.view.onPlayClick(() => this.events.emitPlayClick()));
+    this.subs.add(this.view.onPlayClick(() => this.events?.emitPlayClick()));
+    this.subs.add(this.view.onSettingsClick(() => this.events?.emitSettingsClick()));
   }
 
   destroy(): void {
     this.subs.flush();
-    void this.view.onExit?.(NO_SCREEN_TRANSITION);
+    this.view = null;
+    this.events = null;
   }
 }
 

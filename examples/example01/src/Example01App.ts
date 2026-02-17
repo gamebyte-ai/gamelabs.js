@@ -1,9 +1,9 @@
-import { GamelabsApp, Hud, type IViewFactory } from "gamelabsjs";
+import { GamelabsApp, INSTANT_SCREEN_TRANSITION, type IViewFactory } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
 import { GameScreenView } from "./views/GameScreenView.pixi";
-import { GameScreenViewController } from "./controllers/GameScreenViewController";
+import { GameScreenController } from "./controllers/GameScreenViewController";
 import { TopBarView } from "./views/TopBarView.pixi";
 import { TopBarController } from "./controllers/TopBarController";
 import { DebugBarView } from "./views/DebugBarView.pixi";
@@ -21,8 +21,6 @@ export class Example01App extends GamelabsApp {
 
   private cubeView: CubeView | null = null;
 
-  private gameScreen: GameScreenView | null = null;
-
   constructor(stageEl: HTMLElement) {
     // Enable shared WebGL context: Three.js + PixiJS render into the same canvas.
     super({ mount: stageEl, sharedContext: true });
@@ -36,11 +34,6 @@ export class Example01App extends GamelabsApp {
     this.createGameScreen();
 
     this.createCube();
-  }
-
-  override onResize(width: number, height: number, dpr: number): void {
-
-    this.gameScreen?.resize(width, height);
   }
 
   override onStep(timestepSeconds: number): void {
@@ -79,11 +72,11 @@ export class Example01App extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.register<GameScreenView, GameScreenViewController>(
+    this.viewFactory.register<GameScreenView, GameScreenController>(
       GameScreenView,
       {
         create: () => new GameScreenView({ viewFactory: this.viewFactory as IViewFactory }),
-        Controller: GameScreenViewController,
+        Controller: GameScreenController,
         attachToParent: this.attachToHud,
       }
     );
@@ -107,7 +100,7 @@ export class Example01App extends GamelabsApp {
   private createGameScreen(): void {
     if (!this.hud) throw new Error("HUD is not initialized");
 
-    this.gameScreen = this.viewFactory.createView(GameScreenView, null);
+    this.viewFactory.createScreen(GameScreenView, null, INSTANT_SCREEN_TRANSITION);
   }
 
   private createCube(): void {
@@ -122,9 +115,6 @@ export class Example01App extends GamelabsApp {
 
     this.unsubscribeToggleStats?.();
     this.unsubscribeToggleStats = null;
-
-    this.gameScreen?.destroy();
-    this.gameScreen = null;
 
     this.cubeView?.destroy();
     this.cubeView = null;

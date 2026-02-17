@@ -1,17 +1,17 @@
-import { GamelabsApp } from "gamelabsjs";
+import { GamelabsApp, INSTANT_SCREEN_TRANSITION } from "gamelabsjs";
 
-import { MainScreen, MainScreenController, MainScreenEvents } from "../modules/mainscreen/src/index.js";
+import { MainScreenView, MainScreenController, MainScreenEvents } from "../modules/mainscreen/src/index.js";
+import {
+  LevelProgressScreenView,
+  LevelProgressScreenController,
+  LevelProgressScreenEvents
+} from "../modules/levelprogressscreeen/src/index.js";
 
-/**
- * Example02: minimal app scaffold that only adds a ground grid.
- *
- * Everything else is intentionally left as empty overrides to act as a template.
- */
 export class Example02App extends GamelabsApp {
-  private mainScreen: MainScreen | null = null;
+  private unsubscribePlayClick: (() => void) | null = null;
+  private unsubscribeBackClick: (() => void) | null = null;
 
   constructor(stageEl: HTMLElement) {
-    // Enable shared WebGL context: Three.js + PixiJS render into the same canvas.
     super({ mount: stageEl, sharedContext: true });
   }
 
@@ -19,10 +19,16 @@ export class Example02App extends GamelabsApp {
     this.createGroundGrid();
     this.hud?.showStats(true);
     this.createMainScreen();
-  }
 
-  override onResize(width: number, height: number, _dpr: number): void {
-    this.mainScreen?.resize(width, height);
+    const mainEvents = this.di.getInstance(MainScreenEvents);
+    this.unsubscribePlayClick = mainEvents.onPlayClick(() => {
+      this.showLevelProgressScreenInstant();
+    });
+
+    const levelProgressEvents = this.di.getInstance(LevelProgressScreenEvents);
+    this.unsubscribeBackClick = levelProgressEvents.onBackClick(() => {
+      this.showMainScreenInstant();
+    });
   }
 
   protected override onStep(timestepSeconds: number): void {
@@ -32,11 +38,17 @@ export class Example02App extends GamelabsApp {
 
   protected override configureDI(): void {
     this.di.bindInstance(MainScreenEvents, new MainScreenEvents());
+    this.di.bindInstance(LevelProgressScreenEvents, new LevelProgressScreenEvents());
   }
 
   protected override configureViews(): void {
-    this.viewFactory.register<MainScreen, MainScreenController>(MainScreen, {
+    this.viewFactory.register<MainScreenView, MainScreenController>(MainScreenView, {
       Controller: MainScreenController,
+      attachToParent: this.attachToHud
+    });
+
+    this.viewFactory.register<LevelProgressScreenView, LevelProgressScreenController>(LevelProgressScreenView, {
+      Controller: LevelProgressScreenController,
       attachToParent: this.attachToHud
     });
   }
@@ -54,12 +66,22 @@ export class Example02App extends GamelabsApp {
   }
 
   private createMainScreen(): void {
-    this.mainScreen = this.viewFactory.createView(MainScreen, null);
+    this.viewFactory.createScreen(MainScreenView, null, INSTANT_SCREEN_TRANSITION);
+  }
+
+  private showLevelProgressScreenInstant(): void {
+    this.viewFactory.createScreen(LevelProgressScreenView, null, INSTANT_SCREEN_TRANSITION);
+  }
+
+  private showMainScreenInstant(): void {
+    this.viewFactory.createScreen(MainScreenView, null, INSTANT_SCREEN_TRANSITION);
   }
 
   protected override preDestroy(): void {
-    this.mainScreen?.destroy();
-    this.mainScreen = null;
+    this.unsubscribePlayClick?.();
+    this.unsubscribePlayClick = null;
+    this.unsubscribeBackClick?.();
+    this.unsubscribeBackClick = null;
   }
 }
 

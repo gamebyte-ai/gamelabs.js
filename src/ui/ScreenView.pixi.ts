@@ -1,7 +1,7 @@
 import "@pixi/layout";
-import type { IScreenView } from "./IScreenView.js";
-import type { ScreenTransition } from "./ScreenTransition.js";
-import type { IViewController } from "../views/IViewController.js";
+import type { IView } from "../views/IView.js";
+import type { IScreen } from "./IScreen.js";
+import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "./ScreenTransition.js";
 import { HudViewBase } from "../views/HudViewBase.js";
 
 /**
@@ -9,14 +9,15 @@ import { HudViewBase } from "../views/HudViewBase.js";
  *
  * This is a convenience implementation that:
  * - is a `PIXI.Container`
- * - implements `IScreenView`
+ * - implements `IView` and `IScreen`
  * - provides safe default lifecycle hooks
  * - provides a `destroy()` that detaches from parent and removes listeners
  *
  * Concrete screens can extend this and add their own children and logic.
  */
-export class ScreenView extends HudViewBase implements IScreenView {
-  protected controller: IViewController | null = null;
+export class ScreenView extends HudViewBase implements IView, IScreen {
+  private enterTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private exitTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     super();
@@ -24,35 +25,79 @@ export class ScreenView extends HudViewBase implements IScreenView {
     (this as any).layout = { width: 1, height: 1 };
   }
 
-  setController(controller: IViewController | null): void {
-    this.controller = controller;
+  onEnter(transition: ScreenTransition): void | Promise<void> {
+    if (this.enterTimeoutId) {
+      clearTimeout(this.enterTimeoutId);
+      this.enterTimeoutId = null;
+    }
+
+    switch (transition.type) {
+      case SCREEN_TRANSITION_TYPES.INSTANT: {
+        if (transition.durationMs <= 0) {
+          return;
+        }
+
+        this.visible = false;
+        this.enterTimeoutId = setTimeout(() => {
+          this.enterTimeoutId = null;
+          if ((this as any).destroyed) return;
+          this.visible = true;
+        }, transition.durationMs);
+
+        return;
+      }
+
+      default:
+        return;
+    }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onEnter(_transition: ScreenTransition): void | Promise<void> {
-    // Default: no-op.
+  onExit(transition: ScreenTransition): void | Promise<void> {
+    if (this.exitTimeoutId) {
+      clearTimeout(this.exitTimeoutId);
+      this.exitTimeoutId = null;
+    }
+
+    switch (transition.type) {
+      case SCREEN_TRANSITION_TYPES.INSTANT: {
+        if (transition.durationMs <= 0) {
+          this.destroy();
+          return;
+        }
+
+        this.exitTimeoutId = setTimeout(() => {
+          this.exitTimeoutId = null;
+          if ((this as any).destroyed) return;
+          this.destroy();
+        }, transition.durationMs);
+        return;
+      }
+
+      default:
+        return;
+    }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onExit(_transition: ScreenTransition): void | Promise<void> {
-    // Default: no-op.
+  override destroy(): void {
+    if (this.enterTimeoutId) {
+      clearTimeout(this.enterTimeoutId);
+      this.enterTimeoutId = null;
+    }
+    if (this.exitTimeoutId) {
+      clearTimeout(this.exitTimeoutId);
+      this.exitTimeoutId = null;
+    }
+
+    super.destroy();
   }
 
   /**
    * Optional convenience for layout-enabled screens.
    * If you don't use layouts, you can ignore this.
    */
-  resize(width: number, height: number): void {
+  onResize(width: number, height: number, _dpr: number): void {
     (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
   }
 
-  override destroy(): void {
-    this.controller?.destroy();
-    this.controller = null;
-
-    this.removeAllListeners();
-    this.removeFromParent();
-    super.destroy();
-  }
 }
 

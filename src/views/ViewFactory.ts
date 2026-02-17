@@ -3,13 +3,15 @@ import type { IViewController } from "./IViewController.js";
 import type { IViewFactory } from "./IViewFactory.js";
 import type { ControllerCtor, ViewBinder } from "./ViewBinder.js";
 import type { IInstanceResolver } from "../core/di/IInstanceResolver.js";
+import type { IScreen } from "../ui/IScreen.js";
+import type { ScreenTransition } from "../ui/ScreenTransition.js";
 
 export type ViewCtor<TView extends IView> = new () => TView;
 
 export type ViewFactoryRegistration<
   TResolver extends IInstanceResolver,
   TView extends IView,
-  TController extends IViewController
+  TController extends IViewController<TView>
 > = {
   /**
    * Optional custom view constructor.
@@ -35,13 +37,14 @@ export type ViewFactoryRegistration<
  */
 export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFactory {
   private readonly registry = new Map<ViewCtor<any>, ViewFactoryRegistration<TResolver, any, any>>();
+  private activeScreen: (IView & IScreen) | null = null;
 
   constructor(
     private readonly binder: ViewBinder,
     readonly resolver: TResolver
   ) {}
 
-  register<TView extends IView, TController extends IViewController>(
+  register<TView extends IView, TController extends IViewController<TView>>(
     View: ViewCtor<TView>,
     registration: ViewFactoryRegistration<TResolver, TView, TController>
   ): void {
@@ -49,7 +52,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     this.registry.set(View, registration as ViewFactoryRegistration<TResolver, any, any>);
   }
 
-  create<TView extends IView, TController extends IViewController>(View: ViewCtor<TView>, parent: unknown): {
+  create<TView extends IView, TController extends IViewController<TView>>(View: ViewCtor<TView>, parent: unknown): {
     view: TView;
     controller: TController;
   } {
@@ -66,7 +69,26 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   }
 
   createView<TView extends IView>(View: ViewCtor<TView>, parent: unknown): TView {
-    return this.create<TView, IViewController>(View, parent).view;
+    return this.create<TView, IViewController<TView>>(View, parent).view;
+  }
+
+  createScreen<TView extends IView & IScreen>(
+    View: ViewCtor<TView>,
+    parent: unknown,
+    enterTransition: ScreenTransition
+  ): void {
+    if (this.activeScreen) {
+      this.activeScreen.onExit?.(enterTransition);
+      this.activeScreen = null;
+    }
+
+    const screen = this.createView(View, parent);
+    this.activeScreen = screen;
+    this.activeScreen.onEnter?.(enterTransition);
+  }
+
+  resize(width: number, height: number, dpr: number): void {
+    this.activeScreen?.onResize?.(width, height, dpr);
   }
 }
 
