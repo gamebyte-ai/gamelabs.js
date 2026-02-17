@@ -1,4 +1,4 @@
-import { GamelabsApp, INSTANT_SCREEN_TRANSITION } from "gamelabsjs";
+import { GamelabsApp } from "gamelabsjs";
 
 import { MainScreenView, MainScreenController, MainScreenEvents } from "../modules/mainscreen/src/index.js";
 import {
@@ -6,8 +6,10 @@ import {
   LevelProgressScreenController,
   LevelProgressScreenEvents
 } from "../modules/levelprogressscreeen/src/index.js";
+import { AppConfig } from "./AppConfig";
 
 export class Example02App extends GamelabsApp {
+  readonly config = new AppConfig();
   private unsubscribePlayClick: (() => void) | null = null;
   private unsubscribeBackClick: (() => void) | null = null;
 
@@ -22,12 +24,12 @@ export class Example02App extends GamelabsApp {
 
     const mainEvents = this.di.getInstance(MainScreenEvents);
     this.unsubscribePlayClick = mainEvents.onPlayClick(() => {
-      this.showLevelProgressScreenInstant();
+      this.showLevelProgressScreen();
     });
 
     const levelProgressEvents = this.di.getInstance(LevelProgressScreenEvents);
     this.unsubscribeBackClick = levelProgressEvents.onBackClick(() => {
-      this.showMainScreenInstant();
+      this.showMainScreen();
     });
   }
 
@@ -66,15 +68,19 @@ export class Example02App extends GamelabsApp {
   }
 
   private createMainScreen(): void {
-    this.viewFactory.createScreen(MainScreenView, null, INSTANT_SCREEN_TRANSITION);
+    this.viewFactory.createScreen(MainScreenView, null, this.config.transitions.mainScreenEnter);
   }
 
-  private showLevelProgressScreenInstant(): void {
-    this.viewFactory.createScreen(LevelProgressScreenView, null, INSTANT_SCREEN_TRANSITION);
+  private showLevelProgressScreen(): void {
+    this.viewFactory.createScreen(
+      LevelProgressScreenView,
+      null,
+      this.config.transitions.levelProgressScreenEnter
+    );
   }
 
-  private showMainScreenInstant(): void {
-    this.viewFactory.createScreen(MainScreenView, null, INSTANT_SCREEN_TRANSITION);
+  private showMainScreen(): void {
+    this.viewFactory.createScreen(MainScreenView, null, this.config.transitions.mainScreenEnter);
   }
 
   protected override preDestroy(): void {

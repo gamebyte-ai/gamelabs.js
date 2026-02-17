@@ -1,4 +1,4 @@
-import { GamelabsApp, INSTANT_SCREEN_TRANSITION, type IViewFactory } from "gamelabsjs";
+import { GamelabsApp, type IViewFactory } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
@@ -10,8 +10,10 @@ import { DebugBarView } from "./views/DebugBarView.pixi";
 import { DebugBarController } from "./controllers/DebugBarController";
 import { GameEvents } from "./events/GameEvents";
 import { DebugEvents } from "./events/DebugEvents";
+import { AppConfig } from "./AppConfig";
 
 export class Example01App extends GamelabsApp {
+  readonly config = new AppConfig();
   readonly gameEvents = new GameEvents();
   readonly debugEvents = new DebugEvents();
 
@@ -100,7 +102,7 @@ export class Example01App extends GamelabsApp {
   private createGameScreen(): void {
     if (!this.hud) throw new Error("HUD is not initialized");
 
-    this.viewFactory.createScreen(GameScreenView, null, INSTANT_SCREEN_TRANSITION);
+    this.viewFactory.createScreen(GameScreenView, null, this.config.transitions.gameScreenEnter);
   }
 
   private createCube(): void {
