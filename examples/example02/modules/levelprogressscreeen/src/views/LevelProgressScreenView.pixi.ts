@@ -59,15 +59,26 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
   private visibleCount = LevelProgressScreenView.defaultVisibleCount;
   private currentLevel = 1;
 
+  private readonly initialVisibleCount: number | undefined;
+  private readonly initialCurrentLevel: number | undefined;
+
   private items: LevelItemRefs[] = [];
   private readonly currentLevelClickListeners = new Set<() => void>();
   private readonly backClickListeners = new Set<() => void>();
 
   constructor(opts: { visibleCount?: number; currentLevel?: number } = {}) {
     super();
+    this.initialVisibleCount = opts.visibleCount;
+    this.initialCurrentLevel = opts.currentLevel;
+  }
 
-    if (typeof opts.visibleCount === "number") this.visibleCount = Math.max(1, Math.floor(opts.visibleCount));
-    if (typeof opts.currentLevel === "number") this.currentLevel = Math.max(1, Math.floor(opts.currentLevel));
+  public postInitialize(): void {
+    if (typeof this.initialVisibleCount === "number") {
+      this.visibleCount = Math.max(1, Math.floor(this.initialVisibleCount));
+    }
+    if (typeof this.initialCurrentLevel === "number") {
+      this.currentLevel = Math.max(1, Math.floor(this.initialCurrentLevel));
+    }
 
     // Full-screen container that centers its children.
     (this as any).layout = {
@@ -115,14 +126,6 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
     this.rebuildItems();
     this.applyLevels();
-  }
-
-  override async onEnter(_transition: ScreenTransition): Promise<void> {
-    // No-op for now.
-  }
-
-  override onExit(_transition: ScreenTransition): void | Promise<void> {
-    // No-op for now.
   }
 
   override onResize(width: number, height: number, _dpr: number): void {

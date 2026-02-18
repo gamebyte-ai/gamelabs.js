@@ -7,6 +7,5 @@ import type { IScreen, IView } from "gamelabsjs";
 export interface IMainScreenView extends IView, IScreen {
   onPlayClick(cb: () => void): () => void;
   onSettingsClick(cb: () => void): () => void;
-  onResize(width: number, height: number, dpr: number): void;
 }
 

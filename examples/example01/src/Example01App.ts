@@ -69,34 +69,16 @@ export class Example01App extends GamelabsApp {
   }
 
   protected override configureDI(): void {
-    this.di.bindInstance(GameEvents, this.gameEvents);
-    this.di.bindInstance(DebugEvents, this.debugEvents);
+    this.diContainer.bindInstance(GameEvents, this.gameEvents);
+    this.diContainer.bindInstance(DebugEvents, this.debugEvents);
   }
 
   protected override configureViews(): void {
-    this.viewFactory.register<GameScreenView, GameScreenController>(
-      GameScreenView,
-      {
-        create: () => new GameScreenView({ viewFactory: this.viewFactory as IViewFactory }),
-        Controller: GameScreenController,
-        attachToParent: this.attachToHud,
-      }
-    );
+    this.viewFactory.registerHudView<GameScreenView, GameScreenController> (GameScreenView, { Controller: GameScreenController });
+    this.viewFactory.registerHudView<TopBarView,     TopBarController>     (TopBarView,     { Controller: TopBarController     });
+    this.viewFactory.registerHudView<DebugBarView,   DebugBarController>   (DebugBarView,   { Controller: DebugBarController   });
 
-    this.viewFactory.register<TopBarView, TopBarController>(TopBarView, {
-      Controller: TopBarController,
-      attachToParent: this.attachToHud,
-    });
-
-    this.viewFactory.register<DebugBarView, DebugBarController>(DebugBarView, {
-      Controller: DebugBarController,
-      attachToParent: this.attachToHud,
-    });
-
-    this.viewFactory.register<CubeView, CubeController>(CubeView, {
-      Controller: CubeController,
-      attachToParent: this.attachToWorld,
-    });
+    this.viewFactory.registerWorldView<CubeView, CubeController>(CubeView, { Controller: CubeController });
   }
 
   private createGameScreen(): void {

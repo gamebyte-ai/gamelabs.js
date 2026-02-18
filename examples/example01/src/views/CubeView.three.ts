@@ -3,11 +3,9 @@ import { WorldViewBase } from "gamelabsjs";
 import type { ICubeView } from "./ICubeView";
 
 export class CubeView extends WorldViewBase implements ICubeView {
-  private readonly mesh: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>;
+  private mesh: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial> | null = null;
 
-  constructor() {
-    super();
-
+  public postInitialize(): void {
     this.mesh = new THREE.Mesh(
       new THREE.BoxGeometry(1, 1, 1),
       new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.35, metalness: 0.1 })
@@ -16,17 +14,22 @@ export class CubeView extends WorldViewBase implements ICubeView {
   }
 
   rotate(dx: number, dy: number): void {
+    if (!this.mesh) return;
     this.mesh.rotation.x += dx;
     this.mesh.rotation.y += dy;
   }
 
   setColor(hex: number): void {
+    if (!this.mesh) return;
     this.mesh.material.color.set(hex);
   }
 
   destroy(): void {
-    this.mesh.geometry.dispose();
-    this.mesh.material.dispose();
+    if (this.mesh) {
+      this.mesh.geometry.dispose();
+      this.mesh.material.dispose();
+      this.mesh = null;
+    }
     super.destroy();
   }
 }

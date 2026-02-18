@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { ScreenView, type IViewFactory, type ScreenTransition } from "gamelabsjs";
+import { ScreenView } from "gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView";
 import { TopBarView } from "./TopBarView.pixi";
 import { DebugBarView } from "./DebugBarView.pixi";
@@ -15,11 +15,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   private topBar: TopBarView | null = null;
   private debugBar: DebugBarView | null = null;
-  private readonly viewFactory: IViewFactory | null;
 
-  constructor(deps?: { viewFactory: IViewFactory }) {
-    super();
-
+  public postInitialize(): void {
     // Enable flex layout: top bar at top, debug bar at bottom.
     (this as any).layout = {
       width: 1,
@@ -32,26 +29,17 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
     // Invisible overlay to define bounds + potential future interactions.
     (this.overlay as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
-    this.addChild(this.overlay);
+    if (!this.overlay.parent) this.addChild(this.overlay);
 
-    this.viewFactory = deps?.viewFactory ?? null;
-    if (this.viewFactory) {
-      // View owns subview creation.
-      this.topBar = this.viewFactory.createView(TopBarView, this);
-      this.debugBar = this.viewFactory.createView(DebugBarView, this);
+    // View owns subview creation.
+    const topBar = this.viewFactory.createView(TopBarView, this);
+    this.topBar = topBar;
+    const debugBar = this.viewFactory.createView(DebugBarView, this);
+    this.debugBar = debugBar;
 
-      // Layout children: fill width, take intrinsic height.
-      if (this.topBar) (this.topBar as any).layout = { width: "100%" };
-      if (this.debugBar) (this.debugBar as any).layout = { width: "100%" };
-    }
-  }
-
-  override onEnter(_transition: ScreenTransition): void | Promise<void> {
-    // No-op for now; hook for future animations/initialization.
-  }
-
-  override onExit(_transition: ScreenTransition): void | Promise<void> {
-    // No-op for now; hook for future teardown/animations.
+    // Layout children: fill width, take intrinsic height.
+    (topBar as any).layout = { width: "100%" };
+    (debugBar as any).layout = { width: "100%" };
   }
 
   override onResize(width: number, height: number, _dpr: number): void {
@@ -68,7 +56,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   }
 
   override destroy(): void {
-
     this.topBar?.destroy();
     this.topBar = null;
     this.debugBar?.destroy();

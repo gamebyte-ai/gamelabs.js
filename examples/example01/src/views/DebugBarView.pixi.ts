@@ -39,14 +39,8 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
   private readonly statsButtonView = this.createButtonView("Stats");
   private readonly statsButton = new Button(this.statsButtonView);
 
-  constructor() {
-    super({
-      layout: {
-        width: "100%",
-        padding: 16
-      }
-    });
-
+  public postInitialize(): void {
+    (this as any).layout = { width: "100%", padding: 16 };
     this.createBar();
     this.addChild(this.bar);
 

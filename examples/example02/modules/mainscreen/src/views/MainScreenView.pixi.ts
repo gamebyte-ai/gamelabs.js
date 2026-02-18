@@ -2,9 +2,7 @@ import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
 import { ScreenView, type ScreenTransition } from "gamelabsjs";
 import type { IMainScreenView } from "./IMainScreenView.js";
-import playButtonBgUrl from "../../assets/play_button_bg.png";
-import settingsButtonBgUrl from "../../assets/settings_button_bg.png";
-import backgroundUrl from "../../assets/background.jpg";
+import { MainScreenAssets } from "../MainScreenAssets.js";
 
 /**
  * Example02 main screen (Pixi).
@@ -19,10 +17,6 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
   private static readonly buttonsGap = 18;
   private static readonly logoWidth = 360;
   private static readonly logoHeight = 84;
-
-  private static playButtonBgTexture: PIXI.Texture | null = null;
-  private static settingsButtonBgTexture: PIXI.Texture | null = null;
-  private static backgroundTexture: PIXI.Texture | null = null;
 
   private readonly bgImage = new PIXI.Sprite(PIXI.Texture.EMPTY);
   private readonly bg = new PIXI.Graphics();
@@ -74,9 +68,7 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
   private readonly settingsButtonView = this.createSettingsButtonView();
   private readonly settingsButton = new Button(this.settingsButtonView);
 
-  constructor() {
-    super();
-
+  public postInitialize(): void {
     // Full-screen layout container that centers its children.
     (this as any).layout = {
       width: 1,
@@ -151,23 +143,10 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     };
     this.buttonsCol.addChild(this.settingsButtonView);
 
-    // Kick off asset load early; texture is applied once ready.
-    void this.ensurePlayButtonBgLoaded();
-    void this.ensureSettingsButtonBgLoaded();
-    void this.ensureBackgroundLoaded();
+    this.applyTexturesIfAvailable();
   }
 
-  override async onEnter(_transition: ScreenTransition): Promise<void> {
-    await this.ensurePlayButtonBgLoaded();
-    await this.ensureSettingsButtonBgLoaded();
-    await this.ensureBackgroundLoaded();
-  }
-
-  override onExit(_transition: ScreenTransition): void | Promise<void> {
-    // Intentionally empty (template).
-  }
-
-  override onResize(width: number, height: number, _dpr: number): void {
+  public override onResize(width: number, height: number, _dpr: number): void {
     const w = Math.max(1, width);
     const h = Math.max(1, height);
     (this as any).layout = { width: w, height: h };
@@ -282,56 +261,30 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     this.playButtonBg.height = this.playButtonBgTargetHeight;
   }
 
-  private async ensurePlayButtonBgLoaded(): Promise<void> {
-    if (MainScreenView.playButtonBgTexture) {
-      this.playButtonBg.texture = MainScreenView.playButtonBgTexture;
+  private applyTexturesIfAvailable(): void {
+    const playButtonBg = this.assetLoader.getAsset<PIXI.Texture>(MainScreenAssets.PlayButtonBg.id);
+    if (playButtonBg && this.playButtonBg.texture === PIXI.Texture.EMPTY) {
+      this.playButtonBg.texture = playButtonBg;
       this.playButtonBg.visible = true;
       this.playButtonBgPlaceholder.visible = false;
       this.applyPlayButtonBgSize();
-      return;
     }
 
-    // Ensure the asset is loaded into Pixi's cache before using it.
-    const tex = (await PIXI.Assets.load(playButtonBgUrl)) as PIXI.Texture;
-    MainScreenView.playButtonBgTexture = tex;
-    this.playButtonBg.texture = tex;
-    this.playButtonBg.visible = true;
-    this.playButtonBgPlaceholder.visible = false;
-    this.applyPlayButtonBgSize();
-  }
-
-  private async ensureSettingsButtonBgLoaded(): Promise<void> {
-    if (MainScreenView.settingsButtonBgTexture) {
-      this.settingsButtonBg.texture = MainScreenView.settingsButtonBgTexture;
+    const settingsButtonBg = this.assetLoader.getAsset<PIXI.Texture>(MainScreenAssets.SettingsButtonBg.id);
+    if (settingsButtonBg && this.settingsButtonBg.texture === PIXI.Texture.EMPTY) {
+      this.settingsButtonBg.texture = settingsButtonBg;
       this.settingsButtonBg.visible = true;
-      return;
     }
 
-    const tex = (await PIXI.Assets.load(settingsButtonBgUrl)) as PIXI.Texture;
-    MainScreenView.settingsButtonBgTexture = tex;
-    this.settingsButtonBg.texture = tex;
-    this.settingsButtonBg.visible = true;
-  }
-
-  private async ensureBackgroundLoaded(): Promise<void> {
-    if (MainScreenView.backgroundTexture) {
-      this.bgImage.texture = MainScreenView.backgroundTexture;
-      // Force a background layout update once texture is ready.
+    const background = this.assetLoader.getAsset<PIXI.Texture>(MainScreenAssets.Background.id);
+    if (background && this.bgImage.texture === PIXI.Texture.EMPTY) {
+      this.bgImage.texture = background;
       const layout = (this as any).layout;
       if (layout?.width && layout?.height) this.redrawBackground(layout.width, layout.height);
-      return;
     }
-
-    // Ensure the asset is loaded into Pixi's cache before using it.
-    const tex = (await PIXI.Assets.load(backgroundUrl)) as PIXI.Texture;
-    MainScreenView.backgroundTexture = tex;
-    this.bgImage.texture = tex;
-
-    const layout = (this as any).layout;
-    if (layout?.width && layout?.height) this.redrawBackground(layout.width, layout.height);
   }
 
-  override destroy(): void {
+  public override destroy(): void {
     for (const c of this.cleanup) c();
     this.cleanup.length = 0;
     super.destroy();

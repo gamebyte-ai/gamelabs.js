@@ -54,14 +54,8 @@ export class TopBarView extends HudViewBase implements ITopBarView {
   private readonly rotationButton = new Button(this.rotationButtonView);
   private readonly debugButton = new Button(this.debugButtonView);
 
-  constructor() {
-    super({
-      layout: {
-        width: "100%",
-        padding: 16
-      }
-    });
-
+  public postInitialize(): void {
+    (this as any).layout = { width: "100%", padding: 16 };
     this.bar.addChild(this.barBg);
 
     // Title should size intrinsically and center itself.

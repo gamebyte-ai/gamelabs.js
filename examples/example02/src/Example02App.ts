@@ -1,15 +1,14 @@
 import { GamelabsApp } from "gamelabsjs";
 
-import { MainScreenView, MainScreenController, MainScreenEvents } from "../modules/mainscreen/src/index.js";
-import {
-  LevelProgressScreenView,
-  LevelProgressScreenController,
-  LevelProgressScreenEvents
-} from "../modules/levelprogressscreeen/src/index.js";
+import { MainScreenBinding, MainScreenEvents, MainScreenView } from "../modules/mainscreen/src/index.js";
+import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents} from "../modules/levelprogressscreeen/src/index.js";
 import { AppConfig } from "./AppConfig";
+import { LevelProgressModel } from "./models/LevelProgressModel";
 
 export class Example02App extends GamelabsApp {
-  readonly config = new AppConfig();
+  public readonly config = new AppConfig();
+  public readonly mainScreenBinding = new MainScreenBinding();
+  public readonly levelProgressScreenBinding = new LevelProgressScreenBinding(new LevelProgressModel());
   private unsubscribePlayClick: (() => void) | null = null;
   private unsubscribeBackClick: (() => void) | null = null;
 
@@ -22,12 +21,12 @@ export class Example02App extends GamelabsApp {
     this.hud?.showStats(true);
     this.createMainScreen();
 
-    const mainEvents = this.di.getInstance(MainScreenEvents);
+    const mainEvents = this.diContainer.getInstance(MainScreenEvents);
     this.unsubscribePlayClick = mainEvents.onPlayClick(() => {
       this.showLevelProgressScreen();
     });
 
-    const levelProgressEvents = this.di.getInstance(LevelProgressScreenEvents);
+    const levelProgressEvents = this.diContainer.getInstance(LevelProgressScreenEvents);
     this.unsubscribeBackClick = levelProgressEvents.onBackClick(() => {
       this.showMainScreen();
     });
@@ -39,20 +38,18 @@ export class Example02App extends GamelabsApp {
   }
 
   protected override configureDI(): void {
-    this.di.bindInstance(MainScreenEvents, new MainScreenEvents());
-    this.di.bindInstance(LevelProgressScreenEvents, new LevelProgressScreenEvents());
+    this.mainScreenBinding.configureDI(this.diContainer);
+    this.levelProgressScreenBinding.configureDI(this.diContainer);
   }
 
   protected override configureViews(): void {
-    this.viewFactory.register<MainScreenView, MainScreenController>(MainScreenView, {
-      Controller: MainScreenController,
-      attachToParent: this.attachToHud
-    });
+    this.mainScreenBinding.configureViews(this.viewFactory);
+    this.levelProgressScreenBinding.configureViews(this.viewFactory);
+  }
 
-    this.viewFactory.register<LevelProgressScreenView, LevelProgressScreenController>(LevelProgressScreenView, {
-      Controller: LevelProgressScreenController,
-      attachToParent: this.attachToHud
-    });
+  protected override loadAssets(): void {
+    this.mainScreenBinding.loadAssets(this.assetLoader);
+    this.levelProgressScreenBinding.loadAssets(this.assetLoader);
   }
 
   private createGroundGrid(): void {
@@ -72,11 +69,7 @@ export class Example02App extends GamelabsApp {
   }
 
   private showLevelProgressScreen(): void {
-    this.viewFactory.createScreen(
-      LevelProgressScreenView,
-      null,
-      this.config.transitions.levelProgressScreenEnter
-    );
+    this.viewFactory.createScreen(LevelProgressScreenView, null, this.config.transitions.levelProgressScreenEnter);
   }
 
   private showMainScreen(): void {

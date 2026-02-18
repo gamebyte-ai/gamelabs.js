@@ -1,4 +1,4 @@
-import type { IInstanceResolver } from "../core/di/IInstanceResolver.js";
+import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { IView } from "./IView.js";
 
 export interface IViewController<TView extends IView = IView> {

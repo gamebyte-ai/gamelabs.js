@@ -19,8 +19,8 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
   private enterTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private exitTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  constructor() {
-    super();
+  public override postInitialize(): void {
+    super.postInitialize();
     // Enable layout by default for Pixi screens. Apps can override styles in subclasses.
     (this as any).layout = { width: 1, height: 1 };
   }

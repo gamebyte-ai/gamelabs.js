@@ -5,18 +5,24 @@ import {
 } from "gamelabsjs";
 import type { ILevelProgressScreenView } from "../views/ILevelProgressScreenView.js";
 import { LevelProgressScreenEvents } from "../events/LevelProgressScreenEvents.js";
+import { ILevelProgressScreenModel, type ILevelProgressScreenModel as LevelProgressScreenModel } from "../models/ILevelProgressScreenModel.js";
 
 /**
  * Level progress screen controller.
  */
 export class LevelProgressScreenController implements IViewController<ILevelProgressScreenView> {
   private view: ILevelProgressScreenView | null = null;
+  private viewModel: LevelProgressScreenModel | null = null;
   private readonly subs = new UnsubscribeBag();
   private events: LevelProgressScreenEvents | null = null;
 
   initialize(view: ILevelProgressScreenView, resolver: IInstanceResolver): void {
     this.view = view;
     this.events = resolver.getInstance(LevelProgressScreenEvents);
+    this.viewModel = resolver.getInstance(ILevelProgressScreenModel);
+
+    this.view.setVisibleCount(this.viewModel.visibleItemCount);
+    this.view.setCurrentLevel(this.viewModel.currentLevel);
 
     this.subs.add(this.view.onCurrentLevelClick(() => this.events?.emitCurrentLevelClick()));
     this.subs.add(this.view.onBackClick(() => this.events?.emitBackClick()));
@@ -25,6 +31,7 @@ export class LevelProgressScreenController implements IViewController<ILevelProg
   destroy(): void {
     this.subs.flush();
     this.view = null;
+    this.viewModel = null;
     this.events = null;
   }
 }

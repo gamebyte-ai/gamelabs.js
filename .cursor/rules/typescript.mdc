@@ -1,0 +1,8 @@
+---
+description: TypeScript conventions for Gamelab.js
+alwaysApply: true
+---
+
+- Always use access modifiers for all class members
+- When using bound handler pattern if code is longer then 1 line move it to another method
+- Never distribute method definition parameters, method call parameters, constructor parameters, import statements to multiple lines

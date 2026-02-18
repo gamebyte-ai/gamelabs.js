@@ -1,5 +1,6 @@
 import "@pixi/layout";
 import { Application, Container, Graphics, Text, TextStyle, type ApplicationOptions } from "pixi.js";
+import type { IViewContainer } from "../views/IViewContainer.js";
 
 export type HudCreateOptions = {
   /**
@@ -43,7 +44,7 @@ export type HudCreateOptions = {
   manualRender?: boolean;
 };
 
-export class Hud {
+export class Hud implements IViewContainer {
   readonly app: Application;
   readonly mount: HTMLElement;
   readonly manualRender: boolean;
@@ -152,6 +153,25 @@ export class Hud {
     }
 
     return new Hud(app, mount, manualRender);
+  }
+
+  attachChild(child: any, parent: any): void {
+    const p = parent as any;
+    const v = child as any;
+
+    // Allow `null` to mean "attach to HUD root".
+    if (p === null) {
+      this.contentLayer.addChild(v);
+      return;
+    }
+
+    // Support any Pixi container-like parent with `.addChild()`.
+    if (p && typeof p.addChild === "function") {
+      p.addChild(v);
+      return;
+    }
+
+    throw new Error("Invalid HUD parent: expected a Pixi Container with .addChild(), or null");
   }
 
   resize(width: number, height: number, dpr?: number): void {

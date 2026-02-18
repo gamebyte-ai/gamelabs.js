@@ -1,12 +1,12 @@
 import type { GamelabsAppConfig } from "./types.js";
 import { World } from "./World.js";
 import { WorldDebugger } from "./WorldDebugger.js";
-import { Container } from "./di/Container.js";
-import type { IInstanceResolver } from "./di/IInstanceResolver.js";
-import { ViewBinder } from "../views/ViewBinder.js";
+import { DIContainer } from "../di/DIContainer.js";
+import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import { ViewFactory } from "../views/ViewFactory.js";
 import { UpdateService } from "../services/UpdateService.js";
 import { Hud } from "../index.js";
+import { AssetLoader } from "./AssetLoader.js";
 
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
@@ -16,11 +16,11 @@ export class GamelabsApp {
   world: World | null = null;
   worldDebugger: WorldDebugger | null = null;
   hud: Hud | null = null;
+  readonly assetLoader = new AssetLoader();
 
-  readonly viewBinder = new ViewBinder();
   readonly updateService = new UpdateService();
-  readonly di = new Container();
-  readonly viewFactory = new ViewFactory<IInstanceResolver>(this.viewBinder, this.di);
+  readonly diContainer = new DIContainer();
+  readonly viewFactory = new ViewFactory<IInstanceResolver>(this.diContainer, this.assetLoader);
 
   private _isInitialized = false;
 
@@ -80,9 +80,9 @@ export class GamelabsApp {
     }
 
     // Base DI bindings (always available).
-    this.di.bindInstance(UpdateService, this.updateService);
-    this.di.bindInstance(ViewBinder, this.viewBinder);
-    this.di.bindInstance(GamelabsApp, this);
+    this.diContainer.bindInstance(UpdateService, this.updateService);
+    this.diContainer.bindInstance(GamelabsApp, this);
+    this.diContainer.bindInstance(AssetLoader, this.assetLoader);
   }
 
   async initialize(): Promise<void> {
@@ -93,12 +93,33 @@ export class GamelabsApp {
     await this.createWorld();
     await this.createHud();
 
+    this.viewFactory.setViewContainers(this.world, this.hud);
+
     this.configureDI();
     this.configureViews();
+    this.loadAssets();
+    await this.waitForAssetsLoaded();
 
     this.postInitialize();
 
     this.requestResize();
+  }
+
+  private async waitForAssetsLoaded(): Promise<void> {
+    // Give `loadAssets()` a chance to register any synchronous asset requests.
+    await this.nextTick();
+
+    while (this.assetLoader.loadedItems < this.assetLoader.totalItems) {
+      await this.nextTick();
+    }
+  }
+
+  private nextTick(): Promise<void> {
+    if (typeof requestAnimationFrame === "function") {
+      return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    }
+
+    return new Promise((resolve) => setTimeout(resolve, 0));
   }
 
   private async createWorld(): Promise<void> {
@@ -106,26 +127,6 @@ export class GamelabsApp {
     this.world = await World.create(this.canvas, { mount: this.mount, canvasClassName: "layer world3d" });
     this.worldDebugger = new WorldDebugger(this.world);
   }
-
-  protected readonly attachToWorld = (parent: unknown | null, child: unknown): void => {
-    const p = parent as any;
-    const c = child as any;
-
-    // Allow `null` to mean "attach to World root (scene)".
-    if (p === null) {
-      if (!this.world) throw new Error("World is not initialized");
-      this.world.add(c);
-      return;
-    }
-
-    // Support both `World` and `THREE.Object3D` (and any custom parent with an `.add()` method).
-    if (p && typeof p.add === "function") {
-      p.add(c);
-      return;
-    }
-
-    throw new Error("Invalid world parent: expected a World/THREE.Object3D with .add(), or null");
-  };
 
   private async createHud(): Promise<void> {
     if (!this.mount) throw new Error("Missing mount element");
@@ -149,26 +150,6 @@ export class GamelabsApp {
     this.hud.showStats(this._statsVisible);
   }
 
-  protected readonly attachToHud = (parent: unknown | null, view: unknown): void => {
-    const p = parent as any;
-    const v = view as any;
-
-    // Allow `null` to mean "attach to HUD root".
-    if (p === null) {
-      if (!this.hud) throw new Error("HUD is not initialized");
-      this.hud.contentLayer.addChild(v);
-      return;
-    }
-
-    // Support any Pixi container-like parent with `.addChild()`.
-    if (p && typeof p.addChild === "function") {
-      p.addChild(v);
-      return;
-    }
-
-    throw new Error("Invalid HUD parent: expected a Pixi Container with .addChild(), or null");
-  };
-
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected postInitialize(): void {}
 
@@ -177,6 +158,9 @@ export class GamelabsApp {
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected configureViews(): void {}
+
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  protected loadAssets(): void {}
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected preDestroy(): void {}

@@ -1,6 +1,8 @@
 import * as PIXI from "pixi.js";
 import type { IView } from "./IView.js";
 import type { IViewController } from "./IViewController.js";
+import type { IViewFactory } from "./IViewFactory.js";
+import type { AssetLoader } from "../core/AssetLoader.js";
 
 /**
  * Base class for world (3D) views.
@@ -9,16 +11,40 @@ import type { IViewController } from "./IViewController.js";
  * - Implements `IView` controller lifecycle.
  */
 export class HudViewBase extends PIXI.Container implements IView {
+  //  MEMBERS
   private controller: IViewController | null = null;
+  private viewFactoryInternal: IViewFactory | null = null;
+  private assetLoaderInternal: AssetLoader | null = null;
 
-  setController(controller: IViewController | null): void {
+  //  PROPERTIES
+  protected get viewFactory(): IViewFactory {
+    if (!this.viewFactoryInternal) throw new Error("HudViewBase is not initialized");
+    return this.viewFactoryInternal;
+  }
+
+  protected get assetLoader(): AssetLoader {
+    if (!this.assetLoaderInternal) throw new Error("HudViewBase is not initialized");
+    return this.assetLoaderInternal;
+  }
+
+  public initialize(viewFactory: IViewFactory, assetLoader: AssetLoader): void {
+    this.viewFactoryInternal = viewFactory;
+    this.assetLoaderInternal = assetLoader;
+  }
+
+  public postInitialize(): void {}
+
+  public setController(controller: IViewController | null): void {
     this.controller = controller;
   }
 
-  destroy(): void {
+  public destroy(): void {
     // Views are expected to own controller lifetime.
     this.controller?.destroy();
     this.controller = null;
+
+    this.viewFactoryInternal = null;
+    this.assetLoaderInternal = null;
 
     this.removeAllListeners();
     this.removeFromParent();

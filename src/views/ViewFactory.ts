@@ -1,12 +1,15 @@
 import type { IView } from "./IView.js";
 import type { IViewController } from "./IViewController.js";
 import type { IViewFactory } from "./IViewFactory.js";
-import type { ControllerCtor, ViewBinder } from "./ViewBinder.js";
-import type { IInstanceResolver } from "../core/di/IInstanceResolver.js";
+import type { IViewContainer } from "./IViewContainer.js";
+import type { IInstanceResolver } from "../di/IInstanceResolver.js";
+import type { AssetLoader } from "../core/AssetLoader.js";
 import type { IScreen } from "../ui/IScreen.js";
 import type { ScreenTransition } from "../ui/ScreenTransition.js";
 
 export type ViewCtor<TView extends IView> = new () => TView;
+
+export type ControllerCtor<TView extends IView, TController extends IViewController<TView>> = new () => TController;
 
 export type ViewFactoryRegistration<
   TResolver extends IInstanceResolver,
@@ -28,21 +31,61 @@ export type ViewFactoryRegistration<
   attachToParent: (parent: unknown, view: unknown) => void;
 };
 
+export type ViewFactoryContainerRegistration<
+  TResolver extends IInstanceResolver,
+  TView extends IView,
+  TController extends IViewController<TView>
+> = Omit<ViewFactoryRegistration<TResolver, TView, TController>, "attachToParent">;
+
 /**
  * View + Controller factory with a registration map.
  *
  * - Register View ↔ Controller pairs once (composition root).
  * - Create views with `createView(View, parent)`; controller deps are derived from `resolver`.
- * - Uses `ViewBinder` for controller creation + lifecycle tracking.
  */
 export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFactory {
   private readonly registry = new Map<ViewCtor<any>, ViewFactoryRegistration<TResolver, any, any>>();
   private activeScreen: (IView & IScreen) | null = null;
+  private lastResize: { width: number; height: number; dpr: number } | null = null;
+
+  world: IViewContainer | null = null;
+  hud: IViewContainer | null = null;
 
   constructor(
-    private readonly binder: ViewBinder,
-    readonly resolver: TResolver
+    readonly resolver: TResolver,
+    private readonly assetLoader: AssetLoader
   ) {}
+
+  setViewContainers(world: IViewContainer | null, hud: IViewContainer | null): void {
+    this.world = world;
+    this.hud = hud;
+  }
+
+  registerHudView<TView extends IView, TController extends IViewController<TView>>(
+    View: ViewCtor<TView>,
+    registration: ViewFactoryContainerRegistration<TResolver, TView, TController>
+  ): void {
+    this.register<TView, TController>(View, {
+      ...registration,
+      attachToParent: (parent: unknown, view: unknown) => {
+        if (!this.hud) throw new Error("HUD view container is not set");
+        this.hud.attachChild(view, parent);
+      }
+    });
+  }
+
+  registerWorldView<TView extends IView, TController extends IViewController<TView>>(
+    View: ViewCtor<TView>,
+    registration: ViewFactoryContainerRegistration<TResolver, TView, TController>
+  ): void {
+    this.register<TView, TController>(View, {
+      ...registration,
+      attachToParent: (parent: unknown, view: unknown) => {
+        if (!this.world) throw new Error("World view container is not set");
+        this.world.attachChild(view, parent);
+      }
+    });
+  }
 
   register<TView extends IView, TController extends IViewController<TView>>(
     View: ViewCtor<TView>,
@@ -64,7 +107,11 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     const view = (registration.create?.(this.resolver) ?? new View()) as TView;
     registration.attachToParent(parent, view);
 
-    const controller = this.binder.bind(view, registration.Controller, this.resolver) as TController;
+    view.initialize(this, this.assetLoader);
+    view.postInitialize();
+    const controller = new registration.Controller() as TController;
+    view.setController(controller);
+    controller.initialize(view, this.resolver);
     return { view, controller };
   }
 
@@ -84,10 +131,14 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
 
     const screen = this.createView(View, parent);
     this.activeScreen = screen;
+    if (this.lastResize) {
+      this.activeScreen.onResize?.(this.lastResize.width, this.lastResize.height, this.lastResize.dpr);
+    }
     this.activeScreen.onEnter?.(enterTransition);
   }
 
   resize(width: number, height: number, dpr: number): void {
+    this.lastResize = { width, height, dpr };
     this.activeScreen?.onResize?.(width, height, dpr);
   }
 }

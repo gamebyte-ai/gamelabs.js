@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { IViewContainer } from "../views/IViewContainer.js";
 
 type Create3DRendererOptions = ConstructorParameters<typeof THREE.WebGLRenderer>[0];
 
@@ -19,7 +20,7 @@ export type WorldCreateOptions = {
   canvasClassName?: string;
 };
 
-export class World {
+export class World implements IViewContainer {
   static async create(canvas?: HTMLCanvasElement, options: WorldCreateOptions = {}): Promise<World> {
     const c = canvas ?? document.createElement("canvas");
     if (options.canvasClassName !== undefined) c.className = options.canvasClassName;
@@ -55,6 +56,25 @@ export class World {
 
   add(object: THREE.Object3D): void {
     this.scene.add(object);
+  }
+
+  attachChild(child: any, parent: any): void {
+    const p = parent as any;
+    const c = child as any;
+
+    // Allow `null` to mean "attach to World root (scene)".
+    if (p === null) {
+      this.add(c as THREE.Object3D);
+      return;
+    }
+
+    // Support both `World` and `THREE.Object3D` (and any custom parent with an `.add()` method).
+    if (p && typeof p.add === "function") {
+      p.add(c);
+      return;
+    }
+
+    throw new Error("Invalid world parent: expected a World/THREE.Object3D with .add(), or null");
   }
 
   resize(width: number, height: number, dpr: number): void {
