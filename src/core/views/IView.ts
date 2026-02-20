@@ -1,6 +1,6 @@
 import type { IViewController } from "./IViewController.js";
 import type { IViewFactory } from "./IViewFactory.js";
-import type { AssetLoader } from "../core/AssetLoader.js";
+import type { AssetLoader } from "../assets/AssetLoader.js";
 
 export interface IView {
   /**

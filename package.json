@@ -62,7 +62,7 @@
   },
   "scripts": {
     "prepare": "npm run build",
-    "build": "npm run clean && tsup",
+    "build": "npm run clean && tsup && node scripts/copy-mainscreen-assets.mjs",
     "dev": "tsup --watch",
     "clean": "rimraf dist",
     "typecheck": "tsc -p tsconfig.json --noEmit"

@@ -3,7 +3,7 @@ import type { IViewController } from "./IViewController.js";
 import type { IViewFactory } from "./IViewFactory.js";
 import type { IViewContainer } from "./IViewContainer.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
-import type { AssetLoader } from "../core/AssetLoader.js";
+import type { AssetLoader } from "../assets/AssetLoader.js";
 import type { IScreen } from "../ui/IScreen.js";
 import type { ScreenTransition } from "../ui/ScreenTransition.js";
 

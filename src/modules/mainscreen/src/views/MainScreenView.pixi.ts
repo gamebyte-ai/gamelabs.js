@@ -1,6 +1,7 @@
 import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
-import { ScreenView, type ScreenTransition } from "gamelabsjs";
+import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
+import type { ScreenTransition } from "../../../../core/ui/ScreenTransition.js";
 import type { IMainScreenView } from "./IMainScreenView.js";
 import { MainScreenAssets } from "../MainScreenAssets.js";
 

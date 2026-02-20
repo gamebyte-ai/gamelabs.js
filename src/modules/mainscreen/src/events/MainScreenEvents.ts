@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "gamelabsjs";
+import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
 
 /**
  * Example02 app-level events originating from `MainScreenView`.

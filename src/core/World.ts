@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { IViewContainer } from "../views/IViewContainer.js";
+import type { IViewContainer } from "./views/IViewContainer.js";
 
 type Create3DRendererOptions = ConstructorParameters<typeof THREE.WebGLRenderer>[0];
 

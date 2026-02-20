@@ -1,5 +1,8 @@
-import { AssetLoader, AssetRequest, AssetTypes, IModuleBinding } from "gamelabsjs";
-import type { DIContainer, IInstanceResolver, ViewFactory } from "gamelabsjs";
+import { AssetLoader } from "../../../core/assets/AssetLoader.js";
+import { IModuleBinding } from "../../../core/IModuleBinding.js";
+import type { DIContainer } from "../../../core/di/DIContainer.js";
+import type { IInstanceResolver } from "../../../core/di/IInstanceResolver.js";
+import type { ViewFactory } from "../../../core/views/ViewFactory.js";
 
 import { MainScreenController } from "./controllers/MainScreenController.js";
 import { MainScreenEvents } from "./events/MainScreenEvents.js";
@@ -11,17 +14,17 @@ export class MainScreenBinding extends IModuleBinding {
   static readonly SettingsButtonBg = MainScreenAssets.SettingsButtonBg;
   static readonly Background       = MainScreenAssets.Background;
 
-  configureDI(diContainer: DIContainer): void {
+  public configureDI(diContainer: DIContainer): void {
     diContainer.bindInstance(MainScreenEvents, new MainScreenEvents());
-  
   }
-  configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
+
+  public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
     viewFactory.registerHudView<MainScreenView, MainScreenController>(MainScreenView, {
       Controller: MainScreenController
     });
   }
 
-  loadAssets(assetLoader: AssetLoader): void{
+  public loadAssets(assetLoader: AssetLoader): void {
     void assetLoader.load(MainScreenAssets.PlayButtonBg);
     void assetLoader.load(MainScreenAssets.SettingsButtonBg);
     void assetLoader.load(MainScreenAssets.Background);

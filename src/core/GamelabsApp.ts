@@ -1,12 +1,12 @@
 import type { GamelabsAppConfig } from "./types.js";
 import { World } from "./World.js";
-import { WorldDebugger } from "./WorldDebugger.js";
-import { DIContainer } from "../di/DIContainer.js";
-import type { IInstanceResolver } from "../di/IInstanceResolver.js";
-import { ViewFactory } from "../views/ViewFactory.js";
-import { UpdateService } from "../services/UpdateService.js";
+import { DevUtils } from "./DevUtils.js";
+import { DIContainer } from "./di/DIContainer.js";
+import type { IInstanceResolver } from "./di/IInstanceResolver.js";
+import { ViewFactory } from "./views/ViewFactory.js";
+import { UpdateService } from "./services/UpdateService.js";
 import { Hud } from "../index.js";
-import { AssetLoader } from "./AssetLoader.js";
+import { AssetLoader } from "./assets/AssetLoader.js";
 
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
@@ -14,8 +14,8 @@ export class GamelabsApp {
   readonly sharedContext: boolean;
 
   world: World | null = null;
-  worldDebugger: WorldDebugger | null = null;
   hud: Hud | null = null;
+  private _devUtils: DevUtils | null = null;
   readonly assetLoader = new AssetLoader();
 
   readonly updateService = new UpdateService();
@@ -38,7 +38,6 @@ export class GamelabsApp {
   private _height: number | undefined;
   private _rafId: number | null = null;
   private _lastFrameTimeMs: number | null = null;
-  private _statsVisible = false;
   private readonly _onWindowResize = (): void => {
     const dpr = typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1;
 
@@ -85,6 +84,11 @@ export class GamelabsApp {
     this.diContainer.bindInstance(AssetLoader, this.assetLoader);
   }
 
+  public get devUtils(): DevUtils {
+    if (!this._devUtils) throw new Error("DevUtils is not initialized");
+    return this._devUtils;
+  }
+
   async initialize(): Promise<void> {
     if (this._isInitialized) return;
     
@@ -92,6 +96,9 @@ export class GamelabsApp {
     
     await this.createWorld();
     await this.createHud();
+
+    this._devUtils = new DevUtils(this.world!, this.hud!);
+    this.diContainer.bindInstance(DevUtils, this._devUtils);
 
     this.viewFactory.setViewContainers(this.world, this.hud);
 
@@ -125,7 +132,6 @@ export class GamelabsApp {
   private async createWorld(): Promise<void> {
     if (!this.mount) throw new Error("Missing mount element");
     this.world = await World.create(this.canvas, { mount: this.mount, canvasClassName: "layer world3d" });
-    this.worldDebugger = new WorldDebugger(this.world);
   }
 
   private async createHud(): Promise<void> {
@@ -141,13 +147,11 @@ export class GamelabsApp {
         context: this.world.renderer.getContext() as WebGL2RenderingContext,
         manualRender: true
       });
-      this.hud.showStats(this._statsVisible);
       return;
     }
 
     // Legacy: separate Pixi canvas layer (auto-rendered by Pixi).
     this.hud = await Hud.create(this.mount);
-    this.hud.showStats(this._statsVisible);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -229,14 +233,6 @@ export class GamelabsApp {
   }
 
   /**
-   * Toggles a small HUD stats panel (top-left).
-   */
-  showStats(show: boolean): void {
-    this._statsVisible = show;
-    this.hud?.showStats(show);
-  }
-
-  /**
    * Cleanup hook.
    * Removes any base listeners/timers.
    *
@@ -252,7 +248,8 @@ export class GamelabsApp {
 
     this.updateService.clear();
 
-    this.worldDebugger?.destroy();
+    this._devUtils?.destroy();
+    this._devUtils = null;
 
     this.hud?.destroy();
     this.hud = null;

@@ -19,7 +19,6 @@ export class Example01App extends GamelabsApp {
 
   private unsubscribeToggleGroundGrid: (() => void) | null = null;
   private unsubscribeToggleStats: (() => void) | null = null;
-  private statsVisible = false;
 
   private cubeView: CubeView | null = null;
 
@@ -43,9 +42,7 @@ export class Example01App extends GamelabsApp {
   }
 
   private createGroundGrid(): void {
-    if (!this.worldDebugger) throw new Error("WorldDebugger is not initialized");
-
-    this.worldDebugger.createGroundGrid({
+    this.devUtils.createGroundGrid({
       size: 20,
       divisions: 20,
       color1: 0x223047,
@@ -54,17 +51,14 @@ export class Example01App extends GamelabsApp {
     });
 
     this.unsubscribeToggleGroundGrid = this.debugEvents.onToggleGroundGrid(() => {
-      this.worldDebugger?.showGroundGrid(!this.worldDebugger.isGroundGridVisible);
+      this.devUtils.showGroundGrid(!this.devUtils.isGroundGridVisible);
     });
   }
 
   private createStatsToggle(): void {
-    this.statsVisible = false;
-    this.hud?.showStats(false);
 
     this.unsubscribeToggleStats = this.debugEvents.onToggleStats(() => {
-      this.statsVisible = !this.statsVisible;
-      this.hud?.showStats(this.statsVisible);
+      this.devUtils.showStats(!this.devUtils.isStatsVisible);
     });
   }
 

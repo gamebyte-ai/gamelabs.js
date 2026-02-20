@@ -1,7 +1,7 @@
 import { GamelabsApp } from "gamelabsjs";
 
-import { MainScreenBinding, MainScreenEvents, MainScreenView } from "../modules/mainscreen/src/index.js";
-import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents} from "../modules/levelprogressscreeen/src/index.js";
+import { MainScreenBinding, MainScreenEvents, MainScreenView } from "gamelabsjs";
+import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents } from "./modules/levelprogressscreeen/src/index.js";
 import { AppConfig } from "./AppConfig";
 import { LevelProgressModel } from "./models/LevelProgressModel";
 
@@ -18,7 +18,7 @@ export class Example02App extends GamelabsApp {
 
   protected override postInitialize(): void {
     this.createGroundGrid();
-    this.hud?.showStats(true);
+    this.devUtils.showStats(true);
     this.createMainScreen();
 
     const mainEvents = this.diContainer.getInstance(MainScreenEvents);
@@ -53,9 +53,7 @@ export class Example02App extends GamelabsApp {
   }
 
   private createGroundGrid(): void {
-    if (!this.worldDebugger) throw new Error("WorldDebugger is not initialized");
-
-    this.worldDebugger.createGroundGrid({
+    this.devUtils.createGroundGrid({
       size: 20,
       divisions: 20,
       color1: 0x223047,

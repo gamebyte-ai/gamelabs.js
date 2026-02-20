@@ -1,6 +1,6 @@
 import "@pixi/layout";
 import { Application, Container, Graphics, Text, TextStyle, type ApplicationOptions } from "pixi.js";
-import type { IViewContainer } from "../views/IViewContainer.js";
+import type { IViewContainer } from "./views/IViewContainer.js";
 
 export type HudCreateOptions = {
   /**

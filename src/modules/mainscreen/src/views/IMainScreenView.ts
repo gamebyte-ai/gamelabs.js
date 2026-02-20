@@ -1,4 +1,5 @@
-import type { IScreen, IView } from "gamelabsjs";
+import type { IScreen } from "../../../../core/ui/IScreen.js";
+import type { IView } from "../../../../core/views/IView.js";
 
 /**
  * Example02 main HUD screen contract.

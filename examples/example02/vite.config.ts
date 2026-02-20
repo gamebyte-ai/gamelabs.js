@@ -1,11 +1,10 @@
 import { defineConfig } from "vite";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const distIndexPath = decodeURIComponent(new URL("../../dist/index.js", import.meta.url).pathname);
+const repoRootPath = decodeURIComponent(new URL("../..", import.meta.url).pathname);
 
 export default defineConfig({
+  base: "./",
   optimizeDeps: {
     // Prevent Vite from caching/prebundling a stale local build of the framework.
     // We want changes in `../../dist/index.js` to be picked up immediately.
@@ -17,7 +16,7 @@ export default defineConfig({
 
     // Always resolve to the repo-local build output.
     alias: {
-      gamelabsjs: resolve(__dirname, "../../dist/index.js")
+      gamelabsjs: distIndexPath
     },
 
     // CRITICAL: Ensure we only ever bundle ONE copy of Pixi + layout/ui.
@@ -25,7 +24,8 @@ export default defineConfig({
   },
   server: {
     port: 5176,
-    strictPort: true
+    strictPort: true,
+    fs: { allow: [repoRootPath] }
   }
 });
 
