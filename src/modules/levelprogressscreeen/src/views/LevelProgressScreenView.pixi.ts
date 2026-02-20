@@ -1,7 +1,8 @@
 import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
-import { ScreenView, type ScreenTransition } from "gamelabsjs";
+import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import type { ILevelProgressScreenView } from "./ILevelProgressScreenView.js";
+import { LevelProgressScreenAssets } from "../LevelProgressScreenAssets.js";
 
 type LevelItemRefs = {
   view: PIXI.Container;
@@ -28,6 +29,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
   private readonly cleanup: Array<() => void> = [];
 
+  private readonly bgImage = new PIXI.Sprite(PIXI.Texture.EMPTY);
   private readonly bg = new PIXI.Graphics();
 
   private readonly backButtonBg = new PIXI.Graphics();
@@ -66,7 +68,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
   private readonly currentLevelClickListeners = new Set<() => void>();
   private readonly backClickListeners = new Set<() => void>();
 
-  constructor(opts: { visibleCount?: number; currentLevel?: number } = {}) {
+  public constructor(opts: { visibleCount?: number; currentLevel?: number } = {}) {
     super();
     this.initialVisibleCount = opts.visibleCount;
     this.initialCurrentLevel = opts.currentLevel;
@@ -87,6 +89,10 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       justifyContent: "center",
       alignItems: "center"
     };
+
+    (this.bgImage as any).layout = { position: "absolute", left: 0, top: 0 };
+    this.bgImage.visible = false;
+    this.addChild(this.bgImage);
 
     (this.bg as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this.addChild(this.bg);
@@ -126,23 +132,24 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
     this.rebuildItems();
     this.applyLevels();
+    this.applyTexturesIfAvailable();
   }
 
-  override onResize(width: number, height: number, _dpr: number): void {
+  public override onResize(width: number, height: number, _dpr: number): void {
     const w = Math.max(1, width);
     const h = Math.max(1, height);
     (this as any).layout = { width: w, height: h };
     this.redrawBackground(w, h);
   }
 
-  setCurrentLevel(level: number): void {
+  public setCurrentLevel(level: number): void {
     const next = Math.max(1, Math.floor(level));
     if (next === this.currentLevel) return;
     this.currentLevel = next;
     this.applyLevels();
   }
 
-  setVisibleCount(count: number): void {
+  public setVisibleCount(count: number): void {
     const next = Math.max(1, Math.floor(count));
     if (next === this.visibleCount) return;
     this.visibleCount = next;
@@ -150,12 +157,12 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     this.applyLevels();
   }
 
-  onCurrentLevelClick(cb: () => void): () => void {
+  public onCurrentLevelClick(cb: () => void): () => void {
     this.currentLevelClickListeners.add(cb);
     return () => this.currentLevelClickListeners.delete(cb);
   }
 
-  onBackClick(cb: () => void): () => void {
+  public onBackClick(cb: () => void): () => void {
     this.backClickListeners.add(cb);
     return () => this.backClickListeners.delete(cb);
   }
@@ -169,8 +176,34 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
   }
 
   private redrawBackground(width: number, height: number): void {
+    // If the JPEG is available, scale it to COVER the screen without distortion.
+    if (this.bgImage.texture !== PIXI.Texture.EMPTY) {
+      this.bgImage.visible = true;
+      const tw = Math.max(1, this.bgImage.texture.width);
+      const th = Math.max(1, this.bgImage.texture.height);
+      const scale = Math.max(width / tw, height / th);
+      this.bgImage.scale.set(scale, scale);
+      this.bgImage.position.set((width - tw * scale) / 2, (height - th * scale) / 2);
+
+      // Optional subtle dark overlay for UI readability.
+      this.bg.clear();
+      this.bg.rect(0, 0, width, height).fill({ color: 0x000000, alpha: 0.12 });
+      return;
+    }
+
+    // Fallback if the texture isn't loaded yet.
+    this.bgImage.visible = false;
     this.bg.clear();
     this.bg.rect(0, 0, width, height).fill({ color: 0x020617, alpha: 0.55 });
+  }
+
+  private applyTexturesIfAvailable(): void {
+    const background = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssets.Background.id);
+    if (background && this.bgImage.texture === PIXI.Texture.EMPTY) {
+      this.bgImage.texture = background;
+      const layout = (this as any).layout;
+      if (layout?.width && layout?.height) this.redrawBackground(layout.width, layout.height);
+    }
   }
 
   private createBackButtonView(): PIXI.Container {
@@ -276,6 +309,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i];
+      if (!it) continue;
       const levelNo = levels[i] ?? "";
       it.text.text = String(levelNo);
       it.text.style = {
@@ -335,7 +369,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     return this.computeWindow().currentIndex;
   }
 
-  override destroy(): void {
+  public override destroy(): void {
     for (const c of this.cleanup) c();
     this.cleanup.length = 0;
     this.items.length = 0;

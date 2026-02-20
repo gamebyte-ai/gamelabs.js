@@ -16,8 +16,30 @@ import { HudViewBase } from "../views/HudViewBase.js";
  * Concrete screens can extend this and add their own children and logic.
  */
 export class ScreenView extends HudViewBase implements IView, IScreen {
-  private enterTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private exitTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private _transitionTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private _transitionRafId: number | null = null;
+
+  private cancelTransitionTimers(): void {
+    if (this._transitionTimeoutId) {
+      clearTimeout(this._transitionTimeoutId);
+      this._transitionTimeoutId = null;
+    }
+    if (this._transitionRafId !== null) {
+      cancelAnimationFrame(this._transitionRafId);
+      this._transitionRafId = null;
+    }
+  }
+
+  private setTransitionTimeout(callback: () => void, delayMs: number): void {
+    if (this._transitionTimeoutId) {
+      clearTimeout(this._transitionTimeoutId);
+      this._transitionTimeoutId = null;
+    }
+    this._transitionTimeoutId = setTimeout(() => {
+      this._transitionTimeoutId = null;
+      callback();
+    }, delayMs);
+  }
 
   public override postInitialize(): void {
     super.postInitialize();
@@ -25,11 +47,8 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
     (this as any).layout = { width: 1, height: 1 };
   }
 
-  onEnter(transition: ScreenTransition): void | Promise<void> {
-    if (this.enterTimeoutId) {
-      clearTimeout(this.enterTimeoutId);
-      this.enterTimeoutId = null;
-    }
+  public onEnter(transition: ScreenTransition): void | Promise<void> {
+    this.cancelTransitionTimers();
 
     switch (transition.type) {
       case SCREEN_TRANSITION_TYPES.INSTANT: {
@@ -38,12 +57,55 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
         }
 
         this.visible = false;
-        this.enterTimeoutId = setTimeout(() => {
-          this.enterTimeoutId = null;
+        this.setTransitionTimeout(() => {
           if ((this as any).destroyed) return;
           this.visible = true;
         }, transition.durationMs);
 
+        return;
+      }
+
+      case SCREEN_TRANSITION_TYPES.FADE_IN: {
+        this.visible = true;
+        this.alpha = 0;
+
+        if (transition.durationMs <= 0) {
+          this.alpha = 1;
+          return;
+        }
+
+        const durationMs = transition.durationMs;
+        const isDestroyed = (): boolean => Boolean((this as any).destroyed);
+
+        if (typeof requestAnimationFrame === "function" && typeof cancelAnimationFrame === "function") {
+          const startMs = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+          const step = (nowMs: number): void => {
+            if (isDestroyed()) return;
+            const t = Math.min(1, Math.max(0, (nowMs - startMs) / durationMs));
+            this.alpha = t;
+            if (t >= 1) {
+              this._transitionRafId = null;
+              this.alpha = 1;
+              return;
+            }
+            this._transitionRafId = requestAnimationFrame(step);
+          };
+          this._transitionRafId = requestAnimationFrame(step);
+          return;
+        }
+
+        const startMs = Date.now();
+        const tick = (): void => {
+          if (isDestroyed()) return;
+          const t = Math.min(1, Math.max(0, (Date.now() - startMs) / durationMs));
+          this.alpha = t;
+          if (t >= 1) {
+            this.alpha = 1;
+            return;
+          }
+          this.setTransitionTimeout(tick, 16);
+        };
+        this.setTransitionTimeout(tick, 0);
         return;
       }
 
@@ -52,11 +114,8 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
     }
   }
 
-  onExit(transition: ScreenTransition): void | Promise<void> {
-    if (this.exitTimeoutId) {
-      clearTimeout(this.exitTimeoutId);
-      this.exitTimeoutId = null;
-    }
+  public onExit(transition: ScreenTransition): void | Promise<void> {
+    this.cancelTransitionTimers();
 
     switch (transition.type) {
       case SCREEN_TRANSITION_TYPES.INSTANT: {
@@ -65,8 +124,20 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
           return;
         }
 
-        this.exitTimeoutId = setTimeout(() => {
-          this.exitTimeoutId = null;
+        this.setTransitionTimeout(() => {
+          if ((this as any).destroyed) return;
+          this.destroy();
+        }, transition.durationMs);
+        return;
+      }
+
+      case SCREEN_TRANSITION_TYPES.FADE_IN: {
+        if (transition.durationMs <= 0) {
+          this.destroy();
+          return;
+        }
+
+        this.setTransitionTimeout(() => {
           if ((this as any).destroyed) return;
           this.destroy();
         }, transition.durationMs);
@@ -78,15 +149,8 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
     }
   }
 
-  override destroy(): void {
-    if (this.enterTimeoutId) {
-      clearTimeout(this.enterTimeoutId);
-      this.enterTimeoutId = null;
-    }
-    if (this.exitTimeoutId) {
-      clearTimeout(this.exitTimeoutId);
-      this.exitTimeoutId = null;
-    }
+  public override destroy(): void {
+    this.cancelTransitionTimers();
 
     super.destroy();
   }
@@ -95,7 +159,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
    * Optional convenience for layout-enabled screens.
    * If you don't use layouts, you can ignore this.
    */
-  onResize(width: number, height: number, _dpr: number): void {
+  public onResize(width: number, height: number, _dpr: number): void {
     (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
   }
 

@@ -1,4 +1,4 @@
-import { InjectionToken } from "gamelabsjs";
+import { InjectionToken } from "../../../../core/di/InjectionToken.js";
 
 /**
  * Example02 level progress screen model contract.

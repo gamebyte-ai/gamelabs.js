@@ -26,4 +26,5 @@ export * from "./core/types.js";
 export * from "./core/version.js";
 
 export * from "./modules/mainscreen/src/index.js";
+export * from "./modules/levelprogressscreeen/src/index.js";
 

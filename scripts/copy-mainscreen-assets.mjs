@@ -6,9 +6,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const repoRoot = resolve(__dirname, "..");
-const srcDir = resolve(repoRoot, "src/modules/mainscreen/src/assets");
-const outDir = resolve(repoRoot, "dist/assets/mainscreen");
+const mainSrcDir = resolve(repoRoot, "src/modules/mainscreen/src/assets");
+const mainOutDir = resolve(repoRoot, "dist/assets/mainscreen");
 
-await mkdir(outDir, { recursive: true });
-await cp(srcDir, outDir, { recursive: true });
+const levelProgressSrcDir = resolve(repoRoot, "src/modules/levelprogressscreeen/src/assets");
+const levelProgressOutDir = resolve(repoRoot, "dist/assets/levelprogress");
+
+await mkdir(mainOutDir, { recursive: true });
+await cp(mainSrcDir, mainOutDir, { recursive: true });
+
+await mkdir(levelProgressOutDir, { recursive: true });
+await cp(levelProgressSrcDir, levelProgressOutDir, { recursive: true });
 

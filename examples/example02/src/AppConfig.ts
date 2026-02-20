@@ -6,16 +6,21 @@ import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "gamelabsjs";
  */
 export class AppConfig {
   readonly transitions: {
+    mainScreenIntro: ScreenTransition;
     mainScreenEnter: ScreenTransition;
     levelProgressScreenEnter: ScreenTransition;
   } = {
-    mainScreenEnter: {
+    mainScreenIntro: {
       type: SCREEN_TRANSITION_TYPES.INSTANT,
       durationMs: 0
     },
+    mainScreenEnter: {
+      type: SCREEN_TRANSITION_TYPES.FADE_IN,
+      durationMs: 500
+    },
     levelProgressScreenEnter: {
-      type: SCREEN_TRANSITION_TYPES.INSTANT,
-      durationMs: 0
+      type: SCREEN_TRANSITION_TYPES.FADE_IN,
+      durationMs: 500
     }
   };
 }

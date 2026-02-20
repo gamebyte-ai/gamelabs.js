@@ -108,7 +108,6 @@ export class GamelabsApp {
     await this.waitForAssetsLoaded();
 
     this.postInitialize();
-
     this.requestResize();
   }
 

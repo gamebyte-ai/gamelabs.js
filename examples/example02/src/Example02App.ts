@@ -1,7 +1,7 @@
 import { GamelabsApp } from "gamelabsjs";
 
 import { MainScreenBinding, MainScreenEvents, MainScreenView } from "gamelabsjs";
-import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents } from "./modules/levelprogressscreeen/src/index.js";
+import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents } from "gamelabsjs";
 import { AppConfig } from "./AppConfig";
 import { LevelProgressModel } from "./models/LevelProgressModel";
 
@@ -19,7 +19,6 @@ export class Example02App extends GamelabsApp {
   protected override postInitialize(): void {
     this.createGroundGrid();
     this.devUtils.showStats(true);
-    this.createMainScreen();
 
     const mainEvents = this.diContainer.getInstance(MainScreenEvents);
     this.unsubscribePlayClick = mainEvents.onPlayClick(() => {
@@ -30,6 +29,8 @@ export class Example02App extends GamelabsApp {
     this.unsubscribeBackClick = levelProgressEvents.onBackClick(() => {
       this.showMainScreen();
     });
+
+    this.viewFactory.createScreen(MainScreenView, null, this.config.transitions.mainScreenIntro);
   }
 
   protected override onStep(timestepSeconds: number): void {
@@ -60,10 +61,6 @@ export class Example02App extends GamelabsApp {
       color2: 0x152033,
       y: -0.75
     });
-  }
-
-  private createMainScreen(): void {
-    this.viewFactory.createScreen(MainScreenView, null, this.config.transitions.mainScreenEnter);
   }
 
   private showLevelProgressScreen(): void {

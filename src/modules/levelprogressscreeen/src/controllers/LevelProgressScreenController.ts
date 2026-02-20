@@ -1,8 +1,6 @@
-import {
-  UnsubscribeBag,
-  type IInstanceResolver,
-  type IViewController
-} from "gamelabsjs";
+import { UnsubscribeBag } from "../../../../core/events/subscriptions.js";
+import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
+import type { IViewController } from "../../../../core/views/IViewController.js";
 import type { ILevelProgressScreenView } from "../views/ILevelProgressScreenView.js";
 import { LevelProgressScreenEvents } from "../events/LevelProgressScreenEvents.js";
 import { ILevelProgressScreenModel, type ILevelProgressScreenModel as LevelProgressScreenModel } from "../models/ILevelProgressScreenModel.js";

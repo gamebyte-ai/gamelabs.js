@@ -1,15 +1,21 @@
-import { AssetLoader, IModuleBinding } from "gamelabsjs";
-import type { DIContainer, IInstanceResolver, ViewFactory } from "gamelabsjs";
+import { AssetLoader } from "../../../core/assets/AssetLoader.js";
+import { IModuleBinding } from "../../../core/IModuleBinding.js";
+import type { DIContainer } from "../../../core/di/DIContainer.js";
+import type { IInstanceResolver } from "../../../core/di/IInstanceResolver.js";
+import type { ViewFactory } from "../../../core/views/ViewFactory.js";
 
 import { LevelProgressScreenController } from "./controllers/LevelProgressScreenController.js";
 import { LevelProgressScreenEvents } from "./events/LevelProgressScreenEvents.js";
 import { ILevelProgressScreenModel, type ILevelProgressScreenModel as LevelProgressScreenModel } from "./models/ILevelProgressScreenModel.js";
+import { LevelProgressScreenAssets } from "./LevelProgressScreenAssets.js";
 import { LevelProgressScreenView } from "./views/LevelProgressScreenView.pixi.js";
 
 export class LevelProgressScreenBinding extends IModuleBinding {
+  static readonly Background = LevelProgressScreenAssets.Background;
+
   private readonly model: LevelProgressScreenModel | undefined;
 
-  constructor(model?: LevelProgressScreenModel) {
+  public constructor(model?: LevelProgressScreenModel) {
     super();
     this.model = model;
   }
@@ -23,7 +29,8 @@ export class LevelProgressScreenBinding extends IModuleBinding {
     viewFactory.registerHudView<LevelProgressScreenView, LevelProgressScreenController>(LevelProgressScreenView, {Controller: LevelProgressScreenController});
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  public loadAssets(_assetLoader: AssetLoader): void {}
+  public loadAssets(assetLoader: AssetLoader): void {
+    void assetLoader.load(LevelProgressScreenAssets.Background);
+  }
 }
 
