@@ -79,7 +79,8 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     };
 
     // Background should cover the whole screen.
-    (this.bgImage as any).layout = { position: "absolute", left: 0, top: 0 };
+    // IMPORTANT: do not put the background sprite under @pixi/layout control.
+    // We manually size/position it for "cover" behavior in `redrawBackground()`.
     this.bgImage.visible = false;
     this.addChild(this.bgImage);
     (this.bg as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };

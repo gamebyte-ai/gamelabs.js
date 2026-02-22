@@ -11,6 +11,8 @@ import { LevelProgressScreenAssets } from "./LevelProgressScreenAssets.js";
 import { LevelProgressScreenView } from "./views/LevelProgressScreenView.pixi.js";
 
 export class LevelProgressScreenBinding extends IModuleBinding {
+  static readonly BackButtonBg = LevelProgressScreenAssets.BackButtonBg;
+  static readonly LevelItemBg = LevelProgressScreenAssets.LevelItemBg;
   static readonly Background = LevelProgressScreenAssets.Background;
 
   private readonly model: LevelProgressScreenModel | undefined;
@@ -30,6 +32,8 @@ export class LevelProgressScreenBinding extends IModuleBinding {
   }
 
   public loadAssets(assetLoader: AssetLoader): void {
+    void assetLoader.load(LevelProgressScreenAssets.BackButtonBg);
+    void assetLoader.load(LevelProgressScreenAssets.LevelItemBg);
     void assetLoader.load(LevelProgressScreenAssets.Background);
   }
 }
