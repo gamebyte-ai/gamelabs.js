@@ -15,11 +15,11 @@ export class AppConfig {
       durationMs: 0
     },
     mainScreenEnter: {
-      type: SCREEN_TRANSITION_TYPES.FADE_IN,
+      type: SCREEN_TRANSITION_TYPES.SLIDE_IN_UP,
       durationMs: 500
     },
     levelProgressScreenEnter: {
-      type: SCREEN_TRANSITION_TYPES.FADE_IN,
+      type: SCREEN_TRANSITION_TYPES.SLIDE_IN_DOWN,
       durationMs: 500
     }
   };
