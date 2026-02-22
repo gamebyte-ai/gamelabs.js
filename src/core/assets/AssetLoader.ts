@@ -58,11 +58,19 @@ export class AssetLoader {
     switch (type) {
       case AssetTypes.HudTexture:
         return Assets.load(url);
+      case AssetTypes.GLTF:
+        return this.loadGltf(url);
       default: {
         const neverType: never = type;
         throw new Error(`AssetLoader: unsupported asset type: ${String(neverType)}`);
       }
     }
+  }
+
+  private async loadGltf(url: string): Promise<unknown> {
+    const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
+    const loader = new GLTFLoader();
+    return loader.loadAsync(url);
   }
 }
 

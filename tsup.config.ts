@@ -16,7 +16,7 @@ export default defineConfig({
   // We run cleaning via npm script to avoid rare race issues
   // when multiple formats/entries clean concurrently.
   clean: false,
-  onSuccess: "node scripts/copy-mainscreen-assets.mjs",
+  onSuccess: "node scripts/copy-module-assets.mjs",
   treeshake: true,
   splitting: false,
   // Also set via esbuildOptions for older tsup behavior.

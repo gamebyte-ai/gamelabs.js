@@ -2,11 +2,11 @@ import { GamelabsApp } from "gamelabsjs";
 
 import { MainScreenBinding, MainScreenEvents, MainScreenView } from "gamelabsjs";
 import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents } from "gamelabsjs";
-import { AppConfig } from "./AppConfig";
+import { Example02Config } from "./Example02Config";
 import { LevelProgressModel } from "./models/LevelProgressModel";
 
 export class Example02App extends GamelabsApp {
-  public readonly config = new AppConfig();
+  public readonly config = new Example02Config();
   public readonly mainScreenBinding = new MainScreenBinding();
   public readonly levelProgressScreenBinding = new LevelProgressScreenBinding(new LevelProgressModel());
   private unsubscribePlayClick: (() => void) | null = null;

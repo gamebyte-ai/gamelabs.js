@@ -10,10 +10,11 @@ import { DebugBarView } from "./views/DebugBarView.pixi";
 import { DebugBarController } from "./controllers/DebugBarController";
 import { GameEvents } from "./events/GameEvents";
 import { DebugEvents } from "./events/DebugEvents";
-import { AppConfig } from "./AppConfig";
+import { Example01Config } from "./Example01Config";
+import { Example01Assets } from "./Example01Assets";
 
 export class Example01App extends GamelabsApp {
-  readonly config = new AppConfig();
+  readonly config = new Example01Config();
   readonly gameEvents = new GameEvents();
   readonly debugEvents = new DebugEvents();
 
@@ -73,6 +74,10 @@ export class Example01App extends GamelabsApp {
     this.viewFactory.registerHudView<DebugBarView,   DebugBarController>   (DebugBarView,   { Controller: DebugBarController   });
 
     this.viewFactory.registerWorldView<CubeView, CubeController>(CubeView, { Controller: CubeController });
+  }
+
+  protected override loadAssets(): void {
+    void this.assetLoader.load(Example01Assets.Cube);
   }
 
   private createGameScreen(): void {
