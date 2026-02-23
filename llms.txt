@@ -1,39 +1,77 @@
-# Gamelabsjs
-Gamelabsjs is a mvc like game framework for fast prototyping.
-- Basic dependecy injection system with singleton binding
-- View-Controler binding
-- Strict view implementation separation from application (View-IView-IViewController-ViewController)
-- Module support
+# gamelabsjs
+`gamelabsjs` is an MVC-ish game framework for fast prototyping.
 
-## App implementation details
-### App class (under src folder)
-- YourGameApp class extends GamelabsApp class, override methods for applications steps
- - configureDI: bind dependency instances (first modules, then App specific once)
- - configureViews: register view and view controllers (first modules, then App specific once)
- - loadAssets: load assets (first modules, then App specific once)
- - postInitialize: post registration and asset loading tasks (other initilizations, view creations, level loading, user progress loading, trigger game start, ...)
- - onStep: per frame controls and updates
+- Minimal **dependency injection** container (`DIContainer`) with singleton bindings
+- **View ↔ controller wiring** via `ViewFactory` (`IView` + `IViewController`)
+- Clear separation: **controllers depend on view interfaces**, not concrete rendering code
+- **Modules** via `IModuleBinding` (DI + views + assets as a reusable unit)
+- Two-layer rendering:
+  - **World (3D)**: Three.js (`WorldViewBase`)
+  - **HUD / UI**: PixiJS (`HudViewBase`, `ScreenView`)
 
-### Assets class (under src folder)
-YourGameAssets class containes all needed asset names, types and urls
+## Quick start (mirrors the examples)
+- Create your app by extending `GamelabsApp`
+- Call `await app.initialize()` then `app.mainLoop()`
+- Register DI bindings, view/controller bindings, and assets via lifecycle hooks
 
-### Config class (under src folder)
-YourGameConfig class containes all user defined values (tweaking behaviours, setting limits, screen transition, timing values, player speed, jump height, turn count, max score, ...)
+## App class (`GamelabsApp`)
+Your `YourGameApp` extends `GamelabsApp` and typically overrides:
+- `configureDI()`: bind app/services/events into `diContainer` (often modules first, then app-specific)
+- `configureViews()`: register view/controller pairs into `viewFactory` (modules first, then app-specific)
+- `loadAssets()`: enqueue assets in `assetLoader` (modules first, then app-specific)
+- `postInitialize()`: create initial screens/views and hook event subscriptions (called after assets are loaded)
+- `onStep(timestepSeconds)`: per-frame logic hook (called after `updateService.tick()`)
+- `preDestroy()`: unsubscribe + cleanup owned resources
 
-### Event classes (under src/events folder)
-Communication between view controllers and other parts of game uses events
-Event class bindings are added to dependecy container
+Notes:
+- If you want Pixi + Three to share the same WebGL context, pass `{ sharedContext: true }` to `super(...)`.
+- `initialize()` creates `world` + `hud`, runs the hooks above, waits for assets, then calls `postInitialize()`.
 
-### View classes (under src/views folder)
-IView classes:
-- they contain methods for view manipulation(nothing is exposed to controllers) and events for view controllers to listen view events (user input, animation complete, object collisions, ...)
-View classes:
-- Base view classes (WorldViewBase,HudViewBase) implements IView interfaces and initialize, setController methods are implemented in there
-- World views extends WorlViewBase which uses [threejs](https://threejs.org/docs/llms.txt)
-- Hud (ui) views extends HudViewBase which uses [pixijs](https://pixijs.com/llms.txt). Also we can use pixijs-ui and pixijs-layout if they help.
-- User defined view classes extend base view classes and only implement postInitialize and preDestroy
+## Assets (`AssetLoader`, `AssetRequest`)
+Create an assets catalog for your game/module:
+- Use `AssetRequest` + `AssetTypes` to describe what to load and where (URLs).
+- Call `assetLoader.load(...)` inside `loadAssets()`.
 
-### ViewController classes (under src/controllers folder)
-- They implement IViewController interface
-- initialize method is called after view creation, has parameters for custom view interface and instance resolver to get dependencies
-- destroy method is called just before view destruction
+## Config (project constants / tuning)
+Keep user-defined values in a config object (transitions, timing, tuning values, limits, etc.).
+This keeps controllers lean and avoids magic numbers.
+
+## Events (app/controller communication)
+Use events to decouple controllers from each other and from app/model code.
+
+Typical pattern:
+- Define event classes (e.g. `GameEvents`, `MainScreenEvents`)
+- Bind them into `diContainer` in `configureDI()`
+- Controllers resolve them via `resolver.getInstance(...)` and subscribe/unsubscribe as needed
+
+## Views (`IView`, base view classes)
+Views are responsible for rendering and user interaction details.
+
+- `IView` lifecycle is wired by `ViewFactory`:
+  - `view.initialize(viewFactory, assetLoader)`
+  - `view.postInitialize()`
+  - `view.setController(controller)`
+  - `controller.initialize(view, resolver)`
+- Base classes implement the standard wiring fields and default destruction:
+  - `WorldViewBase` (Three.js) for world views
+  - `HudViewBase` (PixiJS) for HUD views
+  - `ScreenView` (PixiJS) for full-screen HUD screens + transitions
+
+Guidelines:
+- Expose a **small interface** (e.g. `ICubeView`) for controllers: methods like `setColor()`, `setVisible()`, `playIntro()`, etc.
+- Prefer “view creates subviews” (composition) where helpful (see Example01 `GameScreenView` creating `TopBarView`/`DebugBarView`).
+
+## Controllers (`IViewController`)
+Controllers orchestrate behavior and app wiring.
+
+- Implement `IViewController<TView>`
+- `initialize(view, resolver)` is called after the view is created and wired
+- `destroy()` is called when the view is destroyed (base views call `controller.destroy()`)
+
+## Modules (`IModuleBinding`)
+Modules are reusable bundles that can register:
+- DI bindings: `configureDI(diContainer)`
+- View registrations: `configureViews(viewFactory)`
+- Assets: `loadAssets(assetLoader)`
+
+Apps compose modules by calling those methods from their `GamelabsApp` overrides (see Example02).
