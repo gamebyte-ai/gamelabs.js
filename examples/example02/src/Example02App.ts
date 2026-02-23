@@ -38,19 +38,9 @@ export class Example02App extends GamelabsApp {
     super.onStep(timestepSeconds);
   }
 
-  protected override configureDI(): void {
-    this.mainScreenBinding.configureDI(this.diContainer);
-    this.levelProgressScreenBinding.configureDI(this.diContainer);
-  }
-
-  protected override configureViews(): void {
-    this.mainScreenBinding.configureViews(this.viewFactory);
-    this.levelProgressScreenBinding.configureViews(this.viewFactory);
-  }
-
-  protected override loadAssets(): void {
-    this.mainScreenBinding.loadAssets(this.assetLoader);
-    this.levelProgressScreenBinding.loadAssets(this.assetLoader);
+  protected override registerModules(): void {
+    this.addModule(this.mainScreenBinding);
+    this.addModule(this.levelProgressScreenBinding);
   }
 
   private createGroundGrid(): void {

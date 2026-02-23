@@ -7,6 +7,7 @@ import { ViewFactory } from "./views/ViewFactory.js";
 import { UpdateService } from "./services/UpdateService.js";
 import { Hud } from "../index.js";
 import { AssetLoader } from "./assets/AssetLoader.js";
+import type { IModuleBinding } from "./IModuleBinding.js";
 
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
@@ -23,6 +24,7 @@ export class GamelabsApp {
   readonly viewFactory = new ViewFactory<IInstanceResolver>(this.diContainer, this.assetLoader);
 
   private _isInitialized = false;
+  private _moduleList: IModuleBinding[] = [];
 
   /**
    * Optional fixed logical dimensions provided via config.
@@ -102,8 +104,21 @@ export class GamelabsApp {
 
     this.viewFactory.setViewContainers(this.world, this.hud);
 
+    this.registerModules();
+
+    for (const moduleBinding of this._moduleList) {
+      moduleBinding.configureDI(this.diContainer);
+    }
     this.configureDI();
+
+    for (const moduleBinding of this._moduleList) {
+      moduleBinding.configureViews(this.viewFactory);
+    }
     this.configureViews();
+
+    for (const moduleBinding of this._moduleList) {
+      moduleBinding.loadAssets(this.assetLoader);
+    }
     this.loadAssets();
     await this.waitForAssetsLoaded();
 
@@ -152,6 +167,13 @@ export class GamelabsApp {
     // Legacy: separate Pixi canvas layer (auto-rendered by Pixi).
     this.hud = await Hud.create(this.mount);
   }
+
+  protected addModule(moduleBinding: IModuleBinding): void {
+    this._moduleList.push(moduleBinding);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  protected registerModules(): void {}
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected postInitialize(): void {}
