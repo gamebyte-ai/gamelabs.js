@@ -55,13 +55,11 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this.debugBar?.resize(width, height);
   }
 
-  override destroy(): void {
+  public override preDestroy(): void {
     this.topBar?.destroy();
     this.topBar = null;
     this.debugBar?.destroy();
     this.debugBar = null;
-    
-    super.destroy();
   }
 }
 

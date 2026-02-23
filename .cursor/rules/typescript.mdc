@@ -3,6 +3,7 @@ description: TypeScript conventions for Gamelab.js
 alwaysApply: true
 ---
 
+Common rules
 - Always use access modifiers for all class members
 - private and protected field names must have underscore prefix
 - When using bound handler pattern if code is longer then 1 line move it to another method

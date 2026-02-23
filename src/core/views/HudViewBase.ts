@@ -38,8 +38,11 @@ export class HudViewBase extends PIXI.Container implements IView {
     this.controller = controller;
   }
 
+  public preDestroy(): void {}
+
   public destroy(): void {
-    // Views are expected to own controller lifetime.
+    this.preDestroy();
+
     this.controller?.destroy();
     this.controller = null;
 
@@ -48,7 +51,7 @@ export class HudViewBase extends PIXI.Container implements IView {
 
     this.removeAllListeners();
     this.removeFromParent();
-    
+
     super.destroy();
   }
 }

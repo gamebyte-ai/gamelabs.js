@@ -286,10 +286,9 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     }
   }
 
-  public override destroy(): void {
+  public preDestroy(): void {
     for (const c of this.cleanup) c();
     this.cleanup.length = 0;
-    super.destroy();
   }
 }
 

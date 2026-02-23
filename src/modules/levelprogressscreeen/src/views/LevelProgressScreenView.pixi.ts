@@ -447,11 +447,10 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     return this.computeWindow().currentIndex;
   }
 
-  public override destroy(): void {
+  public preDestroy(): void {
     for (const c of this.cleanup) c();
     this.cleanup.length = 0;
     this.items.length = 0;
-    super.destroy();
   }
 }
 

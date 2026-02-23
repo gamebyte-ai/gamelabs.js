@@ -127,10 +127,9 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     void height;
   }
 
-  destroy(): void {
+  public override preDestroy(): void {
     for (const c of this.cleanup) c();
     this.cleanup.length = 0;
-    super.destroy();
   }
 }
 

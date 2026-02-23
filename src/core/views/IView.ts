@@ -5,7 +5,7 @@ import type { AssetLoader } from "../assets/AssetLoader.js";
 export interface IView {
   /**
    * Provides restricted app services to the view at wiring time.
-   * Called before `setController()` by the ViewBinder.
+   * Called before `setController()` by the ViewFactory.
    */
   initialize(viewFactory: IViewFactory, assetLoader: AssetLoader): void;
 
@@ -20,6 +20,8 @@ export interface IView {
    * Views are expected to call `controller.destroy()` during `destroy()`.
    */
   setController(controller: IViewController | null): void;
+
+  preDestroy(): void;
 
   destroy(): void;
 }

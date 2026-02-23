@@ -37,9 +37,8 @@ export class CubeView extends WorldViewBase implements ICubeView {
     });
   }
 
-  destroy(): void {
+  public preDestroy(): void {
     this._model = null;
-    super.destroy();
   }
 
   private trySetMaterialColor(material: THREE.Material, hex: number): void {

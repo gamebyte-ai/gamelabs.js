@@ -1,0 +1,39 @@
+# Gamelabsjs
+Gamelabsjs is a mvc like game framework for fast prototyping.
+- Basic dependecy injection system with singleton binding
+- View-Controler binding
+- Strict view implementation separation from application (View-IView-IViewController-ViewController)
+- Module support
+
+## App implementation details
+### App class (under src folder)
+- YourGameApp class extends GamelabsApp class, override methods for applications steps
+ - configureDI: bind dependency instances (first modules, then App specific once)
+ - configureViews: register view and view controllers (first modules, then App specific once)
+ - loadAssets: load assets (first modules, then App specific once)
+ - postInitialize: post registration and asset loading tasks (other initilizations, view creations, level loading, user progress loading, trigger game start, ...)
+ - onStep: per frame controls and updates
+
+### Assets class (under src folder)
+YourGameAssets class containes all needed asset names, types and urls
+
+### Config class (under src folder)
+YourGameConfig class containes all user defined values (tweaking behaviours, setting limits, screen transition, timing values, player speed, jump height, turn count, max score, ...)
+
+### Event classes (under src/events folder)
+Communication between view controllers and other parts of game uses events
+Event class bindings are added to dependecy container
+
+### View classes (under src/views folder)
+IView classes:
+- they contain methods for view manipulation(nothing is exposed to controllers) and events for view controllers to listen view events (user input, animation complete, object collisions, ...)
+View classes:
+- Base view classes (WorldViewBase,HudViewBase) implements IView interfaces and initialize, setController methods are implemented in there
+- World views extends WorlViewBase which uses [threejs](https://threejs.org/docs/llms.txt)
+- Hud (ui) views extends HudViewBase which uses [pixijs](https://pixijs.com/llms.txt). Also we can use pixijs-ui and pixijs-layout if they help.
+- User defined view classes extend base view classes and only implement postInitialize and preDestroy
+
+### ViewController classes (under src/controllers folder)
+- They implement IViewController interface
+- initialize method is called after view creation, has parameters for custom view interface and instance resolver to get dependencies
+- destroy method is called just before view destruction

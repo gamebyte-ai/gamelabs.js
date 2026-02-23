@@ -37,8 +37,11 @@ export class WorldViewBase extends THREE.Group implements IView {
     this.controller = controller;
   }
 
+  public preDestroy(): void {}
+
   public destroy(): void {
-    // Views are expected to own controller lifetime.
+    this.preDestroy();
+
     this.controller?.destroy();
     this.controller = null;
 
