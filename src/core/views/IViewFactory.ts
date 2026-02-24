@@ -10,10 +10,6 @@ import type { ScreenTransition } from "../ui/ScreenTransition.js";
  */
 export interface IViewFactory {
   createView<TView extends IView>(View: new () => TView, parent: unknown): TView;
-  createScreen<TView extends IView & IScreen>(
-    View: new () => TView,
-    parent: unknown,
-    enterTransition: ScreenTransition
-  ): void;
+  createScreen<TView extends IView & IScreen>(View: new () => TView, parent: unknown, enterTransition: ScreenTransition | null): void;
 }
 

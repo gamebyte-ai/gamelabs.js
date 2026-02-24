@@ -5,7 +5,7 @@ import type { IViewContainer } from "./IViewContainer.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { AssetLoader } from "../assets/AssetLoader.js";
 import type { IScreen } from "../ui/IScreen.js";
-import type { ScreenTransition } from "../ui/ScreenTransition.js";
+import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "../ui/ScreenTransition.js";
 
 export type ViewCtor<TView extends IView> = new () => TView;
 
@@ -44,24 +44,25 @@ export type ViewFactoryContainerRegistration<
  * - Create views with `createView(View, parent)`; controller deps are derived from `resolver`.
  */
 export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFactory {
-  private readonly registry = new Map<ViewCtor<any>, ViewFactoryRegistration<TResolver, any, any>>();
-  private activeScreen: (IView & IScreen) | null = null;
-  private lastResize: { width: number; height: number; dpr: number } | null = null;
+  private readonly _registry = new Map<ViewCtor<any>, ViewFactoryRegistration<TResolver, any, any>>();
+  private readonly _defaultScreenTransition: ScreenTransition = { type: SCREEN_TRANSITION_TYPES.INSTANT, durationMs: 0 };
+  private _activeScreen: (IView & IScreen) | null = null;
+  private _lastResize: { width: number; height: number; dpr: number } | null = null;
 
-  world: IViewContainer | null = null;
-  hud: IViewContainer | null = null;
+  public world: IViewContainer | null = null;
+  public hud: IViewContainer | null = null;
 
   constructor(
-    readonly resolver: TResolver,
+    public readonly resolver: TResolver,
     private readonly assetLoader: AssetLoader
   ) {}
 
-  setViewContainers(world: IViewContainer | null, hud: IViewContainer | null): void {
+  public setViewContainers(world: IViewContainer | null, hud: IViewContainer | null): void {
     this.world = world;
     this.hud = hud;
   }
 
-  registerHudView<TView extends IView, TController extends IViewController<TView>>(
+  public registerHudView<TView extends IView, TController extends IViewController<TView>>(
     View: ViewCtor<TView>,
     registration: ViewFactoryContainerRegistration<TResolver, TView, TController>
   ): void {
@@ -74,7 +75,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     });
   }
 
-  registerWorldView<TView extends IView, TController extends IViewController<TView>>(
+  public registerWorldView<TView extends IView, TController extends IViewController<TView>>(
     View: ViewCtor<TView>,
     registration: ViewFactoryContainerRegistration<TResolver, TView, TController>
   ): void {
@@ -87,19 +88,19 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     });
   }
 
-  register<TView extends IView, TController extends IViewController<TView>>(
+  public register<TView extends IView, TController extends IViewController<TView>>(
     View: ViewCtor<TView>,
     registration: ViewFactoryRegistration<TResolver, TView, TController>
   ): void {
     // Map erases generics; keep the API strongly typed at the edges.
-    this.registry.set(View, registration as ViewFactoryRegistration<TResolver, any, any>);
+    this._registry.set(View, registration as ViewFactoryRegistration<TResolver, any, any>);
   }
 
-  create<TView extends IView, TController extends IViewController<TView>>(View: ViewCtor<TView>, parent: unknown): {
+  public create<TView extends IView, TController extends IViewController<TView>>(View: ViewCtor<TView>, parent: unknown): {
     view: TView;
     controller: TController;
   } {
-    const registration = this.registry.get(View);
+    const registration = this._registry.get(View);
     if (!registration) {
       throw new Error(`No ViewFactory registration for view: ${View.name || "(anonymous view)"}`);
     }
@@ -115,31 +116,28 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     return { view, controller };
   }
 
-  createView<TView extends IView>(View: ViewCtor<TView>, parent: unknown): TView {
+  public createView<TView extends IView>(View: ViewCtor<TView>, parent: unknown): TView {
     return this.create<TView, IViewController<TView>>(View, parent).view;
   }
 
-  createScreen<TView extends IView & IScreen>(
-    View: ViewCtor<TView>,
-    parent: unknown,
-    enterTransition: ScreenTransition
-  ): void {
-    if (this.activeScreen) {
-      this.activeScreen.onExit?.(enterTransition);
-      this.activeScreen = null;
+  public createScreen<TView extends IView & IScreen>(View: ViewCtor<TView>, parent: unknown, enterTransition: ScreenTransition | null): void {
+    const resolvedEnterTransition = enterTransition ?? this._defaultScreenTransition;
+    if (this._activeScreen) {
+      this._activeScreen.onExit?.(resolvedEnterTransition);
+      this._activeScreen = null;
     }
 
     const screen = this.createView(View, parent);
-    this.activeScreen = screen;
-    if (this.lastResize) {
-      this.activeScreen.onResize?.(this.lastResize.width, this.lastResize.height, this.lastResize.dpr);
+    this._activeScreen = screen;
+    if (this._lastResize) {
+      this._activeScreen.onResize?.(this._lastResize.width, this._lastResize.height, this._lastResize.dpr);
     }
-    this.activeScreen.onEnter?.(enterTransition);
+    this._activeScreen.onEnter?.(resolvedEnterTransition);
   }
 
-  resize(width: number, height: number, dpr: number): void {
-    this.lastResize = { width, height, dpr };
-    this.activeScreen?.onResize?.(width, height, dpr);
+  public resize(width: number, height: number, dpr: number): void {
+    this._lastResize = { width, height, dpr };
+    this._activeScreen?.onResize?.(width, height, dpr);
   }
 }
 

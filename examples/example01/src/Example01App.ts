@@ -24,7 +24,6 @@ export class Example01App extends GamelabsApp {
   private cubeView: CubeView | null = null;
 
   constructor(stageEl: HTMLElement) {
-    // Enable shared WebGL context: Three.js + PixiJS render into the same canvas.
     super({ mount: stageEl, sharedContext: true });
   }
 
@@ -32,9 +31,7 @@ export class Example01App extends GamelabsApp {
 
     this.createGroundGrid();
     this.createStatsToggle();
-
     this.createGameScreen();
-
     this.createCube();
   }
 
