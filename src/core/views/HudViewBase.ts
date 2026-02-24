@@ -5,10 +5,10 @@ import type { IViewFactory } from "./IViewFactory.js";
 import type { AssetLoader } from "../assets/AssetLoader.js";
 
 /**
- * Base class for world (3D) views.
+ * Base class for HUD (2D) views.
  *
- * - Extends `THREE.Group` so it can be attached to a scene graph.
- * - Implements `IView` controller lifecycle.
+ * - Extends `PIXI.Container` so it can be attached to the Pixi display tree.
+ * - Implements the `IView` lifecycle used by `ViewFactory`.
  */
 export class HudViewBase extends PIXI.Container implements IView {
   //  MEMBERS

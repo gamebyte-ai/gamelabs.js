@@ -1,13 +1,28 @@
 # gamelabsjs
-`gamelabsjs` is an MVC-ish game framework for fast prototyping.
+`gamelabsjs` is a **TypeScript project skeleton + reusable modules** for web games that combine **Three.js (3D world)** and **PixiJS (2D HUD/UI)**.
+
+It is designed primarily for **AI-generated game projects** where **humans review every output**. The point is consistency:
+
+- All projects follow a similar structure so review is fast.
+- Rendering/scene management stays separate from game logic.
+- Features land as reusable modules so they don’t get re-built for every project.
+
+This is **not** a full engine. It intentionally exposes Three/Pixi directly and provides a small set of opinionated primitives for program flow and wiring.
 
 - Minimal **dependency injection** container (`DIContainer`) with singleton bindings
 - **View ↔ controller wiring** via `ViewFactory` (`IView` + `IViewController`)
 - Clear separation: **controllers depend on view interfaces**, not concrete rendering code
 - **Modules** via `IModuleBinding` (DI + views + assets as a reusable unit)
 - Two-layer rendering:
-  - **World (3D)**: Three.js (`WorldViewBase`)
-  - **HUD / UI**: PixiJS (`HudViewBase`, `ScreenView`)
+  - **World (3D)**: Three.js (`World`, `WorldViewBase`)
+  - **HUD / UI**: PixiJS (`Hud`, `HudViewBase`, `ScreenView`)
+
+## Non-negotiable structure rules (for keeping projects reviewable)
+- Put rendering and scene graph code in Views (`WorldViewBase` / `HudViewBase` / `ScreenView`), not in controllers.
+- Put behavior/state orchestration in Controllers (and Models), not in views.
+- Use Events (in DI) for cross-feature communication; avoid controllers calling each other directly.
+- Prefer reusable Modules (`IModuleBinding`) for feature-sized work. If it’s likely to be reused, it should be a module.
+- Keep module APIs small and explicit (view contracts as interfaces; events/models in DI; wiring in the module binding).
 
 ## Quick start (mirrors the examples)
 - Create your app by extending `GamelabsApp`
@@ -32,6 +47,9 @@ Notes:
 Create an assets catalog for your game/module:
 - Use `AssetRequest` + `AssetTypes` to describe what to load and where (URLs).
 - Call `assetLoader.load(...)` inside `loadAssets()`.
+
+Practical note:
+- `gamelabsjs` expects consumers to install peer deps: `three`, `pixi.js`, `@pixi/layout`, `@pixi/ui`.
 
 ## Config (project constants / tuning)
 Keep user-defined values in a config object (transitions, timing, tuning values, limits, etc.).
@@ -83,3 +101,8 @@ Apps compose modules by registering them in `registerModules()`:
 - `module.configureDI(...)` for all modules, then app `configureDI()`
 - `module.configureViews(...)` for all modules, then app `configureViews()`
 - `module.loadAssets(...)` for all modules, then app `loadAssets()`
+
+## Repository coding constraints (keep diffs predictable)
+- Use access modifiers on class members.
+- Prefix private/protected fields with `_`.
+- Avoid splitting method params/args/imports across multiple lines.
