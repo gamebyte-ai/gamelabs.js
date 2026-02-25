@@ -17,9 +17,6 @@ export class Example02App extends GamelabsApp {
   }
 
   protected override postInitialize(): void {
-    this.createGroundGrid();
-    this.devUtils.showStats(true);
-
     const mainEvents = this.diContainer.getInstance(MainScreenEvents);
     this.unsubscribePlayClick = mainEvents.onPlayClick(() => {
       this.showLevelProgressScreen();
@@ -41,16 +38,6 @@ export class Example02App extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this.mainScreenBinding);
     this.addModule(this.levelProgressScreenBinding);
-  }
-
-  private createGroundGrid(): void {
-    this.devUtils.createGroundGrid({
-      size: 20,
-      divisions: 20,
-      color1: 0x223047,
-      color2: 0x152033,
-      y: -0.75
-    });
   }
 
   private showLevelProgressScreen(): void {

@@ -1,44 +1,51 @@
-import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "gamelabsjs";
+import { IDevUtils, UnsubscribeBag, type IInstanceResolver, type IViewController } from "gamelabsjs";
 import type { IDebugBarView } from "../views/IDebugBarView";
 import { DebugEvents } from "../events/DebugEvents";
 
 export class DebugBarController implements IViewController<IDebugBarView> {
-  private view: IDebugBarView | null = null;
-  private events: DebugEvents | null = null;
-  private readonly subs = new UnsubscribeBag();
-  private visible = false;
+  private _view: IDebugBarView | null = null;
+  private _events: DebugEvents | null = null;
+  private _devUtils: IDevUtils | null = null;
+  private readonly _subs = new UnsubscribeBag();
+  private _visible = false;
 
-  initialize(view: IDebugBarView, resolver: IInstanceResolver): void {
-    this.view = view;
-    this.events = resolver.getInstance(DebugEvents);
+  public initialize(view: IDebugBarView, resolver: IInstanceResolver): void {
+    this._view = view;
+    this._events = resolver.getInstance(DebugEvents);
+    this._devUtils = resolver.getInstance(IDevUtils);
 
-    this.visible = false;
-    this.view.setBarVisible(false);
+    this._visible = false;
+    this._view.setBarVisible(false);
 
-    this.subs.add(this.view.onToggleGroundGrid(() => {
-      this.events?.emitToggleGroundGrid();
+    this._subs.add(this._view.onToggleGroundGrid(() => {
+      if (!this._devUtils) return;
+      this._devUtils.groundGrid.setOptions({ size: 20, divisions: 20, color1: 0x223047, color2: 0x152033, y: -0.75 });
+      this._devUtils.groundGrid.show(!this._devUtils.groundGrid.isVisible);
     }));
 
-    this.subs.add(this.view.onToggleStats(() => {
-      this.events?.emitToggleStats();
+    this._subs.add(this._view.onToggleStats(() => {
+      if (!this._devUtils) return;
+      this._devUtils.statsPanel.show(!this._devUtils.statsPanel.isVisible);
     }));
 
-    this.subs.add(this.view.onToggleLog(() => {
-      this.events?.emitToggleLog();
+    this._subs.add(this._view.onToggleLog(() => {
+      if (!this._devUtils) return;
+      this._devUtils.logger.show(!this._devUtils.logger.isVisible);
     }));
 
-    if (this.events) {
-      this.subs.add(this.events.onToggleDebugPanel(() => {
-        this.visible = !this.visible;
-        this.view?.setBarVisible(this.visible);
+    if (this._events) {
+      this._subs.add(this._events.onToggleDebugPanel(() => {
+        this._visible = !this._visible;
+        this._view?.setBarVisible(this._visible);
       }));
     }
   }
 
-  destroy(): void {
-    this.subs.flush();
-    this.view = null;
-    this.events = null;
+  public destroy(): void {
+    this._subs.flush();
+    this._view = null;
+    this._events = null;
+    this._devUtils = null;
   }
 }
 

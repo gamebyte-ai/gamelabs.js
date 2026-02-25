@@ -1,6 +1,7 @@
 import type { GamelabsAppConfig } from "./types.js";
 import { World } from "./World.js";
 import { DevUtils } from "./dev/DevUtils.js";
+import { Logger } from "./dev/Logger.js";
 import { DIContainer } from "./di/DIContainer.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewFactory } from "./views/ViewFactory.js";
@@ -9,6 +10,7 @@ import { Hud } from "../index.js";
 import { AssetLoader } from "./assets/AssetLoader.js";
 import type { IModuleBinding } from "./IModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";
+import { IDevUtils } from "./dev/IDevUtils.js";
 
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
@@ -19,6 +21,7 @@ export class GamelabsApp {
   hud: Hud | null = null;
   private _devUtils: DevUtils | null = null;
   private _assetLoader: AssetLoader | null = null;
+  private readonly _logger: Logger;
 
   readonly updateService = new UpdateService();
   public readonly diContainer: DIContainer;
@@ -79,6 +82,7 @@ export class GamelabsApp {
     this._height = config.height;
 
     this.diContainer = new DIContainer();
+    this._logger = new Logger();
 
     // Auto-resize hook for browser usage.
     if (typeof window !== "undefined") {
@@ -88,6 +92,11 @@ export class GamelabsApp {
     // Base DI bindings (always available).
     this.diContainer.bindInstance(UpdateService, this.updateService);
     this.diContainer.bindInstance(GamelabsApp, this);
+    this.diContainer.bindInstance(ILogger, this._logger, [Logger]);
+  }
+
+  protected get logger(): ILogger {
+    return this._logger;
   }
 
   public get devUtils(): DevUtils {
@@ -113,13 +122,12 @@ export class GamelabsApp {
     await this.createWorld();
     await this.createHud();
 
-    this._devUtils = new DevUtils(this.world!, this.hud!);
-    this._assetLoader = new AssetLoader(this._devUtils.logger);
+    this._devUtils = new DevUtils(this.world!, this.hud!, this._logger);
+    this._assetLoader = new AssetLoader(this._logger);
     this._viewFactory = new ViewFactory<IInstanceResolver>(this.diContainer, this._assetLoader);
 
-    this.diContainer.bindInstance(DevUtils, this._devUtils);
+    this.diContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
     this.diContainer.bindInstance(AssetLoader, this._assetLoader);
-    this.diContainer.bindInstance(ILogger, this._devUtils.logger);
 
     this._viewFactory.setViewContainers(this.world, this.hud);
 
