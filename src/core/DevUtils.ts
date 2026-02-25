@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { Hud } from "./Hud.js";
+import type { ILogger } from "./ILogger.js";
 import type { World } from "./World.js";
 
 export type GroundGridOptions = {
@@ -21,6 +22,10 @@ export class DevUtils {
   public constructor(world: World, hud: Hud) {
     this.world = world;
     this._hud = hud;
+  }
+
+  public get logger(): ILogger {
+    return this._hud.logger;
   }
 
   public get isGroundGridVisible(): boolean {

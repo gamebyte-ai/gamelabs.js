@@ -1,13 +1,19 @@
 import { Assets } from "pixi.js";
 import { AssetTypes, type AssetType } from "./AssetTypes.js";
 import { AssetRequest } from "./AssetRequest.js";
+import type { ILogger } from "../ILogger.js";
 
 export class AssetLoader {
+  private _logger: ILogger;
   private readonly _assetsById = new Map<string, unknown>();
   private readonly _inflightById = new Map<string, Promise<unknown>>();
 
   private _totalItems = 0;
   private _loadedItems = 0;
+
+  public constructor(logger: ILogger) {
+    this._logger = logger;
+  }
 
   public get totalItems(): number {
     return this._totalItems;
@@ -54,7 +60,7 @@ export class AssetLoader {
   }
 
   private loadByType(type: AssetType, url: string): Promise<unknown> {
-    console.log(`[AssetLoader] loading asset: type=${String(type)} url=${url}`);
+    this._logger.log(`[AssetLoader] loading asset: type=${String(type)} url=${url}`);
     switch (type) {
       case AssetTypes.HudTexture:
         return Assets.load(url);

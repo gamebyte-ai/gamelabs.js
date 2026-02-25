@@ -1,6 +1,7 @@
 import "@pixi/layout";
 import { Application, Container, Graphics, Text, TextStyle, type ApplicationOptions } from "pixi.js";
 import type { IViewContainer } from "./views/IViewContainer.js";
+import type { ILogger } from "./ILogger.js";
 
 export type HudCreateOptions = {
   /**
@@ -42,22 +43,28 @@ export type HudCreateOptions = {
    * In shared-context mode you typically render manually after Three.js each frame.
    */
   manualRender?: boolean;
+
+  /**
+   * Optional logger instance to use for HUD-level logging.
+   * If omitted, a console-backed logger is used.
+   */
+  logger?: ILogger;
 };
 
 export class Hud implements IViewContainer {
-  readonly app: Application;
-  readonly mount: HTMLElement;
-  readonly manualRender: boolean;
+  public readonly app: Application;
+  public readonly mount: HTMLElement;
+  public readonly manualRender: boolean;
   /**
    * Root container for normal HUD views.
    * Everything attached here will render below `overlayLayer`.
    */
-  readonly contentLayer: Container;
+  public readonly contentLayer: Container;
   /**
    * Top-most HUD overlay container (always on top of `contentLayer`).
    * The stats panel is attached here.
    */
-  readonly overlayLayer: Container;
+  public readonly overlayLayer: Container;
 
   private _statsRoot: Container | null = null;
   private _statsBg: Graphics | null = null;
@@ -66,8 +73,9 @@ export class Hud implements IViewContainer {
   private _lastLogicalWidth = 1;
   private _lastLogicalHeight = 1;
   private _lastDpr = 1;
+  private readonly _logger: ILogger;
 
-  private constructor(app: Application, mount: HTMLElement, manualRender: boolean) {
+  private constructor(app: Application, mount: HTMLElement, manualRender: boolean, logger: ILogger) {
     this.app = app;
     this.mount = mount;
     this.manualRender = manualRender;
@@ -87,9 +95,11 @@ export class Hud implements IViewContainer {
 
     const r = (this.app.renderer as any).resolution;
     if (typeof r === "number" && Number.isFinite(r)) this._lastDpr = r;
+
+    this._logger = logger;
   }
 
-  static async create(mount: HTMLElement, options: HudCreateOptions = {}): Promise<Hud> {
+  public static async create(mount: HTMLElement, options: HudCreateOptions = {}): Promise<Hud> {
     const app = new Application();
 
     const resolution = Math.min(options.resolution ?? (globalThis.devicePixelRatio || 1), 2);
@@ -152,10 +162,11 @@ export class Hud implements IViewContainer {
       app.ticker?.stop();
     }
 
-    return new Hud(app, mount, manualRender);
+    const logger = options.logger ?? Hud.createConsoleLogger();
+    return new Hud(app, mount, manualRender, logger);
   }
 
-  attachChild(child: any, parent: any): void {
+  public attachChild(child: any, parent: any): void {
     const p = parent as any;
     const v = child as any;
 
@@ -174,7 +185,7 @@ export class Hud implements IViewContainer {
     throw new Error("Invalid HUD parent: expected a Pixi Container with .addChild(), or null");
   }
 
-  resize(width: number, height: number, dpr?: number): void {
+  public resize(width: number, height: number, dpr?: number): void {
     this._lastLogicalWidth = width;
     this._lastLogicalHeight = height;
 
@@ -192,7 +203,7 @@ export class Hud implements IViewContainer {
     this.updateStatsText();
   }
 
-  showStats(show: boolean): void {
+  public showStats(show: boolean): void {
     this._statsVisible = show;
 
     if (show && !this._statsRoot) {
@@ -201,6 +212,22 @@ export class Hud implements IViewContainer {
     }
 
     if (this._statsRoot) this._statsRoot.visible = show;
+  }
+
+  public get logger(): ILogger {
+    return this._logger;
+  }
+
+  private static createConsoleLogger(): ILogger {
+    return {
+      get isVisible(): boolean {
+        return false;
+      },
+      show(_show: boolean): void {},
+      log(message: string): void {
+        console.log(message);
+      }
+    };
   }
 
   private createStatsPanel(): void {
@@ -257,7 +284,7 @@ export class Hud implements IViewContainer {
    * Manual render hook for shared-context mode.
    * Call this after rendering your 3D scene.
    */
-  render(): void {
+  public render(): void {
     // Reset state before switching renderers (important when sharing a WebGL context).
     (this.app.renderer as any).resetState?.();
 
@@ -265,7 +292,7 @@ export class Hud implements IViewContainer {
     (this.app.renderer as any).render?.({ container: this.app.stage, clear: false });
   }
 
-  destroy(): void {
+  public destroy(): void {
     // Remove canvas + destroy children/textures for a clean teardown.
     this.app.destroy({ removeView: true }, { children: true, texture: true, textureSource: true });
   }

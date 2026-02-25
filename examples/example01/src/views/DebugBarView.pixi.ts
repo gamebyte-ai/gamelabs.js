@@ -39,6 +39,9 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
   private readonly statsButtonView = this.createButtonView("Stats");
   private readonly statsButton = new Button(this.statsButtonView);
 
+  private readonly logButtonView = this.createButtonView("Log");
+  private readonly logButton = new Button(this.logButtonView);
+
   public postInitialize(): void {
     (this as any).layout = { width: "100%", padding: 16 };
     this.createBar();
@@ -52,7 +55,7 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
 
     // IMPORTANT: @pixi/layout doesn't measure intrinsic content width for plain Containers,
     // so we must provide width constraints; otherwise children can overlap at x=0.
-    for (const v of [this.gridButtonView, this.statsButtonView]) {
+    for (const v of [this.gridButtonView, this.statsButtonView, this.logButtonView]) {
       (v as any).layout = {
         height: DebugBarView.barButtonHeight,
         minWidth: DebugBarView.barButtonMinWidth,
@@ -115,6 +118,12 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     const handler = () => cb();
     this.statsButton.onPress.connect(handler);
     return () => this.statsButton.onPress.disconnect(handler);
+  }
+
+  onToggleLog(cb: () => void): Unsubscribe {
+    const handler = () => cb();
+    this.logButton.onPress.connect(handler);
+    return () => this.logButton.onPress.disconnect(handler);
   }
 
   setBarVisible(visible: boolean): void {

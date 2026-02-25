@@ -17,12 +17,12 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private debugBar: DebugBarView | null = null;
 
   public postInitialize(): void {
-    // Enable flex layout: top bar at top, debug bar at bottom.
+    // Enable flex layout: top bar at top, debug bar below it.
     (this as any).layout = {
       width: 1,
       height: 1,
       flexDirection: "column",
-      justifyContent: "space-between",
+      justifyContent: "flex-start",
       padding: 16,
       gap: 12
     };

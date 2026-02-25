@@ -8,6 +8,9 @@ import { UpdateService } from "./services/UpdateService.js";
 import { Hud } from "../index.js";
 import { AssetLoader } from "./assets/AssetLoader.js";
 import type { IModuleBinding } from "./IModuleBinding.js";
+import { Logger } from "./Logger.js";
+import { ILogger } from "./ILogger.js";
+import { LogPanel } from "./LogPanel.js";
 
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
@@ -17,11 +20,12 @@ export class GamelabsApp {
   world: World | null = null;
   hud: Hud | null = null;
   private _devUtils: DevUtils | null = null;
-  readonly assetLoader = new AssetLoader();
+  public readonly logger: Logger;
+  public readonly assetLoader: AssetLoader;
 
   readonly updateService = new UpdateService();
-  readonly diContainer = new DIContainer();
-  readonly viewFactory = new ViewFactory<IInstanceResolver>(this.diContainer, this.assetLoader);
+  public readonly diContainer: DIContainer;
+  public readonly viewFactory: ViewFactory<IInstanceResolver>;
 
   private _isInitialized = false;
   private _moduleList: IModuleBinding[] = [];
@@ -63,6 +67,7 @@ export class GamelabsApp {
 
     this.world?.resize(width, height, dpr);
     this.hud?.resize(width, height, dpr);
+    this.logger?.resize(width, height);
     this.viewFactory.resize(width, height, dpr);
   };
 
@@ -75,6 +80,11 @@ export class GamelabsApp {
     this._width = config.width;
     this._height = config.height;
 
+    this.diContainer = new DIContainer();
+    this.logger = new Logger();
+    this.assetLoader = new AssetLoader(this.logger);
+    this.viewFactory = new ViewFactory<IInstanceResolver>(this.diContainer, this.assetLoader);
+
     // Auto-resize hook for browser usage.
     if (typeof window !== "undefined") {
       window.addEventListener("resize", this._onWindowResize, { passive: true });
@@ -84,6 +94,7 @@ export class GamelabsApp {
     this.diContainer.bindInstance(UpdateService, this.updateService);
     this.diContainer.bindInstance(GamelabsApp, this);
     this.diContainer.bindInstance(AssetLoader, this.assetLoader);
+    this.diContainer.bindInstance(ILogger, this.logger);
   }
 
   public get devUtils(): DevUtils {
@@ -98,6 +109,10 @@ export class GamelabsApp {
     
     await this.createWorld();
     await this.createHud();
+    if (this.hud) {
+      const panel = LogPanel.createPanel(this.hud);
+      this.logger.attachPanel(panel);
+    }
 
     this._devUtils = new DevUtils(this.world!, this.hud!);
     this.diContainer.bindInstance(DevUtils, this._devUtils);
@@ -159,13 +174,14 @@ export class GamelabsApp {
       this.hud = await Hud.create(this.mount, {
         canvas: this.canvas,
         context: this.world.renderer.getContext() as WebGL2RenderingContext,
-        manualRender: true
+        manualRender: true,
+        logger: this.logger
       });
       return;
     }
 
     // Legacy: separate Pixi canvas layer (auto-rendered by Pixi).
-    this.hud = await Hud.create(this.mount);
+    this.hud = await Hud.create(this.mount, { logger: this.logger });
   }
 
   protected addModule(moduleBinding: IModuleBinding): void {

@@ -23,6 +23,10 @@ export class DebugBarController implements IViewController<IDebugBarView> {
       this.events?.emitToggleStats();
     }));
 
+    this.subs.add(this.view.onToggleLog(() => {
+      this.events?.emitToggleLog();
+    }));
+
     if (this.events) {
       this.subs.add(this.events.onToggleDebugPanel(() => {
         this.visible = !this.visible;

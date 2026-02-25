@@ -11,6 +11,8 @@ export * from "./core/views/HudViewBase.js";
 export * from "./core/views/WorldViewBase.js";
 export * from "./core/services/UpdateService.js";
 export * from "./core/Hud.js";
+export * from "./core/ILogger.js";
+export * from "./core/Logger.js";
 export * from "./core/World.js";
 export * from "./core/DevUtils.js";
 export * from "./core/assets/AssetTypes.js";

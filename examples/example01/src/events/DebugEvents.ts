@@ -4,6 +4,7 @@ export class DebugEvents {
   private readonly toggleGroundGridListeners = new Set<() => void>();
   private readonly toggleDebugPanelListeners = new Set<() => void>();
   private readonly toggleStatsListeners = new Set<() => void>();
+  private readonly toggleLogListeners = new Set<() => void>();
 
   onToggleGroundGrid(cb: () => void): Unsubscribe {
     this.toggleGroundGridListeners.add(cb);
@@ -36,6 +37,17 @@ export class DebugEvents {
 
   emitToggleStats(): void {
     for (const cb of this.toggleStatsListeners) cb();
+  }
+
+  onToggleLog(cb: () => void): Unsubscribe {
+    this.toggleLogListeners.add(cb);
+    return () => {
+      this.toggleLogListeners.delete(cb);
+    };
+  }
+
+  emitToggleLog(): void {
+    for (const cb of this.toggleLogListeners) cb();
   }
 }
 

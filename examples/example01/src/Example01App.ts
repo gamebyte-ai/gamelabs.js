@@ -1,4 +1,4 @@
-import { GamelabsApp, type IViewFactory } from "gamelabsjs";
+import { GamelabsApp, ILogger, type IViewFactory } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
@@ -20,17 +20,20 @@ export class Example01App extends GamelabsApp {
 
   private unsubscribeToggleGroundGrid: (() => void) | null = null;
   private unsubscribeToggleStats: (() => void) | null = null;
+  private unsubscribeToggleLog: (() => void) | null = null;
 
   private cubeView: CubeView | null = null;
+  private _logger: ILogger | null = null;
 
   constructor(stageEl: HTMLElement) {
     super({ mount: stageEl, sharedContext: true });
   }
 
   protected override postInitialize(): void {
-
+    this._logger = this.devUtils.logger;
     this.createGroundGrid();
     this.createStatsToggle();
+    this.createLogToggle();
     this.createGameScreen();
     this.createCube();
   }
@@ -40,6 +43,7 @@ export class Example01App extends GamelabsApp {
   }
 
   private createGroundGrid(): void {
+    this._logger?.log("Creating ground grid");
     this.devUtils.createGroundGrid({
       size: 20,
       divisions: 20,
@@ -54,18 +58,27 @@ export class Example01App extends GamelabsApp {
   }
 
   private createStatsToggle(): void {
-
+    this._logger?.log("Creating stats toggle");
     this.unsubscribeToggleStats = this.debugEvents.onToggleStats(() => {
       this.devUtils.showStats(!this.devUtils.isStatsVisible);
     });
   }
 
+  private createLogToggle(): void {
+    this._logger?.log("Creating log toggle");
+    this.unsubscribeToggleLog = this.debugEvents.onToggleLog(() => {
+      this.devUtils.logger.show(!this.devUtils.logger.isVisible);
+    });
+  }
+
   protected override configureDI(): void {
+    this._logger?.log("Configuring DI");
     this.diContainer.bindInstance(GameEvents, this.gameEvents);
     this.diContainer.bindInstance(DebugEvents, this.debugEvents);
   }
 
   protected override configureViews(): void {
+    this._logger?.log("Configuring views");
     this.viewFactory.registerHudView<GameScreenView, GameScreenController> (GameScreenView, { Controller: GameScreenController });
     this.viewFactory.registerHudView<TopBarView,     TopBarController>     (TopBarView,     { Controller: TopBarController     });
     this.viewFactory.registerHudView<DebugBarView,   DebugBarController>   (DebugBarView,   { Controller: DebugBarController   });
@@ -74,16 +87,19 @@ export class Example01App extends GamelabsApp {
   }
 
   protected override loadAssets(): void {
+    this._logger?.log("Loading assets");
     void this.assetLoader.load(Example01Assets.Cube);
   }
 
   private createGameScreen(): void {
+    this._logger?.log("Creating game screen");
     if (!this.hud) throw new Error("HUD is not initialized");
 
     this.viewFactory.createScreen(GameScreenView, null, this.config.transitions.gameScreenEnter);
   }
 
   private createCube(): void {
+    this._logger?.log("Creating cube");
     if (!this.world) throw new Error("Three world is not initialized");
 
     this.cubeView = this.viewFactory.createView(CubeView, null);
@@ -95,6 +111,9 @@ export class Example01App extends GamelabsApp {
 
     this.unsubscribeToggleStats?.();
     this.unsubscribeToggleStats = null;
+
+    this.unsubscribeToggleLog?.();
+    this.unsubscribeToggleLog = null;
 
     this.cubeView?.destroy();
     this.cubeView = null;
