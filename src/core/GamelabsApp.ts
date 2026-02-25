@@ -64,7 +64,8 @@ export class GamelabsApp {
 
     this.world?.resize(width, height, dpr);
     this.hud?.resize(width, height, dpr);
-    this._devUtils?.logger.resize(width, height);
+
+    this._devUtils?.resize(width, height, dpr);
     this._viewFactory?.resize(width, height, dpr);
   };
 

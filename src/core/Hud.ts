@@ -1,7 +1,6 @@
 import "@pixi/layout";
-import { Application, Container, Graphics, Text, TextStyle, type ApplicationOptions } from "pixi.js";
+import { Application, Container, type ApplicationOptions } from "pixi.js";
 import type { IViewContainer } from "./views/IViewContainer.js";
-import type { ILogger } from "./dev/ILogger.js";
 
 export type HudCreateOptions = {
   /**
@@ -43,12 +42,6 @@ export type HudCreateOptions = {
    * In shared-context mode you typically render manually after Three.js each frame.
    */
   manualRender?: boolean;
-
-  /**
-   * Optional logger instance to use for HUD-level logging.
-   * If omitted, a console-backed logger is used.
-   */
-  logger?: ILogger;
 };
 
 export class Hud implements IViewContainer {
@@ -62,20 +55,10 @@ export class Hud implements IViewContainer {
   public readonly contentLayer: Container;
   /**
    * Top-most HUD overlay container (always on top of `contentLayer`).
-   * The stats panel is attached here.
    */
   public readonly overlayLayer: Container;
 
-  private _statsRoot: Container | null = null;
-  private _statsBg: Graphics | null = null;
-  private _statsText: Text | null = null;
-  private _statsVisible = false;
-  private _lastLogicalWidth = 1;
-  private _lastLogicalHeight = 1;
-  private _lastDpr = 1;
-  private readonly _logger: ILogger;
-
-  private constructor(app: Application, mount: HTMLElement, manualRender: boolean, logger: ILogger) {
+  private constructor(app: Application, mount: HTMLElement, manualRender: boolean) {
     this.app = app;
     this.mount = mount;
     this.manualRender = manualRender;
@@ -92,11 +75,6 @@ export class Hud implements IViewContainer {
 
     this.app.stage.addChild(this.contentLayer);
     this.app.stage.addChild(this.overlayLayer);
-
-    const r = (this.app.renderer as any).resolution;
-    if (typeof r === "number" && Number.isFinite(r)) this._lastDpr = r;
-
-    this._logger = logger;
   }
 
   public static async create(mount: HTMLElement, options: HudCreateOptions = {}): Promise<Hud> {
@@ -162,8 +140,7 @@ export class Hud implements IViewContainer {
       app.ticker?.stop();
     }
 
-    const logger = options.logger ?? Hud.createConsoleLogger();
-    return new Hud(app, mount, manualRender, logger);
+    return new Hud(app, mount, manualRender);
   }
 
   public attachChild(child: any, parent: any): void {
@@ -186,98 +163,13 @@ export class Hud implements IViewContainer {
   }
 
   public resize(width: number, height: number, dpr?: number): void {
-    this._lastLogicalWidth = width;
-    this._lastLogicalHeight = height;
-
     // Keep Pixi resolution in sync with the WebGL drawing buffer scaling.
     if (typeof dpr === "number" && Number.isFinite(dpr)) {
       // Pixi's renderer exposes `resolution` across backends.
       (this.app.renderer as any).resolution = dpr;
-      this._lastDpr = dpr;
-    } else {
-      const r = (this.app.renderer as any).resolution;
-      if (typeof r === "number" && Number.isFinite(r)) this._lastDpr = r;
     }
 
     this.app.renderer.resize(Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)));
-    this.updateStatsText();
-  }
-
-  public showStats(show: boolean): void {
-    this._statsVisible = show;
-
-    if (show && !this._statsRoot) {
-      this.createStatsPanel();
-      this.updateStatsText();
-    }
-
-    if (this._statsRoot) this._statsRoot.visible = show;
-  }
-
-  public get logger(): ILogger {
-    return this._logger;
-  }
-
-  private static createConsoleLogger(): ILogger {
-    return {
-      get isVisible(): boolean {
-        return false;
-      },
-      show(_show: boolean): void {},
-      log(message: string): void {
-        console.log(message);
-      }
-    };
-  }
-
-  private createStatsPanel(): void {
-    const root = new Container();
-    root.visible = this._statsVisible;
-    root.x = 8;
-    root.y = 8;
-
-    const bg = new Graphics();
-    const text = new Text({
-      text: "",
-      style: new TextStyle({
-        fill: 0xffffff,
-        fontFamily:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-        fontSize: 12
-      })
-    });
-
-    text.x = 8;
-    text.y = 6;
-
-    root.addChild(bg);
-    root.addChild(text);
-
-    this.overlayLayer.addChild(root);
-
-    this._statsRoot = root;
-    this._statsBg = bg;
-    this._statsText = text;
-  }
-
-  private updateStatsText(): void {
-    if (!this._statsVisible || !this._statsText || !this._statsBg) return;
-
-    const w = Math.max(1, Math.floor(this._lastLogicalWidth));
-    const h = Math.max(1, Math.floor(this._lastLogicalHeight));
-    const dpr = Number.isFinite(this._lastDpr) ? Math.round(this._lastDpr * 100) / 100 : 1;
-    this._statsText.text = `STATS\nWidth  : ${w}\nHeight : ${h}\nDPR    : ${dpr}`;
-
-    const paddingX = 8;
-    const paddingY = 6;
-    const textW = Math.ceil(this._statsText.width);
-    const textH = Math.ceil(this._statsText.height);
-    const boxW = paddingX + textW + paddingX;
-    const boxH = paddingY + textH + paddingY;
-
-    this._statsBg.clear();
-    this._statsBg.roundRect(0, 0, boxW, boxH, 6);
-    this._statsBg.fill({ color: 0x000000, alpha: 0.45 });
   }
 
   /**
