@@ -1,8 +1,9 @@
 import * as THREE from "three";
 
-import type { Hud } from "./Hud.js";
-import type { ILogger } from "./ILogger.js";
-import type { World } from "./World.js";
+import type { Hud } from "../Hud.js";
+import type { World } from "../World.js";
+import { Logger } from "./Logger.js";
+import { LogPanel } from "./LogPanel.js";
 
 export type GroundGridOptions = {
   size?: number;
@@ -15,6 +16,7 @@ export type GroundGridOptions = {
 export class DevUtils {
   public readonly world: World;
   private readonly _hud: Hud;
+  public readonly logger: Logger;
 
   private _groundGrid: THREE.GridHelper | null = null;
   private _statsVisible = false;
@@ -22,10 +24,10 @@ export class DevUtils {
   public constructor(world: World, hud: Hud) {
     this.world = world;
     this._hud = hud;
-  }
 
-  public get logger(): ILogger {
-    return this._hud.logger;
+    this.logger = new Logger();
+    const panel = LogPanel.createPanel(hud);
+    this.logger.attachPanel(panel);
   }
 
   public get isGroundGridVisible(): boolean {
@@ -71,7 +73,7 @@ export class DevUtils {
 
   public showStats(show: boolean): void {
     this._statsVisible = show;
-    this._hud?.showStats(show);
+    this._hud.showStats(show);
   }
 
   public destroy(): void {

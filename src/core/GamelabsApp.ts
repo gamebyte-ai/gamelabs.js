@@ -1,6 +1,6 @@
 import type { GamelabsAppConfig } from "./types.js";
 import { World } from "./World.js";
-import { DevUtils } from "./DevUtils.js";
+import { DevUtils } from "./dev/DevUtils.js";
 import { DIContainer } from "./di/DIContainer.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewFactory } from "./views/ViewFactory.js";
@@ -8,9 +8,7 @@ import { UpdateService } from "./services/UpdateService.js";
 import { Hud } from "../index.js";
 import { AssetLoader } from "./assets/AssetLoader.js";
 import type { IModuleBinding } from "./IModuleBinding.js";
-import { Logger } from "./Logger.js";
-import { ILogger } from "./ILogger.js";
-import { LogPanel } from "./LogPanel.js";
+import { ILogger } from "./dev/ILogger.js";
 
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
@@ -20,12 +18,11 @@ export class GamelabsApp {
   world: World | null = null;
   hud: Hud | null = null;
   private _devUtils: DevUtils | null = null;
-  public readonly logger: Logger;
-  public readonly assetLoader: AssetLoader;
+  private _assetLoader: AssetLoader | null = null;
 
   readonly updateService = new UpdateService();
   public readonly diContainer: DIContainer;
-  public readonly viewFactory: ViewFactory<IInstanceResolver>;
+  private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
 
   private _isInitialized = false;
   private _moduleList: IModuleBinding[] = [];
@@ -67,8 +64,8 @@ export class GamelabsApp {
 
     this.world?.resize(width, height, dpr);
     this.hud?.resize(width, height, dpr);
-    this.logger?.resize(width, height);
-    this.viewFactory.resize(width, height, dpr);
+    this._devUtils?.logger.resize(width, height);
+    this._viewFactory?.resize(width, height, dpr);
   };
 
   constructor(config: GamelabsAppConfig) {
@@ -81,9 +78,6 @@ export class GamelabsApp {
     this._height = config.height;
 
     this.diContainer = new DIContainer();
-    this.logger = new Logger();
-    this.assetLoader = new AssetLoader(this.logger);
-    this.viewFactory = new ViewFactory<IInstanceResolver>(this.diContainer, this.assetLoader);
 
     // Auto-resize hook for browser usage.
     if (typeof window !== "undefined") {
@@ -93,13 +87,21 @@ export class GamelabsApp {
     // Base DI bindings (always available).
     this.diContainer.bindInstance(UpdateService, this.updateService);
     this.diContainer.bindInstance(GamelabsApp, this);
-    this.diContainer.bindInstance(AssetLoader, this.assetLoader);
-    this.diContainer.bindInstance(ILogger, this.logger);
   }
 
   public get devUtils(): DevUtils {
     if (!this._devUtils) throw new Error("DevUtils is not initialized");
     return this._devUtils;
+  }
+
+  public get assetLoader(): AssetLoader {
+    if (!this._assetLoader) throw new Error("AssetLoader is not initialized");
+    return this._assetLoader;
+  }
+
+  public get viewFactory(): ViewFactory<IInstanceResolver> {
+    if (!this._viewFactory) throw new Error("ViewFactory is not initialized");
+    return this._viewFactory;
   }
 
   async initialize(): Promise<void> {
@@ -109,15 +111,16 @@ export class GamelabsApp {
     
     await this.createWorld();
     await this.createHud();
-    if (this.hud) {
-      const panel = LogPanel.createPanel(this.hud);
-      this.logger.attachPanel(panel);
-    }
 
     this._devUtils = new DevUtils(this.world!, this.hud!);
-    this.diContainer.bindInstance(DevUtils, this._devUtils);
+    this._assetLoader = new AssetLoader(this._devUtils.logger);
+    this._viewFactory = new ViewFactory<IInstanceResolver>(this.diContainer, this._assetLoader);
 
-    this.viewFactory.setViewContainers(this.world, this.hud);
+    this.diContainer.bindInstance(DevUtils, this._devUtils);
+    this.diContainer.bindInstance(AssetLoader, this._assetLoader);
+    this.diContainer.bindInstance(ILogger, this._devUtils.logger);
+
+    this._viewFactory.setViewContainers(this.world, this.hud);
 
     this.registerModules();
 
@@ -174,14 +177,13 @@ export class GamelabsApp {
       this.hud = await Hud.create(this.mount, {
         canvas: this.canvas,
         context: this.world.renderer.getContext() as WebGL2RenderingContext,
-        manualRender: true,
-        logger: this.logger
+        manualRender: true
       });
       return;
     }
 
     // Legacy: separate Pixi canvas layer (auto-rendered by Pixi).
-    this.hud = await Hud.create(this.mount, { logger: this.logger });
+    this.hud = await Hud.create(this.mount);
   }
 
   protected addModule(moduleBinding: IModuleBinding): void {

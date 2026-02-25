@@ -1,7 +1,7 @@
 import { Assets } from "pixi.js";
 import { AssetTypes, type AssetType } from "./AssetTypes.js";
 import { AssetRequest } from "./AssetRequest.js";
-import type { ILogger } from "../ILogger.js";
+import type { ILogger } from "../dev/ILogger.js";
 
 export class AssetLoader {
   private _logger: ILogger;

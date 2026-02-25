@@ -1,4 +1,4 @@
-import { InjectionToken } from "./di/InjectionToken.js";
+import { InjectionToken } from "../di/InjectionToken.js";
 
 export interface ILogger {
   get isVisible(): boolean;
@@ -7,3 +7,4 @@ export interface ILogger {
 }
 
 export const ILogger = new InjectionToken<ILogger>("ILogger");
+

@@ -1,7 +1,7 @@
 import "@pixi/layout";
 import { Application, Container, Graphics, Text, TextStyle, type ApplicationOptions } from "pixi.js";
 import type { IViewContainer } from "./views/IViewContainer.js";
-import type { ILogger } from "./ILogger.js";
+import type { ILogger } from "./dev/ILogger.js";
 
 export type HudCreateOptions = {
   /**

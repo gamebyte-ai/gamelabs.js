@@ -1,5 +1,5 @@
 import { Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
-import type { Hud } from "./Hud.js";
+import type { Hud } from "../Hud.js";
 
 export type LogPanelOptions = {
   title?: string;
