@@ -21,7 +21,7 @@ export * from "./core/dev/DevUtils.js";
 export * from "./core/assets/AssetTypes.js";
 export * from "./core/assets/AssetLoader.js";
 export * from "./core/assets/AssetRequest.js";
-export * from "./core/IModuleBinding.js";
+export * from "./core/ModuleBinding.js";
 export * from "./core/ui/IScreen.js";
 export * from "./core/ui/ScreenTransition.js";
 export * from "./core/ui/ScreenView.pixi.js";

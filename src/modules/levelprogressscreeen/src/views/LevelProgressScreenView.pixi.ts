@@ -2,7 +2,7 @@ import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import type { ILevelProgressScreenView } from "./ILevelProgressScreenView.js";
-import { LevelProgressScreenAssets } from "../LevelProgressScreenAssets.js";
+import { LevelProgressScreenAssetIds } from "../LevelProgressScreenAssets.js";
 
 type LevelItemRefs = {
   view: PIXI.Container;
@@ -219,7 +219,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
   }
 
   private applyTexturesIfAvailable(): void {
-    const backButtonBg = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssets.BackButtonBg.id);
+    const backButtonBg = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssetIds.BackButtonBg);
     if (backButtonBg && this.backButtonBg.texture === PIXI.Texture.EMPTY) {
       this.backButtonBg.texture = backButtonBg;
       this.backButtonBg.visible = true;
@@ -229,7 +229,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
     this.applyLevelItemBgTextures();
 
-    const background = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssets.Background.id);
+    const background = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssetIds.Background);
     if (background && this.bgImage.texture === PIXI.Texture.EMPTY) {
       this.bgImage.texture = background;
       const layout = (this as any).layout;
@@ -378,7 +378,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     if (!this.items.length) return;
 
     const { currentIndex } = this.computeWindow();
-    const normal = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssets.LevelItemBg.id);
+    const normal = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssetIds.LevelItemBg);
 
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i]!;

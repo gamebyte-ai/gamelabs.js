@@ -8,7 +8,7 @@ import { ViewFactory } from "./views/ViewFactory.js";
 import { UpdateService } from "./services/UpdateService.js";
 import { Hud } from "../index.js";
 import { AssetLoader } from "./assets/AssetLoader.js";
-import type { IModuleBinding } from "./IModuleBinding.js";
+import { ModuleBinding } from "./ModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";
 import { IDevUtils } from "./dev/IDevUtils.js";
 
@@ -28,7 +28,7 @@ export class GamelabsApp {
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
 
   private _isInitialized = false;
-  private _moduleList: IModuleBinding[] = [];
+  private _moduleList: ModuleBinding[] = [];
 
   /**
    * Optional fixed logical dimensions provided via config.
@@ -144,7 +144,7 @@ export class GamelabsApp {
     this.configureViews();
 
     for (const moduleBinding of this._moduleList) {
-      moduleBinding.loadAssets(this.assetLoader);
+      this.assetLoader.loadAll(moduleBinding.getAssetRequests());
     }
     this.loadAssets();
     await this.waitForAssetsLoaded();
@@ -195,7 +195,7 @@ export class GamelabsApp {
     this.hud = await Hud.create(this.mount);
   }
 
-  protected addModule(moduleBinding: IModuleBinding): void {
+  protected addModule(moduleBinding: ModuleBinding): void {
     this._moduleList.push(moduleBinding);
   }
 

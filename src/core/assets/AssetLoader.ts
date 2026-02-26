@@ -23,6 +23,12 @@ export class AssetLoader {
     return this._loadedItems;
   }
 
+  public loadAll(requests: Iterable<AssetRequest> ): void{
+    for (const request of requests) {
+      this.load(request);
+    }
+  }
+
   public load(type: AssetType, id: string, url: string): Promise<void>;
   public load(request: AssetRequest): Promise<void>;
   public load(typeOrRequest: AssetType | AssetRequest, id?: string, url?: string): Promise<void> {

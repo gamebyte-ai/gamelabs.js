@@ -1,9 +1,8 @@
 import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
-import type { ScreenTransition } from "../../../../core/ui/ScreenTransition.js";
 import type { IMainScreenView } from "./IMainScreenView.js";
-import { MainScreenAssets } from "../MainScreenAssets.js";
+import { MainScreenAssetIds } from "../MainScreenAssets.js";
 
 /**
  * Example02 main screen (Pixi).
@@ -16,8 +15,8 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
   private static readonly settingsButtonWidth = 400;
   private static readonly settingsButtonHeight = 100;
   private static readonly buttonsGap = 18;
-  private static readonly logoWidth = 360;
-  private static readonly logoHeight = 84;
+  private static readonly logoWidth = 520;
+  private static readonly logoHeight = 140;
 
   private readonly bgImage = new PIXI.Sprite(PIXI.Texture.EMPTY);
   private readonly bg = new PIXI.Graphics();
@@ -39,16 +38,7 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
   private readonly logoBar = new PIXI.Container();
   private readonly logo = new PIXI.Container();
   private readonly logoBg = new PIXI.Graphics();
-  private readonly title = new PIXI.Text({
-    text: "Example 02",
-    style: {
-      fill: 0xe8eef6,
-      fontSize: 28,
-      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      fontWeight: "700",
-      letterSpacing: 0.5
-    }
-  });
+  private readonly logoImage = new PIXI.Sprite(PIXI.Texture.EMPTY);
 
   private readonly playButtonBgPlaceholder = new PIXI.Graphics();
   private readonly playButtonBg = new PIXI.Sprite(PIXI.Texture.EMPTY);
@@ -113,15 +103,16 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     (this.logoBg as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this.logo.addChild(this.logoBg);
 
-    this.title.anchor.set(0.5, 0.5);
-    this.logo.addChild(this.title);
+    this.logoImage.anchor.set(0.5, 0.5);
+    this.logoImage.visible = false;
+    this.logo.addChild(this.logoImage);
 
     const onLogoLayout = (layout: any) => {
       const w = Math.max(1, Math.floor(layout.computedLayout.width));
       const h = Math.max(1, Math.floor(layout.computedLayout.height));
       this.logoBg.clear();
-      this.logoBg.roundRect(0, 0, w, h, 18).fill({ color: 0x0b1220, alpha: 0.65 }).stroke({ color: 0x334155, width: 1 });
-      this.title.position.set(w / 2, h / 2);
+
+      this.updateLogoImageTransform(w, h);
     };
     this.logo.on("layout", onLogoLayout);
     this.cleanup.push(() => this.logo.off("layout", onLogoLayout));
@@ -264,7 +255,7 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
   }
 
   private applyTexturesIfAvailable(): void {
-    const playButtonBg = this.assetLoader.getAsset<PIXI.Texture>(MainScreenAssets.PlayButtonBg.id);
+    const playButtonBg = this.assetLoader.getAsset<PIXI.Texture>(MainScreenAssetIds.PlayButtonBg);
     if (playButtonBg && this.playButtonBg.texture === PIXI.Texture.EMPTY) {
       this.playButtonBg.texture = playButtonBg;
       this.playButtonBg.visible = true;
@@ -272,18 +263,43 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
       this.applyPlayButtonBgSize();
     }
 
-    const settingsButtonBg = this.assetLoader.getAsset<PIXI.Texture>(MainScreenAssets.SettingsButtonBg.id);
+    const settingsButtonBg = this.assetLoader.getAsset<PIXI.Texture>(MainScreenAssetIds.SettingsButtonBg);
     if (settingsButtonBg && this.settingsButtonBg.texture === PIXI.Texture.EMPTY) {
       this.settingsButtonBg.texture = settingsButtonBg;
       this.settingsButtonBg.visible = true;
     }
 
-    const background = this.assetLoader.getAsset<PIXI.Texture>(MainScreenAssets.Background.id);
+    const background = this.assetLoader.getAsset<PIXI.Texture>(MainScreenAssetIds.Background);
     if (background && this.bgImage.texture === PIXI.Texture.EMPTY) {
       this.bgImage.texture = background;
       const layout = (this as any).layout;
       if (layout?.width && layout?.height) this.redrawBackground(layout.width, layout.height);
     }
+
+    const logo = this.assetLoader.getAsset<PIXI.Texture>(MainScreenAssetIds.Logo);
+    if (logo && this.logoImage.texture === PIXI.Texture.EMPTY) {
+      this.logoImage.texture = logo;
+      this.logoImage.visible = true;
+
+      const layout = (this.logo as any).layout;
+      const w = Math.max(1, Math.floor(layout?.computedLayout?.width ?? MainScreenView.logoWidth));
+      const h = Math.max(1, Math.floor(layout?.computedLayout?.height ?? MainScreenView.logoHeight));
+      this.updateLogoImageTransform(w, h);
+    }
+  }
+
+  private updateLogoImageTransform(width: number, height: number): void {
+    if (this.logoImage.texture === PIXI.Texture.EMPTY) return;
+
+    const w = Math.max(1, Math.floor(width));
+    const h = Math.max(1, Math.floor(height));
+    const tw = Math.max(1, this.logoImage.texture.width);
+    const th = Math.max(1, this.logoImage.texture.height);
+
+    const padding = 0.96;
+    const scale = Math.min((w * padding) / tw, (h * padding) / th);
+    this.logoImage.scale.set(scale, scale);
+    this.logoImage.position.set(w / 2, h / 2);
   }
 
   public preDestroy(): void {
