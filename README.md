@@ -20,12 +20,12 @@ It is designed primarily for **AI-generated game projects** where **humans revie
 
 - **`GamelabsApp`**: the app lifecycle + main loop.
   - Creates `World` (Three) and `Hud` (Pixi)
-  - Runs module hooks in a consistent order: register DI, register views, load assets, then start the game
+  - Runs hooks in a consistent order: register modules, configure DI, configure views, enqueue assets, then start the game
 - **`World`**: a thin Three.js wrapper that owns renderer/scene/camera and implements `IViewContainer`.
 - **`Hud`**: a thin Pixi wrapper that owns the Pixi `Application`, layering, optional stats overlay, and implements `IViewContainer`.
 - **`ViewFactory` + `IViewFactory`**: centralized wiring for View ↔ Controller pairs. Views receive a restricted factory so they can create child views/screens without having access to global registration.
 - **`ScreenView` + `IScreen`**: optional “screen” concept for high-level navigation (menus, gameplay, etc.).
-- **`IModuleBinding`**: a portability contract for feature modules (configure DI, register views, load assets).
+- **`ModuleBinding`**: a portability base for feature modules (configure DI, register views, declare assets).
 
 ## Typical flow
 
@@ -35,6 +35,14 @@ At runtime you generally:
 2. `app.mainLoop()` (ticks `UpdateService`, then renders world and (optionally) HUD)
 
 See `examples/` for working reference apps.
+
+`initialize()` runs, in order:
+
+1. `registerModules()` (app calls `addModule(...)`)
+2. `module.configureDI(...)` for all modules, then app `configureDI()`
+3. `module.configureViews(...)` for all modules, then app `configureViews()`
+4. `assetLoader.loadAll(module.getAssetRequests())` for all modules, then app `loadAssets()`
+5. wait until all enqueued assets are loaded, then `postInitialize()`
 
 ## Install (as a dependency)
 
@@ -85,6 +93,14 @@ npm run dev
 - `src/core/`: primitives (app lifecycle, rendering layers, DI, views/controllers, screens)
 - `src/modules/`: reusable feature modules (drop-in screens, controllers, events, assets)
 - `examples/`: reference apps that show the intended structure and wiring
+
+## Modules and assets (new pattern)
+
+Feature modules are written as `ModuleBinding` subclasses:
+
+- **DI and view registration**: implement `configureDI(diContainer)` and `configureViews(viewFactory)`
+- **Assets**: store module `AssetRequest`s in the binding (internally a protected `_assets` map) so the app can bulk-load them via `getAssetRequests()`
+- **Theming/overrides**: before `addModule(binding)`, call `binding.overrideAssetUrl(assetId, url)` to swap module assets (see Example02 overriding the main screen logo)
 
 ## Design rules (for keeping projects reviewable)
 

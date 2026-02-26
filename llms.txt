@@ -12,7 +12,7 @@ This is **not** a full engine. It intentionally exposes Three/Pixi directly and 
 - Minimal **dependency injection** container (`DIContainer`) with singleton bindings
 - **View ↔ controller wiring** via `ViewFactory` (`IView` + `IViewController`)
 - Clear separation: **controllers depend on view interfaces**, not concrete rendering code
-- **Modules** via `IModuleBinding` (DI + views + assets as a reusable unit)
+- **Modules** via `ModuleBinding` (DI + views + assets as a reusable unit)
 - Two-layer rendering:
   - **World (3D)**: Three.js (`World`, `WorldViewBase`)
   - **HUD / UI**: PixiJS (`Hud`, `HudViewBase`, `ScreenView`)
@@ -21,7 +21,7 @@ This is **not** a full engine. It intentionally exposes Three/Pixi directly and 
 - Put rendering and scene graph code in Views (`WorldViewBase` / `HudViewBase` / `ScreenView`), not in controllers.
 - Put behavior/state orchestration in Controllers (and Models), not in views.
 - Use Events (in DI) for cross-feature communication; avoid controllers calling each other directly.
-- Prefer reusable Modules (`IModuleBinding`) for feature-sized work. If it’s likely to be reused, it should be a module.
+- Prefer reusable Modules (`ModuleBinding`) for feature-sized work. If it’s likely to be reused, it should be a module.
 - Keep module APIs small and explicit (view contracts as interfaces; events/models in DI; wiring in the module binding).
 
 ## Quick start (mirrors the examples)
@@ -31,10 +31,10 @@ This is **not** a full engine. It intentionally exposes Three/Pixi directly and 
 
 ## App class (`GamelabsApp`)
 Your `YourGameApp` extends `GamelabsApp` and typically overrides:
-- `registerModules()`: call `this.addModule(...)` to register `IModuleBinding` instances
+- `registerModules()`: call `this.addModule(...)` to register `ModuleBinding` instances
 - `configureDI()`: bind app/services/events into `diContainer` (runs after registered modules configure DI)
 - `configureViews()`: register view/controller pairs into `viewFactory` (runs after registered modules configure views)
-- `loadAssets()`: enqueue assets in `assetLoader` (runs after registered modules enqueue assets)
+- `loadAssets()`: enqueue app-specific assets in `assetLoader` (runs after module asset requests are enqueued)
 - `postInitialize()`: create initial screens/views and hook event subscriptions (called after assets are loaded)
 - `onStep(timestepSeconds)`: per-frame logic hook (called after `updateService.tick()`)
 - `preDestroy()`: unsubscribe + cleanup owned resources
@@ -46,7 +46,11 @@ Notes:
 ## Assets (`AssetLoader`, `AssetRequest`)
 Create an assets catalog for your game/module:
 - Use `AssetRequest` + `AssetTypes` to describe what to load and where (URLs).
-- Call `assetLoader.load(...)` inside `loadAssets()`.
+- App-specific assets: call `assetLoader.load(...)` inside app `loadAssets()`.
+- Module assets: store `AssetRequest`s on your `ModuleBinding` (see Modules section). The app will bulk-load them automatically.
+
+Overriding module assets:
+- Module bindings can support theming/white-labeling by calling `binding.overrideAssetUrl(assetId, newUrl)` before `addModule(binding)`.
 
 Practical note:
 - `gamelabsjs` expects consumers to install peer deps: `three`, `pixi.js`, `@pixi/layout`, `@pixi/ui`.
@@ -87,11 +91,11 @@ Controllers orchestrate behavior and app wiring.
 - `initialize(view, resolver)` is called after the view is created and wired
 - `destroy()` is called when the view is destroyed (base views call `controller.destroy()`)
 
-## Modules (`IModuleBinding`)
+## Modules (`ModuleBinding`)
 Modules are reusable bundles that can register:
 - DI bindings: `configureDI(diContainer)`
 - View registrations: `configureViews(viewFactory)`
-- Assets: `loadAssets(assetLoader)`
+- Assets: provide `AssetRequest`s via `getAssetRequests()` (internally backed by a protected `_assets` map)
 
 Apps compose modules by registering them in `registerModules()`:
 - Create/store module bindings as fields (recommended if they hold state/models)
@@ -100,7 +104,7 @@ Apps compose modules by registering them in `registerModules()`:
 `GamelabsApp.initialize()` will then call, in order:
 - `module.configureDI(...)` for all modules, then app `configureDI()`
 - `module.configureViews(...)` for all modules, then app `configureViews()`
-- `module.loadAssets(...)` for all modules, then app `loadAssets()`
+- `assetLoader.loadAll(module.getAssetRequests())` for all modules, then app `loadAssets()`
 
 ## Repository coding constraints (keep diffs predictable)
 - Use access modifiers on class members.
