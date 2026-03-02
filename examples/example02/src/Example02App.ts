@@ -3,17 +3,26 @@ import { GamelabsApp, MainScreenAssetIds } from "gamelabsjs";
 import { MainScreenBinding, MainScreenEvents, MainScreenView } from "gamelabsjs";
 import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents } from "gamelabsjs";
 import { LevelProgressModel } from "./models/LevelProgressModel";
-import { Example02Binding } from "./Example02Bindings";
+import { Example02Config } from "./Example02Config";
 
 export class Example02App extends GamelabsApp {
-  public readonly mainScreenBinding = new MainScreenBinding();
-  public readonly levelProgressScreenBinding = new LevelProgressScreenBinding(new LevelProgressModel());
-  public readonly bindings = new Example02Binding();
+  private readonly mainScreenBinding = new MainScreenBinding();
+  private readonly levelProgressScreenBinding = new LevelProgressScreenBinding(new LevelProgressModel());
+  private readonly config = new Example02Config();
   private unsubscribePlayClick: (() => void) | null = null;
   private unsubscribeBackClick: (() => void) | null = null;
 
   constructor(stageEl: HTMLElement) {
     super({ mount: stageEl, sharedContext: true });
+  }
+
+  protected override registerModules(): void {
+    this.mainScreenBinding.assetRequestList.overrideRequestUrl(MainScreenAssetIds.Logo, new URL("../assets/example_logo.png", import.meta.url).href);
+    this.addModule(this.mainScreenBinding);
+    this.addModule(this.levelProgressScreenBinding);
+  }
+
+  protected override loadAssets(): void {
   }
 
   protected override postInitialize(): void {
@@ -27,27 +36,11 @@ export class Example02App extends GamelabsApp {
       this.showMainScreen();
     });
 
-    this.viewFactory.createScreen(MainScreenView, null, this.bindings.config.transitions.mainScreenIntro);
+    this.viewFactory.createScreen(MainScreenView, null, this.config.transitions.mainScreenIntro);
   }
 
   protected override onStep(timestepSeconds: number): void {
-    // Intentionally empty (template), keep base behavior consistent.
     super.onStep(timestepSeconds);
-  }
-
-  protected override registerModules(): void {
-    this.mainScreenBinding.overrideAssetUrl(MainScreenAssetIds.Logo, new URL("../assets/example_logo.png", import.meta.url).href);
-    this.addModule(this.mainScreenBinding);
-    this.addModule(this.levelProgressScreenBinding);
-    this.addModule(this.bindings);
-  }
-
-  private showLevelProgressScreen(): void {
-    this.viewFactory.createScreen(LevelProgressScreenView, null, this.bindings.config.transitions.levelProgressScreenEnter);
-  }
-
-  private showMainScreen(): void {
-    this.viewFactory.createScreen(MainScreenView, null, this.bindings.config.transitions.mainScreenEnter);
   }
 
   protected override preDestroy(): void {
@@ -56,5 +49,14 @@ export class Example02App extends GamelabsApp {
     this.unsubscribeBackClick?.();
     this.unsubscribeBackClick = null;
   }
+
+  private showLevelProgressScreen(): void {
+    this.viewFactory.createScreen(LevelProgressScreenView, null, this.config.transitions.levelProgressScreenEnter);
+  }
+
+  private showMainScreen(): void {
+    this.viewFactory.createScreen(MainScreenView, null, this.config.transitions.mainScreenEnter);
+  }
+
 }
 

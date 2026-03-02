@@ -144,7 +144,7 @@ export class GamelabsApp {
     this.configureViews();
 
     for (const moduleBinding of this._moduleList) {
-      this.assetLoader.loadAll(moduleBinding.getAssetRequests());
+      this.assetLoader.loadAll(moduleBinding.assetRequestList.getRequests());
     }
     this.loadAssets();
     await this.waitForAssetsLoaded();

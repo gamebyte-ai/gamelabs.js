@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { WorldViewBase } from "gamelabsjs";
 import type { ICubeView } from "./ICubeView";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { Example01AssetIds } from "../Example01Assets";
+import { Example01AssetIds } from "../Example01AssetIds";
 
 export class CubeView extends WorldViewBase implements ICubeView {
   private _model: THREE.Object3D | null = null;

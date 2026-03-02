@@ -2,7 +2,7 @@ import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import type { IMainScreenView } from "./IMainScreenView.js";
-import { MainScreenAssetIds } from "../MainScreenAssets.js";
+import { MainScreenAssetIds } from "../MainScreenAssetIds.js";
 
 /**
  * Example02 main screen (Pixi).

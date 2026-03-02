@@ -2,7 +2,7 @@ import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import type { ILevelProgressScreenView } from "./ILevelProgressScreenView.js";
-import { LevelProgressScreenAssetIds } from "../LevelProgressScreenAssets.js";
+import { LevelProgressScreenAssetIds } from "../LevelProgressScreenAssetIds.js";
 
 type LevelItemRefs = {
   view: PIXI.Container;
