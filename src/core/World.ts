@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import type { IViewContainer } from "./views/IViewContainer.js";
+import type { ILogger } from "./dev/ILogger.js";
+import { LogTypes } from "./dev/LogTypes.js";
 
 type Create3DRendererOptions = ConstructorParameters<typeof THREE.WebGLRenderer>[0];
 
@@ -18,21 +20,30 @@ export type WorldCreateOptions = {
    * If provided, applied to the canvas via `className`.
    */
   canvasClassName?: string;
+
+  /**
+   * Optional logger for error logging.
+   */
+  logger?: ILogger;
 };
 
 export class World implements IViewContainer {
+  private readonly _logger: ILogger | null;
+
   static async create(canvas?: HTMLCanvasElement, options: WorldCreateOptions = {}): Promise<World> {
     const c = canvas ?? document.createElement("canvas");
     if (options.canvasClassName !== undefined) c.className = options.canvasClassName;
     if (options.mount && !c.isConnected) options.mount.appendChild(c);
-    return new World({ canvas: c });
+    const params: { canvas: HTMLCanvasElement; logger?: ILogger } = { canvas: c };
+    if (options.logger !== undefined) params.logger = options.logger;
+    return new World(params);
   }
 
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
 
-  constructor(params: { canvas: HTMLCanvasElement }) {
+  constructor(params: { canvas: HTMLCanvasElement; logger?: ILogger }) {
     this.renderer = create3DRenderer({
       canvas: params.canvas,
       antialias: true,
@@ -52,6 +63,8 @@ export class World implements IViewContainer {
     const dir = new THREE.DirectionalLight(0xffffff, 1.2);
     dir.position.set(3, 5, 2);
     this.scene.add(dir);
+
+    this._logger = params.logger ?? null;
   }
 
   add(object: THREE.Object3D): void {
@@ -74,7 +87,9 @@ export class World implements IViewContainer {
       return;
     }
 
-    throw new Error("Invalid world parent: expected a World/THREE.Object3D with .add(), or null");
+    const msg = "Invalid world parent: expected a World/THREE.Object3D with .add(), or null";
+    this._logger?.log(msg, LogTypes.Error);
+    throw new Error(msg);
   }
 
   resize(width: number, height: number, dpr: number): void {

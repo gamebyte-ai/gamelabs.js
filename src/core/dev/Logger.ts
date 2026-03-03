@@ -1,12 +1,15 @@
 import type { ILogger } from "./ILogger.js";
 import type { LogPanel } from "./LogPanel.js";
+import { LogTypes, type LogType } from "./LogTypes.js";
 
 export class LogItem {
   public readonly message: string;
+  public readonly type: LogType;
   public next: LogItem | null = null;
 
-  public constructor(message: string) {
+  public constructor(message: string, type: LogType = LogTypes.Info) {
     this.message = message;
+    this.type = type;
   }
 }
 
@@ -26,7 +29,7 @@ export class Logger implements ILogger {
 
     let it = this._itemsHead;
     while (it) {
-      this._panel.log(it.message);
+      this._panel.log(it.message, it.type);
       it = it.next;
     }
   }
@@ -48,8 +51,9 @@ export class Logger implements ILogger {
     this._panel?.show(show);
   }
 
-  public log(message: string): void {
-    const item = new LogItem(message);
+  public log(message: string, type?: LogType): void {
+    const logType = type ?? LogTypes.Info;
+    const item = new LogItem(message, logType);
     if (!this._itemsHead || !this._itemsTail) {
       this._itemsHead = item;
       this._itemsTail = item;
@@ -58,7 +62,7 @@ export class Logger implements ILogger {
       this._itemsTail = item;
     }
 
-    this._panel?.log(message);
+    this._panel?.log(message, logType);
   }
 }
 

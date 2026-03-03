@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { WorldViewBase } from "gamelabsjs";
+import { WorldViewBase, LogTypes } from "gamelabsjs";
 import type { ICubeView } from "./ICubeView";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { Example01AssetIds } from "../Example01AssetIds";
@@ -9,7 +9,11 @@ export class CubeView extends WorldViewBase implements ICubeView {
 
   public postInitialize(): void {
     const gltf = this.assetLoader.getAsset<GLTF>(Example01AssetIds.Cube);
-    if (!gltf) throw new Error(`CubeView: missing asset: ${Example01AssetIds.Cube}`);
+    if (!gltf) {
+      const msg = `CubeView: missing asset: ${Example01AssetIds.Cube}`;
+      this.logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
+    }
 
     this._model = gltf.scene.clone(true);
     this.add(this._model);

@@ -12,6 +12,7 @@ export * from "./core/views/WorldViewBase.js";
 export * from "./core/services/UpdateService.js";
 export * from "./core/Hud.js";
 export * from "./core/dev/ILogger.js";
+export * from "./core/dev/LogTypes.js";
 export * from "./core/dev/IDevUtils.js";
 export * from "./core/dev/Logger.js";
 export * from "./core/dev/IGroundGrid.js";

@@ -1,6 +1,8 @@
 import "@pixi/layout";
 import { Application, Container, type ApplicationOptions } from "pixi.js";
 import type { IViewContainer } from "./views/IViewContainer.js";
+import type { ILogger } from "./dev/ILogger.js";
+import { LogTypes } from "./dev/LogTypes.js";
 
 export type HudCreateOptions = {
   /**
@@ -42,12 +44,18 @@ export type HudCreateOptions = {
    * In shared-context mode you typically render manually after Three.js each frame.
    */
   manualRender?: boolean;
+
+  /**
+   * Optional logger for error logging.
+   */
+  logger?: ILogger;
 };
 
 export class Hud implements IViewContainer {
   public readonly app: Application;
   public readonly mount: HTMLElement;
   public readonly manualRender: boolean;
+  private readonly _logger: ILogger | null = null;
   /**
    * Root container for normal HUD views.
    * Everything attached here will render below `overlayLayer`.
@@ -58,10 +66,11 @@ export class Hud implements IViewContainer {
    */
   public readonly overlayLayer: Container;
 
-  private constructor(app: Application, mount: HTMLElement, manualRender: boolean) {
+  private constructor(app: Application, mount: HTMLElement, manualRender: boolean, logger: ILogger | null) {
     this.app = app;
     this.mount = mount;
     this.manualRender = manualRender;
+    this._logger = logger;
 
     // Stage layers: keep overlay always on top, regardless of future HUD view attachments.
     // Use zIndex sorting so add order doesn't matter.
@@ -140,7 +149,7 @@ export class Hud implements IViewContainer {
       app.ticker?.stop();
     }
 
-    return new Hud(app, mount, manualRender);
+    return new Hud(app, mount, manualRender, options.logger ?? null);
   }
 
   public attachChild(child: any, parent: any): void {
@@ -159,7 +168,9 @@ export class Hud implements IViewContainer {
       return;
     }
 
-    throw new Error("Invalid HUD parent: expected a Pixi Container with .addChild(), or null");
+    const msg = "Invalid HUD parent: expected a Pixi Container with .addChild(), or null";
+    this._logger?.log(msg, LogTypes.Error);
+    throw new Error(msg);
   }
 
   public resize(width: number, height: number, dpr?: number): void {

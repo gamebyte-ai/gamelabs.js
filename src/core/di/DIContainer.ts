@@ -1,6 +1,8 @@
 import type { IInstanceResolver } from "./IInstanceResolver.js";
 import type { Token } from "./InjectionToken.js";
 import { InjectionToken } from "./InjectionToken.js";
+import type { ILogger } from "../dev/ILogger.js";
+import { LogTypes } from "../dev/LogTypes.js";
 
 type SingletonFactory<T> = (resolver: IInstanceResolver) => T;
 
@@ -28,12 +30,19 @@ function describeToken(token: Token<any>): string {
  * - Implements `IInstanceResolver` via `getInstance()`
  */
 export class DIContainer implements IInstanceResolver {
+  private readonly _logger: ILogger;
   private readonly providers = new Map<Token<any>, Provider<any>>();
   private readonly aliasToPrimary = new Map<Token<any>, Token<any>>();
 
+  public constructor(logger: ILogger) {
+    this._logger = logger;
+  }
+
   bindSingleton<T>(primary: Token<T>, factory: SingletonFactory<T>, aliases: readonly Token<any>[] = []): void {
     if (this.providers.has(primary)) {
-      throw new Error(`Token is already bound: ${describeToken(primary)}`);
+      const msg = `Token is already bound: ${describeToken(primary)}`;
+      this._logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
     }
 
     this.providers.set(primary, { kind: "factory", factory, hasInstance: false, instance: undefined, creating: false });
@@ -42,7 +51,9 @@ export class DIContainer implements IInstanceResolver {
 
   bindInstance<T>(primary: Token<T>, instance: T, aliases: readonly Token<any>[] = []): void {
     if (this.providers.has(primary)) {
-      throw new Error(`Token is already bound: ${describeToken(primary)}`);
+      const msg = `Token is already bound: ${describeToken(primary)}`;
+      this._logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
     }
 
     this.providers.set(primary, { kind: "instance", value: instance });
@@ -53,9 +64,9 @@ export class DIContainer implements IInstanceResolver {
     for (const alias of aliases) {
       const existing = this.aliasToPrimary.get(alias);
       if (existing && existing !== primary) {
-        throw new Error(
-          `Alias token is already mapped: ${describeToken(alias)} -> ${describeToken(existing)}`
-        );
+        const msg = `Alias token is already mapped: ${describeToken(alias)} -> ${describeToken(existing)}`;
+        this._logger.log(msg, LogTypes.Error);
+        throw new Error(msg);
       }
       this.aliasToPrimary.set(alias, primary);
     }
@@ -69,14 +80,18 @@ export class DIContainer implements IInstanceResolver {
     if (!provider) {
       const requested = describeToken(token);
       const resolved = primary === token ? requested : `${requested} (alias of ${describeToken(primary)})`;
-      throw new Error(`No binding found for token: ${resolved}`);
+      const msg = `No binding found for token: ${resolved}`;
+      this._logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
     }
 
     if (provider.kind === "instance") return provider.value;
 
     if (provider.hasInstance) return provider.instance as T;
     if (provider.creating) {
-      throw new Error(`Circular dependency while creating: ${describeToken(primary)}`);
+      const msg = `Circular dependency while creating: ${describeToken(primary)}`;
+      this._logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
     }
 
     provider.creating = true;

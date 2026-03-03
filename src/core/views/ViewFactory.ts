@@ -4,6 +4,8 @@ import type { IViewFactory } from "./IViewFactory.js";
 import type { IViewContainer } from "./IViewContainer.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { AssetLoader } from "../assets/AssetLoader.js";
+import { ILogger } from "../dev/ILogger.js";
+import { LogTypes } from "../dev/LogTypes.js";
 import type { IScreen } from "../ui/IScreen.js";
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "../ui/ScreenTransition.js";
 
@@ -69,7 +71,10 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     this.register<TView, TController>(View, {
       ...registration,
       attachToParent: (parent: unknown, view: unknown) => {
-        if (!this.hud) throw new Error("HUD view container is not set");
+        if (!this.hud) {
+          this.resolver.getInstance(ILogger).log("HUD view container is not set", LogTypes.Error);
+          throw new Error("HUD view container is not set");
+        }
         this.hud.attachChild(view, parent);
       }
     });
@@ -82,7 +87,10 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     this.register<TView, TController>(View, {
       ...registration,
       attachToParent: (parent: unknown, view: unknown) => {
-        if (!this.world) throw new Error("World view container is not set");
+        if (!this.world) {
+          this.resolver.getInstance(ILogger).log("World view container is not set", LogTypes.Error);
+          throw new Error("World view container is not set");
+        }
         this.world.attachChild(view, parent);
       }
     });
@@ -102,13 +110,16 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   } {
     const registration = this._registry.get(View);
     if (!registration) {
-      throw new Error(`No ViewFactory registration for view: ${View.name || "(anonymous view)"}`);
+      const msg = `No ViewFactory registration for view: ${View.name || "(anonymous view)"}`;
+      this.resolver.getInstance(ILogger).log(msg, LogTypes.Error);
+      throw new Error(msg);
     }
 
     const view = (registration.create?.(this.resolver) ?? new View()) as TView;
     registration.attachToParent(parent, view);
 
-    view.initialize(this, this.assetLoader);
+    const logger = this.resolver.getInstance(ILogger);
+    view.initialize(this, this.assetLoader, logger);
     view.postInitialize();
     const controller = new registration.Controller() as TController;
     view.setController(controller);

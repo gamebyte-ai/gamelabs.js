@@ -1,13 +1,14 @@
 import type { IViewController } from "./IViewController.js";
 import type { IViewFactory } from "./IViewFactory.js";
 import type { AssetLoader } from "../assets/AssetLoader.js";
+import type { ILogger } from "../dev/ILogger.js";
 
 export interface IView {
   /**
    * Provides restricted app services to the view at wiring time.
    * Called before `setController()` by the ViewFactory.
    */
-  initialize(viewFactory: IViewFactory, assetLoader: AssetLoader): void;
+  initialize(viewFactory: IViewFactory, assetLoader: AssetLoader, logger: ILogger): void;
 
   /**
    * Hook for view-side setup that depends on services injected by `initialize()`.

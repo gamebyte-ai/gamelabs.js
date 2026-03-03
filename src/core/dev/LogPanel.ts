@@ -1,5 +1,6 @@
 import { Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
 import type { Hud } from "../Hud.js";
+import { LogTypes, type LogType } from "./LogTypes.js";
 
 export type LogPanelOptions = {
   title?: string;
@@ -144,17 +145,31 @@ export class LogPanel {
     this.updateLayout();
   }
 
-  public log(message: string): void {
-    this.appendItem(message);
+  public log(message: string, type: LogType = LogTypes.Info): void {
+    this.appendItem(message, type);
     this.scrollToBottom();
   }
 
-  private appendItem(message: string): void {
+  private getFillForType(type: LogType): number {
+    switch (type) {
+      case LogTypes.Info:
+        return 0xffffff;
+      case LogTypes.Warning:
+        return 0xffff00;
+      case LogTypes.Error:
+        return 0xff0000;
+      default:
+        return 0xffffff;
+    }
+  }
+
+  private appendItem(message: string, type: LogType = LogTypes.Info): void {
     const w = Math.max(1, Math.floor(this._lastLogicalWidth));
     const isOdd = this._itemsRoot.children.length % 2 === 1;
 
+    const fill = this.getFillForType(type);
     const style = new TextStyle({
-      fill: 0xffffff,
+      fill,
       fontFamily:
         'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
       fontSize: 12,
@@ -167,6 +182,7 @@ export class LogPanel {
     itemRoot.x = 0;
     itemRoot.y = this._paddingY + this._contentHeight;
     (itemRoot as any)._logMessage = message;
+    (itemRoot as any)._logType = type;
 
     const itemBg = new Graphics();
 
@@ -203,20 +219,20 @@ export class LogPanel {
   private reflowItems(): void {
     if (this._itemsRoot.children.length === 0) return;
 
-    const messages: string[] = [];
+    const entries: { message: string; type: LogType }[] = [];
     for (const child of this._itemsRoot.children) {
       const c = child as any;
       if (typeof c?._logMessage === "string") {
-        messages.push(c._logMessage);
+        entries.push({ message: c._logMessage, type: c._logType ?? LogTypes.Info });
         continue;
       }
 
       const kids = Array.isArray(c?.children) ? (c.children as any[]) : [];
       const text = kids.find((k) => k instanceof Text) as Text | undefined;
-      if (typeof text?.text === "string") messages.push(text.text);
+      if (typeof text?.text === "string") entries.push({ message: text.text, type: LogTypes.Info });
     }
 
-    if (messages.length === 0) return;
+    if (entries.length === 0) return;
 
     const oldChildren = this._itemsRoot.removeChildren();
     for (const child of oldChildren) (child as any).destroy?.({ children: true });
@@ -224,7 +240,7 @@ export class LogPanel {
     this._scrollY = 0;
     this._contentHeight = 0;
 
-    for (const message of messages) this.appendItem(message);
+    for (const { message, type } of entries) this.appendItem(message, type);
 
     this.scrollToBottom();
   }

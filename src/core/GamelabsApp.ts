@@ -10,6 +10,7 @@ import { Hud } from "../index.js";
 import { AssetLoader } from "./assets/AssetLoader.js";
 import { ModuleBinding } from "./ModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";
+import { LogTypes } from "./dev/LogTypes.js";
 import { IDevUtils } from "./dev/IDevUtils.js";
 
 export class GamelabsApp {
@@ -81,8 +82,8 @@ export class GamelabsApp {
     this._width = config.width;
     this._height = config.height;
 
-    this.diContainer = new DIContainer();
     this._logger = new Logger();
+    this.diContainer = new DIContainer(this._logger);
 
     // Auto-resize hook for browser usage.
     if (typeof window !== "undefined") {
@@ -100,17 +101,26 @@ export class GamelabsApp {
   }
 
   public get devUtils(): DevUtils {
-    if (!this._devUtils) throw new Error("DevUtils is not initialized");
+    if (!this._devUtils) {
+      this._logger.log("DevUtils is not initialized", LogTypes.Error);
+      throw new Error("DevUtils is not initialized");
+    }
     return this._devUtils;
   }
 
   public get assetLoader(): AssetLoader {
-    if (!this._assetLoader) throw new Error("AssetLoader is not initialized");
+    if (!this._assetLoader) {
+      this._logger.log("AssetLoader is not initialized", LogTypes.Error);
+      throw new Error("AssetLoader is not initialized");
+    }
     return this._assetLoader;
   }
 
   public get viewFactory(): ViewFactory<IInstanceResolver> {
-    if (!this._viewFactory) throw new Error("ViewFactory is not initialized");
+    if (!this._viewFactory) {
+      this._logger.log("ViewFactory is not initialized", LogTypes.Error);
+      throw new Error("ViewFactory is not initialized");
+    }
     return this._viewFactory;
   }
 
@@ -171,28 +181,38 @@ export class GamelabsApp {
   }
 
   private async createWorld(): Promise<void> {
-    if (!this.mount) throw new Error("Missing mount element");
-    this.world = await World.create(this.canvas, { mount: this.mount, canvasClassName: "layer world3d" });
+    if (!this.mount) {
+      this._logger.log("Missing mount element", LogTypes.Error);
+      throw new Error("Missing mount element");
+    }
+    this.world = await World.create(this.canvas, { mount: this.mount, canvasClassName: "layer world3d", logger: this._logger });
   }
 
   private async createHud(): Promise<void> {
-    if (!this.mount) throw new Error("Missing mount element");
+    if (!this.mount) {
+      this._logger.log("Missing mount element", LogTypes.Error);
+      throw new Error("Missing mount element");
+    }
 
     if (this.sharedContext) {
-      if (!this.world) throw new Error("World is not initialized");
+      if (!this.world) {
+        this._logger.log("World is not initialized", LogTypes.Error);
+        throw new Error("World is not initialized");
+      }
 
       // Reuse the SAME canvas + WebGL context created/owned by Three.js.
       // Rendering is driven manually in `mainLoop()` so we can do Three → Pixi ordering.
       this.hud = await Hud.create(this.mount, {
         canvas: this.canvas,
         context: this.world.renderer.getContext() as WebGL2RenderingContext,
-        manualRender: true
+        manualRender: true,
+        logger: this._logger
       });
       return;
     }
 
     // Legacy: separate Pixi canvas layer (auto-rendered by Pixi).
-    this.hud = await Hud.create(this.mount);
+    this.hud = await Hud.create(this.mount, { logger: this._logger });
   }
 
   protected addModule(moduleBinding: ModuleBinding): void {

@@ -1,4 +1,4 @@
-import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp } from "gamelabsjs";
+import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
@@ -55,12 +55,18 @@ export class Example01App extends GamelabsApp {
 
   protected override postInitialize(): void {
     this.devUtils.logger.log("Creating game screen");
-    if (!this.hud) throw new Error("HUD is not initialized");
+    if (!this.hud) {
+      this.logger.log("HUD is not initialized", LogTypes.Error);
+      throw new Error("HUD is not initialized");
+    }
 
     this.viewFactory.createScreen(GameScreenView, null, this.config.transitions.gameScreenEnter);
     
     this.devUtils.logger.log("Creating cube");
-    if (!this.world) throw new Error("Three world is not initialized");
+    if (!this.world) {
+      this.logger.log("Three world is not initialized", LogTypes.Error);
+      throw new Error("Three world is not initialized");
+    }
 
     this._cubeView = this.viewFactory.createView(CubeView, null);
   }
