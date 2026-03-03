@@ -17,12 +17,17 @@ import { HudViewBase } from "../views/HudViewBase.js";
  * Concrete screens can extend this and add their own children and logic.
  */
 export class ScreenView extends HudViewBase implements IView, IScreen {
+  private _isInTransition = false;
   private _transitionTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private _transitionRafId: number | null = null;
   private _clipMask: PIXI.Graphics | null = null;
   private _clipMaskWidth = 0;
   private _clipMaskHeight = 0;
   private _clipMaskOnLayout: ((layout: any) => void) | null = null;
+
+  public get isInTransition(): boolean {
+    return this._isInTransition;
+  }
 
   private static readonly slideDeltas: Partial<Record<string, { enter: { x: number; y: number }; exit: { x: number; y: number } }>> = {
     [SCREEN_TRANSITION_TYPES.SLIDE_IN_LEFT]: { enter: { x: -1, y: 0 }, exit: { x: 1, y: 0 } },
@@ -156,6 +161,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
       }, () => {
         if ((this as any).destroyed) return;
         this.position.set(baseX, baseY);
+        this._isInTransition = false;
       });
       return;
     }
@@ -164,6 +170,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
       this.position.set(baseX + exitDx * t, baseY + exitDy * t);
     }, () => {
       if ((this as any).destroyed) return;
+      this._isInTransition = false;
       this.destroy();
     });
   }
@@ -182,7 +189,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
     this.on("layout", onLayout);
   }
 
-  public onEnter(transition: ScreenTransition): void | Promise<void> {
+  public onEnter(transition: ScreenTransition): void {
     this.cancelTransitionTimers();
 
     switch (transition.type) {
@@ -191,10 +198,12 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
           return;
         }
 
+        this._isInTransition = true;
         this.visible = false;
         this.setTransitionTimeout(() => {
           if ((this as any).destroyed) return;
           this.visible = true;
+          this._isInTransition = false;
         }, transition.durationMs);
 
         return;
@@ -204,6 +213,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
       case SCREEN_TRANSITION_TYPES.SLIDE_IN_RIGHT:
       case SCREEN_TRANSITION_TYPES.SLIDE_IN_DOWN:
       case SCREEN_TRANSITION_TYPES.SLIDE_IN_UP: {
+        this._isInTransition = true;
         this.slideInOrOut("enter", transition);
         return;
       }
@@ -217,6 +227,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
           return;
         }
 
+        this._isInTransition = true;
         const durationMs = transition.durationMs;
         const isDestroyed = (): boolean => Boolean((this as any).destroyed);
 
@@ -229,6 +240,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
             if (t >= 1) {
               this._transitionRafId = null;
               this.alpha = 1;
+              this._isInTransition = false;
               return;
             }
             this._transitionRafId = requestAnimationFrame(step);
@@ -244,6 +256,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
           this.alpha = t;
           if (t >= 1) {
             this.alpha = 1;
+            this._isInTransition = false;
             return;
           }
           this.setTransitionTimeout(tick, 16);
@@ -257,7 +270,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
     }
   }
 
-  public onExit(transition: ScreenTransition): void | Promise<void> {
+  public onExit(transition: ScreenTransition): void {
     this.cancelTransitionTimers();
 
     switch (transition.type) {
@@ -267,8 +280,10 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
           return;
         }
 
+        this._isInTransition = true;
         this.setTransitionTimeout(() => {
           if ((this as any).destroyed) return;
+          this._isInTransition = false;
           this.destroy();
         }, transition.durationMs);
         return;
@@ -278,6 +293,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
       case SCREEN_TRANSITION_TYPES.SLIDE_IN_RIGHT:
       case SCREEN_TRANSITION_TYPES.SLIDE_IN_DOWN:
       case SCREEN_TRANSITION_TYPES.SLIDE_IN_UP: {
+        this._isInTransition = true;
         this.slideInOrOut("exit", transition);
         return;
       }
@@ -288,8 +304,10 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
           return;
         }
 
+        this._isInTransition = true;
         this.setTransitionTimeout(() => {
           if ((this as any).destroyed) return;
+          this._isInTransition = false;
           this.destroy();
         }, transition.durationMs);
         return;
@@ -302,6 +320,7 @@ export class ScreenView extends HudViewBase implements IView, IScreen {
 
   public override destroy(): void {
     this.cancelTransitionTimers();
+    this._isInTransition = false;
 
     if (this._clipMaskOnLayout) {
       this.off("layout", this._clipMaskOnLayout);

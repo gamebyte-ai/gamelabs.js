@@ -147,13 +147,19 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
   }
 
   onPlayClick(cb: () => void): () => void {
-    const handler = () => cb();
+    const handler = () => {
+      if (this.isInTransition) return;
+      cb();
+    };
     this.playButton.onPress.connect(handler);
     return () => this.playButton.onPress.disconnect(handler);
   }
 
   onSettingsClick(cb: () => void): () => void {
-    const handler = () => cb();
+    const handler = () => {
+      if (this.isInTransition) return;
+      cb();
+    };
     this.settingsButton.onPress.connect(handler);
     return () => this.settingsButton.onPress.disconnect(handler);
   }

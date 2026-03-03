@@ -13,13 +13,13 @@ export interface IScreen {
    * Optional hook called when the screen becomes active.
    * Use this for starting animations, subscribing to events, etc.
    */
-  onEnter?(transition: ScreenTransition): void | Promise<void>;
+  onEnter?(transition: ScreenTransition): void;
 
   /**
    * Optional hook called when the screen is deactivated.
    * Use this for stopping animations, unsubscribing, etc.
    */
-  onExit?(transition: ScreenTransition): void | Promise<void>;
+  onExit?(transition: ScreenTransition): void;
 
   /**
    * Resize hook for screens.

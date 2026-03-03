@@ -109,7 +109,10 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     // Top-right back button.
     this.applyBackButtonLayout((this as any).layout?.width ?? 1);
     this.addChild(this.backButtonView);
-    const onBackPress = () => this.emitBackClick();
+    const onBackPress = () => {
+      if (this.isInTransition) return;
+      this.emitBackClick();
+    };
     this.backButton.onPress.connect(onBackPress);
     this.cleanup.push(() => this.backButton.onPress.disconnect(onBackPress));
 
@@ -322,6 +325,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
     const button = new Button(view);
     const onPress = () => {
+      if (this.isInTransition) return;
       // Only current level is clickable.
       if (index !== this.getCurrentIndex()) return;
       this.emitCurrentLevelClick();
