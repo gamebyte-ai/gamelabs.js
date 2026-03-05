@@ -6,7 +6,7 @@ import { DIContainer } from "./di/DIContainer.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewFactory } from "./views/ViewFactory.js";
 import { UpdateService } from "./services/UpdateService.js";
-import { Hud } from "../index.js";
+import { Hud } from "./Hud.js";
 import { AssetLoader } from "./assets/AssetLoader.js";
 import { ModuleBinding } from "./ModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";
@@ -126,9 +126,7 @@ export class GamelabsApp {
 
   async initialize(): Promise<void> {
     if (this._isInitialized) return;
-    
-    this._isInitialized = true;
-    
+
     await this.createWorld();
     await this.createHud();
 
@@ -157,27 +155,12 @@ export class GamelabsApp {
       this.assetLoader.loadAll(moduleBinding.assetRequestList.getRequests());
     }
     this.loadAssets();
-    await this.waitForAssetsLoaded();
+    await this._assetLoader.waitForAll();
 
     this.postInitialize();
     this.requestResize();
-  }
 
-  private async waitForAssetsLoaded(): Promise<void> {
-    // Give `loadAssets()` a chance to register any synchronous asset requests.
-    await this.nextTick();
-
-    while (this.assetLoader.loadedItems < this.assetLoader.totalItems) {
-      await this.nextTick();
-    }
-  }
-
-  private nextTick(): Promise<void> {
-    if (typeof requestAnimationFrame === "function") {
-      return new Promise((resolve) => requestAnimationFrame(() => resolve()));
-    }
-
-    return new Promise((resolve) => setTimeout(resolve, 0));
+    this._isInitialized = true;
   }
 
   private async createWorld(): Promise<void> {

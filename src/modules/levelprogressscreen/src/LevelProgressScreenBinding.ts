@@ -20,7 +20,7 @@ export class LevelProgressScreenBinding extends ModuleBinding {
     super();
     this.model = model;
 
-    const isSourceModule = import.meta.url.includes("/src/modules/levelprogressscreeen/src/");
+    const isSourceModule = import.meta.url.includes("/src/modules/levelprogressscreen/src/");
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, LevelProgressScreenAssetIds.Background,   new URL(isSourceModule ? "../assets/background.jpg" :     "./assets/levelprogress/background.jpg",     import.meta.url).href));
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, LevelProgressScreenAssetIds.BackButtonBg, new URL(isSourceModule ? "../assets/back_button_bg.png" : "./assets/levelprogress/back_button_bg.png", import.meta.url).href));
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, LevelProgressScreenAssetIds.LevelItemBg,  new URL(isSourceModule ? "../assets/level_item_bg.png" :  "./assets/levelprogress/level_item_bg.png",  import.meta.url).href));

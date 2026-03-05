@@ -9,7 +9,7 @@ const repoRoot = resolve(__dirname, "..");
 const mainSrcDir = resolve(repoRoot, "src/modules/mainscreen/assets");
 const mainOutDir = resolve(repoRoot, "dist/assets/mainscreen");
 
-const levelProgressSrcDir = resolve(repoRoot, "src/modules/levelprogressscreeen/assets");
+const levelProgressSrcDir = resolve(repoRoot, "src/modules/levelprogressscreen/assets");
 const levelProgressOutDir = resolve(repoRoot, "dist/assets/levelprogress");
 
 await mkdir(mainOutDir, { recursive: true });

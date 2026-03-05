@@ -34,6 +34,18 @@ export class AssetLoader {
     }
   }
 
+  /**
+   * Returns a promise that resolves when every currently in-flight load has settled.
+   * Safe to call multiple times; resolves immediately if nothing is in-flight.
+   */
+  public async waitForAll(): Promise<void> {
+    // Snapshot the current in-flight set.  New loads enqueued after this
+    // call are NOT included (intentional — call again if needed).
+    const pending = [...this._inflightById.values()];
+    if (pending.length === 0) return;
+    await Promise.all(pending);
+  }
+
   public load(type: AssetType, id: string, url: string): void;
   public load(request: AssetRequest): void;
   public load(typeOrRequest: AssetType | AssetRequest, id?: string, url?: string): void {
