@@ -1,6 +1,14 @@
-# Todo (Roadmap)(This is subject to changes)
+# Todo (Roadmap) (This is subject to changes)
 
 This repo is intentionally a **project skeleton + reusable modules** (not a full engine). The goal of this file is to keep future work explicit and prioritized, especially for AI-generated projects that will be reviewed by humans.
+
+## Current state (as of ~Mar 2025)
+
+- **Build**: `npm run build` (tsup), `npm run typecheck` (tsc) both pass.
+- **Screens**: `ScreenView` exposes `isInTransition`; transitions are synchronous (no Promise return). Screens block input during transitions by checking `isInTransition` in interaction handlers (e.g. `MainScreenView`, `LevelProgressScreenView`).
+- **Examples**: `example01` (Three.js + Pixi), `example02` (Pixi screens, main + level progress).
+- **Modules**: mainscreen, levelprogressscreeen; DI + ViewFactory registration.
+- **Assets**: `AssetLoader` loads textures, GLTFs; apps poll `loadedItems/totalItems` or call `getAsset()`.
 
 ## P0 — Consistency & reviewability (AI-first)
 
@@ -29,7 +37,7 @@ This repo is intentionally a **project skeleton + reusable modules** (not a full
 ## P1 — Screens/navigation semantics
 
 - Make screen changes deterministic:
-  - support awaiting `IScreen.onExit()` / `onEnter()` when they return promises
+  - ✓ `ScreenView.isInTransition` + input blocking during transitions (done)
   - define cancellation rules when screens are replaced quickly
   - avoid destroying screens mid-transition without cleanup
 
