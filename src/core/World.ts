@@ -29,6 +29,7 @@ export type WorldCreateOptions = {
 
 export class World implements IViewContainer {
   private readonly _logger: ILogger | null;
+  private _activeCamera: THREE.Camera;
 
   static async create(canvas?: HTMLCanvasElement, options: WorldCreateOptions = {}): Promise<World> {
     const c = canvas ?? document.createElement("canvas");
@@ -42,6 +43,10 @@ export class World implements IViewContainer {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene: THREE.Scene;
   readonly camera: THREE.PerspectiveCamera;
+
+  get activeCamera(): THREE.Camera {
+    return this._activeCamera;
+  }
 
   constructor(params: { canvas: HTMLCanvasElement; logger?: ILogger }) {
     this.renderer = create3DRenderer({
@@ -57,6 +62,7 @@ export class World implements IViewContainer {
 
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
     this.camera.position.set(0, 1.2, 4);
+    this._activeCamera = this.camera;
 
     const ambient = new THREE.AmbientLight(0xffffff, 0.6);
     this.scene.add(ambient);
@@ -92,17 +98,23 @@ export class World implements IViewContainer {
     throw new Error(msg);
   }
 
+  setActiveCamera(camera: THREE.Camera): void {
+    this._activeCamera = camera;
+  }
+
   resize(width: number, height: number, dpr: number): void {
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(width, height, false);
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
+    if (this._activeCamera instanceof THREE.PerspectiveCamera) {
+      this._activeCamera.aspect = width / height;
+      this._activeCamera.updateProjectionMatrix();
+    }
   }
 
   render(): void {
     // Important when sharing a WebGL context with another renderer (e.g. PixiJS).
     this.renderer.resetState();
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, this._activeCamera);
   }
 
   destroy(): void {

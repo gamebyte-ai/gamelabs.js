@@ -69,6 +69,7 @@ export class GamelabsApp {
     this.world?.resize(width, height, dpr);
     this.hud?.resize(width, height, dpr);
 
+    this.onResize(width, height, dpr);
     this._devUtils?.resize(width, height, dpr);
     this._viewFactory?.resize(width, height, dpr);
   };
@@ -227,6 +228,12 @@ export class GamelabsApp {
   private requestResize(): void {
     this._onWindowResize();
   }
+
+  /**
+   * Called when the viewport is resized. Override to forward resize to custom managers (e.g. GameCameraManager).
+   */
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  protected onResize(_width: number, _height: number, _dpr: number): void {}
 
   /**
    * Optional per-frame hook for app-specific logic.
