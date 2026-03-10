@@ -1,4 +1,4 @@
-import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes } from "gamelabsjs";
+import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
@@ -24,14 +24,18 @@ export class Example01App extends GamelabsApp {
   private readonly config = new Example01Config();
   private readonly gameEvents = new GameEvents();
   private readonly debugEvents = new DebugEvents();
+  private readonly _gameCameraBinding = new GameCameraBinding();
 
   private _cubeView: CubeView | null = null;
+  private _orbitalController: Orbital3dCameraController | null = null;
+  private _orbitalDragState = { isDragging: false, lastX: 0, lastY: 0 };
 
   constructor(stageEl: HTMLElement) {
     super({ mount: stageEl, sharedContext: true });
   }
 
   protected override registerModules(): void {
+    this.addModule(this._gameCameraBinding);
   }
   
   protected override configureDI(): void {
@@ -69,13 +73,63 @@ export class Example01App extends GamelabsApp {
     }
 
     this._cubeView = this.viewFactory.createView(CubeView, null);
+
+    this._gameCameraBinding.cameraManager.initialize(this.world);
+    this._orbitalController = new Orbital3dCameraController(this._gameCameraBinding.cameraManager);
+    this._gameCameraBinding.cameraManager.followObject(this._cubeView, 8);
+
+    const canvas = this.canvas;
+    canvas.addEventListener("pointerdown", this._onOrbitalPointerDown);
+    canvas.addEventListener("pointermove", this._onOrbitalPointerMove);
+    canvas.addEventListener("pointerup", this._onOrbitalPointerUp);
+    canvas.addEventListener("pointercancel", this._onOrbitalPointerUp);
+    canvas.addEventListener("wheel", this._onOrbitalWheel, { passive: true });
   }
-  
+
+  private readonly _onOrbitalPointerDown = (e: PointerEvent): void => {
+    this._orbitalDragState.isDragging = true;
+    this._orbitalDragState.lastX = e.clientX;
+    this._orbitalDragState.lastY = e.clientY;
+    (e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId);
+  };
+
+  private readonly _onOrbitalPointerMove = (e: PointerEvent): void => {
+    if (!this._orbitalDragState.isDragging || !this._orbitalController) return;
+    const dx = (e.clientX - this._orbitalDragState.lastX) * 0.005;
+    const dy = (e.clientY - this._orbitalDragState.lastY) * 0.005;
+    this._orbitalController.addAzimuth(-dx);
+    this._orbitalController.addPitch(dy);
+    this._orbitalDragState.lastX = e.clientX;
+    this._orbitalDragState.lastY = e.clientY;
+  };
+
+  private readonly _onOrbitalPointerUp = (): void => {
+    this._orbitalDragState.isDragging = false;
+  };
+
+  private readonly _onOrbitalWheel = (e: WheelEvent): void => {
+    this._orbitalController?.addDistance(e.deltaY * 0.01);
+  };
+
+  protected override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
+    this._gameCameraBinding.cameraManager.resize(width, height);
+  }
+
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
+    this._gameCameraBinding.cameraManager.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {
+    const canvas = this.canvas;
+    canvas.removeEventListener("pointerdown", this._onOrbitalPointerDown);
+    canvas.removeEventListener("pointermove", this._onOrbitalPointerMove);
+    canvas.removeEventListener("pointerup", this._onOrbitalPointerUp);
+    canvas.removeEventListener("pointercancel", this._onOrbitalPointerUp);
+    canvas.removeEventListener("wheel", this._onOrbitalWheel);
+
+    this._orbitalController = null;
     this._cubeView?.destroy();
     this._cubeView = null;
   }

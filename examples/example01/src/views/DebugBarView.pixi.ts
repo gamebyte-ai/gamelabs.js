@@ -33,13 +33,13 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     }
   });
 
-  private readonly gridButtonView = this.createButtonView("Grid");
+  private readonly gridButtonView = this.createButtonView("Grid:Off");
   private readonly gridButton = new Button(this.gridButtonView);
 
-  private readonly statsButtonView = this.createButtonView("Stats");
+  private readonly statsButtonView = this.createButtonView("Stats:Off");
   private readonly statsButton = new Button(this.statsButtonView);
 
-  private readonly logButtonView = this.createButtonView("Log");
+  private readonly logButtonView = this.createButtonView("Log:Off");
   private readonly logButton = new Button(this.logButtonView);
 
   public postInitialize(): void {
@@ -76,6 +76,18 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     };
     this.bar.on("layout", onBarLayout);
     this.cleanup.push(() => this.bar.off("layout", onBarLayout));
+  }
+
+  public setGridLabel(text: string): void {
+    (this.gridButtonView.children[1] as PIXI.Text).text = text;
+  }
+
+  public setStatsLabel(text: string): void {
+    (this.statsButtonView.children[1] as PIXI.Text).text = text;
+  }
+
+  public setLogLabel(text: string): void {
+    (this.logButtonView.children[1] as PIXI.Text).text = text;
   }
 
   private createButtonView(label: string): PIXI.Container {

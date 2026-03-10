@@ -17,20 +17,31 @@ export class DebugBarController implements IViewController<IDebugBarView> {
     this._visible = false;
     this._view.setBarVisible(false);
 
+    if (this._devUtils) {
+      this._devUtils.groundGrid.setOptions({ size: 20, divisions: 20, color1: 0x223047, color2: 0x152033, y: -0.75 });
+      this._devUtils.groundGrid.show(true);
+      this._view.setGridLabel("Grid:On");
+      this._view.setStatsLabel(this._devUtils.statsPanel.isVisible ? "Stats:On" : "Stats:Off");
+      this._view.setLogLabel(this._devUtils.logger.isVisible ? "Log:On" : "Log:Off");
+    }
+
     this._subs.add(this._view.onToggleGroundGrid(() => {
       if (!this._devUtils) return;
       this._devUtils.groundGrid.setOptions({ size: 20, divisions: 20, color1: 0x223047, color2: 0x152033, y: -0.75 });
       this._devUtils.groundGrid.show(!this._devUtils.groundGrid.isVisible);
+      this._view?.setGridLabel(this._devUtils.groundGrid.isVisible ? "Grid:On" : "Grid:Off");
     }));
 
     this._subs.add(this._view.onToggleStats(() => {
       if (!this._devUtils) return;
       this._devUtils.statsPanel.show(!this._devUtils.statsPanel.isVisible);
+      this._view?.setStatsLabel(this._devUtils.statsPanel.isVisible ? "Stats:On" : "Stats:Off");
     }));
 
     this._subs.add(this._view.onToggleLog(() => {
       if (!this._devUtils) return;
       this._devUtils.logger.show(!this._devUtils.logger.isVisible);
+      this._view?.setLogLabel(this._devUtils.logger.isVisible ? "Log:On" : "Log:Off");
     }));
 
     if (this._events) {

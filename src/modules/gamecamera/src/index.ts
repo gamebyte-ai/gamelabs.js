@@ -1,3 +1,16 @@
-export { GameCameraManager, type GameCameraManagerInitializeParams, type GameCameraFollowOptions } from "./GameCameraManager.js";
-export { GameCameraMode, GameCameraModes } from "./GameCameraMode.js";
+export { GameCameraManager } from "./GameCameraManager.js";
+export { GameCameraMode } from "./GameCameraMode.js";
 export { GameCameraBinding } from "./GameCameraBinding.js";
+export type { ICameraController } from "./controllers/ICameraController.js";
+export { BaseCameraController } from "./controllers/BaseCameraController.js";
+export { FrontBaseCameraController } from "./controllers/FrontBaseCameraController.js";
+export { Front2dCameraController } from "./controllers/Front2dCameraController.js";
+export { Front3dCameraController } from "./controllers/Front3dCameraController.js";
+export { TopdownBaseCameraController } from "./controllers/TopdownBaseCameraController.js";
+export { Topdown2dCameraController } from "./controllers/Topdown2dCameraController.js";
+export { Topdown3dCameraController } from "./controllers/Topdown3dCameraController.js";
+export { IsometricBaseCameraController } from "./controllers/IsometricBaseCameraController.js";
+export { Isometric2dCameraController } from "./controllers/Isometric2dCameraController.js";
+export { Isometric3dCameraController } from "./controllers/Isometric3dCameraController.js";
+export { Orbital3dCameraController } from "./controllers/Orbital3dCameraController.js";
+export { BaseCustomCameraController } from "./controllers/BaseCustomCameraController.js";

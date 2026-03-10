@@ -1,29 +1,18 @@
 import * as THREE from "three";
 import type { World } from "../../../core/World.js";
-import type { GameCameraMode } from "./GameCameraMode.js";
-
-export type GameCameraManagerInitializeParams = {
-  world: World;
-  camera?: THREE.Camera;
-};
-
-export type GameCameraFollowOptions = {
-  easing?: number;
-};
+import type { ICameraController } from "./controllers/ICameraController.js";
 
 const DEFAULT_ORTHO_SIZE = 10;
-const DEFAULT_ISOMETRIC_DISTANCE = 15;
-const DEFAULT_PLATFORMER_OFFSET = 5;
-const DEFAULT_TOPDOWN_OFFSET = 10;
 const DEFAULT_EASING = 8;
+const PERSPECTIVE_TO_ORTHO_OFFSET = 5;
 
 export class GameCameraManager {
   private _world: World | null = null;
   private _camera: THREE.Camera | null = null;
   private _orthoCamera: THREE.OrthographicCamera | null = null;
   private _perspectiveCamera: THREE.PerspectiveCamera | null = null;
+  private _activeController: ICameraController | null = null;
   private _active = true;
-  private _mode: GameCameraMode = "platformer2d";
   private _orthoSize = DEFAULT_ORTHO_SIZE;
   private _viewportWidth = 1;
   private _viewportHeight = 1;
@@ -34,25 +23,20 @@ export class GameCameraManager {
   private _tempVector = new THREE.Vector3();
   private _tempDirection = new THREE.Vector3();
 
-  public initialize(params: GameCameraManagerInitializeParams): void {
-    this._world = params.world;
+  public setController(controller: ICameraController): void {
+    this._activeController = controller;
+    this._ensureCameraForController(this._camera);
+    this._applyPositionToCamera();
+  }
+
+  public initialize(world: World, camera?: THREE.Camera): void {
+    this._world = world;
     const size = new THREE.Vector2();
-    params.world.renderer.getSize(size);
+    world.renderer.getSize(size);
     this._viewportWidth = size.x;
     this._viewportHeight = size.y;
-    const camera = params.camera ?? params.world.camera;
-    this._ensureCameraForMode(camera);
-  }
-
-  public setMode(mode: GameCameraMode): void {
-    if (this._mode === mode) return;
-    this._mode = mode;
-    this._ensureCameraForMode(this._camera);
-    this._applyModeOrientation();
-  }
-
-  public getMode(): GameCameraMode {
-    return this._mode;
+    const cam = camera ?? world.camera;
+    this._ensureCameraForController(cam);
   }
 
   public setOrthoSize(size: number): void {
@@ -66,17 +50,17 @@ export class GameCameraManager {
     this._applyPositionToCamera();
   }
 
-  public followObject(object: THREE.Object3D, options?: GameCameraFollowOptions): void {
+  public followObject(object: THREE.Object3D, easing?: number): void {
     this._followObject = object;
     this._followPosition = null;
-    this._followEasing = options?.easing ?? DEFAULT_EASING;
+    this._followEasing = easing ?? DEFAULT_EASING;
     this._currentPosition.copy(this._getTargetPosition());
   }
 
-  public followPosition(x: number, y: number, z: number, options?: GameCameraFollowOptions): void {
+  public followPosition(x: number, y: number, z: number, easing?: number): void {
     this._followObject = null;
     this._followPosition = new THREE.Vector3(x, y, z);
-    this._followEasing = options?.easing ?? DEFAULT_EASING;
+    this._followEasing = easing ?? DEFAULT_EASING;
     this._currentPosition.set(x, y, z);
   }
 
@@ -131,9 +115,9 @@ export class GameCameraManager {
     return this._currentPosition.clone();
   }
 
-  private _ensureCameraForMode(existing: THREE.Camera | null): void {
-    const needsOrtho = this._mode === "platformer2d" || this._mode === "topdown2d" || this._mode === "isometric2d";
-    const needsPerspective = this._mode === "isometric3d";
+  private _ensureCameraForController(existing: THREE.Camera | null): void {
+    if (!this._activeController) return;
+    const needsOrtho = this._activeController.isOrtho;
 
     if (needsOrtho) {
       if (!this._orthoCamera) {
@@ -145,7 +129,7 @@ export class GameCameraManager {
       this._camera = this._orthoCamera;
       if (this._perspectiveCamera && this._world) {
         this._perspectiveCamera.getWorldDirection(this._tempDirection);
-        this._currentPosition.copy(this._perspectiveCamera.position).addScaledVector(this._tempDirection, 5);
+        this._currentPosition.copy(this._perspectiveCamera.position).addScaledVector(this._tempDirection, PERSPECTIVE_TO_ORTHO_OFFSET);
       }
     } else {
       if (!this._perspectiveCamera) {
@@ -153,8 +137,8 @@ export class GameCameraManager {
       }
       this._camera = this._perspectiveCamera;
       if (this._orthoCamera && this._world) {
-        const d = this._mode === "isometric2d" ? this._orthoSize : DEFAULT_ISOMETRIC_DISTANCE;
-        this._currentPosition.copy(this._orthoCamera.position).subScalar(d);
+        const focus = this._activeController.getFocusFromOrthoPosition(this._orthoCamera.position, this._orthoSize);
+        this._currentPosition.copy(focus);
       }
     }
 
@@ -183,25 +167,8 @@ export class GameCameraManager {
     this._orthoCamera.updateProjectionMatrix();
   }
 
-  private _applyModeOrientation(): void {
-    this._applyPositionToCamera();
-  }
-
   private _applyPositionToCamera(): void {
-    if (!this._camera) return;
-    this._camera.rotation.set(0, 0, 0);
-    this._camera.up.set(0, 1, 0);
-    const focus = this._currentPosition;
-    if (this._mode === "platformer2d") {
-      this._camera.position.set(focus.x, focus.y, focus.z + DEFAULT_PLATFORMER_OFFSET);
-      this._camera.lookAt(focus.x, focus.y, focus.z);
-    } else if (this._mode === "topdown2d") {
-      this._camera.position.set(focus.x, focus.y + DEFAULT_TOPDOWN_OFFSET, focus.z);
-      this._camera.lookAt(focus.x, focus.y, focus.z);
-    } else if (this._mode === "isometric2d" || this._mode === "isometric3d") {
-      const d = this._mode === "isometric2d" ? this._orthoSize : DEFAULT_ISOMETRIC_DISTANCE;
-      this._camera.position.set(focus.x + d, focus.y + d, focus.z + d);
-      this._camera.lookAt(focus.x, focus.y, focus.z);
-    }
+    if (!this._camera || !this._activeController) return;
+    this._activeController.applyPositionToCamera(this._camera, this._currentPosition, this._orthoSize);
   }
 }
