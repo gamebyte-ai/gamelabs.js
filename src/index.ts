@@ -35,4 +35,5 @@ export * from "./core/version.js";
 export * from "./modules/mainscreen/src/index.js";
 export * from "./modules/levelprogressscreen/src/index.js";
 export * from "./modules/gamecamera/src/index.js";
+export * from "./modules/gamegrid/src/index.js";
 

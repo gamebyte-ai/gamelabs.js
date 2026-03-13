@@ -26,7 +26,7 @@ export class LevelProgressScreenBinding extends ModuleBinding {
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, LevelProgressScreenAssetIds.LevelItemBg,  new URL(isSourceModule ? "../assets/level_item_bg.png" :  "./assets/levelprogress/level_item_bg.png",  import.meta.url).href));
   }
 
-  public configureDI(diContainer: DIContainer): void {
+  public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {
     diContainer.bindInstance(LevelProgressScreenEvents, new LevelProgressScreenEvents());
     if (this.model) diContainer.bindInstance(ILevelProgressScreenModel, this.model);
   }

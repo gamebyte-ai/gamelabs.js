@@ -12,7 +12,7 @@ export class ModuleBinding {
 
   //  METHODS
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  public configureDI(diContainer: DIContainer): void{}
+  public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {}
   
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void{}

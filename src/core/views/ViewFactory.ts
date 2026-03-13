@@ -3,7 +3,7 @@ import type { IViewController } from "./IViewController.js";
 import type { IViewFactory } from "./IViewFactory.js";
 import type { IViewContainer } from "./IViewContainer.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
-import type { AssetLoader } from "../assets/AssetLoader.js";
+import type { DIContainer } from "../di/DIContainer.js";
 import { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
 import type { IScreen } from "../ui/IScreen.js";
@@ -55,8 +55,9 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   public hud: IViewContainer | null = null;
 
   constructor(
-    public readonly resolver: TResolver,
-    private readonly assetLoader: AssetLoader
+    public readonly logger: ILogger,
+    public readonly diContainer: DIContainer,
+    public readonly viewDiContainer: TResolver
   ) {}
 
   public setViewContainers(world: IViewContainer | null, hud: IViewContainer | null): void {
@@ -72,7 +73,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
       ...registration,
       attachToParent: (parent: unknown, view: unknown) => {
         if (!this.hud) {
-          this.resolver.getInstance(ILogger).log("HUD view container is not set", LogTypes.Error);
+          this.logger.log("HUD view container is not set", LogTypes.Error);
           throw new Error("HUD view container is not set");
         }
         this.hud.attachChild(view, parent);
@@ -88,7 +89,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
       ...registration,
       attachToParent: (parent: unknown, view: unknown) => {
         if (!this.world) {
-          this.resolver.getInstance(ILogger).log("World view container is not set", LogTypes.Error);
+          this.logger.log("World view container is not set", LogTypes.Error);
           throw new Error("World view container is not set");
         }
         this.world.attachChild(view, parent);
@@ -111,19 +112,18 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     const registration = this._registry.get(View);
     if (!registration) {
       const msg = `No ViewFactory registration for view: ${View.name || "(anonymous view)"}`;
-      this.resolver.getInstance(ILogger).log(msg, LogTypes.Error);
+      this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }
 
-    const view = (registration.create?.(this.resolver) ?? new View()) as TView;
+    const view = (registration.create?.(this.viewDiContainer) ?? new View()) as TView;
     registration.attachToParent(parent, view);
 
-    const logger = this.resolver.getInstance(ILogger);
-    view.initialize(this, this.assetLoader, logger);
+    view.initialize(this.viewDiContainer);
     view.postInitialize();
     const controller = new registration.Controller() as TController;
     view.setController(controller);
-    controller.initialize(view, this.resolver);
+    controller.initialize(view, this.diContainer);
     return { view, controller };
   }
 

@@ -12,6 +12,7 @@ import { ModuleBinding } from "./ModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";
 import { LogTypes } from "./dev/LogTypes.js";
 import { IDevUtils } from "./dev/IDevUtils.js";
+import { IViewFactory } from "./views/IViewFactory.js";
 
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
@@ -26,6 +27,7 @@ export class GamelabsApp {
 
   readonly updateService = new UpdateService();
   public readonly diContainer: DIContainer;
+  public readonly viewDiContainer: DIContainer;
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
 
   private _isInitialized = false;
@@ -85,6 +87,7 @@ export class GamelabsApp {
 
     this._logger = new Logger();
     this.diContainer = new DIContainer(this._logger);
+    this.viewDiContainer = new DIContainer(this._logger);
 
     // Auto-resize hook for browser usage.
     if (typeof window !== "undefined") {
@@ -95,6 +98,7 @@ export class GamelabsApp {
     this.diContainer.bindInstance(UpdateService, this.updateService);
     this.diContainer.bindInstance(GamelabsApp, this);
     this.diContainer.bindInstance(ILogger, this._logger, [Logger]);
+    this.viewDiContainer.bindInstance(ILogger, this._logger, [Logger]);
   }
 
   protected get logger(): ILogger {
@@ -133,17 +137,19 @@ export class GamelabsApp {
 
     this._devUtils = new DevUtils(this.world!, this.hud!, this._logger);
     this._assetLoader = new AssetLoader(this._logger);
-    this._viewFactory = new ViewFactory<IInstanceResolver>(this.diContainer, this._assetLoader);
+    this._viewFactory = new ViewFactory<IInstanceResolver>(this._logger, this.diContainer, this.viewDiContainer);
 
     this.diContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
-    this.diContainer.bindInstance(AssetLoader, this._assetLoader);
+
+    this.viewDiContainer.bindInstance(AssetLoader, this._assetLoader);
+    this.viewDiContainer.bindInstance(IViewFactory, this._viewFactory);
 
     this._viewFactory.setViewContainers(this.world, this.hud);
 
     this.registerModules();
 
     for (const moduleBinding of this._moduleList) {
-      moduleBinding.configureDI(this.diContainer);
+      moduleBinding.configureDI(this.diContainer, this.viewDiContainer);
     }
     this.configureDI();
 

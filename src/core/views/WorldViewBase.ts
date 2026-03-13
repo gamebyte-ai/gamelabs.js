@@ -1,9 +1,11 @@
 import * as THREE from "three";
 import type { IView } from "./IView.js";
 import type { IViewController } from "./IViewController.js";
+import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { IViewFactory } from "./IViewFactory.js";
-import type { AssetLoader } from "../assets/AssetLoader.js";
-import type { ILogger } from "../dev/ILogger.js";
+import { AssetLoader } from "../assets/AssetLoader.js";
+import { ILogger } from "../dev/ILogger.js";
+import { IViewFactory as IViewFactoryToken } from "./IViewFactory.js";
 import { LogTypes } from "../dev/LogTypes.js";
 
 /**
@@ -44,10 +46,10 @@ export class WorldViewBase extends THREE.Group implements IView {
   }
 
   //  METHODS
-  public initialize(viewFactory: IViewFactory, assetLoader: AssetLoader, logger: ILogger): void {
-    this._viewFactory = viewFactory;
-    this._assetLoader = assetLoader;
-    this._logger = logger;
+  public initialize(resolver: IInstanceResolver): void {
+    this._viewFactory = resolver.getInstance(IViewFactoryToken);
+    this._assetLoader = resolver.getInstance(AssetLoader);
+    this._logger = resolver.getInstance(ILogger);
   }
 
   public postInitialize(): void {}

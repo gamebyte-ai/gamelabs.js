@@ -76,7 +76,9 @@ export class Example01App extends GamelabsApp {
 
     this._gameCameraBinding.cameraManager.initialize(this.world);
     this._orbitalController = new Orbital3dCameraController(this._gameCameraBinding.cameraManager);
-    this._gameCameraBinding.cameraManager.followObject(this._cubeView, 8);
+    this._orbitalController.minDistance = this.config.minCameraDistance;
+    this._orbitalController.maxDistance = this.config.maxCameraDistance;
+    this._orbitalController.followObject(this._cubeView, 8);
 
     const canvas = this.canvas;
     canvas.addEventListener("pointerdown", this._onOrbitalPointerDown);

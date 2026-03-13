@@ -1,6 +1,7 @@
 import type { IView } from "./IView.js";
 import type { IScreen } from "../ui/IScreen.js";
 import type { ScreenTransition } from "../ui/ScreenTransition.js";
+import { InjectionToken } from "../di/InjectionToken.js";
 
 /**
  * Restricted view creation capability.
@@ -12,4 +13,6 @@ export interface IViewFactory {
   createView<TView extends IView>(View: new () => TView, parent: unknown): TView;
   createScreen<TView extends IView & IScreen>(View: new () => TView, parent: unknown, enterTransition: ScreenTransition | null): void;
 }
+
+export const IViewFactory = new InjectionToken<IViewFactory>("IViewFactory");
 

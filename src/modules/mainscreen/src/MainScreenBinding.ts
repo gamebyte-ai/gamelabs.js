@@ -24,7 +24,7 @@ export class MainScreenBinding extends ModuleBinding {
   }
 
   //  METHODS
-  public configureDI(diContainer: DIContainer): void {
+  public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {
     diContainer.bindInstance(MainScreenEvents, new MainScreenEvents());
   }
 

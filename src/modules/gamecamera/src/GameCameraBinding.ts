@@ -6,7 +6,7 @@ import { GameCameraManager } from "./GameCameraManager.js";
 export class GameCameraBinding extends ModuleBinding {
   private readonly _cameraManager = new GameCameraManager();
 
-  public configureDI(diContainer: DIContainer): void {
+  public configureDI(diContainer: DIContainer, _viewDiContainer: DIContainer): void {
     diContainer.bindInstance(GameCameraManager, this._cameraManager);
   }
 
