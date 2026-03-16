@@ -5,7 +5,9 @@ export class GameScreenController implements IViewController<IGameScreenView> {
   private view: IGameScreenView | null = null;
   private readonly subs = new UnsubscribeBag();
 
-  initialize(view: IGameScreenView, _resolver: IInstanceResolver): void {
+  inject(_resolver: IInstanceResolver): void {}
+
+  initialize(view: IGameScreenView): void {
     this.view = view;
   }
 

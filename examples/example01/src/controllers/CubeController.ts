@@ -9,17 +9,18 @@ export class CubeController implements IViewController<ICubeView> {
   private readonly subs = new UnsubscribeBag();
   private rotationEnabled = true;
 
-  initialize(view: ICubeView, resolver: IInstanceResolver): void {
-    this.view = view;
+  inject(resolver: IInstanceResolver): void {
     this.update = resolver.getInstance(UpdateService);
     this.gameEvents = resolver.getInstance(GameEvents);
+  }
 
-    // Run early in the frame so rendering happens consistently.
-    this.subs.add(this.update.register((dt: number) => this.onUpdate(dt), 0));
-    this.subs.add(this.gameEvents.onChangeCubeColor((hex: number) => {
+  initialize(view: ICubeView): void {
+    this.view = view;
+    this.subs.add(this.update!.register((dt: number) => this.onUpdate(dt), 0));
+    this.subs.add(this.gameEvents!.onChangeCubeColor((hex: number) => {
       this.view?.setColor(hex);
     }));
-    this.subs.add(this.gameEvents.onToggleCubeRotation(() => {
+    this.subs.add(this.gameEvents!.onToggleCubeRotation(() => {
       this.rotationEnabled = !this.rotationEnabled;
     }));
   }

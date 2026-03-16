@@ -1,6 +1,5 @@
 import * as THREE from "three";
-import { GamelabsApp, LogTypes, GameCameraBinding, Isometric3dCameraController, GameGridBinding, GameGridModel, GameGridEvents, GameGridView } from "gamelabsjs";
-
+import { GamelabsApp, LogTypes, GameCameraBinding, Isometric3dCameraController, GameGridBinding, GameGridView, IViewFactory } from "gamelabsjs";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenController } from "./controllers/GameScreenController";
 import { GridOperations } from "./utilities/GridOperations";
@@ -24,6 +23,8 @@ export class Example03App extends GamelabsApp {
 
   protected override configureDI(): void {
     this.diContainer.bindInstance(Example03Config, this._config);
+    this.diContainer.bindInstance(IViewFactory, this.viewFactory);
+    this.diContainer.bindSingleton(GridOperations, (resolver) => new GridOperations());
   }
 
   protected override configureViews(): void {
@@ -43,12 +44,9 @@ export class Example03App extends GamelabsApp {
       throw new Error("Three world is not initialized");
     }
 
-    this._gameGridView = GridOperations.createGrid(
-      this.diContainer.getInstance(GameGridModel),
-      this.diContainer.getInstance(GameGridEvents),
-      this._config,
-      this.viewFactory
-    );
+    const gridOps = this.diContainer.getInstance(GridOperations);
+    gridOps.createGrid();
+    this._gameGridView = this.viewFactory.createView(GameGridView, null);
 
     this.world.scene.fog = new THREE.Fog(0x0b0f14, 15, 50);
 

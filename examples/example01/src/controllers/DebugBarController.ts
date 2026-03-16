@@ -9,11 +9,13 @@ export class DebugBarController implements IViewController<IDebugBarView> {
   private readonly _subs = new UnsubscribeBag();
   private _visible = false;
 
-  public initialize(view: IDebugBarView, resolver: IInstanceResolver): void {
-    this._view = view;
+  public inject(resolver: IInstanceResolver): void {
     this._events = resolver.getInstance(DebugEvents);
     this._devUtils = resolver.getInstance(IDevUtils);
+  }
 
+  public initialize(view: IDebugBarView): void {
+    this._view = view;
     this._visible = false;
     this._view.setBarVisible(false);
 

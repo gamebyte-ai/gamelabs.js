@@ -46,11 +46,13 @@ export class WorldViewBase extends THREE.Group implements IView {
   }
 
   //  METHODS
-  public initialize(resolver: IInstanceResolver): void {
+  public inject(resolver: IInstanceResolver): void {
     this._viewFactory = resolver.getInstance(IViewFactoryToken);
     this._assetLoader = resolver.getInstance(AssetLoader);
     this._logger = resolver.getInstance(ILogger);
   }
+
+  public initialize(): void {}
 
   public postInitialize(): void {}
 

@@ -138,7 +138,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
     this.rebuildItems();
     this.applyLevels();
-    this.applyTexturesIfAvailable();
+    this.applyTextures();
   }
 
   public override onResize(width: number, height: number, _dpr: number): void {
@@ -221,7 +221,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     this.bg.rect(0, 0, width, height).fill({ color: 0x020617, alpha: 0.55 });
   }
 
-  private applyTexturesIfAvailable(): void {
+  private applyTextures(): void {
     const backButtonBg = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssetIds.BackButtonBg);
     if (backButtonBg && this.backButtonBg.texture === PIXI.Texture.EMPTY) {
       this.backButtonBg.texture = backButtonBg;

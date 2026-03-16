@@ -119,11 +119,13 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     const view = (registration.create?.(this.viewDiContainer) ?? new View()) as TView;
     registration.attachToParent(parent, view);
 
-    view.initialize(this.viewDiContainer);
+    view.inject(this.viewDiContainer);
+    view.initialize();
     view.postInitialize();
     const controller = new registration.Controller() as TController;
     view.setController(controller);
-    controller.initialize(view, this.diContainer);
+    controller.inject(this.diContainer);
+    controller.initialize(view);
     return { view, controller };
   }
 

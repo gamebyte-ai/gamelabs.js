@@ -1,4 +1,5 @@
 import type { IInstanceResolver } from "./IInstanceResolver.js";
+import type { IInjectionTarget } from "./IInjectionTarget.js";
 import type { Token } from "./InjectionToken.js";
 import { InjectionToken } from "./InjectionToken.js";
 import type { ILogger } from "../dev/ILogger.js";
@@ -60,6 +61,10 @@ export class DIContainer implements IInstanceResolver {
     this.bindAliases(primary, aliases);
   }
 
+  private _isInjectionTarget(value: unknown): value is IInjectionTarget {
+    return typeof value === "object" && value !== null && typeof (value as IInjectionTarget).inject === "function";
+  }
+
   private bindAliases(primary: Token<any>, aliases: readonly Token<any>[]): void {
     for (const alias of aliases) {
       const existing = this.aliasToPrimary.get(alias);
@@ -99,6 +104,12 @@ export class DIContainer implements IInstanceResolver {
       const created = provider.factory(this);
       provider.instance = created;
       provider.hasInstance = true;
+      provider.creating = false;
+
+      if (this._isInjectionTarget(created)) {
+        created.inject(this);
+      }
+
       return created;
     } finally {
       provider.creating = false;

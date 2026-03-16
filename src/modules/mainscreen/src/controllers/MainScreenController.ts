@@ -12,10 +12,12 @@ export class MainScreenController implements IViewController<IMainScreenView> {
   private readonly subs = new UnsubscribeBag();
   private events: MainScreenEvents | null = null;
 
-  initialize(view: IMainScreenView, resolver: IInstanceResolver): void {
-    this.view = view;
+  inject(resolver: IInstanceResolver): void {
     this.events = resolver.getInstance(MainScreenEvents);
+  }
 
+  initialize(view: IMainScreenView): void {
+    this.view = view;
     this.subs.add(this.view.onPlayClick(() => this.events?.emitPlayClick()));
     this.subs.add(this.view.onSettingsClick(() => this.events?.emitSettingsClick()));
   }

@@ -1,15 +1,15 @@
-import type { IInstanceResolver } from "../di/IInstanceResolver.js";
+import type { IInjectionTarget } from "../di/IInjectionTarget.js";
 import type { IViewController } from "./IViewController.js";
 
-export interface IView {
+export interface IView extends IInjectionTarget {
   /**
-   * Provides restricted app services to the view at wiring time.
-   * Called before `setController()` by the ViewFactory.
+   * Hook for view-side setup after injection.
+   * Called after `inject()` by the ViewFactory.
    */
-  initialize(resolver: IInstanceResolver): void;
+  initialize(): void;
 
   /**
-   * Hook for view-side setup that depends on services injected by `initialize()`.
+   * Hook for view-side setup that depends on services injected by `inject()`.
    * Called immediately after `initialize()` by the ViewFactory.
    */
   postInitialize(): void;

@@ -14,14 +14,15 @@ export class LevelProgressScreenController implements IViewController<ILevelProg
   private readonly subs = new UnsubscribeBag();
   private events: LevelProgressScreenEvents | null = null;
 
-  initialize(view: ILevelProgressScreenView, resolver: IInstanceResolver): void {
-    this.view = view;
+  inject(resolver: IInstanceResolver): void {
     this.events = resolver.getInstance(LevelProgressScreenEvents);
     this.viewModel = resolver.getInstance(ILevelProgressScreenModel);
+  }
 
-    this.view.setVisibleCount(this.viewModel.visibleItemCount);
-    this.view.setCurrentLevel(this.viewModel.currentLevel);
-
+  initialize(view: ILevelProgressScreenView): void {
+    this.view = view;
+    this.view.setVisibleCount(this.viewModel!.visibleItemCount);
+    this.view.setCurrentLevel(this.viewModel!.currentLevel);
     this.subs.add(this.view.onCurrentLevelClick(() => this.events?.emitCurrentLevelClick()));
     this.subs.add(this.view.onBackClick(() => this.events?.emitBackClick()));
   }

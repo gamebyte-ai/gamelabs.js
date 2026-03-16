@@ -1,6 +1,7 @@
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "gamelabsjs";
 
 export class Example03Config {
+  readonly boardId = 1;
   readonly boardColumnCount = 10;
   readonly boardRowCount = 8;
 

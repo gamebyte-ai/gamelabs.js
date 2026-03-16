@@ -1,8 +1,8 @@
-import type { IInstanceResolver } from "../di/IInstanceResolver.js";
+import type { IInjectionTarget } from "../di/IInjectionTarget.js";
 import type { IView } from "./IView.js";
 
-export interface IViewController<TView extends IView = IView> {
-  initialize(view: TView, resolver: IInstanceResolver): void;
+export interface IViewController<TView extends IView = IView> extends IInjectionTarget {
+  initialize(view: TView): void;
   destroy(): void;
 }
 

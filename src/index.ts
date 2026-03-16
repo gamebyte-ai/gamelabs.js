@@ -2,6 +2,7 @@ export * from "./core/GamelabsApp.js";
 export * from "./core/di/DIContainer.js";
 export * from "./core/di/InjectionToken.js";
 export * from "./core/di/IInstanceResolver.js";
+export * from "./core/di/IInjectionTarget.js";
 export * from "./core/views/ViewFactory.js";
 export * from "./core/views/IViewFactory.js";
 export * from "./core/views/IView.js";

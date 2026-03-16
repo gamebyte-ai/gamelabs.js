@@ -12,23 +12,23 @@ export class TopBarController implements IViewController<ITopBarView> {
   private readonly subs = new UnsubscribeBag();
   private toggled = false;
 
-  initialize(view: ITopBarView, resolver: IInstanceResolver): void {
-    this.view = view;
+  inject(resolver: IInstanceResolver): void {
     this.devUtils = resolver.getInstance(IDevUtils);
     this.gameEvents = resolver.getInstance(GameEvents);
     this.debugEvents = resolver.getInstance(DebugEvents);
+  }
 
+  initialize(view: ITopBarView): void {
+    this.view = view;
     this.subs.add(this.view.onToggleColor(() => {
       this.toggled = !this.toggled;
       this.gameEvents?.emitChangeCubeColor(this.toggled ? 0xf97316 : 0x3b82f6);
       this.devUtils?.logger.log("Cube color chenged");
     }));
-
     this.subs.add(this.view.onToggleRotation(() => {
       this.gameEvents?.emitToggleCubeRotation();
       this.devUtils?.logger.log("Cube rotation toggled");
     }));
-
     this.subs.add(this.view.onToggleDebug(() => {
       this.debugEvents?.emitToggleDebugPanel();
     }));
