@@ -2,13 +2,15 @@ import * as THREE from "three";
 import { Assets, Texture } from "pixi.js";
 import { AssetTypes, type AssetType } from "./AssetTypes.js";
 import { AssetRequest } from "./AssetRequest.js";
+import type { IAssetManager } from "./IAssetManager.js";
 import type { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-export class AssetLoader {
+export class AssetLoader implements IAssetManager {
   private _logger: ILogger;
   private _defaultHudTexture: Texture | null = null;
+  private _defaultWorldTexture: THREE.Texture | null = null;
   private _defaultGltf: GLTF | null = null;
   private readonly _assetsById = new Map<string, unknown>();
   private readonly _inflightById = new Map<string, Promise<unknown>>();
@@ -98,6 +100,14 @@ export class AssetLoader {
     return this._defaultHudTexture;
   }
 
+  private getDefaultWorldTexture(): THREE.Texture {
+    if (this._defaultWorldTexture) return this._defaultWorldTexture;
+    const data = new Uint8Array([128, 0, 128, 255]);
+    this._defaultWorldTexture = new THREE.DataTexture(data, 1, 1);
+    this._defaultWorldTexture.needsUpdate = true;
+    return this._defaultWorldTexture;
+  }
+
   private getDefaultGltf(): GLTF {
     if (this._defaultGltf) return this._defaultGltf;
     const scene = new THREE.Group();
@@ -126,6 +136,11 @@ export class AssetLoader {
           this._logger.log(`[AssetLoader] HudTexture load failed: ${url}`, LogTypes.Warning);
           return this.getDefaultHudTexture();
         });
+      case AssetTypes.WorldTexture:
+        return this.loadWorldTexture(url).catch((_err: unknown) => {
+          this._logger.log(`[AssetLoader] WorldTexture load failed: ${url}`, LogTypes.Warning);
+          return this.getDefaultWorldTexture();
+        });
       case AssetTypes.GLTF:
         return this.loadGltf(url).catch((_err: unknown) => {
           this._logger.log(`[AssetLoader] GLTF load failed: ${url}`, LogTypes.Warning);
@@ -138,6 +153,11 @@ export class AssetLoader {
         throw new Error(msg);
       }
     }
+  }
+
+  private async loadWorldTexture(url: string): Promise<THREE.Texture> {
+    const loader = new THREE.TextureLoader();
+    return loader.loadAsync(url);
   }
 
   private async loadGltf(url: string): Promise<unknown> {

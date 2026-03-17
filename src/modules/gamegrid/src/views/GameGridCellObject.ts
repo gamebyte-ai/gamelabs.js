@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Vector3 } from "../types/Vector3.js";
+import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 import { GameGridPreset } from "../models/GameGridPreset.js";
 import { GameGridItemObject } from "./GameGridItemObject.js";
 import { WorldInteractiveObject } from "../../../../core/views/WorldInteractiveObject.js";
@@ -19,15 +20,10 @@ export class GameGridCellObject extends WorldInteractiveObject {
     public readonly preset: GameGridPreset;
     protected readonly _pointerListener: IGameGridObjectPointerListener;
     protected _item: GameGridItemObject | null;
+    protected readonly _assetManager: IAssetManager | null;
     
     //  CONSTRUCTOR
-    public constructor(gridId: number,
-                       col: number,
-                       row: number,
-                       position: Vector3,
-                       preset: GameGridPreset,
-                       pointerListener: IGameGridObjectPointerListener,
-                       __inputManager: IInputManager | null) {
+    public constructor(gridId: number, col: number, row: number, position: Vector3, preset: GameGridPreset, pointerListener: IGameGridObjectPointerListener, __inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
         super();
         this.gridId = gridId;
         this.col = col;
@@ -35,6 +31,7 @@ export class GameGridCellObject extends WorldInteractiveObject {
         this.preset = preset;
         this.position.set(position.x, position.y, position.z);
         this._pointerListener = pointerListener;
+        this._assetManager = assetManager ?? null;
         this.setInputManager(__inputManager);
         this._item = null;
         this.createVisual();

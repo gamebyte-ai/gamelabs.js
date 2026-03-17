@@ -1,5 +1,5 @@
 {
-  "name": "gamelabsjs-example03",
+  "name": "gamelabsjs-tictactoe",
   "private": true,
   "type": "module",
   "scripts": {

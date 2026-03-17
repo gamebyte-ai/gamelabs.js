@@ -4,7 +4,7 @@ import type { IGameScreenView } from "./IGameScreenView";
 
 export class GameScreenView extends ScreenView implements IGameScreenView {
   private readonly _title = new PIXI.Text({
-    text: "Example 03",
+    text: "Tic Tac Toe",
     style: {
       fill: 0xe8eef6,
       fontSize: 24,

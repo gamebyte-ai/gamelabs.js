@@ -1,15 +1,15 @@
-import { GameGrid, GameGridModel, GameGridEvents, GameGridView, DefaultGameGridAllocator, type IInstanceResolver, type IInjectionTarget } from "gamelabsjs";
-import { Example03Config } from "../Example03Config";
+import { GameGrid, GameGridModel, GameGridEvents, DefaultGameGridAllocator, type IInstanceResolver, type IInjectionTarget } from "gamelabsjs";
+import { TicTacToeConfig } from "../TicTacToeConfig";
 
 export class GridOperations implements IInjectionTarget {
   private _model: GameGridModel | null = null;
   private _events: GameGridEvents | null = null;
-  private _config: Example03Config | null = null;
+  private _config: TicTacToeConfig | null = null;
 
   public inject(resolver: IInstanceResolver): void {
     this._model = resolver.getInstance(GameGridModel);
     this._events = resolver.getInstance(GameGridEvents);
-    this._config = resolver.getInstance(Example03Config);
+    this._config = resolver.getInstance(TicTacToeConfig);
   }
 
   public createGrid(): void {

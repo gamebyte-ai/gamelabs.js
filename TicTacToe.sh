@@ -1,5 +1,5 @@
 npm run build
-cd examples/example03
+cd examples/tictactoe
 npm install
 npm run build
 npm run dev

@@ -23,7 +23,7 @@ export class GameGridView extends WorldViewBase implements IGameGridView, IGameG
   }
 
   public addGrid(data: AddGridData): void {
-    const gridObj = new GameGridObject(data, this.creator, this, this.inputManager);
+    const gridObj = new GameGridObject(data, this.creator, this, this.inputManager, this.assetLoader);
     this._gridObjects.set(data.id, gridObj);
     this.add(gridObj);
   }

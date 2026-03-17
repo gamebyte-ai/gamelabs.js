@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { AddGridData } from "./IGameGridView.js";
+import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 import { GameGridPreset } from "../models/GameGridPreset.js";
 import type { Vector3 } from "../types/Vector3.js";
 import { GameGridObjectCreator } from "./GameGridObjectCreator.js";
@@ -25,7 +26,7 @@ export class GameGridObject extends THREE.Group {
     private readonly _cells: GameGridCellObject[][];
 
     //  CONSTRUCTOR
-    public constructor(data: AddGridData, creator: GameGridObjectCreator, pointerListener: IGameGridObjectPointerListener, inputManager: IInputManager | null) {
+    public constructor(data: AddGridData, creator: GameGridObjectCreator, pointerListener: IGameGridObjectPointerListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
         super();
         this.gridId = data.id;
         this.columnCount = data.columnCount;
@@ -42,7 +43,7 @@ export class GameGridObject extends THREE.Group {
             const colArr: GameGridCellObject[] = [];
             for (let row = 0; row < this.rowCount; row++) {
                 const pos = this.preset.getCellPosition(col, row);
-                const cell = this._creator.createCellObject(this.gridId, col, row, pos, this.preset, this._pointerListener, this._inputManager);
+                const cell = this._creator.createCellObject(this.gridId, col, row, pos, this.preset, this._pointerListener, this._inputManager, assetManager);
                 colArr.push(cell);
                 this.add(cell);
             }

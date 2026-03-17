@@ -1,6 +1,6 @@
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "gamelabsjs";
 
-export class Example03Config {
+export class TicTacToeConfig {
   readonly boardId = 1;
   readonly boardColumnCount = 3;
   readonly boardRowCount = 3;

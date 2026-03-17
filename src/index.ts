@@ -22,6 +22,7 @@ export * from "./core/dev/GroundGrid.js";
 export * from "./core/World.js";
 export * from "./core/dev/DevUtils.js";
 export * from "./core/assets/AssetTypes.js";
+export * from "./core/assets/IAssetManager.js";
 export * from "./core/assets/AssetLoader.js";
 export * from "./core/assets/AssetRequest.js";
 export * from "./core/assets/AssetRequestList.js";

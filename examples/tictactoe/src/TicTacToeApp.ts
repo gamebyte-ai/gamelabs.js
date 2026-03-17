@@ -3,15 +3,15 @@ import { GamelabsApp, LogTypes, GameCameraBinding, Topdown3dCameraController, IV
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenController } from "./controllers/GameScreenController";
 import { GridOperations } from "./utilities/GridOperations";
-import { Example03Config } from "./Example03Config";
-import { Example03GameGridBinding } from "./Example03GameGridBinding";
-import { Example03GameGridView } from "./views/Example03GameGridView.three";
+import { TicTacToeConfig } from "./TicTacToeConfig";
+import { TicTacToeGameGridBinding } from "./TicTacToeGameGridBinding";
+import { TicTacToeGameGridView } from "./views/TicTacToeGameGridView.three";
 
-export class Example03App extends GamelabsApp {
-  private readonly _config = new Example03Config();
+export class TicTacToeApp extends GamelabsApp {
+  private readonly _config = new TicTacToeConfig();
   private readonly _gameCameraBinding = new GameCameraBinding();
-  private readonly _gameGridBinding = new Example03GameGridBinding();
-  private _gameGridView: Example03GameGridView | null = null;
+  private readonly _gameGridBinding = new TicTacToeGameGridBinding();
+  private _gameGridView: TicTacToeGameGridView | null = null;
   private _cameraController: Topdown3dCameraController | null = null;
 
   constructor(stageEl: HTMLElement) {
@@ -24,7 +24,7 @@ export class Example03App extends GamelabsApp {
   }
 
   protected override configureDI(): void {
-    this.diContainer.bindInstance(Example03Config, this._config);
+    this.diContainer.bindInstance(TicTacToeConfig, this._config);
     this.diContainer.bindInstance(IViewFactory, this.viewFactory);
     this.diContainer.bindSingleton(GridOperations, (resolver) => new GridOperations());
   }
@@ -48,7 +48,7 @@ export class Example03App extends GamelabsApp {
 
     const gridOps = this.diContainer.getInstance(GridOperations);
     gridOps.createGrid();
-    this._gameGridView = this.viewFactory.createView(Example03GameGridView, null);
+    this._gameGridView = this.viewFactory.createView(TicTacToeGameGridView, null);
 
     this.world.scene.fog = new THREE.Fog(0x0b0f14, 15, 50);
 
