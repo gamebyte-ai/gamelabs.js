@@ -1,12 +1,12 @@
 import "./style.css";
 import "@pixi/layout";
 
-import { Example02App } from "./Example02App";
+import { ScreensApp } from "./ScreensApp";
 
 const stage = document.getElementById("stage");
 if (!stage) throw new Error("Missing #stage element");
 
-const app = new Example02App(stage);
+const app = new ScreensApp(stage);
 await app.initialize();
 app.mainLoop();
 

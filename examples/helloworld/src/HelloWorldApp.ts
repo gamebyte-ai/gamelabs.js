@@ -15,13 +15,13 @@ import { DebugBarController } from "./controllers/DebugBarController";
 import { DebugEvents } from "./events/DebugEvents";
 import { GameEvents } from "./events/GameEvents";
 
-import { Example01Config } from "./Example01Config";
-import { Example01AssetIds } from "./Example01AssetIds";
+import { HelloWorldConfig } from "./HelloWorldConfig";
+import { HelloWorldAssetIds } from "./HelloWorldAssetIds";
 
-export class Example01App extends GamelabsApp {
-  
+export class HelloWorldApp extends GamelabsApp {
+
   private readonly assetRequestList = new AssetRequestList();
-  private readonly config = new Example01Config();
+  private readonly config = new HelloWorldConfig();
   private readonly gameEvents = new GameEvents();
   private readonly debugEvents = new DebugEvents();
   private readonly _gameCameraBinding = new GameCameraBinding();
@@ -38,7 +38,7 @@ export class Example01App extends GamelabsApp {
   }
   
   protected override configureDI(): void {
-    this.diContainer.bindInstance(Example01Config, this.config);
+    this.diContainer.bindInstance(HelloWorldConfig, this.config);
     this.diContainer.bindInstance(GameEvents, this.gameEvents);
     this.diContainer.bindInstance(DebugEvents, this.debugEvents);
   }
@@ -52,7 +52,7 @@ export class Example01App extends GamelabsApp {
   }
 
   protected override loadAssets(): void {
-    this.assetRequestList.addRequest(new AssetRequest(AssetTypes.GLTF, Example01AssetIds.Cube, new URL("../assets/cube.glb", import.meta.url).href));
+    this.assetRequestList.addRequest(new AssetRequest(AssetTypes.GLTF, HelloWorldAssetIds.Cube, new URL("../assets/cube.glb", import.meta.url).href));
     this.assetLoader.loadAll(this.assetRequestList.getRequests());
   }
 

@@ -1,7 +1,7 @@
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
 
 /**
- * Example02 app-level events originating from `LevelProgressScreenView`.
+ * Screens app-level events originating from `LevelProgressScreenView`.
  */
 export class LevelProgressScreenEvents {
   private readonly currentLevelClickListeners = new Set<() => void>();

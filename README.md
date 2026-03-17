@@ -70,20 +70,20 @@ npm run dev
 
 The examples are Vite apps that alias `gamelabsjs` to the repo’s local `dist/index.js`, so build/watch the repo first.
 
-Example 01:
+Hello World:
 
 ```bash
 npm run build
-cd examples/example01
+cd examples/helloworld
 npm i
 npm run dev
 ```
 
-Example 02:
+Screens:
 
 ```bash
 npm run build
-cd examples/example02
+cd examples/screens
 npm i
 npm run dev
 ```
@@ -100,7 +100,7 @@ Feature modules are written as `ModuleBinding` subclasses:
 
 - **DI and view registration**: implement `configureDI(diContainer)` and `configureViews(viewFactory)`
 - **Assets**: store module `AssetRequest`s in the binding (internally a protected `_assets` map) so the app can bulk-load them via `getAssetRequests()`
-- **Theming/overrides**: before `addModule(binding)`, call `binding.overrideAssetUrl(assetId, url)` to swap module assets (see Example02 overriding the main screen logo)
+- **Theming/overrides**: before `addModule(binding)`, call `binding.overrideAssetUrl(assetId, url)` to swap module assets (see Screens overriding the main screen logo)
 
 ## Design rules (for keeping projects reviewable)
 

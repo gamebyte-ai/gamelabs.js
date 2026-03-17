@@ -5,7 +5,7 @@ import { TopBarView } from "./TopBarView.pixi";
 import { DebugBarView } from "./DebugBarView.pixi";
 
 /**
- * Example01 gameplay screen (Pixi).
+ * HelloWorld gameplay screen (Pixi).
  *
  * This is created at app start with an instant transition.
  * Keep it visually subtle so it doesn't obscure the Three.js world layer.

@@ -82,7 +82,7 @@ Views are responsible for rendering and user interaction details.
 
 Guidelines:
 - Expose a **small interface** (e.g. `ICubeView`) for controllers: methods like `setColor()`, `setVisible()`, `playIntro()`, etc.
-- Prefer “view creates subviews” (composition) where helpful (see Example01 `GameScreenView` creating `TopBarView`/`DebugBarView`).
+- Prefer “view creates subviews” (composition) where helpful (see HelloWorld `GameScreenView` creating `TopBarView`/`DebugBarView`).
 
 ## Controllers (`IViewController`)
 Controllers orchestrate behavior and app wiring.

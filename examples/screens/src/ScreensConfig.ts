@@ -4,7 +4,7 @@ import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "gamelabsjs";
  * Example-level configuration bucket.
  * Keep things here that are expected to change per project (transitions, tuning, etc.).
  */
-export class Example02Config {
+export class ScreensConfig {
   readonly transitions: {
     mainScreenIntro: ScreenTransition;
     mainScreenEnter: ScreenTransition;

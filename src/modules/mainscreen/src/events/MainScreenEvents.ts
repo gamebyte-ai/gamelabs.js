@@ -1,7 +1,7 @@
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
 
 /**
- * Example02 app-level events originating from `MainScreenView`.
+ * Screens app-level events originating from `MainScreenView`.
  */
 export class MainScreenEvents {
   private readonly playClickListeners = new Set<() => void>();

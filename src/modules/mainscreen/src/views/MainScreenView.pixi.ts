@@ -5,7 +5,7 @@ import type { IMainScreenView } from "./IMainScreenView.js";
 import { MainScreenAssetIds } from "../MainScreenAssetIds.js";
 
 /**
- * Example02 main screen (Pixi).
+ * Screens main screen (Pixi).
  *
  * Minimal HUD: full-screen background + centered play button.
  */

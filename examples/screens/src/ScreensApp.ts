@@ -3,12 +3,12 @@ import { GamelabsApp, MainScreenAssetIds } from "gamelabsjs";
 import { MainScreenBinding, MainScreenEvents, MainScreenView } from "gamelabsjs";
 import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents } from "gamelabsjs";
 import { LevelProgressModel } from "./models/LevelProgressModel";
-import { Example02Config } from "./Example02Config";
+import { ScreensConfig } from "./ScreensConfig";
 
-export class Example02App extends GamelabsApp {
+export class ScreensApp extends GamelabsApp {
   private readonly mainScreenBinding = new MainScreenBinding();
   private readonly levelProgressScreenBinding = new LevelProgressScreenBinding(new LevelProgressModel());
-  private readonly config = new Example02Config();
+  private readonly config = new ScreensConfig();
   private unsubscribePlayClick: (() => void) | null = null;
   private unsubscribeBackClick: (() => void) | null = null;
 

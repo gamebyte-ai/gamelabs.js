@@ -4,7 +4,7 @@ import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "gamelabsjs";
  * Application-level configuration bucket.
  * Keep things here that are expected to change per project (transitions, tuning, etc.).
  */
-export class Example01Config {
+export class HelloWorldConfig {
   readonly minCameraDistance = 3;
   readonly maxCameraDistance = 10;
   readonly transitions: {

@@ -6,7 +6,7 @@ This repo is intentionally a **project skeleton + reusable modules** (not a full
 
 - **Build**: `npm run build` (tsup), `npm run typecheck` (tsc) both pass.
 - **Screens**: `ScreenView` exposes `isInTransition`; transitions are synchronous (no Promise return). Screens block input during transitions by checking `isInTransition` in interaction handlers (e.g. `MainScreenView`, `LevelProgressScreenView`).
-- **Examples**: `example01` (Three.js + Pixi), `example02` (Pixi screens, main + level progress).
+- **Examples**: `helloworld` (Three.js + Pixi), `screens` (Pixi screens, main + level progress).
 - **Modules**: mainscreen, levelprogressscreen; DI + ViewFactory registration.
 - **Assets**: `AssetLoader` loads textures, GLTFs; apps poll `loadedItems/totalItems` or call `getAsset()`.
 

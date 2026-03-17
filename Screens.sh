@@ -1,5 +1,5 @@
 npm run build
-cd examples/example02
+cd examples/screens
 npm install
 npm run build
 npm run dev

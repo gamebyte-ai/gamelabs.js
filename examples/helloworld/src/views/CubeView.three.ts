@@ -3,7 +3,7 @@ import { WorldViewBase, LogTypes, Orbital3dCameraController, POINTER_INPUT_LAYER
 import type { IInstanceResolver } from "gamelabsjs";
 import type { ICubeView } from "./ICubeView";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { Example01AssetIds } from "../Example01AssetIds";
+import { HelloWorldAssetIds } from "../HelloWorldAssetIds";
 
 export class CubeView extends WorldViewBase implements ICubeView, IPointerInputHandler {
   private _model: THREE.Object3D | null = null;
@@ -43,9 +43,9 @@ export class CubeView extends WorldViewBase implements ICubeView, IPointerInputH
   }
 
   public postInitialize(): void {
-    const gltf = this.assetLoader.getAsset<GLTF>(Example01AssetIds.Cube);
+    const gltf = this.assetLoader.getAsset<GLTF>(HelloWorldAssetIds.Cube);
     if (!gltf) {
-      const msg = `CubeView: missing asset: ${Example01AssetIds.Cube}`;
+      const msg = `CubeView: missing asset: ${HelloWorldAssetIds.Cube}`;
       this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }

@@ -13,7 +13,7 @@ type LevelItemRefs = {
 };
 
 /**
- * Example02 level progress screen (Pixi).
+ * Screens level progress screen (Pixi).
  *
  * Shows a vertical list of level numbers (previous/current/next),
  * with the current one being clickable.

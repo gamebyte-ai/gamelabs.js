@@ -2,7 +2,7 @@ import type { IScreen } from "../../../../core/ui/IScreen.js";
 import type { IView } from "../../../../core/views/IView.js";
 
 /**
- * Example02 level progress screen contract.
+ * Screens level progress screen contract.
  */
 export interface ILevelProgressScreenView extends IView, IScreen {
 
