@@ -1,15 +1,15 @@
 import * as THREE from "three";
-import { GameGridCellObject, GameGridPreset, POINTER_INPUT_LAYER } from "gamelabsjs";
+import { GridCellObject, GridPreset, POINTER_INPUT_LAYER } from "gamelabsjs";
 import type { IAssetManager, IInputManager, IPointerInputHandler } from "gamelabsjs";
-import type { IGameGridObjectPointerListener } from "gamelabsjs";
+import type { IGridObjectListener } from "gamelabsjs";
 import type { Vector3 } from "gamelabsjs";
 import { TicTacToeAssetIds } from "../TicTacToeAssetIds";
 
-export class TicTacToeGridCellObject extends GameGridCellObject implements IPointerInputHandler {
+export class GameCellObject extends GridCellObject implements IPointerInputHandler {
   private static readonly COLLIDER_THICKNESS = 0.2;
   private static readonly QUAD_THICKNESS = 0.01;
 
-  public constructor(gridId: number, col: number, row: number, position: Vector3, preset: GameGridPreset, pointerListener: IGameGridObjectPointerListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
+  public constructor(gridId: number, col: number, row: number, position: Vector3, preset: GridPreset, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
     super(gridId, col, row, position, preset, pointerListener, inputManager, assetManager);
   }
 
@@ -21,15 +21,15 @@ export class TicTacToeGridCellObject extends GameGridCellObject implements IPoin
     const geom = new THREE.PlaneGeometry(this.preset.columnSize * 0.9, this.preset.rowSize * 0.9);
     const mesh = new THREE.Mesh(geom, material);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(0, -TicTacToeGridCellObject.QUAD_THICKNESS * 0.5, 0);
+    mesh.position.set(0, -GameCellObject.QUAD_THICKNESS * 0.5, 0);
     this.add(mesh);
   }
 
   protected override createCollider(): void {
     const material = new THREE.MeshBasicMaterial({ visible: false });
-    const geom = new THREE.BoxGeometry(this.preset.columnSize * 0.9, TicTacToeGridCellObject.COLLIDER_THICKNESS, this.preset.rowSize * 0.9);
+    const geom = new THREE.BoxGeometry(this.preset.columnSize * 0.9, GameCellObject.COLLIDER_THICKNESS, this.preset.rowSize * 0.9);
     const mesh = new THREE.Mesh(geom, material);
-    mesh.position.set(0, TicTacToeGridCellObject.COLLIDER_THICKNESS * 0.5, 0);
+    mesh.position.set(0, GameCellObject.COLLIDER_THICKNESS * 0.5, 0);
     mesh.layers.enable(POINTER_INPUT_LAYER);
     this.add(mesh);
   }

@@ -1,12 +1,12 @@
 import { AssetRequest, AssetTypes, GameGridBinding } from "gamelabsjs";
 import { TicTacToeAssetIds } from "./TicTacToeAssetIds";
-import { TicTacToeGridObjectCreator } from "./views/TicTacToeGridObjectCreator";
-import { TicTacToeGameGridView } from "./views/TicTacToeGameGridView.three";
-import { TicTacToeGameGridController } from "./controllers/TicTacToeGameGridController";
+import { GameGridObjectCreator } from "./views/GameGridObjectCreator";
+import { GameGridsView } from "./views/GameGridsView.three";
+import { GameGridsViewController } from "./controllers/GameGridsViewController";
 
 export class TicTacToeGameGridBinding extends GameGridBinding {
   public constructor() {
-    super(new TicTacToeGridObjectCreator(), TicTacToeGameGridView, TicTacToeGameGridController);
+    super(new GameGridObjectCreator(), GameGridsView, GameGridsViewController);
     this.assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, TicTacToeAssetIds.Cell, new URL("./assets/cell.png", import.meta.url).href));
   }
 }

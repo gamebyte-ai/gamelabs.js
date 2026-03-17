@@ -1,7 +1,7 @@
 import type { IView } from "../../../../core/views/IView.js";
 import type { Vector3 } from "../types/Vector3.js";
-import type { GameGridPreset } from "../models/GameGridPreset.js";
-import type { GameGridItem } from "../models/GameGridItem.js";
+import type { GridPreset } from "../models/GridPreset.js";
+import type { GridItem } from "../models/GridItem.js";
 
 export type AddGridData = {
   id: number;
@@ -9,13 +9,13 @@ export type AddGridData = {
   rowCount: number;
   position: Vector3;
   rotation: Vector3;
-  preset?: GameGridPreset;
+  preset?: GridPreset;
 };
 
-export interface IGameGridView extends IView {
+export interface IGridView extends IView {
   addGrid(data: AddGridData): void;
   removeGrid(gridId: number): void;
   updateGridPosition(gridId: number, position: Vector3): void;
   updateGridRotation(gridId: number, rotation: Vector3): void;
-  updateCellItem(gridId: number, col: number, row: number, item: GameGridItem | null): void;
+  updateCellItem(gridId: number, col: number, row: number, item: GridItem | null): void;
 }

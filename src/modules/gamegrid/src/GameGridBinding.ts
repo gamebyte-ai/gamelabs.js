@@ -2,41 +2,41 @@ import { ModuleBinding } from "../../../core/ModuleBinding.js";
 import type { DIContainer } from "../../../core/di/DIContainer.js";
 import type { IInstanceResolver } from "../../../core/di/IInstanceResolver.js";
 import type { ViewFactory } from "../../../core/views/ViewFactory.js";
-import { GameGridModel } from "./models/GameGridModel.js";
-import { GameGridEvents } from "./events/GameGridEvents.js";
-import { GameGridController } from "./controllers/GameGridController.js";
-import { GameGridView } from "./views/GameGridView.three.js";
-import { GameGridObjectCreator } from "./views/GameGridObjectCreator.js";
+import { GridsModel } from "./models/GridsModel.js";
+import { GridEvents } from "./events/GridEvents.js";
+import { GridsViewController } from "./controllers/GridsViewController.js";
+import { GridsView } from "./views/GridsView.three.js";
+import { GridObjectCreator } from "./views/GridObjectCreator.js";
 
 export class GameGridBinding extends ModuleBinding {
-  private readonly _events = new GameGridEvents();
-  private readonly _model = new GameGridModel(this._events);
-  private readonly _objectCreator: GameGridObjectCreator;
-  private readonly _viewClass: typeof GameGridView;
-  private readonly _controllerClass: typeof GameGridController;
+  private readonly _events = new GridEvents();
+  private readonly _model = new GridsModel(this._events);
+  private readonly _objectCreator: GridObjectCreator;
+  private readonly _viewClass: typeof GridsView;
+  private readonly _controllerClass: typeof GridsViewController;
 
-  public constructor(objectCreator: GameGridObjectCreator | null = null, viewClass: typeof GameGridView | null = null, controllerClass: typeof GameGridController | null = null) {
+  public constructor(objectCreator: GridObjectCreator | null = null, viewClass: typeof GridsView | null = null, controllerClass: typeof GridsViewController | null = null) {
     super();
-    this._objectCreator = objectCreator ?? new GameGridObjectCreator();
-    this._viewClass = viewClass ?? GameGridView;
-    this._controllerClass = controllerClass ?? GameGridController;
+    this._objectCreator = objectCreator ?? new GridObjectCreator();
+    this._viewClass = viewClass ?? GridsView;
+    this._controllerClass = controllerClass ?? GridsViewController;
   }
 
   public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {
-    diContainer.bindInstance(GameGridEvents, this._events);
-    diContainer.bindInstance(GameGridModel, this._model);
-    viewDiContainer.bindInstance(GameGridObjectCreator, this._objectCreator);
+    diContainer.bindInstance(GridEvents, this._events);
+    diContainer.bindInstance(GridsModel, this._model);
+    viewDiContainer.bindInstance(GridObjectCreator, this._objectCreator);
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
     viewFactory.registerWorldView(this._viewClass, { Controller: this._controllerClass });
   }
 
-  public get model(): GameGridModel {
+  public get model(): GridsModel {
     return this._model;
   }
 
-  public get events(): GameGridEvents {
+  public get events(): GridEvents {
     return this._events;
   }
 }

@@ -1,14 +1,14 @@
-import { GameGrid, GameGridModel, GameGridEvents, DefaultGameGridAllocator, type IInstanceResolver, type IInjectionTarget } from "gamelabsjs";
+import { Grid, GridsModel, GridEvents, DefaultGridAllocator, type IInstanceResolver, type IInjectionTarget } from "gamelabsjs";
 import { TicTacToeConfig } from "../TicTacToeConfig";
 
 export class GridOperations implements IInjectionTarget {
-  private _model: GameGridModel | null = null;
-  private _events: GameGridEvents | null = null;
+  private _model: GridsModel | null = null;
+  private _events: GridEvents | null = null;
   private _config: TicTacToeConfig | null = null;
 
   public inject(resolver: IInstanceResolver): void {
-    this._model = resolver.getInstance(GameGridModel);
-    this._events = resolver.getInstance(GameGridEvents);
+    this._model = resolver.getInstance(GridsModel);
+    this._events = resolver.getInstance(GridEvents);
     this._config = resolver.getInstance(TicTacToeConfig);
   }
 
@@ -16,8 +16,8 @@ export class GridOperations implements IInjectionTarget {
     const model = this._model!;
     const events = this._events!;
     const config = this._config!;
-    const allocator = new DefaultGameGridAllocator();
-    const grid = new GameGrid(config.boardId, config.boardColumnCount, config.boardRowCount, events, null, allocator);
+    const allocator = new DefaultGridAllocator();
+    const grid = new Grid(config.boardId, config.boardColumnCount, config.boardRowCount, events, null, allocator);
     model.addGrid(grid);
   }
 }

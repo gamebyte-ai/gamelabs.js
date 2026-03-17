@@ -1,29 +1,29 @@
 import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
 import type { IInputManager } from "../../../../core/input/IInputManager.js";
 import { WorldViewBase } from "../../../../core/views/WorldViewBase.js";
-import type { IGameGridView, AddGridData } from "./IGameGridView.js";
-import type { GameGridItem } from "../models/GameGridItem.js";
-import { GameGridObject } from "./GameGridObject.js";
-import { GameGridObjectCreator } from "./GameGridObjectCreator.js";
-import { IGameGridObjectPointerListener } from "./IGameGridObjectPointerListener.js";
+import type { IGridView, AddGridData } from "./IGridView.js";
+import type { GridItem } from "../models/GridItem.js";
+import { GridObject } from "./GridObject.js";
+import { GridObjectCreator } from "./GridObjectCreator.js";
+import { IGridObjectListener } from "./IGridObjectListener.js";
 import { IInputManager as IInputManagerToken } from "../../../../core/input/IInputManager.js";
 
-export class GameGridView extends WorldViewBase implements IGameGridView, IGameGridObjectPointerListener {
-  private readonly _gridObjects = new Map<number, GameGridObject>();
-  private _creator: GameGridObjectCreator | null = null;
+export class GridsView extends WorldViewBase implements IGridView, IGridObjectListener {
+  private readonly _gridObjects = new Map<number, GridObject>();
+  private _creator: GridObjectCreator | null = null;
 
-  private get creator(): GameGridObjectCreator {
-    if (!this._creator) throw new Error("GameGridView is not initialized");
+  private get creator(): GridObjectCreator {
+    if (!this._creator) throw new Error("GridsView is not initialized");
     return this._creator;
   }
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
-    this._creator = resolver.getInstance(GameGridObjectCreator);
+    this._creator = resolver.getInstance(GridObjectCreator);
   }
 
   public addGrid(data: AddGridData): void {
-    const gridObj = new GameGridObject(data, this.creator, this, this.inputManager, this.assetLoader);
+    const gridObj = new GridObject(data, this.creator, this, this.inputManager, this.assetLoader);
     this._gridObjects.set(data.id, gridObj);
     this.add(gridObj);
   }
@@ -46,7 +46,7 @@ export class GameGridView extends WorldViewBase implements IGameGridView, IGameG
     if (gridObj) gridObj.rotation.set(rotation.x, rotation.y, rotation.z);
   }
 
-  public updateCellItem(gridId: number, col: number, row: number, item: GameGridItem | null): void {
+  public updateCellItem(gridId: number, col: number, row: number, item: GridItem | null): void {
     const gridObj = this._gridObjects.get(gridId);
     if (!gridObj) return;
     gridObj.removeItemAt(col, row);
@@ -55,17 +55,17 @@ export class GameGridView extends WorldViewBase implements IGameGridView, IGameG
       gridObj.addItem(itemObj, col, row);
     }
   }
-  
+
   public onGridPointerDown(gridId: number, event: PointerEvent): void {}
-  
+
   public onGridPointerUp(gridId: number, event: PointerEvent): void {}
-  
+
   public onGridCellPointerDown(gridId: number, col: number, row: number, event: PointerEvent): void {}
-  
+
   public onGridCellPointerUp(gridId: number, col: number, row: number, event: PointerEvent): void {}
-  
+
   public onGridItemPointerDown(itemId: number, event: PointerEvent): void {}
-  
+
   public onGridItemPointerUp(itemId: number, event: PointerEvent): void {}
 
   public preDestroy(): void {

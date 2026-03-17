@@ -1,22 +1,22 @@
 import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
 import type { IViewController } from "../../../../core/views/IViewController.js";
-import { GameGridModel } from "../models/GameGridModel.js";
-import { GameGridEvents } from "../events/GameGridEvents.js";
-import type { IGameGridView } from "../views/IGameGridView.js";
+import { GridsModel } from "../models/GridsModel.js";
+import { GridEvents } from "../events/GridEvents.js";
+import type { IGridView } from "../views/IGridView.js";
 import { UnsubscribeBag } from "../../../../core/events/subscriptions.js";
 
-export class GameGridController implements IViewController<IGameGridView> {
-  private _view: IGameGridView | null = null;
+export class GridsViewController implements IViewController<IGridView> {
+  private _view: IGridView | null = null;
   private readonly _subs = new UnsubscribeBag();
-  private _model: GameGridModel | null = null;
-  private _events: GameGridEvents | null = null;
+  private _model: GridsModel | null = null;
+  private _events: GridEvents | null = null;
 
   public inject(resolver: IInstanceResolver): void {
-    this._model = resolver.getInstance(GameGridModel);
-    this._events = resolver.getInstance(GameGridEvents);
+    this._model = resolver.getInstance(GridsModel);
+    this._events = resolver.getInstance(GridEvents);
   }
 
-  public initialize(view: IGameGridView): void {
+  public initialize(view: IGridView): void {
     this._view = view;
     const model = this._model!;
     const events = this._events!;

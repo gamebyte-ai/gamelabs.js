@@ -1,8 +1,8 @@
 import { vector } from "@js-basics/vector";
 import type { Vector3 } from "../types/Vector3.js";
 
-export class GameGridPreset {
-  public static readonly DEFAULT = new GameGridPreset();
+export class GridPreset {
+  public static readonly DEFAULT = new GridPreset();
   public readonly columnSize: number;
   public readonly rowSize: number;
   public readonly columnAxis: Vector3;

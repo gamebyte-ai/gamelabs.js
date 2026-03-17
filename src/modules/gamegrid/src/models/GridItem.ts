@@ -1,12 +1,12 @@
-import { GameGridCell } from "./GameGridCell";
+import { GridCell } from "./GridCell";
 
-export class GameGridItem{
+export class GridItem {
   //  FIELDS
   public readonly itemId: number;
-  private _cell: GameGridCell | null;
+  private _cell: GridCell | null;
 
   //  ACCESSORS
-  public get cell(): GameGridCell | null {
+  public get cell(): GridCell | null {
     return this._cell;
   }
 
@@ -17,7 +17,7 @@ export class GameGridItem{
   }
 
   //  METHODS
-  public setCell(cell:GameGridCell): void {
+  public setCell(cell: GridCell): void {
     this._cell = cell;
   }
 }

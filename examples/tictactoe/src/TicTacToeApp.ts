@@ -5,13 +5,13 @@ import { GameScreenController } from "./controllers/GameScreenController";
 import { GridOperations } from "./utilities/GridOperations";
 import { TicTacToeConfig } from "./TicTacToeConfig";
 import { TicTacToeGameGridBinding } from "./TicTacToeGameGridBinding";
-import { TicTacToeGameGridView } from "./views/TicTacToeGameGridView.three";
+import { GameGridsView } from "./views/GameGridsView.three";
 
 export class TicTacToeApp extends GamelabsApp {
   private readonly _config = new TicTacToeConfig();
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _gameGridBinding = new TicTacToeGameGridBinding();
-  private _gameGridView: TicTacToeGameGridView | null = null;
+  private _gameGridView: GameGridsView | null = null;
   private _cameraController: Topdown3dCameraController | null = null;
 
   constructor(stageEl: HTMLElement) {
@@ -48,7 +48,7 @@ export class TicTacToeApp extends GamelabsApp {
 
     const gridOps = this.diContainer.getInstance(GridOperations);
     gridOps.createGrid();
-    this._gameGridView = this.viewFactory.createView(TicTacToeGameGridView, null);
+    this._gameGridView = this.viewFactory.createView(GameGridsView, null);
 
     this.world.scene.fog = new THREE.Fog(0x0b0f14, 15, 50);
 
