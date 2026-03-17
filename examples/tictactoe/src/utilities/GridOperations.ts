@@ -1,5 +1,6 @@
-import { Grid, GridsModel, GridEvents, DefaultGridAllocator, type IInstanceResolver, type IInjectionTarget } from "gamelabsjs";
+import { Grid, GridsModel, GridEvents, type IInstanceResolver, type IInjectionTarget } from "gamelabsjs";
 import { TicTacToeConfig } from "../TicTacToeConfig";
+import { GameGridAllocator } from "./GameGridAllocator.js";
 
 export class GridOperations implements IInjectionTarget {
   private _model: GridsModel | null = null;
@@ -16,7 +17,7 @@ export class GridOperations implements IInjectionTarget {
     const model = this._model!;
     const events = this._events!;
     const config = this._config!;
-    const allocator = new DefaultGridAllocator();
+    const allocator = new GameGridAllocator();
     const grid = new Grid(config.boardId, config.boardColumnCount, config.boardRowCount, events, null, allocator);
     model.addGrid(grid);
   }

@@ -8,6 +8,22 @@ import { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../core/input/IInputManager.js";
 import type { IPointerInputHandler } from "../../../../core/input/IPointerInputHandler.js";
 
+export class GridCellObjectOptions {
+  public readonly gridId: number;
+  public readonly col: number;
+  public readonly row: number;
+  public readonly position: Vector3;
+  public readonly preset: GridPreset;
+
+  public constructor(gridId: number, col: number, row: number, position: Vector3, preset: GridPreset) {
+    this.gridId = gridId;
+    this.col = col;
+    this.row = row;
+    this.position = position;
+    this.preset = preset;
+  }
+}
+
 export class GridCellObject extends WorldInteractiveObject {
   private static readonly DEFAULT_THICKNESS = 0.1;
 
@@ -19,13 +35,13 @@ export class GridCellObject extends WorldInteractiveObject {
   protected _item: GridItemObject | null;
   protected readonly _assetManager: IAssetManager | null;
 
-  public constructor(gridId: number, col: number, row: number, position: Vector3, preset: GridPreset, pointerListener: IGridObjectListener, __inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
+  public constructor(options: GridCellObjectOptions, pointerListener: IGridObjectListener, __inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
     super();
-    this.gridId = gridId;
-    this.col = col;
-    this.row = row;
-    this.preset = preset;
-    this.position.set(position.x, position.y, position.z);
+    this.gridId = options.gridId;
+    this.col = options.col;
+    this.row = options.row;
+    this.preset = options.preset;
+    this.position.set(options.position.x, options.position.y, options.position.z);
     this._pointerListener = pointerListener;
     this._assetManager = assetManager ?? null;
     this.setInputManager(__inputManager);
@@ -48,6 +64,16 @@ export class GridCellObject extends WorldInteractiveObject {
       this._item.removeFromParent();
       this._item = null;
     }
+  }
+
+  public takeItem(): GridItemObject | null {
+    const item = this._item;
+    if (item) {
+      item.removeFromParent();
+      this._item = null;
+      return item;
+    }
+    return null;
   }
 
   protected createVisual(): void {

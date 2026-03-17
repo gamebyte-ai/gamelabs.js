@@ -2,9 +2,9 @@ import * as THREE from "three";
 import type { AddGridData } from "./IGridView.js";
 import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 import { GridPreset } from "../models/GridPreset.js";
-import type { Vector3 } from "../types/Vector3.js";
 import { GridObjectCreator } from "./GridObjectCreator.js";
 import type { GridItemObject } from "./GridItemObject.js";
+import { GridCellObjectOptions } from "./GridCellObject.js";
 import type { GridCellObject } from "./GridCellObject.js";
 import { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../core/input/IInputManager.js";
@@ -41,7 +41,7 @@ export class GridObject extends THREE.Group {
       const colArr: GridCellObject[] = [];
       for (let row = 0; row < this.rowCount; row++) {
         const pos = this.preset.getCellPosition(col, row);
-        const cell = this._creator.createCellObject(this.gridId, col, row, pos, this.preset, this._pointerListener, this._inputManager, assetManager);
+        const cell = this._creator.createCellObject(new GridCellObjectOptions(this.gridId, col, row, pos, this.preset), this._pointerListener, this._inputManager, assetManager);
         colArr.push(cell);
         this.add(cell);
       }
@@ -76,6 +76,10 @@ export class GridObject extends THREE.Group {
 
   public removeItemAt(col: number, row: number): void {
     this.getCell(col, row)?.removeItem();
+  }
+
+  public takeItemAt(col: number, row: number): GridItemObject | null {
+    return this.getCell(col, row)?.takeItem() ?? null;
   }
 
   public unregisterFromInputManager(): void {

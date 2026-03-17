@@ -1,16 +1,15 @@
 import * as THREE from "three";
-import { GridCellObject, GridPreset, POINTER_INPUT_LAYER } from "gamelabsjs";
+import { GridCellObject, GridCellObjectOptions, POINTER_INPUT_LAYER } from "gamelabsjs";
 import type { IAssetManager, IInputManager, IPointerInputHandler } from "gamelabsjs";
 import type { IGridObjectListener } from "gamelabsjs";
-import type { Vector3 } from "gamelabsjs";
 import { TicTacToeAssetIds } from "../TicTacToeAssetIds";
 
 export class GameCellObject extends GridCellObject implements IPointerInputHandler {
   private static readonly COLLIDER_THICKNESS = 0.2;
   private static readonly QUAD_THICKNESS = 0.01;
 
-  public constructor(gridId: number, col: number, row: number, position: Vector3, preset: GridPreset, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
-    super(gridId, col, row, position, preset, pointerListener, inputManager, assetManager);
+  public constructor(options: GridCellObjectOptions, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
+    super(options, pointerListener, inputManager, assetManager);
   }
 
   protected override createVisual(): void {

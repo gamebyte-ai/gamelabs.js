@@ -1,12 +1,10 @@
 import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
-import type { IInputManager } from "../../../../core/input/IInputManager.js";
 import { WorldViewBase } from "../../../../core/views/WorldViewBase.js";
 import type { IGridView, AddGridData } from "./IGridView.js";
-import type { GridItem } from "../models/GridItem.js";
+import type { GridItemObjectOptions } from "./GridItemObject.js";
 import { GridObject } from "./GridObject.js";
 import { GridObjectCreator } from "./GridObjectCreator.js";
 import { IGridObjectListener } from "./IGridObjectListener.js";
-import { IInputManager as IInputManagerToken } from "../../../../core/input/IInputManager.js";
 
 export class GridsView extends WorldViewBase implements IGridView, IGridObjectListener {
   private readonly _gridObjects = new Map<number, GridObject>();
@@ -46,14 +44,28 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
     if (gridObj) gridObj.rotation.set(rotation.x, rotation.y, rotation.z);
   }
 
-  public updateCellItem(gridId: number, col: number, row: number, item: GridItem | null): void {
+  public createItem(itemOptions: GridItemObjectOptions, gridId: number, col: number, row: number): void {
     const gridObj = this._gridObjects.get(gridId);
     if (!gridObj) return;
+    const itemObj = this.creator.createItemObject(itemOptions, this, this.inputManager);
+    gridObj.addItem(itemObj, col, row);
+  }
+
+  public moveItem(itemId: number, gridId: number, col: number, row: number, toGridId: number, toCol: number, toRow: number): void {
+    const gridObj = this._gridObjects.get(gridId);
+    const toGridObj = this._gridObjects.get(toGridId);
+    if (!gridObj || !toGridObj) return;
+    const itemObj = gridObj.takeItemAt(col, row);
+    if (!itemObj || itemObj.itemId !== itemId) return;
+    toGridObj.addItem(itemObj, toCol, toRow);
+  }
+
+  public destroyItem(itemId: number, gridId: number, col: number, row: number): void {
+    const gridObj = this._gridObjects.get(gridId);
+    if (!gridObj) return;
+    const cell = gridObj.getCell(col, row);
+    if (!cell?.item || cell.item.itemId !== itemId) return;
     gridObj.removeItemAt(col, row);
-    if (item !== null) {
-      const itemObj = this.creator.createItemObject(item.itemId, gridObj.preset, this, this.inputManager);
-      gridObj.addItem(itemObj, col, row);
-    }
   }
 
   public onGridPointerDown(gridId: number, event: PointerEvent): void {}

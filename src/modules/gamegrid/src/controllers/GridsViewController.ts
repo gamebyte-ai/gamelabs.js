@@ -3,6 +3,9 @@ import type { IViewController } from "../../../../core/views/IViewController.js"
 import { GridsModel } from "../models/GridsModel.js";
 import { GridEvents } from "../events/GridEvents.js";
 import type { IGridView } from "../views/IGridView.js";
+import { GridItemObjectOptions } from "../views/GridItemObject.js";
+import type { GridItem } from "../models/GridItem.js";
+import type { Grid } from "../models/Grid.js";
 import { UnsubscribeBag } from "../../../../core/events/subscriptions.js";
 
 export class GridsViewController implements IViewController<IGridView> {
@@ -32,7 +35,7 @@ export class GridsViewController implements IViewController<IGridView> {
       for (let col = 0; col < grid.columnCount; col++) {
         for (let row = 0; row < grid.rowCount; row++) {
           const cell = grid.getCell(col, row);
-          view.updateCellItem(grid.gridId, col, row, cell?.item ?? null);
+          if (cell?.item) view.createItem(this.createItemObjectOption(cell.item, grid), grid.gridId, col, row);
         }
       }
     }
@@ -48,14 +51,25 @@ export class GridsViewController implements IViewController<IGridView> {
       for (let col = 0; col < grid.columnCount; col++) {
         for (let row = 0; row < grid.rowCount; row++) {
           const cell = grid.getCell(col, row);
-          this._view?.updateCellItem(grid.gridId, col, row, cell?.item ?? null);
+          if (cell?.item) this._view?.createItem(this.createItemObjectOption(cell.item, grid), grid.gridId, col, row);
         }
       }
     }));
     this._subs.add(this._events!.onGridRemoved((grid) => this._view?.removeGrid(grid.gridId)));
     this._subs.add(this._events!.onPositionChanged((grid, position) => this._view?.updateGridPosition(grid.gridId, position)));
     this._subs.add(this._events!.onRotationChanged((grid, rotation) => this._view?.updateGridRotation(grid.gridId, rotation)));
-    this._subs.add(this._events!.onItemChanged((cell) => this._view?.updateCellItem(cell.grid.gridId, cell.col, cell.row, cell.item ?? null)));
+    this._subs.add(this._events!.onItemChanged((cell, oldItem, newItem) => {
+      if (oldItem && !newItem) this._view?.destroyItem(oldItem.itemId, cell.grid.gridId, cell.col, cell.row);
+      else if (!oldItem && newItem) this._view?.createItem(this.createItemObjectOption(newItem, cell.grid), cell.grid.gridId, cell.col, cell.row);
+      else if (oldItem && newItem) {
+        this._view?.destroyItem(oldItem.itemId, cell.grid.gridId, cell.col, cell.row);
+        this._view?.createItem(this.createItemObjectOption(newItem, cell.grid), cell.grid.gridId, cell.col, cell.row);
+      }
+    }));
+  }
+
+  protected createItemObjectOption(item: GridItem, grid: Grid): GridItemObjectOptions {
+    return new GridItemObjectOptions(item.itemId, grid.preset);
   }
 
   public destroy(): void {

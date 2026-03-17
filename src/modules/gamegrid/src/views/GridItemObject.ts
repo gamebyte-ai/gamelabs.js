@@ -3,19 +3,30 @@ import { GridPreset } from "../models/GridPreset.js";
 import type { GridCellObject } from "./GridCellObject.js";
 import { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../core/input/IInputManager.js";
-import type { IPointerInputHandler } from "../../../../core/input/IPointerInputHandler.js";
 import { WorldInteractiveObject } from "../../../../core/views/WorldInteractiveObject.js";
+
+export class GridItemObjectOptions {
+  public readonly itemId: number;
+  public readonly gridPreset: GridPreset;
+
+  public constructor(itemId: number, gridPreset: GridPreset) {
+    this.itemId = itemId;
+    this.gridPreset = gridPreset;
+  }
+}
 
 export class GridItemObject extends WorldInteractiveObject {
   public readonly itemId: number;
   public readonly preset: GridPreset;
+  protected readonly _options: GridItemObjectOptions;
   protected readonly _pointerListener: IGridObjectListener;
   protected _cell: GridCellObject | null;
 
-  public constructor(itemId: number, preset: GridPreset, pointerListener: IGridObjectListener, __inputManager: IInputManager | null) {
+  public constructor(options: GridItemObjectOptions, pointerListener: IGridObjectListener, __inputManager: IInputManager | null) {
     super();
-    this.itemId = itemId;
-    this.preset = preset;
+    this._options = options;
+    this.itemId = options.itemId;
+    this.preset = options.gridPreset;
     this._pointerListener = pointerListener;
     this.setInputManager(__inputManager);
     this._cell = null;
