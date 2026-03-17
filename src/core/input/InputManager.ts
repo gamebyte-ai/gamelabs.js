@@ -3,8 +3,8 @@ import type { Hud } from "../Hud.js";
 import type { World } from "../World.js";
 import type { IInputManager } from "./IInputManager.js";
 import type { IPointerInputHandler } from "./IPointerInputHandler.js";
-import { WorldViewBase } from "../views/WorldViewBase.js";
 import { POINTER_INPUT_LAYER } from "./PointerInputLayer.js";
+import { WorldInteractiveObject } from "../views/WorldInteractiveObject.js";
 
 export class InputManager implements IInputManager {
   private readonly _canvas: HTMLCanvasElement;
@@ -22,7 +22,7 @@ export class InputManager implements IInputManager {
     this._raycaster.layers.set(POINTER_INPUT_LAYER);
   }
 
-  private _getRaycastView(event: PointerEvent): (WorldViewBase & IPointerInputHandler) | null {
+  private _getRaycastHandler(event: PointerEvent): (WorldInteractiveObject & IPointerInputHandler) | null {
     if (!this._world) return null;
     const rect = this._canvas.getBoundingClientRect();
     this._pointerNdc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -33,8 +33,8 @@ export class InputManager implements IInputManager {
     if (!nearest) return null;
     let obj: THREE.Object3D | null = nearest.object;
     while (obj) {
-      if (obj instanceof WorldViewBase && obj.isPointerInputHandler) {
-        return obj as WorldViewBase & IPointerInputHandler;
+      if (obj instanceof WorldInteractiveObject && obj.isPointerInputHandler) {
+        return obj as WorldInteractiveObject & IPointerInputHandler;
       }
       obj = obj.parent;
     }
@@ -42,18 +42,18 @@ export class InputManager implements IInputManager {
   }
 
   private readonly _onPointerDown = (event: PointerEvent): void => {
-    const raycastView = this._getRaycastView(event);
+    const raycastView = this._getRaycastHandler(event);
 //    if (raycastView) console.log("InputManager raycast nearest view:", raycastView);
     for (const h of this._handlers) h.onPointerDown(event, h === raycastView);
   };
 
   private readonly _onPointerMove = (event: PointerEvent): void => {
-    const raycastView = this._getRaycastView(event);
+    const raycastView = this._getRaycastHandler(event);
     for (const h of this._handlers) h.onPointerMove(event, h === raycastView);
   };
 
   private readonly _onPointerUp = (event: PointerEvent): void => {
-    const raycastView = this._getRaycastView(event);
+    const raycastView = this._getRaycastHandler(event);
     for (const h of this._handlers) h.onPointerUp(event, h === raycastView);
   };
 

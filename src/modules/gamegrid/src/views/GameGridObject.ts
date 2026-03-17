@@ -5,7 +5,13 @@ import type { Vector3 } from "../types/Vector3.js";
 import { GameGridObjectCreator } from "./GameGridObjectCreator.js";
 import type { GameGridItemObject } from "./GameGridItemObject.js";
 import type { GameGridCellObject } from "./GameGridCellObject.js";
+import { IGameGridObjectPointerListener } from "./IGameGridObjectPointerListener.js";
+import type { IInputManager } from "../../../../core/input/IInputManager.js";
+import type { IPointerInputHandler } from "../../../../core/input/IPointerInputHandler.js";
 
+function isPointerInputHandler(obj: unknown): obj is IPointerInputHandler {
+    return typeof obj === "object" && obj !== null && typeof (obj as IPointerInputHandler).onPointerDown === "function" && typeof (obj as IPointerInputHandler).onPointerMove === "function" && typeof (obj as IPointerInputHandler).onPointerUp === "function" && typeof (obj as IPointerInputHandler).onPointerCancel === "function";
+}
 
 export class GameGridObject extends THREE.Group {
     //  FIELDS
@@ -14,10 +20,12 @@ export class GameGridObject extends THREE.Group {
     public readonly rowCount: number;
     public readonly preset: GameGridPreset;
     private readonly _creator: GameGridObjectCreator;
+    private readonly _pointerListener: IGameGridObjectPointerListener;
+    private readonly _inputManager: IInputManager | null;
     private readonly _cells: GameGridCellObject[][];
 
     //  CONSTRUCTOR
-    public constructor(data: AddGridData, creator: GameGridObjectCreator) {
+    public constructor(data: AddGridData, creator: GameGridObjectCreator, pointerListener: IGameGridObjectPointerListener, inputManager: IInputManager | null) {
         super();
         this.gridId = data.id;
         this.columnCount = data.columnCount;
@@ -26,18 +34,21 @@ export class GameGridObject extends THREE.Group {
         this.position.set(data.position.x, data.position.y, data.position.z);
         this.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z);
         this._creator = creator;
+        this._pointerListener = pointerListener;
+        this._inputManager = inputManager;
         this._cells = [] as GameGridCellObject[][];
 
         for (let col = 0; col < this.columnCount; col++) {
             const colArr: GameGridCellObject[] = [];
             for (let row = 0; row < this.rowCount; row++) {
                 const pos = this.preset.getCellPosition(col, row);
-                const cell = this._creator.createCellObject(this.id, col, row, pos, this.preset);
+                const cell = this._creator.createCellObject(this.gridId, col, row, pos, this.preset, this._pointerListener, this._inputManager);
                 colArr.push(cell);
                 this.add(cell);
             }
             this._cells.push(colArr);
         }
+        this.createCollider();
     }
 
     //  METHODS
@@ -68,5 +79,17 @@ export class GameGridObject extends THREE.Group {
 
     public removeItemAt(col: number, row: number): void {
         this.getCell(col, row)?.removeItem();
+    }
+
+    public unregisterFromInputManager(): void {
+        if (!this._inputManager) return;
+        for (const colArr of this._cells) {
+            for (const cell of colArr) {
+                if (isPointerInputHandler(cell)) this._inputManager.removePointerHandler(cell);
+            }
+        }
+    }
+
+    protected createCollider(): void {
     }
 }

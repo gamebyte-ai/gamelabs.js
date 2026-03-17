@@ -9,6 +9,7 @@ export * from "./core/views/IView.js";
 export * from "./core/views/IViewController.js";
 export * from "./core/views/IViewContainer.js";
 export * from "./core/views/HudViewBase.js";
+export * from "./core/views/WorldInteractiveObject.js";
 export * from "./core/views/WorldViewBase.js";
 export * from "./core/services/UpdateService.js";
 export * from "./core/Hud.js";

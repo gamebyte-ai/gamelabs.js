@@ -11,3 +11,8 @@ export { GameGridBinding } from "./GameGridBinding.js";
 export { GameGridController } from "./controllers/GameGridController.js";
 export { GameGridView } from "./views/GameGridView.three.js";
 export type { IGameGridView, AddGridData } from "./views/IGameGridView.js";
+export { GameGridCellObject } from "./views/GameGridCellObject.js";
+export { GameGridItemObject } from "./views/GameGridItemObject.js";
+export { GameGridObject } from "./views/GameGridObject.js";
+export { GameGridObjectCreator } from "./views/GameGridObjectCreator.js";
+export type { IGameGridObjectPointerListener } from "./views/IGameGridObjectPointerListener.js";

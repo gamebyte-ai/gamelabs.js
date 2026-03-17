@@ -1,11 +1,10 @@
-import * as THREE from "three";
 import type { IView } from "./IView.js";
 import type { IViewController } from "./IViewController.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { IViewFactory } from "./IViewFactory.js";
-import type { IInputManager } from "../input/IInputManager.js";
 import type { IPointerInputHandler } from "../input/IPointerInputHandler.js";
 import { AssetLoader } from "../assets/AssetLoader.js";
+import { WorldInteractiveObject } from "./WorldInteractiveObject";
 import { ILogger } from "../dev/ILogger.js";
 import { IViewFactory as IViewFactoryToken } from "./IViewFactory.js";
 import { IInputManager as IInputManagerToken } from "../input/IInputManager.js";
@@ -17,14 +16,12 @@ import { LogTypes } from "../dev/LogTypes.js";
  * - Extends `THREE.Group` so it can be attached to a scene graph.
  * - Implements `IView` controller lifecycle.
  */
-export class WorldViewBase extends THREE.Group implements IView {
+export class WorldViewBase extends WorldInteractiveObject implements IView {
   //  MEMBERS
   private _viewFactory: IViewFactory | null = null;
   private _assetLoader: AssetLoader | null = null;
   private _logger: ILogger | null = null;
   private _controller: IViewController | null = null;
-  private _inputManager: IInputManager | null = null;
-  private _isPointerInputHandlerCached: boolean | null = null;
 
   //  PROPERTIES
   protected get viewFactory(): IViewFactory {
@@ -52,24 +49,10 @@ export class WorldViewBase extends THREE.Group implements IView {
 
   //  METHODS
   public inject(resolver: IInstanceResolver): void {
+    this.setInputManager(resolver.getInstance(IInputManagerToken));
     this._viewFactory = resolver.getInstance(IViewFactoryToken);
     this._assetLoader = resolver.getInstance(AssetLoader);
     this._logger = resolver.getInstance(ILogger);
-    if (this.isPointerInputHandler) {
-      this._inputManager = resolver.getInstance(IInputManagerToken);
-      this._inputManager.addPointerHandler(this as unknown as IPointerInputHandler);
-    }
-  }
-
-  public get isPointerInputHandler(): boolean {
-    if (this._isPointerInputHandlerCached === null) {
-      this._isPointerInputHandlerCached =
-        typeof (this as any).onPointerDown === "function" &&
-        typeof (this as any).onPointerMove === "function" &&
-        typeof (this as any).onPointerUp === "function" &&
-        typeof (this as any).onPointerCancel === "function";
-    }
-    return this._isPointerInputHandlerCached;
   }
 
   public initialize(): void {}
@@ -83,12 +66,8 @@ export class WorldViewBase extends THREE.Group implements IView {
   public preDestroy(): void {}
 
   public destroy(): void {
+    super.destroy();
     this.preDestroy();
-
-    if (this._inputManager) {
-      this._inputManager.removePointerHandler(this as unknown as IPointerInputHandler);
-      this._inputManager = null;
-    }
 
     this._controller?.destroy();
     this._controller = null;

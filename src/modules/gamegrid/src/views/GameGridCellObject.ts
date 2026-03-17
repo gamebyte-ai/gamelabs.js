@@ -2,9 +2,12 @@ import * as THREE from "three";
 import type { Vector3 } from "../types/Vector3.js";
 import { GameGridPreset } from "../models/GameGridPreset.js";
 import { GameGridItemObject } from "./GameGridItemObject.js";
+import { WorldInteractiveObject } from "../../../../core/views/WorldInteractiveObject.js";
+import { IGameGridObjectPointerListener } from "./IGameGridObjectPointerListener.js";
+import type { IInputManager } from "../../../../core/input/IInputManager.js";
+import type { IPointerInputHandler } from "../../../../core/input/IPointerInputHandler.js";
 
-
-export class GameGridCellObject extends THREE.Group {
+export class GameGridCellObject extends WorldInteractiveObject {
     //  CONSTANTS
     private static readonly DEFAULT_THICKNESS = 0.1;
 
@@ -14,25 +17,35 @@ export class GameGridCellObject extends THREE.Group {
     public readonly col: number;
     public readonly row: number;
     public readonly preset: GameGridPreset;
-    private _item: GameGridItemObject | null;
+    protected readonly _pointerListener: IGameGridObjectPointerListener;
+    protected _item: GameGridItemObject | null;
     
     //  CONSTRUCTOR
-    public constructor(gridId: number, 
-                       col: number, 
-                       row: number, 
-                       position: Vector3, 
-                       preset: GameGridPreset) {
+    public constructor(gridId: number,
+                       col: number,
+                       row: number,
+                       position: Vector3,
+                       preset: GameGridPreset,
+                       pointerListener: IGameGridObjectPointerListener,
+                       __inputManager: IInputManager | null) {
         super();
         this.gridId = gridId;
         this.col = col;
         this.row = row;
         this.preset = preset;
         this.position.set(position.x, position.y, position.z);
+        this._pointerListener = pointerListener;
+        this.setInputManager(__inputManager);
         this._item = null;
         this.createVisual();
+        this.createCollider();
     }
 
     //  METHODS
+    public get item(): GameGridItemObject | null {
+        return this._item;
+    }
+
     public setItem(item: GameGridItemObject): void {
         this._item = item;
         this.add(item);
@@ -51,5 +64,8 @@ export class GameGridCellObject extends THREE.Group {
         const mesh = new THREE.Mesh(geom, material!);
         mesh.position.set(0, -GameGridCellObject.DEFAULT_THICKNESS*0.5, 0);
         this.add(mesh);
+    }
+
+    protected createCollider(): void {
     }
 }
