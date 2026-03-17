@@ -88,6 +88,15 @@ npm i
 npm run dev
 ```
 
+TicTacToe:
+
+```bash
+npm run build
+cd examples/tictactoe
+npm i
+npm run dev
+```
+
 ## Repository layout
 
 - `src/core/`: primitives (app lifecycle, rendering layers, DI, views/controllers, screens)

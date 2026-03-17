@@ -25,6 +25,7 @@ This is **not** a full engine. It intentionally exposes Three/Pixi directly and 
 - Keep module APIs small and explicit (view contracts as interfaces; events/models in DI; wiring in the module binding).
 
 ## Quick start (mirrors the examples)
+- Examples: `helloworld` (Three + Pixi), `screens` (Pixi screens), `tictactoe` (gamegrid module)
 - Create your app by extending `GamelabsApp`
 - Call `await app.initialize()` then `app.mainLoop()`
 - Register modules in `registerModules()` and register app-specific DI/views/assets via lifecycle hooks
@@ -83,6 +84,27 @@ Views are responsible for rendering and user interaction details.
 Guidelines:
 - Expose a **small interface** (e.g. `ICubeView`) for controllers: methods like `setColor()`, `setVisible()`, `playIntro()`, etc.
 - Prefer “view creates subviews” (composition) where helpful (see HelloWorld `GameScreenView` creating `TopBarView`/`DebugBarView`).
+
+## Input pointer handling (3D world)
+
+For 3D world objects that need pointer (mouse/touch) interaction, use `IInputManager` and `IPointerInputHandler`:
+
+- **`IInputManager`**: `addPointerHandler(handler)`, `removePointerHandler(handler)`. Provided by `WorldViewBase.inputManager`.
+- **`IPointerInputHandler`**: implement `onPointerDown(event, onThisObject)`, `onPointerMove`, `onPointerUp`, `onPointerCancel`. The `onThisObject` flag is true when the raycast hit this object (vs. a child).
+
+Base class: extend `WorldInteractiveObject` (extends `THREE.Group`). Call `setInputManager(inputManager)` in the constructor. The object auto-registers when added to the scene and unregisters when removed.
+
+For pickable objects:
+- Create an invisible collider mesh (e.g. `BoxGeometry`) and add it to the scene.
+- Call `mesh.layers.enable(POINTER_INPUT_LAYER)` so the input system's raycast can hit it.
+- Implement `IPointerInputHandler` on your object; handlers are invoked when the pointer hits that layer.
+
+**GameGrid module** (see `tictactoe` example): the grid provides `IGridObjectListener` with callbacks like `onGridCellPointerDown(gridId, col, row, event)`, `onGridItemPointerDown(itemId, event)`, etc. Customize by:
+
+1. Extending `GridCellObject` or `GridItemObject`, implementing `IPointerInputHandler`, overriding `onPointerDown` to call `_pointerListener.onGridCellPointerDown(...)` when `onThisObject` is true.
+2. Adding a collider in `createCollider()` with `mesh.layers.enable(POINTER_INPUT_LAYER)`.
+3. Overriding `GridsView` (e.g. `GameGridsView`) and wiring `onGridCellPointerDown` to a handler; expose `setCellPointerDownHandler(fn)` so the controller can connect in `initialize(view)`.
+4. Using a custom `GridObjectCreator` that instantiates your cell/item classes (passing `pointerListener` and `inputManager`).
 
 ## Controllers (`IViewController`)
 Controllers orchestrate behavior and app wiring.

@@ -70,9 +70,8 @@
   single canonical asset path strategy — e.g., always resolve relative to a known root, or pass an asset base URL into
   the binding constructor.
 
-  7. Typo in module path: levelprogressscreeen (three e's).
-  src/modules/levelprogressscreeen/ — This leaks into the public API via the barrel export in index.ts. Your Todo (P2)
-  mentions this, but since it's a breaking change, fix it sooner rather than later while the user base is small.
+  7. ~~Typo in module path: levelprogressscreeen (three e's).~~
+  Resolved: the module path is `levelprogressscreen` (correct spelling).
 
   8. ModuleBinding has no lifecycle hook for cleanup/teardown.
   If a module registers DI bindings and views, there's no way to unregister them when the module is no longer needed. For
@@ -100,8 +99,8 @@
 
   Developer Experience
 
-  13. No .gitignore entry for .DS_Store files.
-  The git status shows tracked .DS_Store files in examples/. Add them to .gitignore.
+  13. ~~No .gitignore entry for .DS_Store files.~~
+  Resolved: .DS_Store is in .gitignore.
 
   14. Examples have no package.json lock files or shared dependency management.
   Each example has its own node_modules. For a monorepo pattern, consider npm workspaces to deduplicate and make npm i
