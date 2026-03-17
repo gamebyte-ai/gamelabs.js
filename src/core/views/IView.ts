@@ -2,6 +2,8 @@ import type { IInjectionTarget } from "../di/IInjectionTarget.js";
 import type { IViewController } from "./IViewController.js";
 
 export interface IView extends IInjectionTarget {
+  get isPointerInputHandler(): boolean;
+
   /**
    * Hook for view-side setup after injection.
    * Called after `inject()` by the ViewFactory.

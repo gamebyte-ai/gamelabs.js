@@ -32,6 +32,10 @@ export type { Unsubscribe } from "./core/events/subscriptions.js";
 export { UnsubscribeBag } from "./core/events/subscriptions.js";
 export * from "./core/types.js";
 export * from "./core/version.js";
+export * from "./core/input/InputManager.js";
+export * from "./core/input/IInputManager.js";
+export { POINTER_INPUT_LAYER } from "./core/input/PointerInputLayer.js";
+export type { IPointerInputHandler } from "./core/input/IPointerInputHandler.js";
 
 export * from "./modules/mainscreen/src/index.js";
 export * from "./modules/levelprogressscreen/src/index.js";

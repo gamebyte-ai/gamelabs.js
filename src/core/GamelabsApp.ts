@@ -13,6 +13,8 @@ import { ILogger } from "./dev/ILogger.js";
 import { LogTypes } from "./dev/LogTypes.js";
 import { IDevUtils } from "./dev/IDevUtils.js";
 import { IViewFactory } from "./views/IViewFactory.js";
+import { InputManager } from "./input/InputManager.js";
+import { IInputManager } from "./input/IInputManager.js";
 
 export class GamelabsApp {
   readonly canvas: HTMLCanvasElement;
@@ -29,6 +31,7 @@ export class GamelabsApp {
   public readonly diContainer: DIContainer;
   public readonly viewDiContainer: DIContainer;
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
+  private _inputManager: InputManager | null = null;
 
   private _isInitialized = false;
   private _moduleList: ModuleBinding[] = [];
@@ -144,6 +147,9 @@ export class GamelabsApp {
     this.viewDiContainer.bindInstance(AssetLoader, this._assetLoader);
     this.viewDiContainer.bindInstance(IViewFactory, this._viewFactory);
 
+    this._inputManager = new InputManager(this.canvas, this.hud, this.world);
+    this.viewDiContainer.bindInstance(IInputManager, this._inputManager);
+
     this._viewFactory.setViewContainers(this.world, this.hud);
 
     this.registerModules();
@@ -166,6 +172,8 @@ export class GamelabsApp {
 
     this.postInitialize();
     this.requestResize();
+
+    this._inputManager.startListening();
 
     this._isInitialized = true;
   }
@@ -304,12 +312,12 @@ export class GamelabsApp {
    */
   destroy(): void {
     this.stopMainLoop();
+    this._inputManager?.stopListening();
+    this._inputManager = null;
     if (typeof window !== "undefined") {
       window.removeEventListener("resize", this._onWindowResize);
     }
-    
     this.preDestroy();
-
     this.updateService.clear();
 
     this._devUtils?.destroy();
