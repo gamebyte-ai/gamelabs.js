@@ -11,7 +11,7 @@ export class GameGridObjectCreator extends GridObjectCreator {
     return new GameCellObject(options, pointerListener, inputManager, assetManager);
   }
 
-  public override createItemObject(options: GridItemObjectOptions, pointerListener: IGridObjectListener, inputManager: IInputManager | null): GameItemObject {
-    return new GameItemObject(options as GameItemObjectOptions, pointerListener, inputManager);
+  public override createItemObject(options: GridItemObjectOptions, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null): GameItemObject {
+    return new GameItemObject(options as GameItemObjectOptions, pointerListener, inputManager, assetManager);
   }
 }

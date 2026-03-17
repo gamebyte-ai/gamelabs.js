@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 import { GridPreset } from "../models/GridPreset.js";
 import type { GridCellObject } from "./GridCellObject.js";
 import { IGridObjectListener } from "./IGridObjectListener.js";
@@ -20,10 +21,12 @@ export class GridItemObject extends WorldInteractiveObject {
   public readonly preset: GridPreset;
   protected readonly _options: GridItemObjectOptions;
   protected readonly _pointerListener: IGridObjectListener;
+  protected readonly _assetManager: IAssetManager | null;
   protected _cell: GridCellObject | null;
 
-  public constructor(options: GridItemObjectOptions, pointerListener: IGridObjectListener, __inputManager: IInputManager | null) {
+  public constructor(options: GridItemObjectOptions, pointerListener: IGridObjectListener, __inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
     super();
+    this._assetManager = assetManager ?? null;
     this._options = options;
     this.itemId = options.itemId;
     this.preset = options.gridPreset;

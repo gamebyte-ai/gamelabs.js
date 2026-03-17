@@ -9,8 +9,8 @@ export class GridObjectCreator {
     return new GridCellObject(options, pointerListener, inputManager, assetManager);
   }
 
-  public createItemObject(options: GridItemObjectOptions, pointerListener: IGridObjectListener, inputManager: IInputManager | null): GridItemObject {
+  public createItemObject(options: GridItemObjectOptions, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null): GridItemObject {
     if (!pointerListener) throw new Error("Pointer listener is required");
-    return new GridItemObject(options, pointerListener, inputManager);
+    return new GridItemObject(options, pointerListener, inputManager, assetManager);
   }
 }

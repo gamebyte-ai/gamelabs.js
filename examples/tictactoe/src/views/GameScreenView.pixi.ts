@@ -5,7 +5,8 @@ import { Team } from "../models/GameItem.js";
 
 export class GameScreenView extends ScreenView implements IGameScreenView {
   private static readonly TEXT_BASE = { fill: 0xe8eef6, fontSize: 18, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" };
-  private static readonly TEXT_HIGHLIGHT = { fill: 0x60a5fa, fontSize: 20, fontWeight: "600" as const };
+  private static readonly TEXT_HIGHLIGHT_X = { fill: 0x60a5fa, fontSize: 20, fontWeight: "600" as const };
+  private static readonly TEXT_HIGHLIGHT_O = { fill: 0xef4444, fontSize: 20, fontWeight: "600" as const };
 
   private readonly _playerX = new PIXI.Text({ text: "Player X", style: { ...GameScreenView.TEXT_BASE } });
   private readonly _playerO = new PIXI.Text({ text: "Player O", style: { ...GameScreenView.TEXT_BASE } });
@@ -35,9 +36,10 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   private _updateHighlight(): void {
     const baseStyle = { ...GameScreenView.TEXT_BASE };
-    const highlightStyle = { ...GameScreenView.TEXT_BASE, ...GameScreenView.TEXT_HIGHLIGHT };
-    (this._playerX as PIXI.Text).style = this._activeTeam === Team.X ? highlightStyle as any : baseStyle as any;
-    (this._playerO as PIXI.Text).style = this._activeTeam === Team.O ? highlightStyle as any : baseStyle as any;
+    const highlightX = { ...GameScreenView.TEXT_BASE, ...GameScreenView.TEXT_HIGHLIGHT_X };
+    const highlightO = { ...GameScreenView.TEXT_BASE, ...GameScreenView.TEXT_HIGHLIGHT_O };
+    (this._playerX as PIXI.Text).style = this._activeTeam === Team.X ? highlightX as any : baseStyle as any;
+    (this._playerO as PIXI.Text).style = this._activeTeam === Team.O ? highlightO as any : baseStyle as any;
   }
 
   override onResize(width: number, height: number, _dpr: number): void {

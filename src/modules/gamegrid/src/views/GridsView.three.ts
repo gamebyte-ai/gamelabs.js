@@ -47,7 +47,7 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
   public createItem(itemOptions: GridItemObjectOptions, gridId: number, col: number, row: number): void {
     const gridObj = this._gridObjects.get(gridId);
     if (!gridObj) return;
-    const itemObj = this.creator.createItemObject(itemOptions, this, this.inputManager);
+    const itemObj = this.creator.createItemObject(itemOptions, this, this.inputManager, this.assetLoader);
     gridObj.addItem(itemObj, col, row);
   }
 
