@@ -25,7 +25,7 @@ This is **not** a full engine. It intentionally exposes Three/Pixi directly and 
 - Keep module APIs small and explicit (view contracts as interfaces; events/models in DI; wiring in the module binding).
 
 ## Quick start (mirrors the examples)
-- Examples: `helloworld` (Three + Pixi), `screens` (Pixi screens), `tictactoe` (gamegrid module)
+- Examples: `helloworld` (Three + Pixi), `screens` (Pixi screens), `tictactoe` (gamegrid module), `match3` (2D Match-3, Pixi)
 - Create your app by extending `GamelabsApp`
 - Call `await app.initialize()` then `app.mainLoop()`
 - Register modules in `registerModules()` and register app-specific DI/views/assets via lifecycle hooks

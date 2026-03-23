@@ -68,6 +68,10 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
     gridObj.removeItemAt(col, row);
   }
 
+  public getGridObject(gridId: number): GridObject | undefined {
+    return this._gridObjects.get(gridId);
+  }
+
   public onGridPointerDown(gridId: number, event: PointerEvent): void {}
 
   public onGridPointerUp(gridId: number, event: PointerEvent): void {}
