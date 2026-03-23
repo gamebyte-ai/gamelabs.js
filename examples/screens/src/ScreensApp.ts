@@ -36,7 +36,7 @@ export class ScreensApp extends GamelabsApp {
       this.showMainScreen();
     });
 
-    this.viewFactory.createScreen(MainScreenView, null, this.config.transitions.mainScreenIntro);
+    this.viewFactory.createScreen2(MainScreenView, this.config.transitions.mainScreenIntro);
   }
 
   protected override onStep(timestepSeconds: number): void {
@@ -51,11 +51,11 @@ export class ScreensApp extends GamelabsApp {
   }
 
   private showLevelProgressScreen(): void {
-    this.viewFactory.createScreen(LevelProgressScreenView, null, this.config.transitions.levelProgressScreenEnter);
+    this.viewFactory.createScreen2(LevelProgressScreenView, this.config.transitions.levelProgressScreenEnter);
   }
 
   private showMainScreen(): void {
-    this.viewFactory.createScreen(MainScreenView, null, this.config.transitions.mainScreenEnter);
+    this.viewFactory.createScreen2(MainScreenView, this.config.transitions.mainScreenEnter);
   }
 
 }

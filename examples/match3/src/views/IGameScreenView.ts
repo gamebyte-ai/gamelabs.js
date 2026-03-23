@@ -1,5 +1,5 @@
-import type { IView } from "gamelabsjs";
+import type { IScreenView } from "gamelabsjs";
 
-export interface IGameScreenView extends IView {
+export interface IGameScreenView extends IScreenView {
   setScore(score: number): void;
 }

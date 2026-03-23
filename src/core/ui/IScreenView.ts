@@ -1,14 +1,11 @@
+import type { IView } from "../views/IView.js";
 import type { ScreenTransition } from "./ScreenTransition.js";
 
 /**
- * A lightweight "screen" contract for apps that swap high-level views (menus, gameplay, etc.).
- *
- * This intentionally stays minimal and framework-agnostic; screens can be Pixi, Three, DOM, or mixed.
- *
- * Note: `IScreen` is intentionally NOT an `IView`. Screen implementations are expected to also
- * implement `IView` separately when they participate in the View/Controller system.
+ * Screen contract for apps that swap high-level views (menus, gameplay, etc.).
+ * Extends `IView` so screens use the same lifecycle and ViewFactory wiring as other views.
  */
-export interface IScreen {
+export interface IScreenView extends IView {
   /**
    * Optional hook called when the screen becomes active.
    * Use this for starting animations, subscribing to events, etc.
@@ -27,4 +24,3 @@ export interface IScreen {
    */
   onResize?(width: number, height: number, dpr: number): void;
 }
-

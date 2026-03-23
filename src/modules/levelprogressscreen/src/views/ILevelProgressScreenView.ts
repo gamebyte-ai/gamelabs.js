@@ -1,10 +1,9 @@
-import type { IScreen } from "../../../../core/ui/IScreen.js";
-import type { IView } from "../../../../core/views/IView.js";
+import type { IScreenView } from "../../../../core/ui/IScreenView.js";
 
 /**
  * Screens level progress screen contract.
  */
-export interface ILevelProgressScreenView extends IView, IScreen {
+export interface ILevelProgressScreenView extends IScreenView {
 
   /**
    * Sets the current level number (1-indexed).

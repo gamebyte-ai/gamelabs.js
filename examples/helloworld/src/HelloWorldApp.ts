@@ -1,4 +1,4 @@
-import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController } from "gamelabsjs";
+import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController, World } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
@@ -63,7 +63,7 @@ export class HelloWorldApp extends GamelabsApp {
       throw new Error("HUD is not initialized");
     }
 
-    this.viewFactory.createScreen(GameScreenView, null, this.config.transitions.gameScreenEnter);
+    this.viewFactory.createScreen2(GameScreenView, this.config.transitions.gameScreenEnter);
 
     this.devUtils.logger.log("Creating cube");
     if (!this.world) {
@@ -77,7 +77,9 @@ export class HelloWorldApp extends GamelabsApp {
     this._orbitalController.maxDistance = this.config.maxCameraDistance;
     this.viewDiContainer.bindInstance(Orbital3dCameraController, this._orbitalController);
 
-    this._cubeView = this.viewFactory.createView(CubeView, null);
+    this._cubeView = this.viewFactory.createView2(CubeView);
+    this.world.addView(this._cubeView);
+
     this._orbitalController.followObject(this._cubeView, 8);
 
     this.canvas.addEventListener("wheel", this._onOrbitalWheel, { passive: true });

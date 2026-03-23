@@ -1,13 +1,15 @@
 import type { IView } from "./IView.js";
 import type { IViewController } from "./IViewController.js";
 import type { IViewFactory } from "./IViewFactory.js";
-import type { IViewContainer } from "./IViewContainer.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { DIContainer } from "../di/DIContainer.js";
 import { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
-import type { IScreen } from "../ui/IScreen.js";
+import type { IScreenView } from "../ui/IScreenView.js";
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "../ui/ScreenTransition.js";
+import { IWorld } from "../world/IWorld.js";
+import { IHud } from "../hud/IHud.js";
+import { HudViewBase } from "../hud/HudViewBase.js";
 
 export type ViewCtor<TView extends IView> = new () => TView;
 
@@ -24,13 +26,6 @@ export type ViewFactoryRegistration<
    */
   create?: (resolver: TResolver) => TView;
   Controller: ControllerCtor<TView, TController>;
-  /**
-   * Attaches `view` to the provided `parent`.
-   *
-   * This is intentionally typeless so view classes don't need special "attachX" methods
-   * just to satisfy wiring. Registrations may cast internally.
-   */
-  attachToParent: (parent: unknown, view: unknown) => void;
 };
 
 export type ViewFactoryContainerRegistration<
@@ -48,11 +43,11 @@ export type ViewFactoryContainerRegistration<
 export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFactory {
   private readonly _registry = new Map<ViewCtor<any>, ViewFactoryRegistration<TResolver, any, any>>();
   private readonly _defaultScreenTransition: ScreenTransition = { type: SCREEN_TRANSITION_TYPES.INSTANT, durationMs: 0 };
-  private _activeScreen: (IView & IScreen) | null = null;
+  private _activeScreen: IScreenView | null = null;
   private _lastResize: { width: number; height: number; dpr: number } | null = null;
 
-  public world: IViewContainer | null = null;
-  public hud: IViewContainer | null = null;
+  public world: IWorld | null = null;
+  public hud: IHud | null = null;
 
   constructor(
     public readonly logger: ILogger,
@@ -60,7 +55,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     public readonly viewDiContainer: TResolver
   ) {}
 
-  public setViewContainers(world: IViewContainer | null, hud: IViewContainer | null): void {
+  public setViewContainers(world: IWorld | null, hud: IHud | null): void {
     this.world = world;
     this.hud = hud;
   }
@@ -70,14 +65,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     registration: ViewFactoryContainerRegistration<TResolver, TView, TController>
   ): void {
     this.register<TView, TController>(View, {
-      ...registration,
-      attachToParent: (parent: unknown, view: unknown) => {
-        if (!this.hud) {
-          this.logger.log("HUD view container is not set", LogTypes.Error);
-          throw new Error("HUD view container is not set");
-        }
-        this.hud.attachChild(view, parent);
-      }
+      ...registration
     });
   }
 
@@ -86,14 +74,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     registration: ViewFactoryContainerRegistration<TResolver, TView, TController>
   ): void {
     this.register<TView, TController>(View, {
-      ...registration,
-      attachToParent: (parent: unknown, view: unknown) => {
-        if (!this.world) {
-          this.logger.log("World view container is not set", LogTypes.Error);
-          throw new Error("World view container is not set");
-        }
-        this.world.attachChild(view, parent);
-      }
+      ...registration
     });
   }
 
@@ -105,10 +86,18 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     this._registry.set(View, registration as ViewFactoryRegistration<TResolver, any, any>);
   }
 
-  public create<TView extends IView, TController extends IViewController<TView>>(View: ViewCtor<TView>, parent: unknown): {
-    view: TView;
-    controller: TController;
-  } {
+  public resize(width: number, height: number, dpr: number): void {
+    this._lastResize = { width, height, dpr };
+    this._activeScreen?.onResize?.(width, height, dpr);
+  }
+
+
+
+
+
+
+  private create2<TView extends IView, TController extends IViewController<TView>>(View: ViewCtor<TView>): TView {
+    
     const registration = this._registry.get(View);
     if (!registration) {
       const msg = `No ViewFactory registration for view: ${View.name || "(anonymous view)"}`;
@@ -117,30 +106,34 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     }
 
     const view = (registration.create?.(this.viewDiContainer) ?? new View()) as TView;
-    registration.attachToParent(parent, view);
-
-    view.inject(this.viewDiContainer);
-    view.initialize();
-    view.postInitialize();
     const controller = new registration.Controller() as TController;
-    view.setController(controller);
-    controller.inject(this.diContainer);
-    controller.initialize(view);
-    return { view, controller };
+    
+    view.setViewFactory(this, ()=>{
+      view.inject(this.viewDiContainer);
+      view.initialize();
+      view.postInitialize();
+      
+      view.setController(controller);
+      controller.inject(this.diContainer);
+      controller.initialize(view);
+    }, ()=>{});
+    return view;
   }
 
-  public createView<TView extends IView>(View: ViewCtor<TView>, parent: unknown): TView {
-    return this.create<TView, IViewController<TView>>(View, parent).view;
+  public createView<TView extends IView>(View: ViewCtor<TView>): TView {
+    return this.create2<TView, IViewController<TView>>(View);
   }
 
-  public createScreen<TView extends IView & IScreen>(View: ViewCtor<TView>, parent: unknown, enterTransition: ScreenTransition | null): void {
+  public createScreenView<TView extends IScreenView>(View: ViewCtor<TView>, enterTransition: ScreenTransition | null): void {
     const resolvedEnterTransition = enterTransition ?? this._defaultScreenTransition;
     if (this._activeScreen) {
       this._activeScreen.onExit?.(resolvedEnterTransition);
       this._activeScreen = null;
     }
 
-    const screen = this.createView(View, parent);
+    //  TODO: This is an internal progress but prevent this cast to unknown
+    const screen:HudViewBase = this.createView(View) as unknown as HudViewBase;
+    this.hud?.addView(screen);
     this._activeScreen = screen;
     if (this._lastResize) {
       this._activeScreen.onResize?.(this._lastResize.width, this._lastResize.height, this._lastResize.dpr);
@@ -148,9 +141,13 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     this._activeScreen.onEnter?.(resolvedEnterTransition);
   }
 
-  public resize(width: number, height: number, dpr: number): void {
-    this._lastResize = { width, height, dpr };
-    this._activeScreen?.onResize?.(width, height, dpr);
+  public viewAdded(view: IView): void {
+    console.log("ViewFactory.addView", view);
   }
-}
 
+  public viewRemoved(view: IView): void {
+    console.log("ViewFactory.removeView", view);
+  }
+
+
+}

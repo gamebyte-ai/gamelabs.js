@@ -1,10 +1,10 @@
 import * as THREE from "three";
-import type { Hud } from "../Hud.js";
-import type { World } from "../World.js";
+import type { Hud } from "../hud/Hud.js";
+import type { World } from "../world/World.js";
 import type { IInputManager } from "./IInputManager.js";
 import type { IPointerInputHandler } from "./IPointerInputHandler.js";
 import { POINTER_INPUT_LAYER } from "./PointerInputLayer.js";
-import { WorldInteractiveObject } from "../views/WorldInteractiveObject.js";
+import { WorldInteractiveObject } from "../world/WorldInteractiveObject.js";
 
 export class InputManager implements IInputManager {
   private readonly _canvas: HTMLCanvasElement;

@@ -50,8 +50,9 @@ export class Match3App extends GamelabsApp {
       this.logger.log("HUD or world is not initialized", LogTypes.Error);
       throw new Error("HUD or world is not initialized");
     }
-    this.viewFactory.createScreen(GameScreenView, null, this._config.transitions.gameScreenEnter);
-    this.viewFactory.createView(Match3GridsView, null);
+    this.viewFactory.createScreen2(GameScreenView, this._config.transitions.gameScreenEnter);
+    this.world.addView(this.viewFactory.createView2(Match3GridsView));
+    
     const grid = this._gameGridBinding.model.getGrid(Match3Config.GRID_ID);
     if (grid) {
       const midX = ((this._config.cols - 1) * grid.preset.columnSize) * 0.5;

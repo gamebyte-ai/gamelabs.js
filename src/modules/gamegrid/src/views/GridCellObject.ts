@@ -3,7 +3,7 @@ import type { Vector3 } from "../types/Vector3.js";
 import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 import { GridPreset } from "../models/GridPreset.js";
 import { GridItemObject } from "./GridItemObject.js";
-import { WorldInteractiveObject } from "../../../../core/views/WorldInteractiveObject.js";
+import { WorldInteractiveObject } from "../../../../core/world/WorldInteractiveObject.js";
 import { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../core/input/IInputManager.js";
 import type { IPointerInputHandler } from "../../../../core/input/IPointerInputHandler.js";

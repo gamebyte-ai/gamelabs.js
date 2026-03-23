@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import type { IViewContainer } from "./views/IViewContainer.js";
-import type { ILogger } from "./dev/ILogger.js";
-import { LogTypes } from "./dev/LogTypes.js";
+import type { ILogger } from "../dev/ILogger.js";
+import { IWorld } from "./IWorld.js";
+import { WorldViewBase } from "./WorldViewBase.js";
 
 type Create3DRendererOptions = ConstructorParameters<typeof THREE.WebGLRenderer>[0];
 
@@ -27,7 +27,8 @@ export type WorldCreateOptions = {
   logger?: ILogger;
 };
 
-export class World implements IViewContainer {
+export class World implements IWorld {
+  //  MEMBERS
   private readonly _logger: ILogger | null;
   private _activeCamera: THREE.Camera;
 
@@ -48,6 +49,7 @@ export class World implements IViewContainer {
     return this._activeCamera;
   }
 
+  //  CONSTRUCTOR
   constructor(params: { canvas: HTMLCanvasElement; logger?: ILogger }) {
     this.renderer = create3DRenderer({
       canvas: params.canvas,
@@ -73,29 +75,17 @@ export class World implements IViewContainer {
     this._logger = params.logger ?? null;
   }
 
-  add(object: THREE.Object3D): void {
-    this.scene.add(object);
+  //  METHODS
+  addView(view: WorldViewBase): void {
+    this.scene.add(view);
   }
 
-  attachChild(child: any, parent: any): void {
-    const p = parent as any;
-    const c = child as any;
+  removeView(view: WorldViewBase): void {
+    this.scene.remove(view);
+  }
 
-    // Allow `null` to mean "attach to World root (scene)".
-    if (p === null) {
-      this.add(c as THREE.Object3D);
-      return;
-    }
-
-    // Support both `World` and `THREE.Object3D` (and any custom parent with an `.add()` method).
-    if (p && typeof p.add === "function") {
-      p.add(c);
-      return;
-    }
-
-    const msg = "Invalid world parent: expected a World/THREE.Object3D with .add(), or null";
-    this._logger?.log(msg, LogTypes.Error);
-    throw new Error(msg);
+  add(object: THREE.Object3D): void {
+    this.scene.add(object);
   }
 
   setActiveCamera(camera: THREE.Camera): void {
@@ -121,4 +111,3 @@ export class World implements IViewContainer {
     this.renderer.dispose();
   }
 }
-

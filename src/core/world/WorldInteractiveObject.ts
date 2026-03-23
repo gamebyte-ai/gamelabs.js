@@ -46,14 +46,14 @@ export class WorldInteractiveObject extends THREE.Group {
     this.removeEventListener("removed", this.onRemoved);
   }
 
-  private onAdded(): void {
+  private onAdded(event: Object): void {
     if (this.isPointerInputHandler) {
       this._isPointerListener = true;
       this._inputManager?.addPointerHandler(this as unknown as IPointerInputHandler);
     }
   }
 
-  private onRemoved(): void {
+  private onRemoved(event: Object): void {
     if (this._isPointerListener) {
       this._isPointerListener = false;
       this._inputManager?.removePointerHandler(this as unknown as IPointerInputHandler);

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { World } from "../../../core/World.js";
+import type { World } from "../../../core/world/World.js";
 import type { ICameraController } from "./controllers/ICameraController.js";
 
 const DEFAULT_ORTHO_SIZE = 10;

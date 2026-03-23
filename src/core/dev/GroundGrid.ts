@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-import type { World } from "../World.js";
+import type { World } from "../world/World.js";
 import type { GroundGridOptions, IGroundGrid } from "./IGroundGrid.js";
 
 export class GroundGrid implements IGroundGrid {

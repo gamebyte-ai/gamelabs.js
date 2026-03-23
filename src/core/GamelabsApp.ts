@@ -1,12 +1,12 @@
 import type { GamelabsAppConfig } from "./types.js";
-import { World } from "./World.js";
+import { World } from "./world/World.js";
 import { DevUtils } from "./dev/DevUtils.js";
 import { Logger } from "./dev/Logger.js";
 import { DIContainer } from "./di/DIContainer.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewFactory } from "./views/ViewFactory.js";
 import { UpdateService } from "./services/UpdateService.js";
-import { Hud } from "./Hud.js";
+import { Hud } from "./hud/Hud.js";
 import { AssetLoader } from "./assets/AssetLoader.js";
 import { ModuleBinding } from "./ModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";

@@ -24,7 +24,7 @@ It is designed primarily for **AI-generated game projects** where **humans revie
 - **`World`**: a thin Three.js wrapper that owns renderer/scene/camera and implements `IViewContainer`.
 - **`Hud`**: a thin Pixi wrapper that owns the Pixi `Application`, layering, optional stats overlay, and implements `IViewContainer`.
 - **`ViewFactory` + `IViewFactory`**: centralized wiring for View ↔ Controller pairs. Views receive a restricted factory so they can create child views/screens without having access to global registration.
-- **`ScreenView` + `IScreen`**: optional “screen” concept for high-level navigation (menus, gameplay, etc.).
+- **`ScreenView` + `IScreenView`**: optional “screen” concept for high-level navigation (menus, gameplay, etc.); extends `IView`.
 - **`ModuleBinding`**: a portability base for feature modules (configure DI, register views, declare assets).
 
 ## Typical flow

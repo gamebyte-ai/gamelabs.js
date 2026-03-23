@@ -1,22 +1,21 @@
 import "@pixi/layout";
 import * as PIXI from "pixi.js";
-import type { IView } from "../views/IView.js";
-import type { IScreen } from "./IScreen.js";
+import type { IScreenView } from "./IScreenView.js";
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "./ScreenTransition.js";
-import { HudViewBase } from "../views/HudViewBase.js";
+import { HudViewBase } from "../hud/HudViewBase.js";
 
 /**
  * Base PixiJS screen view.
  *
  * This is a convenience implementation that:
  * - is a `PIXI.Container`
- * - implements `IView` and `IScreen`
+ * - implements `IScreenView` (extends `IView`)
  * - provides safe default lifecycle hooks
  * - provides a `destroy()` that detaches from parent and removes listeners
  *
  * Concrete screens can extend this and add their own children and logic.
  */
-export class ScreenView extends HudViewBase implements IView, IScreen {
+export class ScreenView extends HudViewBase implements IScreenView {
   private _isInTransition = false;
   private _transitionTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private _transitionRafId: number | null = null;

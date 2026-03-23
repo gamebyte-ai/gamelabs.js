@@ -1,5 +1,5 @@
 import type { IView } from "./IView.js";
-import type { IScreen } from "../ui/IScreen.js";
+import type { IScreenView } from "../ui/IScreenView.js";
 import type { ScreenTransition } from "../ui/ScreenTransition.js";
 import { InjectionToken } from "../di/InjectionToken.js";
 
@@ -10,9 +10,10 @@ import { InjectionToken } from "../di/InjectionToken.js";
  * without access to registration or app context.
  */
 export interface IViewFactory {
-  createView<TView extends IView>(View: new () => TView, parent: unknown): TView;
-  createScreen<TView extends IView & IScreen>(View: new () => TView, parent: unknown, enterTransition: ScreenTransition | null): void;
+  createView<TView extends IView>(View: new () => TView): TView;
+  createScreenView<TView extends IScreenView>(View: new () => TView, enterTransition: ScreenTransition | null): void;
+  viewAdded(view: IView): void;
+  viewRemoved(view: IView): void;
 }
 
 export const IViewFactory = new InjectionToken<IViewFactory>("IViewFactory");
-

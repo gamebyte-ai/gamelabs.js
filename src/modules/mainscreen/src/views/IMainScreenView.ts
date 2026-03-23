@@ -1,11 +1,10 @@
-import type { IScreen } from "../../../../core/ui/IScreen.js";
-import type { IView } from "../../../../core/views/IView.js";
+import type { IScreenView } from "../../../../core/ui/IScreenView.js";
 
 /**
  * Screens main HUD screen contract.
  * Kept empty for now; add screen-specific APIs as needed.
  */
-export interface IMainScreenView extends IView, IScreen {
+export interface IMainScreenView extends IScreenView {
   onPlayClick(cb: () => void): () => void;
   onSettingsClick(cb: () => void): () => void;
 }

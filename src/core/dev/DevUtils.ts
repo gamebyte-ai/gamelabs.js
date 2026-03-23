@@ -1,5 +1,5 @@
-import type { Hud } from "../Hud.js";
-import type { World } from "../World.js";
+import type { Hud } from "../hud/Hud.js";
+import type { World } from "../world/World.js";
 import type { IStatsPanel } from "./IStatsPanel.js";
 import type { IGroundGrid } from "./IGroundGrid.js";
 import { GroundGrid } from "./GroundGrid.js";

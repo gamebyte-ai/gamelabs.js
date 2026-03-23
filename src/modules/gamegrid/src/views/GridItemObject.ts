@@ -4,7 +4,7 @@ import { GridPreset } from "../models/GridPreset.js";
 import type { GridCellObject } from "./GridCellObject.js";
 import { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../core/input/IInputManager.js";
-import { WorldInteractiveObject } from "../../../../core/views/WorldInteractiveObject.js";
+import { WorldInteractiveObject } from "../../../../core/world/WorldInteractiveObject.js";
 
 export class GridItemObjectOptions {
   public readonly itemId: number;

@@ -1,8 +1,8 @@
 import "@pixi/layout";
 import { Application, Container, type ApplicationOptions } from "pixi.js";
-import type { IViewContainer } from "./views/IViewContainer.js";
-import type { ILogger } from "./dev/ILogger.js";
-import { LogTypes } from "./dev/LogTypes.js";
+import type { ILogger } from "../dev/ILogger.js";
+import { IHud } from "./IHud.js";
+import { HudViewBase } from "./HudViewBase.js";
 
 export type HudCreateOptions = {
   /**
@@ -51,7 +51,7 @@ export type HudCreateOptions = {
   logger?: ILogger;
 };
 
-export class Hud implements IViewContainer {
+export class Hud implements IHud {
   public readonly app: Application;
   public readonly mount: HTMLElement;
   public readonly manualRender: boolean;
@@ -152,25 +152,12 @@ export class Hud implements IViewContainer {
     return new Hud(app, mount, manualRender, options.logger ?? null);
   }
 
-  public attachChild(child: any, parent: any): void {
-    const p = parent as any;
-    const v = child as any;
+  addView(view: HudViewBase): void {
+    this.contentLayer.addChild(view);
+  }
 
-    // Allow `null` to mean "attach to HUD root".
-    if (p === null) {
-      this.contentLayer.addChild(v);
-      return;
-    }
-
-    // Support any Pixi container-like parent with `.addChild()`.
-    if (p && typeof p.addChild === "function") {
-      p.addChild(v);
-      return;
-    }
-
-    const msg = "Invalid HUD parent: expected a Pixi Container with .addChild(), or null";
-    this._logger?.log(msg, LogTypes.Error);
-    throw new Error(msg);
+  removeView(view: HudViewBase): void {
+    this.contentLayer.removeChild(view);
   }
 
   public resize(width: number, height: number, dpr?: number): void {
@@ -200,4 +187,3 @@ export class Hud implements IViewContainer {
     this.app.destroy({ removeView: true }, { children: true, texture: true, textureSource: true });
   }
 }
-
