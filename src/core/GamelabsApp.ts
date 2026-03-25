@@ -50,6 +50,7 @@ export class GamelabsApp {
   private _height: number | undefined;
   private _rafId: number | null = null;
   private _lastFrameTimeMs: number | null = null;
+  private _resizeObserver: ResizeObserver | null = null;
   private readonly _onWindowResize = (): void => {
     const dpr = typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1;
 
@@ -92,8 +93,13 @@ export class GamelabsApp {
     this.diContainer = new DIContainer(this._logger);
     this.viewDiContainer = new DIContainer(this._logger);
 
-    // Auto-resize hook for browser usage.
-    if (typeof window !== "undefined") {
+    // Auto-resize hook: prefer ResizeObserver on mount element, fall back to window resize.
+    if (this.mount && typeof ResizeObserver !== "undefined") {
+      this._resizeObserver = new ResizeObserver(() => {
+        this._onWindowResize();
+      });
+      this._resizeObserver.observe(this.mount);
+    } else if (typeof window !== "undefined") {
       window.addEventListener("resize", this._onWindowResize, { passive: true });
     }
 
@@ -314,7 +320,10 @@ export class GamelabsApp {
     this.stopMainLoop();
     this._inputManager?.stopListening();
     this._inputManager = null;
-    if (typeof window !== "undefined") {
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = null;
+    } else if (typeof window !== "undefined") {
       window.removeEventListener("resize", this._onWindowResize);
     }
     this.preDestroy();
