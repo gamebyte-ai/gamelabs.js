@@ -93,22 +93,18 @@ For the current use case this is fine, but worth noting if you ever support dyna
 
 === Code Quality ===
 
-10. Logger never bounds its linked list.
-Logger.ts -- LogItem entries are appended forever via a linked list and never pruned. In a long-running game session,
-this is a memory leak. Consider capping at N entries or only keeping items while no panel is attached.
-
-11. UpdateService.register re-sorts on every registration.
+10. UpdateService.register re-sorts on every registration.
 UpdateService.ts:20 -- Fine for a small number of registrations, but insertion-sort or a sorted insert would be O(n)
 instead of O(n log n). Minor, but easy to improve.
 
 === P2 -- Module Library Hygiene ===
 
-12. Fix naming/typos that leak into the public API (e.g. module path naming); plan as a breaking change with a
+11. Fix naming/typos that leak into the public API (e.g. module path naming); plan as a breaking change with a
 migration note.
 
-13. Add a lightweight versioning policy (what is breaking, what is additive).
+12. Add a lightweight versioning policy (what is breaking, what is additive).
 
-14. Add documentation per module:
+13. Add documentation per module:
 - what it provides (views/controllers/events/models/assets)
 - how it's wired (IModuleBinding)
 - minimal usage snippet
@@ -117,13 +113,13 @@ reviewers understand what each module provides before reading code.
 
 === P2 -- Developer Experience ===
 
-15. Examples have no package.json lock files or shared dependency management.
+14. Examples have no package.json lock files or shared dependency management.
 Each example has its own node_modules. For a monorepo pattern, consider npm workspaces to deduplicate and make
 npm i from root install everything.
 
-16. Add a CLI/template to create a new game project with the canonical structure.
+15. Add a CLI/template to create a new game project with the canonical structure.
 
-17. Add CI:
+16. Add CI:
 - typecheck
 - lint
 - build

@@ -24,7 +24,7 @@ export class DevUtils implements IDevUtils{
     this._hud = hud;
 
     this._logger = logger;
-    this._logPanel = LogPanel.createPanel(this._hud);
+    this._logPanel = LogPanel.createPanel(this._hud, { maxItems: this._logger.maxItems });
     this._logger.attachPanel(this._logPanel);
 
     this._statsPanel = StatsPanel.createPanel(hud.overlayLayer);

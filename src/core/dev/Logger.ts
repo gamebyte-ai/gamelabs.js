@@ -19,8 +19,12 @@ export class Logger implements ILogger {
 
   private _itemsHead: LogItem | null = null;
   private _itemsTail: LogItem | null = null;
+  private _itemCount = 0;
+  public readonly maxItems: number;
 
-  public constructor() {}
+  public constructor(maxItems: number = 250) {
+    this.maxItems = maxItems;
+  }
 
   public attachPanel(panel: LogPanel): void {
     if (this._panel === panel) return;
@@ -61,6 +65,13 @@ export class Logger implements ILogger {
       this._itemsTail.next = item;
       this._itemsTail = item;
     }
+    this._itemCount += 1;
+
+    while (this._itemCount > this.maxItems && this._itemsHead) {
+      this._itemsHead = this._itemsHead.next;
+      this._itemCount -= 1;
+    }
+    if (!this._itemsHead) this._itemsTail = null;
 
     this._panel?.log(message, logType);
   }
