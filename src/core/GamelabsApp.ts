@@ -7,7 +7,7 @@ import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewFactory } from "./views/ViewFactory.js";
 import { UpdateService } from "./services/UpdateService.js";
 import { Hud } from "./hud/Hud.js";
-import { AssetLoader } from "./assets/AssetLoader.js";
+import { AssetManager } from "./assets/AssetManager.js";
 import { ModuleBinding } from "./ModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";
 import { LogTypes } from "./dev/LogTypes.js";
@@ -24,7 +24,7 @@ export class GamelabsApp {
   world: World | null = null;
   hud: Hud | null = null;
   private _devUtils: DevUtils | null = null;
-  private _assetLoader: AssetLoader | null = null;
+  private _assetLoader: AssetManager | null = null;
   private readonly _logger: Logger;
 
   readonly updateService = new UpdateService();
@@ -116,7 +116,7 @@ export class GamelabsApp {
     return this._devUtils;
   }
 
-  public get assetLoader(): AssetLoader {
+  public get assetLoader(): AssetManager {
     if (!this._assetLoader) {
       this._logger.log("AssetLoader is not initialized", LogTypes.Error);
       throw new Error("AssetLoader is not initialized");
@@ -139,12 +139,12 @@ export class GamelabsApp {
     await this.createHud();
 
     this._devUtils = new DevUtils(this.world!, this.hud!, this._logger);
-    this._assetLoader = new AssetLoader(this._logger);
+    this._assetLoader = new AssetManager(this._logger);
     this._viewFactory = new ViewFactory<IInstanceResolver>(this._logger, this.diContainer, this.viewDiContainer);
 
     this.diContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
 
-    this.viewDiContainer.bindInstance(AssetLoader, this._assetLoader);
+    this.viewDiContainer.bindInstance(AssetManager, this._assetLoader);
     this.viewDiContainer.bindInstance(IViewFactory, this._viewFactory);
 
     this._inputManager = new InputManager(this.canvas, this.hud, this.world);

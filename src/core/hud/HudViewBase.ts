@@ -3,7 +3,7 @@ import type { IView } from "../views/IView.js";
 import type { IViewController } from "../views/IViewController.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { IViewFactory } from "../views/IViewFactory.js";
-import { AssetLoader } from "../assets/AssetLoader.js";
+import { AssetManager } from "../assets/AssetManager.js";
 import { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
 
@@ -16,9 +16,9 @@ import { LogTypes } from "../dev/LogTypes.js";
 export class HudViewBase extends PIXI.Container implements IView {
   //  MEMBERS
   private _viewFactory: IViewFactory | null = null;
-  private _addedForFactory:Function | null = null;
-  private _removedForFactory:Function | null = null;
-  private _assetLoader: AssetLoader | null = null;
+  private _addedForFactory:(() => void) | null = null;
+  private _removedForFactory:(() => void) | null = null;
+  private _assetLoader: AssetManager | null = null;
   private _logger: ILogger | null = null;
   private _controller: IViewController | null = null;
 
@@ -31,7 +31,7 @@ export class HudViewBase extends PIXI.Container implements IView {
     return this._viewFactory;
   }
 
-  protected get assetLoader(): AssetLoader {
+  protected get assetLoader(): AssetManager {
     if (!this._assetLoader) {
       this._logger?.log("HudViewBase is not initialized", LogTypes.Error);
       throw new Error("HudViewBase is not initialized");
@@ -49,11 +49,11 @@ export class HudViewBase extends PIXI.Container implements IView {
  
   //  METHODS
   public inject(resolver: IInstanceResolver): void {
-    this._assetLoader = resolver.getInstance(AssetLoader);
+    this._assetLoader = resolver.getInstance(AssetManager);
     this._logger = resolver.getInstance(ILogger);
   }
 
-  public setViewFactory(viewFactory: IViewFactory, addedForFactory:Function, removedForFactory:Function): void {
+  public setViewFactory(viewFactory: IViewFactory, addedForFactory:() => void, removedForFactory:() => void): void {
     if (this._viewFactory) {
       throw new Error("View factory already set");
     }

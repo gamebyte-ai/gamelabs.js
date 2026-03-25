@@ -5,7 +5,7 @@ import { IViewFactory } from "./IViewFactory.js";
 
 export interface IView extends IInjectionTarget {
 
-  setViewFactory (viewFactory: IViewFactory, added:Function, removed:Function): void;
+  setViewFactory (viewFactory: IViewFactory, added:() => void, removed:() => void): void;
   /**
    * Hook for view-side setup after injection.
    * Called after `inject()` by the ViewFactory.

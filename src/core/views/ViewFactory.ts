@@ -96,8 +96,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
 
 
 
-  private create2<TView extends IView, TController extends IViewController<TView>>(View: ViewCtor<TView>): TView {
-    
+  private createInternal<TView extends IView, TController extends IViewController<TView>>(View: ViewCtor<TView>): TView {
     const registration = this._registry.get(View);
     if (!registration) {
       const msg = `No ViewFactory registration for view: ${View.name || "(anonymous view)"}`;
@@ -107,12 +106,12 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
 
     const view = (registration.create?.(this.viewDiContainer) ?? new View()) as TView;
     const controller = new registration.Controller() as TController;
-    
+
     view.setViewFactory(this, ()=>{
       view.inject(this.viewDiContainer);
       view.initialize();
       view.postInitialize();
-      
+
       view.setController(controller);
       controller.inject(this.diContainer);
       controller.initialize(view);
@@ -121,7 +120,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   }
 
   public createView<TView extends IView>(View: ViewCtor<TView>): TView {
-    return this.create2<TView, IViewController<TView>>(View);
+    return this.createInternal<TView, IViewController<TView>>(View);
   }
 
   public createScreenView<TView extends IScreenView>(View: ViewCtor<TView>, enterTransition: ScreenTransition | null): void {
@@ -131,8 +130,12 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
       this._activeScreen = null;
     }
 
-    //  TODO: This is an internal progress but prevent this cast to unknown
-    const screen:HudViewBase = this.createView(View) as unknown as HudViewBase;
+    const screen = this.createView(View);
+    if (!(screen instanceof HudViewBase)) {
+      const msg = `createScreenView: ${(View as any).name || "(anonymous)"} must extend HudViewBase`;
+      this.logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
+    }
     this.hud?.addView(screen);
     this._activeScreen = screen;
     if (this._lastResize) {
@@ -141,12 +144,10 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     this._activeScreen.onEnter?.(resolvedEnterTransition);
   }
 
-  public viewAdded(view: IView): void {
-    console.log("ViewFactory.addView", view);
+  public viewAdded(_view: IView): void {
   }
 
-  public viewRemoved(view: IView): void {
-    console.log("ViewFactory.removeView", view);
+  public viewRemoved(_view: IView): void {
   }
 
 

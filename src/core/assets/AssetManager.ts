@@ -7,13 +7,15 @@ import type { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-export class AssetLoader implements IAssetManager {
+
+export class AssetManager implements IAssetManager {
   private _logger: ILogger;
   private _defaultHudTexture: Texture | null = null;
   private _defaultWorldTexture: THREE.Texture | null = null;
   private _defaultGltf: GLTF | null = null;
   private readonly _assetsById = new Map<string, unknown>();
   private readonly _inflightById = new Map<string, Promise<unknown>>();
+  private readonly _failedIds = new Set<string>();
 
   private _totalItems = 0;
   private _loadedItems = 0;
@@ -28,6 +30,18 @@ export class AssetLoader implements IAssetManager {
 
   public get loadedItems(): number {
     return this._loadedItems;
+  }
+
+  public get failedIds(): ReadonlySet<string> {
+    return this._failedIds;
+  }
+
+  public get hasFailures(): boolean {
+    return this._failedIds.size > 0;
+  }
+
+  public isFallback(id: string): boolean {
+    return this._failedIds.has(id);
   }
 
   public loadAll(requests: Iterable<AssetRequest> ): void{
@@ -73,6 +87,11 @@ export class AssetLoader implements IAssetManager {
     const p = this.loadByType(type, url)
       .then((asset) => {
         this._assetsById.set(id, asset);
+      })
+      .catch((_err: unknown) => {
+        this._logger.log(`[AssetManager] load failed: id=${id} url=${url}`, LogTypes.Warning);
+        this._failedIds.add(id);
+        this._assetsById.set(id, this.getDefaultForType(type));
       })
       .finally(() => {
         this._loadedItems += 1;
@@ -128,27 +147,33 @@ export class AssetLoader implements IAssetManager {
     return this._defaultGltf;
   }
 
-  private loadByType(type: AssetType, url: string): Promise<unknown> {
-    this._logger.log(`[AssetLoader] loading asset: type=${String(type)} url=${url}`);
+  private getDefaultForType(type: AssetType): unknown {
     switch (type) {
       case AssetTypes.HudTexture:
-        return Assets.load(url).catch((_err: unknown) => {
-          this._logger.log(`[AssetLoader] HudTexture load failed: ${url}`, LogTypes.Warning);
-          return this.getDefaultHudTexture();
-        });
+        return this.getDefaultHudTexture();
       case AssetTypes.WorldTexture:
-        return this.loadWorldTexture(url).catch((_err: unknown) => {
-          this._logger.log(`[AssetLoader] WorldTexture load failed: ${url}`, LogTypes.Warning);
-          return this.getDefaultWorldTexture();
-        });
+        return this.getDefaultWorldTexture();
       case AssetTypes.GLTF:
-        return this.loadGltf(url).catch((_err: unknown) => {
-          this._logger.log(`[AssetLoader] GLTF load failed: ${url}`, LogTypes.Warning);
-          return this.getDefaultGltf();
-        });
+        return this.getDefaultGltf();
       default: {
         const neverType: never = type;
-        const msg = `AssetLoader: unsupported asset type: ${String(neverType)}`;
+        throw new Error(`AssetLoader: unsupported asset type: ${String(neverType)}`);
+      }
+    }
+  }
+
+  private loadByType(type: AssetType, url: string): Promise<unknown> {
+    this._logger.log(`[AssetManager] loading asset: type=${String(type)} url=${url}`);
+    switch (type) {
+      case AssetTypes.HudTexture:
+        return Assets.load(url);
+      case AssetTypes.WorldTexture:
+        return this.loadWorldTexture(url);
+      case AssetTypes.GLTF:
+        return this.loadGltf(url);
+      default: {
+        const neverType: never = type;
+        const msg = `AssetManager: unsupported asset type: ${String(neverType)}`;
         this._logger.log(msg, LogTypes.Error);
         throw new Error(msg);
       }

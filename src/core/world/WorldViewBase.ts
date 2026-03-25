@@ -2,7 +2,7 @@ import type { IView } from "../views/IView.js";
 import type { IViewController } from "../views/IViewController.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { IViewFactory } from "../views/IViewFactory.js";
-import { AssetLoader } from "../assets/AssetLoader.js";
+import { AssetManager } from "../assets/AssetManager.js";
 import { WorldInteractiveObject } from "./WorldInteractiveObject.js";
 import { ILogger } from "../dev/ILogger.js";
 import { IInputManager as IInputManagerToken } from "../input/IInputManager.js";
@@ -17,9 +17,9 @@ import { LogTypes } from "../dev/LogTypes.js";
 export class WorldViewBase extends WorldInteractiveObject implements IView {
   //  MEMBERS
   private _viewFactory: IViewFactory | null = null;
-  private _addedForFactory:Function | null = null;
-  private _removedForFactory:Function | null = null;
-  private _assetLoader: AssetLoader | null = null;
+  private _addedForFactory:(() => void) | null = null;
+  private _removedForFactory:(() => void) | null = null;
+  private _assetLoader: AssetManager | null = null;
   private _logger: ILogger | null = null;
   private _controller: IViewController | null = null;
 
@@ -33,7 +33,7 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
     return this._viewFactory;
   }
 
-  protected get assetLoader(): AssetLoader {
+  protected get assetLoader(): AssetManager {
     if (!this._assetLoader) {
       this._logger?.log("WorldViewBase is not initialized", LogTypes.Error);
       throw new Error("WorldViewBase is not initialized");
@@ -52,11 +52,11 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
   //  METHODS
   public inject(resolver: IInstanceResolver): void {
     this.setInputManager(resolver.getInstance(IInputManagerToken));
-    this._assetLoader = resolver.getInstance(AssetLoader);
+    this._assetLoader = resolver.getInstance(AssetManager);
     this._logger = resolver.getInstance(ILogger);
   }
 
-  public setViewFactory(viewFactory: IViewFactory, addedForFactory:Function, removedForFactory:Function): void {
+  public setViewFactory(viewFactory: IViewFactory, addedForFactory:() => void, removedForFactory:() => void): void {
     if (this._viewFactory) {
       throw new Error("View factory already set");
     }
@@ -96,7 +96,6 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
   public preDestroy(): void {}
 
   public destroy(): void {
-    super.destroy();
     this.preDestroy();
 
     this._controller?.destroy();
@@ -108,5 +107,7 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
 
     // Detach from scene graph. Subclasses should dispose their resources.
     this.removeFromParent();
+
+    super.destroy();
   }
 }
