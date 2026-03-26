@@ -1,12 +1,9 @@
-THIS IS NOT COMPLETE! ignore this file for now
-
-
 This project is a **TypeScript skeleton + reusable modules** for web games. It is designed for:
 - **AI-generated** game projects
-- Consistant project structure for easy review and module sharing
+- Consistent project structure for easy review and module sharing
 - Strict separation between **rendering/scene** and **game logic**
 
-It dependes on:
+It depends on:
 - **Three.js** for 3D (world / scene)
 - **PixiJS** for 2D (HUD / UI)
 - **GSAP** for animations
@@ -14,123 +11,114 @@ It dependes on:
 
 ## Architecture/Design decisions
 - Base app class for program skeleton, users extend it and override methods to handle program flow
-- Minimal dependency injection
-- MVC implementation with strict View-ViewController separation between **rendering/scene** and **game logic**
-- Two types of views
- - World and WorldViews for game scene and objects (implemented with **Three.js**)
- - Hud and HudViews for UIs and overlays (implemented with **PixiJS**)
-- Modules system for sharing features between projects in a consistant structure
+- Minimal dependency injection with two containers
+    - `Gamelabs.diContainer`
+        - Common tools, Models, Events, Utilities are bound to this
+        - Given to view controllers and utilities
+    - `Gamelabs.viewDiContainer`
+        - Common tools, Scene managers are bound to this
+        - Given to views
+- Strict View - ViewController separation between **rendering/scene** and **game logic**
+    - Two types of views
+        - World and WorldViews for game scene and objects (implemented with **Three.js**)
+        - Hud and HudViews for UIs and overlays (implemented with **PixiJS**)
+- Modules system for sharing features between projects in a consistent structure
+
+
+## Game Project folder structure
+```
+MyGame
+├─►assets
+└─►src
+    ├─►controllers
+    ├─►views
+    ├─►events
+    ├─►utilities
+    ├─►MyGameApp.ts
+    ├─►MyGameAssetIds.ts
+    └─►MyGameConfig.ts
+```
 
 
 ## Implementation details
 
-### App class
-Your `YourGameApp` class extends `GamelabsApp` and implements following methods:
-- `registerModules()`: call `this.addModule(...)` to register `ModuleBinding` instances
-- `configureDI()`: use `viewDiContainer` for view injections, use `diContainer` for view controllers and others classes
-- `configureViews()`: register view/controller pairs into `viewFactory`
-- `loadAssets()`: enqueue app-specific assets in `assetManager`
-- `postInitialize()`: create initial screens/views, load levels and hook event subscriptions (called after assets are loaded)
-- `onStep(timestepSeconds)`: per-frame logic hook (called after `updateService.tick()`)
-- `preDestroy()`: unsubscribe + cleanup owned resources
 
 ### Asset management
-- Apps and modules define their unique asset ids with enums (`enum YourGameAssetIds { Missile = "YourGame.Missile"}`)
+
+- Apps and modules define their unique asset ids with enums (`enum MyGameAssetIds { Missile = "MyGame.Missile"}`)
 - All asset requests must be added using load methods on `IAssetManager`
-- Asset loading is guaranteed to be completed before `postInitialize()` method call. Failed items will use fallback assets.
-- Loaded asset can be requested from `getAsset<T>(id: string): T` method of `IAssetManager`
-
-### MVC implementation
-- IView-IViewController implementations are registered in ViewFactory
-- IView instances are created with `IViewFactory` create methods then added to a parent object or directly to World or Hud
-- `IView` implementations manage scene objects, handle rendering settings, create sub views, handle pointer inputs
-- `IViewController` implementations listen view and other events, handle view behaviours and responses via `IView` child interfaces
+- Asset loading is guaranteed to be completed before `GamelabsApp.postInitialize()` method call. Failed items will use fallback assets.
+- Loaded asset can be requested from method `IAssetManager.getAsset<T>(id: string): T`
+- Assets that are failed to load and using fallbacks can be queried with `IAssetManager.isFallback(id: string): boolean` method
 
 
+### Dependency injection
+
+There are two DI containers
+- `diContainer`; bind common and controller/utility injections to this container
+- `viewDiContainer`; bind common and view only injections to this container
+- Interface tokens use the InjectionToken pattern: a const and a type with the same name so interfaces can be used as DI keys (`export const IFoo = new InjectionToken("IFoo")`)
 
 
+### App
+
+Your `MyGameApp` class extends `GamelabsApp` and implements following methods:
+- Initialization methods (will be call in this order)
+    - `registerModules()`: register `ModuleBinding` instances with `addModule()` method
+    - `configureDI()`:  binding injection instances and types
+    - `configureViews()`: register view/controller pairs into `viewFactory`
+    - `loadAssets()`: enqueue app-specific assets in `assetManager`
+    - `postInitialize()`: create initial screens/views, load levels and hook event subscriptions (called after assets are loaded)
+- Runtime methods
+    - `onStep(timestepSeconds)`: per-frame logic hook (called after `updateService.tick()`)
+- Uninitialization
+    - `preDestroy()`: unsubscribe + cleanup owned resources
 
 
+### Events
+
+Events are used for communication between controllers and utilities.
 
 
+### Utilities
+
+Utilities (services, manager, tools, ...) are used by view controllers and utilities. They can listen and dispatch events.
 
 
+### Views
+
+- View interface is defined with methods to access from controller (`interface IMyView extends IView`)
+- View class extends either WorldViewBase, HudViewBase or ScreenView and implements all methods (`MyView extends WorldViewBase implements IMyView`)
+- View classes manage scene objects, handle rendering settings, create sub views, handle pointer inputs
+
+### View controllers
+
+ - View controller implements IViewController (`class MyViewController implements IViewController<IMyView>`)
+ - View controller listens view and other events, handle view behaviours and responses via `IView` child interfaces
+
+### Using views
+
+- Register classes : View and viewController classes are registered in `IViewFactory` (`this.viewFactory.register<MyView, MyViewController> (MyView, MyViewController);`)
+- Create instance : `IViewFactory` create methods are used to instantiate views then they are added to a parent object or directly to World or Hud (`const myView = this.viewFactory.createView(MyView);    this.world.addView(myView);`)
+
+### Screen views
+
+- Screens are special hud views
+- They are automatically added to a specific Hud container
+- They cover whole canvas and only one of them is active at a time
+- They have transition after creation and before destruction (interaction should be blocked while `isInTransition` is true)
 
 
+### Modules
 
-## Views (`IView`, base view classes)
-Views are responsible for rendering and user interaction details.
+Modules are a contained, configurable, feature-mechanic set for common purposes. 
+- Modules may have an asset id enums as described above (`enum MyModuleAssetIds ...`)
+- Modules must have a bindings class (`class MyModuleBinding extends ModuleBinding ...`)
+ - `assetRequestList` is list of assets
+ - `configureDI` method is for adding di bindings from module
+ - `configureViews` method is for view - view controller registration from module
 
-- `IView` lifecycle is wired by `ViewFactory`:
-  - `view.initialize(viewFactory, assetLoader)`
-  - `view.postInitialize()`
-  - `view.setController(controller)`
-  - `controller.initialize(view, resolver)`
-- Base classes implement the standard wiring fields and default destruction:
-  - `WorldViewBase` (Three.js) for world views
-  - `HudViewBase` (PixiJS) for HUD views
-  - `ScreenView` (PixiJS) for full-screen HUD screens + transitions
-
-
-
-
-(`IView`->`IViewController` / `ViewController`->`IView`)
-- Two types of views
- - World for game scene and objects (**Three.js**)
- - Hud for UIs and overlays (**PixiJS**)
-- Modules for common features
-
-
-
-Dependency Injection system
-
-
-
-
-- World views
- - extend `WorldViewBase`
- - all game objects will be in world (even if it is a 2d game)
-
-- Hud views
- - extend `HudViewBase`
- - UI and overlay graphics are hud views
- - `ScreenView` are special hud views, they cover whole canvas and only one of them is active at a time (on exit transition old screen may still be in scene but it should block interaction while `isInTransition` is true)
-
-
-
-
-
-
-
-binding to di containers
-
-
-module structure
-
-
-using modules
-
-
-creating modules
-
- 
-cloning modules
-
-
-
-
-
-
-
-
-
-My todo
-
-- define folder and class names (models, utilities, services, ...)
-
-- popup views
-- physics integration
-- requesting assets after initialization
-- GamelabsConfig for common options
-- Audio
-- Save (settings, progress)
+Modules must be added in app `registerModules()` method before it can be used.
+Before registration it can be modified
+- Asset urls can be overridden in `assetRequestList`
+- Di and view configuration items can be altered

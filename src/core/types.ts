@@ -25,11 +25,4 @@ export type GamelabsAppConfig = WithCanvas & {
    * Defaults to false to preserve the legacy "two canvas layers" setup.
    */
   sharedContext?: boolean;
-
-  /**
-   * Future-facing configuration buckets.
-   * These are intentionally loose for now — you'll tighten them as features land.
-   */
-  pixi?: Record<string, unknown>;
-  three?: Record<string, unknown>;
 };
