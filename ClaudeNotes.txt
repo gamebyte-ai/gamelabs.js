@@ -87,24 +87,20 @@ check determines whether to use source-relative or dist-relative paths. This bre
 folders, or uses a monorepo with different path structures. Consider a single canonical asset path strategy --
 e.g., always resolve relative to a known root, or pass an asset base URL into the binding constructor.
 
-9. ModuleBinding has no lifecycle hook for cleanup/teardown.
-If a module registers DI bindings and views, there's no way to unregister them when the module is no longer needed.
-For the current use case this is fine, but worth noting if you ever support dynamic module loading/unloading.
-
 === Code Quality ===
 
-10. UpdateService.register re-sorts on every registration.
+9. UpdateService.register re-sorts on every registration.
 UpdateService.ts:20 -- Fine for a small number of registrations, but insertion-sort or a sorted insert would be O(n)
 instead of O(n log n). Minor, but easy to improve.
 
 === P2 -- Module Library Hygiene ===
 
-11. Fix naming/typos that leak into the public API (e.g. module path naming); plan as a breaking change with a
+10. Fix naming/typos that leak into the public API (e.g. module path naming); plan as a breaking change with a
 migration note.
 
-12. Add a lightweight versioning policy (what is breaking, what is additive).
+11. Add a lightweight versioning policy (what is breaking, what is additive).
 
-13. Add documentation per module:
+12. Add documentation per module:
 - what it provides (views/controllers/events/models/assets)
 - how it's wired (IModuleBinding)
 - minimal usage snippet
@@ -113,13 +109,13 @@ reviewers understand what each module provides before reading code.
 
 === P2 -- Developer Experience ===
 
-14. Examples have no package.json lock files or shared dependency management.
+13. Examples have no package.json lock files or shared dependency management.
 Each example has its own node_modules. For a monorepo pattern, consider npm workspaces to deduplicate and make
 npm i from root install everything.
 
-15. Add a CLI/template to create a new game project with the canonical structure.
+14. Add a CLI/template to create a new game project with the canonical structure.
 
-16. Add CI:
+15. Add CI:
 - typecheck
 - lint
 - build

@@ -17,14 +17,15 @@ import { InputManager } from "./input/InputManager.js";
 import { IInputManager } from "./input/IInputManager.js";
 
 export class GamelabsApp {
+  //  MEMBERS
   readonly canvas: HTMLCanvasElement;
   readonly mount: HTMLElement | undefined;
   readonly sharedContext: boolean;
 
-  world: World | null = null;
-  hud: Hud | null = null;
+  protected world: World | null = null;
+  protected hud: Hud | null = null;
   private _devUtils: DevUtils | null = null;
-  private _assetLoader: AssetManager | null = null;
+  private _assetManager: AssetManager | null = null;
   private readonly _logger: Logger;
 
   readonly updateService = new UpdateService();
@@ -80,6 +81,38 @@ export class GamelabsApp {
     this._viewFactory?.resize(width, height, dpr);
   };
 
+
+  //  GETTERS
+    protected get logger(): ILogger {
+    return this._logger;
+  }
+
+  protected get devUtils(): DevUtils {
+    if (!this._devUtils) {
+      this._logger.log("DevUtils is not initialized", LogTypes.Error);
+      throw new Error("DevUtils is not initialized");
+    }
+    return this._devUtils;
+  }
+
+  protected get assetManager(): AssetManager {
+    if (!this._assetManager) {
+      this._logger.log("AssetLoader is not initialized", LogTypes.Error);
+      throw new Error("AssetLoader is not initialized");
+    }
+    return this._assetManager;
+  }
+
+  protected get viewFactory(): ViewFactory<IInstanceResolver> {
+    if (!this._viewFactory) {
+      this._logger.log("ViewFactory is not initialized", LogTypes.Error);
+      throw new Error("ViewFactory is not initialized");
+    }
+    return this._viewFactory;
+  }
+
+
+  //  CONSTRUCTOR
   constructor(config: GamelabsAppConfig) {
     this.canvas = config.canvas ?? document.createElement("canvas");
     this.mount = config.mount;
@@ -109,48 +142,22 @@ export class GamelabsApp {
     this.diContainer.bindInstance(ILogger, this._logger, [Logger]);
     this.viewDiContainer.bindInstance(ILogger, this._logger, [Logger]);
   }
+  
 
-  protected get logger(): ILogger {
-    return this._logger;
-  }
-
-  public get devUtils(): DevUtils {
-    if (!this._devUtils) {
-      this._logger.log("DevUtils is not initialized", LogTypes.Error);
-      throw new Error("DevUtils is not initialized");
-    }
-    return this._devUtils;
-  }
-
-  public get assetLoader(): AssetManager {
-    if (!this._assetLoader) {
-      this._logger.log("AssetLoader is not initialized", LogTypes.Error);
-      throw new Error("AssetLoader is not initialized");
-    }
-    return this._assetLoader;
-  }
-
-  public get viewFactory(): ViewFactory<IInstanceResolver> {
-    if (!this._viewFactory) {
-      this._logger.log("ViewFactory is not initialized", LogTypes.Error);
-      throw new Error("ViewFactory is not initialized");
-    }
-    return this._viewFactory;
-  }
-
-  async initialize(): Promise<void> {
+  //  METHODS
+  public async initialize(): Promise<void> {
     if (this._isInitialized) return;
 
     await this.createWorld();
     await this.createHud();
 
     this._devUtils = new DevUtils(this.world!, this.hud!, this._logger);
-    this._assetLoader = new AssetManager(this._logger);
+    this._assetManager = new AssetManager(this._logger);
     this._viewFactory = new ViewFactory<IInstanceResolver>(this._logger, this.diContainer, this.viewDiContainer);
 
     this.diContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
 
-    this.viewDiContainer.bindInstance(AssetManager, this._assetLoader);
+    this.viewDiContainer.bindInstance(AssetManager, this._assetManager);
     this.viewDiContainer.bindInstance(IViewFactory, this._viewFactory);
 
     this._inputManager = new InputManager(this.canvas, this.hud, this.world);
@@ -171,10 +178,10 @@ export class GamelabsApp {
     this.configureViews();
 
     for (const moduleBinding of this._moduleList) {
-      this.assetLoader.loadAll(moduleBinding.assetRequestList.getRequests());
+      this.assetManager.loadAll(moduleBinding.assetRequestList.getRequests());
     }
     this.loadAssets();
-    await this._assetLoader.waitForAll();
+    await this._assetManager.waitForAll();
 
     this.postInitialize();
     this.requestResize();

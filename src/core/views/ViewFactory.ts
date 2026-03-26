@@ -15,25 +15,6 @@ export type ViewCtor<TView extends IView> = new () => TView;
 
 export type ControllerCtor<TView extends IView, TController extends IViewController<TView>> = new () => TController;
 
-export type ViewFactoryRegistration<
-  TResolver extends IInstanceResolver,
-  TView extends IView,
-  TController extends IViewController<TView>
-> = {
-  /**
-   * Optional custom view constructor.
-   * Useful for injecting restricted capabilities (e.g. `IViewFactory`) into views.
-   */
-  create?: (resolver: TResolver) => TView;
-  Controller: ControllerCtor<TView, TController>;
-};
-
-export type ViewFactoryContainerRegistration<
-  TResolver extends IInstanceResolver,
-  TView extends IView,
-  TController extends IViewController<TView>
-> = Omit<ViewFactoryRegistration<TResolver, TView, TController>, "attachToParent">;
-
 /**
  * View + Controller factory with a registration map.
  *
@@ -41,7 +22,7 @@ export type ViewFactoryContainerRegistration<
  * - Create views with `createView(View, parent)`; controller deps are derived from `resolver`.
  */
 export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFactory {
-  private readonly _registry = new Map<ViewCtor<any>, ViewFactoryRegistration<TResolver, any, any>>();
+  private readonly _registry = new Map<ViewCtor<any>, ControllerCtor<any, any>>();
   private readonly _defaultScreenTransition: ScreenTransition = { type: SCREEN_TRANSITION_TYPES.INSTANT, durationMs: 0 };
   private _activeScreen: IScreenView | null = null;
   private _lastResize: { width: number; height: number; dpr: number } | null = null;
@@ -60,30 +41,11 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     this.hud = hud;
   }
 
-  public registerHudView<TView extends IView, TController extends IViewController<TView>>(
-    View: ViewCtor<TView>,
-    registration: ViewFactoryContainerRegistration<TResolver, TView, TController>
-  ): void {
-    this.register<TView, TController>(View, {
-      ...registration
-    });
-  }
-
-  public registerWorldView<TView extends IView, TController extends IViewController<TView>>(
-    View: ViewCtor<TView>,
-    registration: ViewFactoryContainerRegistration<TResolver, TView, TController>
-  ): void {
-    this.register<TView, TController>(View, {
-      ...registration
-    });
-  }
-
   public register<TView extends IView, TController extends IViewController<TView>>(
     View: ViewCtor<TView>,
-    registration: ViewFactoryRegistration<TResolver, TView, TController>
+    Controller: ControllerCtor<TView, TController>
   ): void {
-    // Map erases generics; keep the API strongly typed at the edges.
-    this._registry.set(View, registration as ViewFactoryRegistration<TResolver, any, any>);
+    this._registry.set(View, Controller as ControllerCtor<any, any>);
   }
 
   public resize(width: number, height: number, dpr: number): void {
@@ -97,15 +59,15 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
 
 
   private createInternal<TView extends IView, TController extends IViewController<TView>>(View: ViewCtor<TView>): TView {
-    const registration = this._registry.get(View);
-    if (!registration) {
+    const Controller = this._registry.get(View);
+    if (!Controller) {
       const msg = `No ViewFactory registration for view: ${View.name || "(anonymous view)"}`;
       this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }
 
-    const view = (registration.create?.(this.viewDiContainer) ?? new View()) as TView;
-    const controller = new registration.Controller() as TController;
+    const view = new View() as TView;
+    const controller = new Controller() as TController;
 
     view.setViewFactory(this, ()=>{
       view.inject(this.viewDiContainer);

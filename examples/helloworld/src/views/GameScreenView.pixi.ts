@@ -32,10 +32,10 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     if (!this.overlay.parent) this.addChild(this.overlay);
 
     // View owns subview creation.
-    this.topBar = this.viewFactory.createView2(TopBarView);
+    this.topBar = this.viewFactory.createView(TopBarView);
     this.addChild(this.topBar);
 
-    this.debugBar = this.viewFactory.createView2(DebugBarView);
+    this.debugBar = this.viewFactory.createView(DebugBarView);
     this.addChild(this.debugBar);
 
     // Layout children: fill width, take intrinsic height.

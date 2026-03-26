@@ -36,7 +36,7 @@ export class TicTacToeApp extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerHudView<GameScreenView, GameScreenController>(GameScreenView, { Controller: GameScreenController });
+    this.viewFactory.register<GameScreenView, GameScreenController>(GameScreenView, GameScreenController);
   }
 
   protected override postInitialize(): void {
@@ -45,7 +45,7 @@ export class TicTacToeApp extends GamelabsApp {
       throw new Error("HUD is not initialized");
     }
 
-    this.viewFactory.createScreen2(GameScreenView, this._config.transitions.gameScreenEnter);
+    this.viewFactory.createScreenView(GameScreenView, this._config.transitions.gameScreenEnter);
 
     if (!this.world) {
       this.logger.log("Three world is not initialized", LogTypes.Error);
@@ -54,7 +54,7 @@ export class TicTacToeApp extends GamelabsApp {
 
     const gridOps = this.diContainer.getInstance(GridOperations);
     gridOps.createGrid();
-    this._gameGridView = this.viewFactory.createView2(GameGridsView);
+    this._gameGridView = this.viewFactory.createView(GameGridsView);
     this.world.addView(this._gameGridView);
 
     this._gameGridBinding.model.getGrid(this._config.boardId);

@@ -42,7 +42,7 @@ export class Match3App extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerHudView<GameScreenView, Match3HudController>(GameScreenView, { Controller: Match3HudController });
+    this.viewFactory.register<GameScreenView, Match3HudController>(GameScreenView, Match3HudController);
   }
 
   protected override postInitialize(): void {
@@ -50,8 +50,8 @@ export class Match3App extends GamelabsApp {
       this.logger.log("HUD or world is not initialized", LogTypes.Error);
       throw new Error("HUD or world is not initialized");
     }
-    this.viewFactory.createScreen2(GameScreenView, this._config.transitions.gameScreenEnter);
-    this.world.addView(this.viewFactory.createView2(Match3GridsView));
+    this.viewFactory.createScreenView(GameScreenView, this._config.transitions.gameScreenEnter);
+    this.world.addView(this.viewFactory.createView(Match3GridsView));
     
     const grid = this._gameGridBinding.model.getGrid(Match3Config.GRID_ID);
     if (grid) {

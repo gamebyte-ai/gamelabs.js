@@ -44,16 +44,16 @@ export class HelloWorldApp extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerHudView<GameScreenView, GameScreenController> (GameScreenView, { Controller: GameScreenController });
-    this.viewFactory.registerHudView<TopBarView,     TopBarController>     (TopBarView,     { Controller: TopBarController     });
-    this.viewFactory.registerHudView<DebugBarView,   DebugBarController>   (DebugBarView,   { Controller: DebugBarController   });
+    this.viewFactory.register<GameScreenView, GameScreenController> (GameScreenView, GameScreenController);
+    this.viewFactory.register<TopBarView,     TopBarController>     (TopBarView,     TopBarController);
+    this.viewFactory.register<DebugBarView,   DebugBarController>   (DebugBarView,   DebugBarController);
 
-    this.viewFactory.registerWorldView<CubeView, CubeController>(CubeView, { Controller: CubeController });
+    this.viewFactory.register<CubeView, CubeController>(CubeView, CubeController);
   }
 
   protected override loadAssets(): void {
     this.assetRequestList.addRequest(new AssetRequest(AssetTypes.GLTF, HelloWorldAssetIds.Cube, new URL("../assets/cube.glb", import.meta.url).href));
-    this.assetLoader.loadAll(this.assetRequestList.getRequests());
+    this.assetManager.loadAll(this.assetRequestList.getRequests());
   }
 
   protected override postInitialize(): void {
@@ -63,7 +63,7 @@ export class HelloWorldApp extends GamelabsApp {
       throw new Error("HUD is not initialized");
     }
 
-    this.viewFactory.createScreen2(GameScreenView, this.config.transitions.gameScreenEnter);
+    this.viewFactory.createScreenView(GameScreenView, this.config.transitions.gameScreenEnter);
 
     this.devUtils.logger.log("Creating cube");
     if (!this.world) {
@@ -77,7 +77,7 @@ export class HelloWorldApp extends GamelabsApp {
     this._orbitalController.maxDistance = this.config.maxCameraDistance;
     this.viewDiContainer.bindInstance(Orbital3dCameraController, this._orbitalController);
 
-    this._cubeView = this.viewFactory.createView2(CubeView);
+    this._cubeView = this.viewFactory.createView(CubeView);
     this.world.addView(this._cubeView);
 
     this._orbitalController.followObject(this._cubeView, 8);

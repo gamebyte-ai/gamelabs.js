@@ -29,9 +29,7 @@ export class MainScreenBinding extends ModuleBinding {
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
-    viewFactory.registerHudView<MainScreenView, MainScreenController>(MainScreenView, {
-      Controller: MainScreenController
-    });
+    viewFactory.register<MainScreenView, MainScreenController>(MainScreenView, MainScreenController);
   }
 
 }

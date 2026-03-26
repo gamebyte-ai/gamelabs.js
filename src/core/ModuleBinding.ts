@@ -6,6 +6,8 @@ import { AssetRequestList } from "./assets/AssetRequestList.js";
 export class ModuleBinding {
   //  FIELDS
   protected readonly _assetRequestList: AssetRequestList = new AssetRequestList();
+
+  //  GETTERS
   public get assetRequestList(): AssetRequestList {
     return this._assetRequestList;
   }

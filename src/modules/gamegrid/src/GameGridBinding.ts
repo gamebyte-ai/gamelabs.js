@@ -29,7 +29,7 @@ export class GameGridBinding extends ModuleBinding {
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
-    viewFactory.registerWorldView(this._viewClass, { Controller: this._controllerClass });
+    viewFactory.register(this._viewClass, this._controllerClass);
   }
 
   public get model(): GridsModel {

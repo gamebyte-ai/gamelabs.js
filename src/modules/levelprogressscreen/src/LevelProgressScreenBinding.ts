@@ -32,7 +32,7 @@ export class LevelProgressScreenBinding extends ModuleBinding {
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
-    viewFactory.registerHudView<LevelProgressScreenView, LevelProgressScreenController>(LevelProgressScreenView, {Controller: LevelProgressScreenController});
+    viewFactory.register<LevelProgressScreenView, LevelProgressScreenController>(LevelProgressScreenView, LevelProgressScreenController);
   }
 
 }
