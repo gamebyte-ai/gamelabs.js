@@ -1,6 +1,8 @@
+# Gamelab.js
+
 This project is a **TypeScript skeleton + reusable modules** for web games. It is designed for:
 - **AI-generated** game projects
-- Consistent project structure for easy review and module sharing
+- Consistent project structure for easy review, shared module development and usage
 - Strict separation between **rendering/scene** and **game logic**
 
 It depends on:
@@ -31,9 +33,10 @@ MyGame
 ├─►assets
 └─►src
     ├─►controllers
-    ├─►views
     ├─►events
+    ├─►models
     ├─►utilities
+    ├─►views
     ├─►MyGameApp.ts
     ├─►MyGameAssetIds.ts
     └─►MyGameConfig.ts
@@ -122,3 +125,17 @@ Modules must be added in app `registerModules()` method before it can be used.
 Before registration it can be modified
 - Asset urls can be overridden in `assetRequestList`
 - Di and view configuration items can be altered
+
+
+### DevUtils
+
+`IDevUtils` provides built-in development tools. 
+It is accessible via `this.devUtils` in your app class.
+Also `IDevUtils` is available via both DI containers (`diContainer.getInstance(IDevUtils)`).
+- `devUtils.logger` is an integrated logger
+    - Use `logger.log(message, type?)` to log messages with `LogTypes.Info`, `LogTypes.Warning`, or `LogTypes.Error`.
+    - Use `logger.show(true/false)` to toggle the on-screen log panel visibility.
+- `devUtils.statsPanel` is an on scren panel for FPS/render stats
+    - Use `statsPanel.show(true/false)` to toggle.
+- `devUtils.groundGrid` — 3D ground grid helper for the World scene. 
+    - Use `groundGrid.show(true/false)` to toggle visibility.

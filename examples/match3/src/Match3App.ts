@@ -3,8 +3,8 @@ import { GamelabsApp, GameCameraBinding, Grid, GridEvents, GridPreset, GridsMode
 import { Match3Config } from "./Match3Config.js";
 import { Match3GameGridBinding } from "./Match3GameGridBinding.js";
 import { Match3HudController } from "./controllers/Match3HudController.js";
-import { Match3GridService } from "./services/Match3GridService.js";
-import { Match3HudSignals } from "./services/Match3HudSignals.js";
+import { Match3GridService } from "./utilities/Match3GridService.js";
+import { Match3Events } from "./events/Match3Events.js";
 import { GameScreenView } from "./views/GameScreenView.pixi.js";
 import { Match3GridsView } from "./views/Match3GridsView.three.js";
 
@@ -12,7 +12,7 @@ export class Match3App extends GamelabsApp {
   private readonly _config = new Match3Config();
   private readonly _gameGridBinding = new Match3GameGridBinding();
   private readonly _gameCameraBinding = new GameCameraBinding();
-  private readonly _hudSignals = new Match3HudSignals();
+  private readonly _events = new Match3Events();
   private _cameraController: Topdown2dCameraController | null = null;
 
   public constructor(stageEl: HTMLElement) {
@@ -27,7 +27,7 @@ export class Match3App extends GamelabsApp {
   protected override configureDI(): void {
     this.diContainer.bindInstance(Match3Config, this._config);
     this.viewDiContainer.bindInstance(Match3Config, this._config);
-    this.diContainer.bindInstance(Match3HudSignals, this._hudSignals);
+    this.diContainer.bindInstance(Match3Events, this._events);
     this.diContainer.bindSingleton(Match3GridService, (resolver) => {
       const model = resolver.getInstance(GridsModel);
       const config = resolver.getInstance(Match3Config);

@@ -1,6 +1,6 @@
-import * as THREE from "three";
 import { GamelabsApp, LogTypes, GameCameraBinding, Topdown3dCameraController, IViewFactory } from "gamelabsjs";
-import { TicTacToeTurnManager, TicTacToeTurnManagerToken } from "./services/TicTacToeTurnManager";
+import { TicTacToeTurnManager, TicTacToeTurnManagerToken } from "./utilities/TicTacToeTurnManager";
+import { TurnEvents } from "./events/TurnEvents";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenController } from "./controllers/GameScreenController";
 import { GridOperations } from "./utilities/GridOperations";
@@ -27,6 +27,7 @@ export class TicTacToeApp extends GamelabsApp {
   protected override configureDI(): void {
     this.diContainer.bindInstance(TicTacToeConfig, this._config);
     this.diContainer.bindInstance(IViewFactory, this.viewFactory);
+    this.diContainer.bindInstance(TurnEvents, new TurnEvents());
     this.diContainer.bindSingleton(GridOperations, (resolver) => new GridOperations());
     this.diContainer.bindSingleton(TicTacToeTurnManagerToken, (resolver) => {
       const tm = new TicTacToeTurnManager();
@@ -58,8 +59,6 @@ export class TicTacToeApp extends GamelabsApp {
     this.world.addView(this._gameGridView);
 
     this._gameGridBinding.model.getGrid(this._config.boardId);
-
-    this.world.scene.fog = new THREE.Fog(0x0b0f14, 15, 50);
 
     this._gameCameraBinding.cameraManager.initialize(this.world);
     this._cameraController = new Topdown3dCameraController(this._gameCameraBinding.cameraManager);

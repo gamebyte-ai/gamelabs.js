@@ -1,10 +1,10 @@
-import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController, World } from "gamelabsjs";
+import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
-import { GameScreenController } from "./controllers/GameScreenViewController";
+import { GameScreenController } from "./controllers/GameScreenController";
 
 import { TopBarView } from "./views/TopBarView.pixi";
 import { TopBarController } from "./controllers/TopBarController";
@@ -36,7 +36,7 @@ export class HelloWorldApp extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
   }
-  
+
   protected override configureDI(): void {
     this.diContainer.bindInstance(HelloWorldConfig, this.config);
     this.diContainer.bindInstance(GameEvents, this.gameEvents);
@@ -57,29 +57,24 @@ export class HelloWorldApp extends GamelabsApp {
   }
 
   protected override postInitialize(): void {
-    this.devUtils.logger.log("Creating game screen");
-    if (!this.hud) {
-      this.logger.log("HUD is not initialized", LogTypes.Error);
-      throw new Error("HUD is not initialized");
+    if (!this.hud || !this.world) {
+      this.logger.log("HUD or World is not initialized", LogTypes.Error);
+      throw new Error("HUD or World is not initialized");
     }
 
-    this.viewFactory.createScreenView(GameScreenView, this.config.transitions.gameScreenEnter);
-
-    this.devUtils.logger.log("Creating cube");
-    if (!this.world) {
-      this.logger.log("Three world is not initialized", LogTypes.Error);
-      throw new Error("Three world is not initialized");
-    }
-
+    // Camera setup
     this._gameCameraBinding.cameraManager.initialize(this.world);
     this._orbitalController = new Orbital3dCameraController(this._gameCameraBinding.cameraManager);
     this._orbitalController.minDistance = this.config.minCameraDistance;
     this._orbitalController.maxDistance = this.config.maxCameraDistance;
-    this.viewDiContainer.bindInstance(Orbital3dCameraController, this._orbitalController);
+    this.diContainer.bindInstance(Orbital3dCameraController, this._orbitalController);
 
+    // Screen
+    this.viewFactory.createScreenView(GameScreenView, this.config.transitions.gameScreenEnter);
+
+    // Cube
     this._cubeView = this.viewFactory.createView(CubeView);
     this.world.addView(this._cubeView);
-
     this._orbitalController.followObject(this._cubeView, 8);
 
     this.canvas.addEventListener("wheel", this._onOrbitalWheel, { passive: true });
@@ -106,4 +101,3 @@ export class HelloWorldApp extends GamelabsApp {
     this._cubeView = null;
   }
 }
-

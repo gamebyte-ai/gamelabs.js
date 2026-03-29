@@ -5,11 +5,11 @@ import { GridsViewController } from "gamelabsjs";
 import { GameItem } from "../models/GameItem.js";
 import { GameItemObjectOptions } from "../views/GameItemObjectOptions.js";
 import { GameGridsView } from "../views/GameGridsView.three.js";
-import { TicTacToeTurnManagerToken, type TicTacToeTurnManager } from "../services/TicTacToeTurnManager.js";
+import { TicTacToeTurnManagerToken, type TicTacToeTurnManager } from "../utilities/TicTacToeTurnManager.js";
 import { TicTacToeConfig } from "../TicTacToeConfig.js";
 
 export class GameGridsViewController extends GridsViewController {
-  private _turnManager: import("../services/TicTacToeTurnManager.js").TicTacToeTurnManager | null = null;
+  private _turnManager: TicTacToeTurnManager | null = null;
   private _config: TicTacToeConfig | null = null;
 
   public override inject(resolver: IInstanceResolver): void {

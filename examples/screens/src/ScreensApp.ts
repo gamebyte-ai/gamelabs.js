@@ -1,4 +1,4 @@
-import { GamelabsApp, MainScreenAssetIds } from "gamelabsjs";
+import { GamelabsApp, MainScreenAssetIds, UnsubscribeBag } from "gamelabsjs";
 
 import { MainScreenBinding, MainScreenEvents, MainScreenView } from "gamelabsjs";
 import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents } from "gamelabsjs";
@@ -9,8 +9,7 @@ export class ScreensApp extends GamelabsApp {
   private readonly mainScreenBinding = new MainScreenBinding();
   private readonly levelProgressScreenBinding = new LevelProgressScreenBinding(new LevelProgressModel());
   private readonly config = new ScreensConfig();
-  private unsubscribePlayClick: (() => void) | null = null;
-  private unsubscribeBackClick: (() => void) | null = null;
+  private readonly subs = new UnsubscribeBag();
 
   constructor(stageEl: HTMLElement) {
     super({ mount: stageEl, sharedContext: true });
@@ -22,32 +21,22 @@ export class ScreensApp extends GamelabsApp {
     this.addModule(this.levelProgressScreenBinding);
   }
 
-  protected override loadAssets(): void {
-  }
-
   protected override postInitialize(): void {
     const mainEvents = this.diContainer.getInstance(MainScreenEvents);
-    this.unsubscribePlayClick = mainEvents.onPlayClick(() => {
+    this.subs.add(mainEvents.onPlayClick(() => {
       this.showLevelProgressScreen();
-    });
+    }));
 
     const levelProgressEvents = this.diContainer.getInstance(LevelProgressScreenEvents);
-    this.unsubscribeBackClick = levelProgressEvents.onBackClick(() => {
+    this.subs.add(levelProgressEvents.onBackClick(() => {
       this.showMainScreen();
-    });
+    }));
 
     this.viewFactory.createScreenView(MainScreenView, this.config.transitions.mainScreenIntro);
   }
 
-  protected override onStep(timestepSeconds: number): void {
-    super.onStep(timestepSeconds);
-  }
-
   protected override preDestroy(): void {
-    this.unsubscribePlayClick?.();
-    this.unsubscribePlayClick = null;
-    this.unsubscribeBackClick?.();
-    this.unsubscribeBackClick = null;
+    this.subs.flush();
   }
 
   private showLevelProgressScreen(): void {

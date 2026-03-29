@@ -1,45 +1,38 @@
 import * as THREE from "three";
-import { WorldViewBase, LogTypes, Orbital3dCameraController, POINTER_INPUT_LAYER, type IPointerInputHandler } from "gamelabsjs";
-import type { IInstanceResolver } from "gamelabsjs";
+import { WorldViewBase, LogTypes, POINTER_INPUT_LAYER, type IPointerInputHandler, type Unsubscribe } from "gamelabsjs";
 import type { ICubeView } from "./ICubeView";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { HelloWorldAssetIds } from "../HelloWorldAssetIds";
 
 export class CubeView extends WorldViewBase implements ICubeView, IPointerInputHandler {
   private _model: THREE.Object3D | null = null;
-  private _orbitalController: Orbital3dCameraController | null = null;
-  private _orbitalDragState = { isDragging: false, lastX: 0, lastY: 0 };
-
-  public inject(resolver: IInstanceResolver): void {
-    super.inject(resolver);
-    this._orbitalController = resolver.getInstance(Orbital3dCameraController);
-  }
+  private _dragState = { isDragging: false, lastX: 0, lastY: 0 };
+  private readonly _dragListeners = new Set<(dx: number, dy: number) => void>();
 
   public onPointerDown(event: PointerEvent, _onThisObject: boolean): void {
     if (event.button !== 0) return;
-    this._orbitalDragState.isDragging = true;
-    this._orbitalDragState.lastX = event.clientX;
-    this._orbitalDragState.lastY = event.clientY;
+    this._dragState.isDragging = true;
+    this._dragState.lastX = event.clientX;
+    this._dragState.lastY = event.clientY;
     (event.currentTarget as HTMLCanvasElement).setPointerCapture(event.pointerId);
   }
 
   public onPointerMove(event: PointerEvent, _onThisObject: boolean): void {
-    if (!this._orbitalDragState.isDragging || !this._orbitalController) return;
-    const dx = (event.clientX - this._orbitalDragState.lastX) * 0.005;
-    const dy = (event.clientY - this._orbitalDragState.lastY) * 0.005;
-    this._orbitalController.addAzimuth(-dx);
-    this._orbitalController.addPitch(dy);
-    this._orbitalDragState.lastX = event.clientX;
-    this._orbitalDragState.lastY = event.clientY;
+    if (!this._dragState.isDragging) return;
+    const dx = (event.clientX - this._dragState.lastX) * 0.005;
+    const dy = (event.clientY - this._dragState.lastY) * 0.005;
+    this._dragState.lastX = event.clientX;
+    this._dragState.lastY = event.clientY;
+    for (const cb of this._dragListeners) cb(dx, dy);
   }
 
   public onPointerUp(event: PointerEvent, _onThisObject: boolean): void {
-    this._orbitalDragState.isDragging = false;
+    this._dragState.isDragging = false;
   }
 
   public onPointerCancel(event: PointerEvent): void {
     if (event.button !== 0) return;
-    this._orbitalDragState.isDragging = false;
+    this._dragState.isDragging = false;
   }
 
   public postInitialize(): void {
@@ -77,9 +70,14 @@ export class CubeView extends WorldViewBase implements ICubeView, IPointerInputH
     });
   }
 
+  onDrag(cb: (dx: number, dy: number) => void): Unsubscribe {
+    this._dragListeners.add(cb);
+    return () => { this._dragListeners.delete(cb); };
+  }
+
   public preDestroy(): void {
+    this._dragListeners.clear();
     this._model = null;
-    this._orbitalController = null;
   }
 
   private trySetMaterialColor(material: THREE.Material, hex: number): void {

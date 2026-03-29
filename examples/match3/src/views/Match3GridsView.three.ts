@@ -3,7 +3,7 @@ import gsap from "gsap";
 import type { GridObject, IInstanceResolver } from "gamelabsjs";
 import { GridsView, type GridCellObject } from "gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
-import type { GravityMove, RefillSpawn } from "../services/Match3GridService.js";
+import type { GravityMove, RefillSpawn } from "../utilities/Match3GridService.js";
 import { Match3GemItemObject } from "./Match3GemItemObject.js";
 
 export class Match3GridsView extends GridsView {

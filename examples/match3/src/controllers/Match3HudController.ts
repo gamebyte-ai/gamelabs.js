@@ -1,27 +1,28 @@
-import type { IInstanceResolver, IViewController } from "gamelabsjs";
-import { Match3HudSignals } from "../services/Match3HudSignals.js";
-import type { GameScreenView } from "../views/GameScreenView.pixi.js";
+import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "gamelabsjs";
+import { Match3Events } from "../events/Match3Events.js";
+import type { IGameScreenView } from "../views/IGameScreenView.js";
 
 /**
  * HUD-only controller: score display. Gameplay lives in {@link Match3GridsViewController}.
  */
-export class Match3HudController implements IViewController<GameScreenView> {
-  private _view: GameScreenView | null = null;
-  private _hudSignals: Match3HudSignals | null = null;
+export class Match3HudController implements IViewController<IGameScreenView> {
+  private _view: IGameScreenView | null = null;
+  private _events: Match3Events | null = null;
+  private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
-    this._hudSignals = resolver.getInstance(Match3HudSignals);
+    this._events = resolver.getInstance(Match3Events);
   }
 
-  public initialize(view: GameScreenView): void {
+  public initialize(view: IGameScreenView): void {
     this._view = view;
-    this._hudSignals!.setScoreListener((score) => view.setScore(score));
     view.setScore(0);
+    this._subs.add(this._events?.onScoreChanged((score) => this._view?.setScore(score)));
   }
 
   public destroy(): void {
-    this._hudSignals?.setScoreListener(null);
+    this._subs.flush();
     this._view = null;
-    this._hudSignals = null;
+    this._events = null;
   }
 }

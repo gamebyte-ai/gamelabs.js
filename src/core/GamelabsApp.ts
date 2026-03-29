@@ -87,7 +87,7 @@ export class GamelabsApp {
     return this._logger;
   }
 
-  protected get devUtils(): DevUtils {
+  protected get devUtils(): IDevUtils {
     if (!this._devUtils) {
       this._logger.log("DevUtils is not initialized", LogTypes.Error);
       throw new Error("DevUtils is not initialized");
@@ -152,19 +152,19 @@ export class GamelabsApp {
     await this.createHud();
 
     this._devUtils = new DevUtils(this.world!, this.hud!, this._logger);
-    this._assetManager = new AssetManager(this._logger);
-    this._viewFactory = new ViewFactory<IInstanceResolver>(this._logger, this.diContainer, this.viewDiContainer);
-
     this.diContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
+    this.viewDiContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
 
+    this._assetManager = new AssetManager(this._logger);
     this.viewDiContainer.bindInstance(AssetManager, this._assetManager);
+
+    this._viewFactory = new ViewFactory<IInstanceResolver>(this._logger, this.diContainer, this.viewDiContainer);
+    this._viewFactory.setViewContainers(this.world, this.hud);
     this.viewDiContainer.bindInstance(IViewFactory, this._viewFactory);
 
     this._inputManager = new InputManager(this.canvas, this.hud, this.world);
     this.viewDiContainer.bindInstance(IInputManager, this._inputManager);
-
-    this._viewFactory.setViewContainers(this.world, this.hud);
-
+    
     this.registerModules();
 
     for (const moduleBinding of this._moduleList) {

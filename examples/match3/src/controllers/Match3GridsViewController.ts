@@ -2,15 +2,15 @@ import type { Grid, GridItem, IGridView, IInstanceResolver } from "gamelabsjs";
 import { GridsViewController } from "gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
 import { Match3GridItem } from "../models/Match3GridItem.js";
-import { Match3GridService } from "../services/Match3GridService.js";
-import { Match3HudSignals } from "../services/Match3HudSignals.js";
+import { Match3GridService } from "../utilities/Match3GridService.js";
+import { Match3Events } from "../events/Match3Events.js";
 import { Match3GemItemObjectOptions } from "../views/Match3GemItemObjectOptions.js";
 import { Match3GridsView } from "../views/Match3GridsView.three.js";
 
 export class Match3GridsViewController extends GridsViewController {
   private _gridService: Match3GridService | null = null;
   private _config: Match3Config | null = null;
-  private _hudSignals: Match3HudSignals | null = null;
+  private _match3Events: Match3Events | null = null;
   private _gridsView: Match3GridsView | null = null;
   private _selected: { col: number; row: number } | null = null;
   private _inputLocked = false;
@@ -19,7 +19,7 @@ export class Match3GridsViewController extends GridsViewController {
     super.inject(resolver);
     this._gridService = resolver.getInstance(Match3GridService);
     this._config = resolver.getInstance(Match3Config);
-    this._hudSignals = resolver.getInstance(Match3HudSignals);
+    this._match3Events = resolver.getInstance(Match3Events);
   }
 
   public override initialize(view: IGridView): void {
@@ -43,8 +43,8 @@ export class Match3GridsViewController extends GridsViewController {
     const svc = this._gridService;
     const cfg = this._config;
     const view = this._gridsView;
-    const signals = this._hudSignals;
-    if (!svc || !cfg || !view || !signals || this._inputLocked) return;
+    const events = this._match3Events;
+    if (!svc || !cfg || !view || !events || this._inputLocked) return;
     if (gridId !== Match3Config.GRID_ID) return;
 
     if (this._selected === null) {
@@ -70,7 +70,7 @@ export class Match3GridsViewController extends GridsViewController {
         if (svc.peekSwapCreatesMatch(r0, c0, row, col)) {
           await view.animateValidSwap(gridId, r0, c0, row, col);
           svc.applySwap(r0, c0, row, col);
-          await this._runMatchCascade(svc, signals, view, gridId);
+          await this._runMatchCascade(svc, events, view, gridId);
         } else {
           await view.animateInvalidSwap(gridId, r0, c0, row, col);
         }
@@ -84,17 +84,17 @@ export class Match3GridsViewController extends GridsViewController {
     view.updateGemSelection(gridId, this._selected);
   }
 
-  private async _runMatchCascade(svc: Match3GridService, signals: Match3HudSignals, view: Match3GridsView, gridId: number): Promise<void> {
+  private async _runMatchCascade(svc: Match3GridService, events: Match3Events, view: Match3GridsView, gridId: number): Promise<void> {
     while (svc.findMatches().length > 0) {
       const matches = svc.findMatches();
       await view.animateClearMatches(gridId, matches);
       svc.clearMatchedCells(matches);
-      signals.notifyScore(svc.score);
+      events.emitScoreChanged(svc.score);
       const moves = svc.applyGravity();
       await view.animateGravityMoves(gridId, moves);
       const spawns = svc.refillEmpty();
       await view.animateRefillSpawns(gridId, spawns);
-      signals.notifyScore(svc.score);
+      events.emitScoreChanged(svc.score);
     }
   }
 
@@ -103,7 +103,7 @@ export class Match3GridsViewController extends GridsViewController {
     this._gridsView = null;
     this._gridService = null;
     this._config = null;
-    this._hudSignals = null;
+    this._match3Events = null;
     this._selected = null;
     super.destroy();
   }
