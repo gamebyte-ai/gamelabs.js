@@ -1,127 +1,119 @@
-# Gamelabsjs
+# Gamelabs.js
 
-Gamelabsjs is a **TypeScript project skeleton + reusable modules** for web games that combine:
+A TypeScript skeleton + reusable modules for web games. Designed for:
+- **AI-generated** game projects
+- Consistent project structure for easy review, shared module development and usage
+- Strict separation between **rendering/scene** and **game logic**
 
-- **Three.js** for 3D (world / scene graph)
+This is **not** a full engine. It intentionally exposes Three/Pixi directly and provides a small set of opinionated primitives for program flow and wiring.
+
+## Dependencies
+
+- **Three.js** for 3D (world / scene)
 - **PixiJS** for 2D (HUD / UI)
+- **GSAP** for animations
 
-It is designed primarily for **AI-generated game projects** where **humans review every output**, so the main value is **consistency**:
+Peer dependencies: `three`, `pixi.js`, `@pixi/layout`, `@pixi/ui`
 
-- consistent program flow across projects
-- strict separation between **rendering/scene** and **game logic**
-- feature modules that can be dropped into new projects without re-implementing the same scaffolding
+## Architecture
 
-## What this is (and isn’t)
+- **GamelabsApp** — base app class; extend it and override lifecycle methods
+- **Two DI containers** — `diContainer` for controllers/utilities/events, `viewDiContainer` for views
+- **View/Controller separation** — views render and handle input; controllers own behavior and state
+- **Two view layers** — World views (Three.js) and Hud views (PixiJS)
+- **Modules** — reusable feature bundles with DI, views, and assets
 
-- **This is**: a small set of opinionated primitives that enforce a repeatable app structure (lifecycle hooks, view/controller wiring, DI, asset loading, screen navigation).
-- **This is not**: a full game engine. It intentionally does not hide Three/Pixi behind a giant abstraction layer.
+## Quick start
 
-## Core primitives (the “opinionated” part)
+```ts
+import { GamelabsApp } from "gamelabsjs";
 
-- **`GamelabsApp`**: the app lifecycle + main loop.
-  - Creates `World` (Three) and `Hud` (Pixi)
-  - Runs hooks in a consistent order: register modules, configure DI, configure views, enqueue assets, then start the game
-- **`World`**: a thin Three.js wrapper that owns renderer/scene/camera and implements `IViewContainer`.
-- **`Hud`**: a thin Pixi wrapper that owns the Pixi `Application`, layering, optional stats overlay, and implements `IViewContainer`.
-- **`ViewFactory` + `IViewFactory`**: centralized wiring for View ↔ Controller pairs. Views receive a restricted factory so they can create child views/screens without having access to global registration.
-- **`ScreenView` + `IScreenView`**: optional “screen” concept for high-level navigation (menus, gameplay, etc.); extends `IView`.
-- **`ModuleBinding`**: a portability base for feature modules (configure DI, register views, declare assets).
+class MyApp extends GamelabsApp {
+  constructor(stageEl: HTMLElement) {
+    super({ mount: stageEl, sharedContext: true });
+  }
+}
 
-## Typical flow
-
-At runtime you generally:
-
-1. `await app.initialize()` (creates world/hud, configures DI/views/modules, loads assets)
-2. `app.mainLoop()` (ticks `UpdateService`, then renders world and (optionally) HUD)
-
-See `examples/` for working reference apps.
-
-`initialize()` runs, in order:
-
-1. `registerModules()` (app calls `addModule(...)`)
-2. `module.configureDI(...)` for all modules, then app `configureDI()`
-3. `module.configureViews(...)` for all modules, then app `configureViews()`
-4. `assetLoader.loadAll(module.getAssetRequests())` for all modules, then app `loadAssets()`
-5. wait until all enqueued assets are loaded, then `postInitialize()`
-
-## Install (as a dependency)
-
-`gamelabsjs` exposes `three`, `pixi.js`, `@pixi/layout`, and `@pixi/ui` as peer dependencies.
-
-```bash
-npm i gamelabsjs three pixi.js @pixi/layout @pixi/ui
+const app = new MyApp(document.getElementById("stage")!);
+await app.initialize();
+app.mainLoop();
 ```
 
-## Developing this repo
+## App lifecycle
 
-```bash
-npm i
-npm run build
-npm run typecheck
+Your `MyGameApp` extends `GamelabsApp` and overrides these methods (called in this order):
+
+| Method | Purpose |
+|--------|---------|
+| `registerModules()` | Register `ModuleBinding` instances via `addModule()` |
+| `configureDI()` | Bind instances and singletons to DI containers |
+| `configureViews()` | Register view/controller pairs via `viewFactory.register()` |
+| `loadAssets()` | Enqueue app-specific assets in `assetManager` |
+| `postInitialize()` | Create screens/views, subscribe to events (assets are loaded) |
+| `onStep(dt)` | Per-frame logic hook |
+| `preDestroy()` | Cleanup owned resources |
+
+## Project structure
+
+```
+MyGame/src
+├── controllers/       FooController.ts
+├── events/            FooEvents.ts
+├── models/            FooModel.ts
+├── utilities/         FooService.ts
+├── views/             IFooView.ts, FooView.pixi.ts, FooView.three.ts
+├── MyGameApp.ts
+├── MyGameAssetIds.ts
+└── MyGameConfig.ts
 ```
 
-For iterative work (rebuild `dist/` on change):
+### File naming conventions
 
-```bash
-npm run dev
-```
-
-## Running the examples
-
-The examples are Vite apps that alias `gamelabsjs` to the repo’s local `dist/index.js`, so build/watch the repo first.
-
-Hello World:
-
-```bash
-npm run build
-cd examples/helloworld
-npm i
-npm run dev
-```
-
-Screens:
-
-```bash
-npm run build
-cd examples/screens
-npm i
-npm run dev
-```
-
-TicTacToe:
-
-```bash
-npm run build
-cd examples/tictactoe
-npm i
-npm run dev
-```
-
-Match-3:
-
-```bash
-npm run build
-cd examples/match3
-npm i
-npm run dev
-```
+- Interfaces: `IFoo.ts` (prefix with `I`)
+- HUD views: `FooView.pixi.ts` (suffix `.pixi.ts`)
+- World views: `FooView.three.ts` (suffix `.three.ts`)
+- Controllers: `FooController.ts`
+- Events: `FooEvents.ts`
+- Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
 
 ## Repository layout
 
-- `src/core/`: primitives (app lifecycle, rendering layers, DI, views/controllers, screens)
-- `src/modules/`: reusable feature modules (drop-in screens, controllers, events, assets)
-- `examples/`: reference apps that show the intended structure and wiring
+```
+src/
+├── core/          App lifecycle, DI, views/controllers, world, hud, screens, assets, input
+├── modules/       Reusable feature modules
+│   ├── gamecamera/           Camera controllers (topdown, front, isometric, orbital)
+│   ├── gamegrid/             Grid system with models, views, cell/item objects
+│   ├── mainscreen/           Main menu screen with play/settings buttons
+│   └── levelprogressscreen/  Level selection screen with progress
+└── index.ts       Barrel exports
+```
 
-## Modules and assets (new pattern)
+## Examples
 
-Feature modules are written as `ModuleBinding` subclasses:
+| Example | Description |
+|---------|-------------|
+| `helloworld` | 3D cube with orbital camera and HUD controls |
+| `screens` | Screen navigation using built-in modules |
+| `tictactoe` | TicTacToe with gamegrid module, win detection |
+| `match3` | Match-3 puzzle with animated gem board |
 
-- **DI and view registration**: implement `configureDI(diContainer)` and `configureViews(viewFactory)`
-- **Assets**: store module `AssetRequest`s in the binding (internally a protected `_assets` map) so the app can bulk-load them via `getAssetRequests()`
-- **Theming/overrides**: before `addModule(binding)`, call `binding.overrideAssetUrl(assetId, url)` to swap module assets (see Screens overriding the main screen logo)
+```bash
+npm run build                    # Build library first
+cd examples/<name> && npm i && npm run dev
+```
 
-## Design rules (for keeping projects reviewable)
+## Commands
 
-- Views render; controllers handle behavior. Don’t bury “game logic” inside rendering classes.
-- New features should land as **modules** whenever they can be reused across projects.
-- Keep module APIs small and explicit: events/models in DI, view contracts as interfaces, wiring in module bindings.
+```bash
+npm run build       # Build library (tsup)
+npm run typecheck   # Type check (tsc --noEmit)
+npm run dev         # Watch mode (rebuild on change)
+```
+
+## Documentation
+
+- **DeveloperNotes.md** — Full architecture, implementation details, naming conventions, and rules
+- **ClaudeNotes.txt** — Code review notes and remaining items
+- **Module READMEs** — `src/modules/*/README.md` for per-module documentation
+- **Example READMEs** — `examples/*/README.md` for per-example documentation

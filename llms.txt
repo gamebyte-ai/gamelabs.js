@@ -1,134 +1,51 @@
 # gamelabsjs
-`gamelabsjs` is a **TypeScript project skeleton + reusable modules** for web games that combine **Three.js (3D world)** and **PixiJS (2D HUD/UI)**.
 
-It is designed primarily for **AI-generated game projects** where **humans review every output**. The point is consistency:
+TypeScript skeleton + reusable modules for web games. Three.js (3D world) + PixiJS (2D HUD/UI) + GSAP (animations). Designed for AI-generated game projects with human review.
 
-- All projects follow a similar structure so review is fast.
-- Rendering/scene management stays separate from game logic.
-- Features land as reusable modules so they don’t get re-built for every project.
+## Core concepts
 
-This is **not** a full engine. It intentionally exposes Three/Pixi directly and provides a small set of opinionated primitives for program flow and wiring.
+- `GamelabsApp`: base app class. Extend it, override lifecycle methods.
+- Two DI containers: `diContainer` (controllers/utilities/events), `viewDiContainer` (views).
+- View/Controller separation: views render + handle input, controllers own behavior + state.
+- Two view layers: World (Three.js, `WorldViewBase`), Hud (PixiJS, `HudViewBase`, `ScreenView`).
+- Modules: reusable feature bundles via `ModuleBinding` (DI + views + assets).
+- Events: `Set<cb>` + `Unsubscribe` pattern, cleanup with `UnsubscribeBag`.
+- InjectionToken pattern: `export const IFoo = new InjectionToken<IFoo>("IFoo")`.
 
-- Minimal **dependency injection** container (`DIContainer`) with singleton bindings
-- **View ↔ controller wiring** via `ViewFactory` (`IView` + `IViewController`)
-- Clear separation: **controllers depend on view interfaces**, not concrete rendering code
-- **Modules** via `ModuleBinding` (DI + views + assets as a reusable unit)
-- Two-layer rendering:
-  - **World (3D)**: Three.js (`World`, `WorldViewBase`)
-  - **HUD / UI**: PixiJS (`Hud`, `HudViewBase`, `ScreenView`)
+## App lifecycle (in order)
 
-## Non-negotiable structure rules (for keeping projects reviewable)
-- Put rendering and scene graph code in Views (`WorldViewBase` / `HudViewBase` / `ScreenView`), not in controllers.
-- Put behavior/state orchestration in Controllers (and Models), not in views.
-- Use Events (in DI) for cross-feature communication; avoid controllers calling each other directly.
-- Prefer reusable Modules (`ModuleBinding`) for feature-sized work. If it’s likely to be reused, it should be a module.
-- Keep module APIs small and explicit (view contracts as interfaces; events/models in DI; wiring in the module binding).
+1. `registerModules()` — `addModule(binding)`
+2. `configureDI()` — bind to DI containers
+3. `configureViews()` — `viewFactory.register<View, Controller>(View, Controller)`
+4. `loadAssets()` — `assetManager.load(type, id, url)`
+5. `postInitialize()` — create screens/views, subscribe events (assets loaded)
+6. `onStep(dt)` — per-frame hook
+7. `preDestroy()` — cleanup
 
-## Quick start (mirrors the examples)
-- Examples: `helloworld` (Three + Pixi), `screens` (Pixi screens), `tictactoe` (gamegrid module), `match3` (2D Match-3, Pixi)
-- Create your app by extending `GamelabsApp`
-- Call `await app.initialize()` then `app.mainLoop()`
-- Register modules in `registerModules()` and register app-specific DI/views/assets via lifecycle hooks
+## File naming
 
-## App class (`GamelabsApp`)
-Your `YourGameApp` extends `GamelabsApp` and typically overrides:
-- `registerModules()`: call `this.addModule(...)` to register `ModuleBinding` instances
-- `configureDI()`: bind app/services/events into `diContainer` (runs after registered modules configure DI)
-- `configureViews()`: register view/controller pairs into `viewFactory` (runs after registered modules configure views)
-- `loadAssets()`: enqueue app-specific assets in `assetLoader` (runs after module asset requests are enqueued)
-- `postInitialize()`: create initial screens/views and hook event subscriptions (called after assets are loaded)
-- `onStep(timestepSeconds)`: per-frame logic hook (called after `updateService.tick()`)
-- `preDestroy()`: unsubscribe + cleanup owned resources
+- `IFoo.ts` (interfaces), `FooView.pixi.ts` (HUD), `FooView.three.ts` (world), `FooController.ts`, `FooEvents.ts`
+- Asset IDs: enum with namespaced values `"MyGame.ItemName"`
 
-Notes:
-- If you want Pixi + Three to share the same WebGL context, pass `{ sharedContext: true }` to `super(...)`.
-- `initialize()` creates `world` + `hud`, sets view containers, runs `registerModules()`, then runs module hooks + app hooks, waits for assets, then calls `postInitialize()`.
+## Project layout
 
-## Assets (`AssetLoader`, `AssetRequest`)
-Create an assets catalog for your game/module:
-- Use `AssetRequest` + `AssetTypes` to describe what to load and where (URLs).
-- App-specific assets: call `assetLoader.load(...)` inside app `loadAssets()`.
-- Module assets: store `AssetRequest`s on your `ModuleBinding` (see Modules section). The app will bulk-load them automatically.
+`controllers/`, `events/`, `models/`, `utilities/`, `views/` + `MyGameApp.ts`, `MyGameAssetIds.ts`, `MyGameConfig.ts`
 
-Overriding module assets:
-- Module bindings can support theming/white-labeling by calling `binding.overrideAssetUrl(assetId, newUrl)` before `addModule(binding)`.
+## Rules
 
-Practical note:
-- `gamelabsjs` expects consumers to install peer deps: `three`, `pixi.js`, `@pixi/layout`, `@pixi/ui`.
+- Views must NOT access `diContainer`. Controllers must NOT touch rendering objects.
+- Controllers reference view interfaces (`IMyView`), not concrete classes.
+- Cross-feature communication through event classes only. No direct controller-to-controller calls.
+- Scene setup (fog, lights) belongs in views, not app class.
+- No `services/` folder. Use `utilities/` and `events/`.
+- Event classes use `Set<cb>` + `Unsubscribe`. Use `UnsubscribeBag` for cleanup.
+- No empty lifecycle overrides. Only override when adding behavior.
+- Modules must not depend on app-specific code.
 
-## Config (project constants / tuning)
-Keep user-defined values in a config object (transitions, timing, tuning values, limits, etc.).
-This keeps controllers lean and avoids magic numbers.
+## Built-in modules
 
-## Events (app/controller communication)
-Use events to decouple controllers from each other and from app/model code.
+gamecamera (camera controllers), gamegrid (grid system), mainscreen (main menu), levelprogressscreen (level select).
 
-Typical pattern:
-- Define event classes (e.g. `GameEvents`, `MainScreenEvents`)
-- Bind them into `diContainer` in `configureDI()`
-- Controllers resolve them via `resolver.getInstance(...)` and subscribe/unsubscribe as needed
+## Commands
 
-## Views (`IView`, base view classes)
-Views are responsible for rendering and user interaction details.
-
-- `IView` lifecycle is wired by `ViewFactory`:
-  - `view.initialize(viewFactory, assetLoader)`
-  - `view.postInitialize()`
-  - `view.setController(controller)`
-  - `controller.initialize(view, resolver)`
-- Base classes implement the standard wiring fields and default destruction:
-  - `WorldViewBase` (Three.js) for world views
-  - `HudViewBase` (PixiJS) for HUD views
-  - `ScreenView` (PixiJS) for full-screen HUD screens + transitions
-
-Guidelines:
-- Expose a **small interface** (e.g. `ICubeView`) for controllers: methods like `setColor()`, `setVisible()`, `playIntro()`, etc.
-- Prefer “view creates subviews” (composition) where helpful (see HelloWorld `GameScreenView` creating `TopBarView`/`DebugBarView`).
-
-## Input pointer handling (3D world)
-
-For 3D world objects that need pointer (mouse/touch) interaction, use `IInputManager` and `IPointerInputHandler`:
-
-- **`IInputManager`**: `addPointerHandler(handler)`, `removePointerHandler(handler)`. Provided by `WorldViewBase.inputManager`.
-- **`IPointerInputHandler`**: implement `onPointerDown(event, onThisObject)`, `onPointerMove`, `onPointerUp`, `onPointerCancel`. The `onThisObject` flag is true when the raycast hit this object (vs. a child).
-
-Base class: extend `WorldInteractiveObject` (extends `THREE.Group`). Call `setInputManager(inputManager)` in the constructor. The object auto-registers when added to the scene and unregisters when removed.
-
-For pickable objects:
-- Create an invisible collider mesh (e.g. `BoxGeometry`) and add it to the scene.
-- Call `mesh.layers.enable(POINTER_INPUT_LAYER)` so the input system's raycast can hit it.
-- Implement `IPointerInputHandler` on your object; handlers are invoked when the pointer hits that layer.
-
-**GameGrid module** (see `tictactoe` example): the grid provides `IGridObjectListener` with callbacks like `onGridCellPointerDown(gridId, col, row, event)`, `onGridItemPointerDown(itemId, event)`, etc. Customize by:
-
-1. Extending `GridCellObject` or `GridItemObject`, implementing `IPointerInputHandler`, overriding `onPointerDown` to call `_pointerListener.onGridCellPointerDown(...)` when `onThisObject` is true.
-2. Adding a collider in `createCollider()` with `mesh.layers.enable(POINTER_INPUT_LAYER)`.
-3. Overriding `GridsView` (e.g. `GameGridsView`) and wiring `onGridCellPointerDown` to a handler; expose `setCellPointerDownHandler(fn)` so the controller can connect in `initialize(view)`.
-4. Using a custom `GridObjectCreator` that instantiates your cell/item classes (passing `pointerListener` and `inputManager`).
-
-## Controllers (`IViewController`)
-Controllers orchestrate behavior and app wiring.
-
-- Implement `IViewController<TView>`
-- `initialize(view, resolver)` is called after the view is created and wired
-- `destroy()` is called when the view is destroyed (base views call `controller.destroy()`)
-
-## Modules (`ModuleBinding`)
-Modules are reusable bundles that can register:
-- DI bindings: `configureDI(diContainer)`
-- View registrations: `configureViews(viewFactory)`
-- Assets: provide `AssetRequest`s via `getAssetRequests()` (internally backed by a protected `_assets` map)
-
-Apps compose modules by registering them in `registerModules()`:
-- Create/store module bindings as fields (recommended if they hold state/models)
-- In `registerModules()`, call `this.addModule(this.someModuleBinding)` in the desired order
-
-`GamelabsApp.initialize()` will then call, in order:
-- `module.configureDI(...)` for all modules, then app `configureDI()`
-- `module.configureViews(...)` for all modules, then app `configureViews()`
-- `assetLoader.loadAll(module.getAssetRequests())` for all modules, then app `loadAssets()`
-
-## Repository coding constraints (keep diffs predictable)
-- Use access modifiers on class members.
-- Prefix private/protected fields with `_`.
-- Avoid splitting method params/args/imports across multiple lines.
+`npm run build` (tsup), `npm run typecheck` (tsc --noEmit). Examples: `cd examples/<name> && npm i && npm run dev`.
