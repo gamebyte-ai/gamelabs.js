@@ -27,21 +27,55 @@ It depends on:
 - Modules system for sharing features between projects in a consistent structure
 
 
-## Game Project folder structure
+### File naming conventions
+- Interfaces: `IFoo.ts` (prefix with `I`)
+- HUD views: `FooView.pixi.ts` (suffix `.pixi.ts`)
+- World views: `FooView.three.ts` (suffix `.three.ts`)
+- Controllers: `FooController.ts`
+- Events: `FooEvents.ts`
+- Models: `Foo.ts` or `FooModel.ts`
+- Config: `MyGameConfig.ts`
+- Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
+
+
+## Library folder structure (`src/`)
 ```
-MyGame
-├─►assets
-└─►src
-    ├─►controllers
-    ├─►events
-    ├─►models
-    ├─►utilities
-    ├─►views
-    ├─►MyGameApp.ts
-    ├─►MyGameAssetIds.ts
-    └─►MyGameConfig.ts
+src
+├──core
+│   ├──assets/            AssetManager, AssetRequest, AssetTypes, IAssetManager
+│   ├──dev/               Logger, LogPanel, DevUtils, StatsPanel, GroundGrid
+│   ├──di/                DIContainer, InjectionToken, IInstanceResolver
+│   ├──events/            Unsubscribe, UnsubscribeBag
+│   ├──hud/               Hud, HudViewBase, IHud
+│   ├──input/             InputManager, IPointerInputHandler
+│   ├──services/          UpdateService
+│   ├──ui/                ScreenView, ScreenTransition, IScreenView
+│   ├──views/             ViewFactory, IView, IViewController, IViewFactory
+│   ├──world/             World, WorldViewBase, IWorld
+│   ├──GamelabsApp.ts     Base app class
+│   └──ModuleBinding.ts   Base module binding class
+├──modules
+│   ├──gamecamera/        GameCameraBinding, GameCameraManager, camera controllers
+│   ├──gamegrid/          GameGridBinding, Grid, GridsModel, GridsView, GridsViewController
+│   ├──mainscreen/        MainScreenBinding, MainScreenView, MainScreenController
+│   └──levelprogressscreen/  LevelProgressScreenBinding, LevelProgressScreenView
+└──index.ts               Barrel exports
 ```
 
+## Game project folder structure
+```
+MyGame
+├──assets
+└──src
+    ├──controllers              MyScreenController.ts, MyGridController.ts
+    ├──events                   MyEvents.ts
+    ├──models                   MyModel.ts
+    ├──utilities                MyService.ts, MyUtilities.ts, MyOperations.ts
+    ├──views                    IMyScreenView.ts, MyScreenView.pixi.ts, IMyGridView.ts, MyGridView.three.ts
+    ├──MyGameApp.ts             (extends GamelabsApp)
+    ├──MyGameAssetIds.ts        (unique asset ids with enums)
+    └──MyGameConfig.ts          (initial values, tweaks, timings, sizes, animation values, ...)
+```
 
 ## Implementation details
 
@@ -66,7 +100,7 @@ There are two DI containers
 ### App
 
 Your `MyGameApp` class extends `GamelabsApp` and implements following methods:
-- Initialization methods (will be call in this order)
+- Initialization methods (will be called in this order)
     - `registerModules()`: register `ModuleBinding` instances with `addModule()` method
     - `configureDI()`:  binding injection instances and types
     - `configureViews()`: register view/controller pairs into `viewFactory`
@@ -97,7 +131,7 @@ Utilities (services, manager, tools, ...) are used by view controllers and utili
 ### View controllers
 
  - View controller implements IViewController (`class MyViewController implements IViewController<IMyView>`)
- - View controller listens view and other events, handle view behaviours and responses via `IView` child interfaces
+ - View controller listens view and other events, handle view behaviors and responses via `IView` child interfaces
 
 ### Using views
 
@@ -112,9 +146,36 @@ Utilities (services, manager, tools, ...) are used by view controllers and utili
 - They have transition after creation and before destruction (interaction should be blocked while `isInTransition` is true)
 
 
+### DevUtils
+
+`IDevUtils` provides built-in development tools. 
+It is accessible via `this.devUtils` in your app class.
+Also `IDevUtils` is available via both DI containers (`diContainer.getInstance(IDevUtils)`).
+- `devUtils.logger` is an integrated logger
+    - Use `logger.log(message, type?)` to log messages with `LogTypes.Info`, `LogTypes.Warning`, or `LogTypes.Error`.
+    - Use `logger.show(true/false)` to toggle the on-screen log panel visibility.
+- `devUtils.statsPanel` is an on screen panel for FPS/render stats
+    - Use `statsPanel.show(true/false)` to toggle.
+- `devUtils.groundGrid` — 3D ground grid helper for the World scene.
+    - Use `groundGrid.show(true/false)` to toggle visibility.
+
 ### Modules
 
 Modules are a contained, configurable, feature-mechanic set for common purposes. 
+They replicate folder structure of project
+```
+MyModule
+├──assets
+└──src
+    ├──controllers
+    ├──events
+    ├──models
+    ├──utilities
+    ├──views
+    ├──MyModuleBinding.ts
+    ├──MyModuleAssetIds.ts
+    └──index.ts
+```
 - Modules may have an asset id enums as described above (`enum MyModuleAssetIds ...`)
 - Modules must have a bindings class (`class MyModuleBinding extends ModuleBinding ...`)
  - `assetRequestList` is list of assets
@@ -127,15 +188,26 @@ Before registration it can be modified
 - Di and view configuration items can be altered
 
 
-### DevUtils
 
-`IDevUtils` provides built-in development tools. 
-It is accessible via `this.devUtils` in your app class.
-Also `IDevUtils` is available via both DI containers (`diContainer.getInstance(IDevUtils)`).
-- `devUtils.logger` is an integrated logger
-    - Use `logger.log(message, type?)` to log messages with `LogTypes.Info`, `LogTypes.Warning`, or `LogTypes.Error`.
-    - Use `logger.show(true/false)` to toggle the on-screen log panel visibility.
-- `devUtils.statsPanel` is an on scren panel for FPS/render stats
-    - Use `statsPanel.show(true/false)` to toggle.
-- `devUtils.groundGrid` — 3D ground grid helper for the World scene. 
-    - Use `groundGrid.show(true/false)` to toggle visibility.
+### Commands
+- `npm run build` — build the library (tsup)
+- `npm run typecheck` — type check (tsc --noEmit)
+- Examples: `cd examples/<name> && npm install && npm run dev`
+
+
+## Rules and constraints
+
+- Views must NOT access `diContainer`. Views receive `viewDiContainer` only.
+- Controllers must NOT import or manipulate rendering objects (Three.js meshes, PixiJS containers, etc.). Controllers talk to views only through `IView` interfaces.
+- Cross-feature communication must go through event classes, not direct references between controllers.
+- Do not call other controllers directly. Use events to decouple.
+- Scene setup (fog, lights, post-processing) belongs in views, not in the app class.
+- Views must not contain game logic or state mutations. Views render and report input; controllers decide what happens.
+- Event classes must use the `Set<cb>` + `Unsubscribe` pattern. Do not use single-listener setters.
+- Use `UnsubscribeBag` for event cleanup in controllers. Do not track unsubscribe functions manually.
+- Controllers must reference view interfaces (`IMyView`), not concrete view classes (`MyView`).
+- Asset IDs must be enums with namespaced string values (`"MyGame.ItemName"`), not plain objects or bare strings.
+- Do not put files in a `services/` folder. Use `utilities/` for services, managers, and tools. Use `events/` for event classes.
+- Modules must not depend on app-specific code. They should be reusable across projects.
+- Do not override lifecycle methods without calling `super` where required (`super.inject()`, `super.destroy()`, etc.).
+- Do not create empty lifecycle overrides (empty `loadAssets()`, `onStep()` that only calls `super`). Only override when adding behavior.
