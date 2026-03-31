@@ -2,17 +2,15 @@ import * as THREE from "three";
 import gsap from "gsap";
 import type { IAssetManager, IInputManager } from "gamelabsjs";
 import { GridItemObject, type IGridObjectListener } from "gamelabsjs";
-import { Match3Config } from "../Match3Config.js";
+import { GEM_ASSET_IDS_BY_TYPE } from "../Match3AssetIds.js";
 import type { Match3GemItemObjectOptions } from "./Match3GemItemObjectOptions.js";
 
 export class Match3GemItemObject extends GridItemObject {
   private static readonly SELECTION_ACCENT = 0xfbbf24;
   private static readonly SELECTION_SCALE = 1.1;
+  private static readonly QUAD_Y = 0.06;
 
   private _mesh: THREE.Mesh | null = null;
-  /** Wireframe shell drawn on top of depth so it is never hidden inside the gem mesh. */
-  private _selectionShell: THREE.Mesh | null = null;
-  /** Flat ring slightly below the gem center for a second read on the board plane. */
   private _selectionHalo: THREE.Mesh | null = null;
 
   public constructor(options: Match3GemItemObjectOptions, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
@@ -21,45 +19,39 @@ export class Match3GemItemObject extends GridItemObject {
 
   protected override createVisual(): void {
     const gemType = (this._options as Match3GemItemObjectOptions).gemType;
-    const palette = Match3Config.GEM_PALETTE;
-    const color = palette[gemType % palette.length] ?? 0xffffff;
-    const radius = Math.min(this.preset.columnSize, this.preset.rowSize) * 0.32;
-    const y = radius * 0.85;
-    const geom = new THREE.SphereGeometry(radius, 20, 16);
-    const mat = new THREE.MeshStandardMaterial({ color, metalness: 0.25, roughness: 0.45, emissive: 0x000000 });
+    const size = Math.min(this.preset.columnSize, this.preset.rowSize) * 0.78;
+
+    // Gem texture quad
+    const assetId = GEM_ASSET_IDS_BY_TYPE[gemType % GEM_ASSET_IDS_BY_TYPE.length];
+    const texture = assetId ? this._assetManager?.getAsset<THREE.Texture>(assetId) ?? null : null;
+
+    const geom = new THREE.PlaneGeometry(size, size);
+    const mat = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      alphaTest: 0.05,
+      side: THREE.DoubleSide,
+    });
     const mesh = new THREE.Mesh(geom, mat);
-    mesh.position.set(0, y, 0);
-    mesh.castShadow = true;
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(0, Match3GemItemObject.QUAD_Y, 0);
     this.add(mesh);
     this._mesh = mesh;
-    const shellGeom = new THREE.IcosahedronGeometry(radius * 1.2, 1);
-    const shellMat = new THREE.MeshBasicMaterial({
-      color: Match3GemItemObject.SELECTION_ACCENT,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.95,
-      depthTest: false,
-      depthWrite: false
-    });
-    const shell = new THREE.Mesh(shellGeom, shellMat);
-    shell.position.set(0, y, 0);
-    shell.visible = false;
-    shell.renderOrder = 100;
-    this.add(shell);
-    this._selectionShell = shell;
-    const haloR = radius * 1.15;
-    const haloGeom = new THREE.RingGeometry(haloR * 0.72, haloR, 32);
+
+    // Selection halo ring
+    const haloR = size * 0.55;
+    const haloGeom = new THREE.RingGeometry(haloR * 0.78, haloR, 32);
     const haloMat = new THREE.MeshBasicMaterial({
       color: Match3GemItemObject.SELECTION_ACCENT,
       transparent: true,
       opacity: 0.85,
       depthTest: false,
       depthWrite: false,
-      side: THREE.DoubleSide
+      side: THREE.DoubleSide,
     });
     const halo = new THREE.Mesh(haloGeom, haloMat);
-    halo.position.set(0, 0.02, 0);
     halo.rotation.x = -Math.PI / 2;
+    halo.position.set(0, Match3GemItemObject.QUAD_Y + 0.01, 0);
     halo.visible = false;
     halo.renderOrder = 99;
     this.add(halo);
@@ -67,21 +59,8 @@ export class Match3GemItemObject extends GridItemObject {
   }
 
   public setHighlighted(on: boolean): void {
-    if (this._selectionShell) this._selectionShell.visible = on;
     if (this._selectionHalo) this._selectionHalo.visible = on;
     this.scale.setScalar(on ? Match3GemItemObject.SELECTION_SCALE : 1);
-    const stdMat = this._mesh?.material;
-    if (stdMat instanceof THREE.MeshStandardMaterial) {
-      if (on) {
-        stdMat.emissive.setHex(0xfbbf24);
-        stdMat.emissiveIntensity = 0.85;
-        stdMat.metalness = 0.5;
-      } else {
-        stdMat.emissive.setHex(0x000000);
-        stdMat.emissiveIntensity = 0;
-        stdMat.metalness = 0.25;
-      }
-    }
   }
 
   public killAnimations(): void {
