@@ -15,6 +15,7 @@ export class TicTacToeTurnManager {
   private _currentTeam: Team = Team.X;
   private _nextItemId = 1;
   private _gameOver = false;
+  private _winner: Team | null = null;
 
   public inject(resolver: IInstanceResolver): void {
     this._model = resolver.getInstance(GridsModel);
@@ -24,6 +25,10 @@ export class TicTacToeTurnManager {
 
   public get currentTeam(): Team {
     return this._currentTeam;
+  }
+
+  public get winner(): Team | null {
+    return this._winner;
   }
 
   public placeMark(gridId: number, col: number, row: number): boolean {
@@ -42,12 +47,14 @@ export class TicTacToeTurnManager {
     const winner = this.checkWinner(gridId);
     if (winner) {
       this._gameOver = true;
+      this._winner = winner;
       this._turnEvents?.emitGameWon(winner);
       return true;
     }
 
     if (this.isBoardFull(gridId)) {
       this._gameOver = true;
+      this._winner = null;
       this._turnEvents?.emitGameDraw();
       return true;
     }
@@ -71,6 +78,7 @@ export class TicTacToeTurnManager {
 
     this._currentTeam = Team.X;
     this._gameOver = false;
+    this._winner = null;
     this._turnEvents?.emitGameRestarted();
     this._turnEvents?.emitTurnChanged(this._currentTeam);
   }

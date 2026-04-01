@@ -3,6 +3,8 @@ import { TicTacToeTurnManager, TicTacToeTurnManagerToken } from "./utilities/Tic
 import { TurnEvents } from "./events/TurnEvents";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenController } from "./controllers/GameScreenController";
+import { WinPopupView } from "./views/WinPopupView.pixi";
+import { WinPopupController } from "./controllers/WinPopupController";
 import { GridOperations } from "./utilities/GridOperations";
 import { TicTacToeConfig } from "./TicTacToeConfig";
 import { TicTacToeGameGridBinding } from "./TicTacToeGameGridBinding";
@@ -38,6 +40,7 @@ export class TicTacToeApp extends GamelabsApp {
 
   protected override configureViews(): void {
     this.viewFactory.registerScreen<GameScreenView, GameScreenController>(GameScreenView, GameScreenController);
+    this.viewFactory.registerPopup<WinPopupView, WinPopupController>(WinPopupView, WinPopupController);
   }
 
   protected override postInitialize(): void {

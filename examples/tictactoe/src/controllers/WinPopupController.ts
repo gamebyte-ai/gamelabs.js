@@ -1,12 +1,10 @@
 import { UnsubscribeBag, UIEvents, type IInstanceResolver, type IViewController } from "gamelabsjs";
-import type { IGameScreenView } from "../views/IGameScreenView";
-import { WinPopupView } from "../views/WinPopupView.pixi.js";
+import type { IWinPopupView } from "../views/IWinPopupView";
 import { TicTacToeTurnManagerToken, type TicTacToeTurnManager } from "../utilities/TicTacToeTurnManager.js";
 import { TurnEvents } from "../events/TurnEvents.js";
-import { Team } from "../models/GameItem.js";
 
-export class GameScreenController implements IViewController<IGameScreenView> {
-  private _view: IGameScreenView | null = null;
+export class WinPopupController implements IViewController<IWinPopupView> {
+  private _view: IWinPopupView | null = null;
   private readonly _subs = new UnsubscribeBag();
   private _turnManager: TicTacToeTurnManager | null = null;
   private _turnEvents: TurnEvents | null = null;
@@ -18,18 +16,15 @@ export class GameScreenController implements IViewController<IGameScreenView> {
     this._uiEvents = resolver.getInstance(UIEvents);
   }
 
-  public initialize(view: IGameScreenView): void {
+  public initialize(view: IWinPopupView): void {
     this._view = view;
-    view.setActiveTeam(this._turnManager?.currentTeam ?? Team.X);
 
-    this._subs.add(this._turnEvents?.onTurnChanged((team) => this._view?.setActiveTeam(team)));
+    // Set the result from current game state
+    this._view.setResult(this._turnManager?.winner ?? null);
 
-    this._subs.add(this._turnEvents?.onGameWon(() => {
-      this._uiEvents?.createPopup(WinPopupView);
-    }));
-
-    this._subs.add(this._turnEvents?.onGameDraw(() => {
-      this._uiEvents?.createPopup(WinPopupView);
+    this._subs.add(this._view.onPlayAgain(() => {
+      this._turnManager?.restart();
+      this._uiEvents?.removeTopPopup();
     }));
   }
 
