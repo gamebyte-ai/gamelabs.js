@@ -29,6 +29,7 @@ export * from "./core/ModuleBinding.js";
 export * from "./core/ui/IScreenView.js";
 export * from "./core/ui/ScreenTransition.js";
 export * from "./core/ui/ScreenView.pixi.js";
+export * from "./core/ui/UIEvents.js";
 export type { Unsubscribe } from "./core/events/subscriptions.js";
 export { UnsubscribeBag } from "./core/events/subscriptions.js";
 export * from "./core/types.js";

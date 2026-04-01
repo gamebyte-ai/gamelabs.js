@@ -1,4 +1,4 @@
-import { GamelabsApp, MainScreenAssetIds, UnsubscribeBag } from "gamelabsjs";
+import { GamelabsApp, MainScreenAssetIds, UnsubscribeBag, UIEvents } from "gamelabsjs";
 
 import { MainScreenBinding, MainScreenEvents, MainScreenView } from "gamelabsjs";
 import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents } from "gamelabsjs";
@@ -32,7 +32,7 @@ export class ScreensApp extends GamelabsApp {
       this.showMainScreen();
     }));
 
-    this.viewFactory.createScreenView(MainScreenView, this.config.transitions.mainScreenIntro);
+    this.diContainer.getInstance(UIEvents).createScreen(MainScreenView, this.config.transitions.mainScreenIntro);
   }
 
   protected override preDestroy(): void {
@@ -40,11 +40,11 @@ export class ScreensApp extends GamelabsApp {
   }
 
   private showLevelProgressScreen(): void {
-    this.viewFactory.createScreenView(LevelProgressScreenView, this.config.transitions.levelProgressScreenEnter);
+    this.diContainer.getInstance(UIEvents).createScreen(LevelProgressScreenView, this.config.transitions.levelProgressScreenEnter);
   }
 
   private showMainScreen(): void {
-    this.viewFactory.createScreenView(MainScreenView, this.config.transitions.mainScreenEnter);
+    this.diContainer.getInstance(UIEvents).createScreen(MainScreenView, this.config.transitions.mainScreenEnter);
   }
 
 }

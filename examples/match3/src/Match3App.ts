@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { AssetRequest, AssetTypes, GamelabsApp, GameCameraBinding, Grid, GridEvents, GridPreset, GridsModel, LogTypes, Topdown2dCameraController } from "gamelabsjs";
+import { AssetRequest, AssetTypes, GamelabsApp, GameCameraBinding, Grid, GridEvents, GridPreset, GridsModel, LogTypes, Topdown2dCameraController, UIEvents } from "gamelabsjs";
 import { Match3AssetIds } from "./Match3AssetIds.js";
 import { Match3Config } from "./Match3Config.js";
 import { Match3GameGridBinding } from "./Match3GameGridBinding.js";
@@ -51,7 +51,7 @@ export class Match3App extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.register<GameScreenView, Match3HudController>(GameScreenView, Match3HudController);
+    this.viewFactory.registerScreen<GameScreenView, Match3HudController>(GameScreenView, Match3HudController);
   }
 
   protected override postInitialize(): void {
@@ -59,7 +59,7 @@ export class Match3App extends GamelabsApp {
       this.logger.log("HUD or world is not initialized", LogTypes.Error);
       throw new Error("HUD or world is not initialized");
     }
-    this.viewFactory.createScreenView(GameScreenView, this._config.transitions.gameScreenEnter);
+    this.diContainer.getInstance(UIEvents).createScreen(GameScreenView, this._config.transitions.gameScreenEnter);
     this.world.addView(this.viewFactory.createView(Match3GridsView));
     
     const grid = this._gameGridBinding.model.getGrid(Match3Config.GRID_ID);

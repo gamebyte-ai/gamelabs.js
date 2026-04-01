@@ -1,4 +1,4 @@
-import { GamelabsApp, LogTypes, GameCameraBinding, Topdown3dCameraController, IViewFactory } from "gamelabsjs";
+import { GamelabsApp, LogTypes, GameCameraBinding, Topdown3dCameraController, IViewFactory, UIEvents } from "gamelabsjs";
 import { TicTacToeTurnManager, TicTacToeTurnManagerToken } from "./utilities/TicTacToeTurnManager";
 import { TurnEvents } from "./events/TurnEvents";
 import { GameScreenView } from "./views/GameScreenView.pixi";
@@ -37,7 +37,7 @@ export class TicTacToeApp extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.register<GameScreenView, GameScreenController>(GameScreenView, GameScreenController);
+    this.viewFactory.registerScreen<GameScreenView, GameScreenController>(GameScreenView, GameScreenController);
   }
 
   protected override postInitialize(): void {
@@ -46,7 +46,7 @@ export class TicTacToeApp extends GamelabsApp {
       throw new Error("HUD is not initialized");
     }
 
-    this.viewFactory.createScreenView(GameScreenView, this._config.transitions.gameScreenEnter);
+    this.diContainer.getInstance(UIEvents).createScreen(GameScreenView, this._config.transitions.gameScreenEnter);
 
     if (!this.world) {
       this.logger.log("Three world is not initialized", LogTypes.Error);

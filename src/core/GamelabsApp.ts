@@ -15,6 +15,7 @@ import { IDevUtils } from "./dev/IDevUtils.js";
 import { IViewFactory } from "./views/IViewFactory.js";
 import { InputManager } from "./input/InputManager.js";
 import { IInputManager } from "./input/IInputManager.js";
+import { UIEvents } from "./ui/UIEvents.js";
 
 export class GamelabsApp {
   //  MEMBERS
@@ -158,8 +159,12 @@ export class GamelabsApp {
     this._assetManager = new AssetManager(this._logger);
     this.viewDiContainer.bindInstance(AssetManager, this._assetManager);
 
+    const uiEvents = new UIEvents();
+    this.diContainer.bindInstance(UIEvents, uiEvents);
+
     this._viewFactory = new ViewFactory<IInstanceResolver>(this._logger, this.diContainer, this.viewDiContainer);
     this._viewFactory.setViewContainers(this.world, this.hud);
+    this._viewFactory.setUIEvents(uiEvents);
     this.viewDiContainer.bindInstance(IViewFactory, this._viewFactory);
 
     this._inputManager = new InputManager(this.canvas, this.hud, this.world);

@@ -1,4 +1,4 @@
-import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController } from "gamelabsjs";
+import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController, UIEvents } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";
@@ -44,7 +44,7 @@ export class HelloWorldApp extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.register<GameScreenView, GameScreenController> (GameScreenView, GameScreenController);
+    this.viewFactory.registerScreen<GameScreenView, GameScreenController> (GameScreenView, GameScreenController);
     this.viewFactory.register<TopBarView,     TopBarController>     (TopBarView,     TopBarController);
     this.viewFactory.register<DebugBarView,   DebugBarController>   (DebugBarView,   DebugBarController);
 
@@ -70,7 +70,7 @@ export class HelloWorldApp extends GamelabsApp {
     this.diContainer.bindInstance(Orbital3dCameraController, this._orbitalController);
 
     // Screen
-    this.viewFactory.createScreenView(GameScreenView, this.config.transitions.gameScreenEnter);
+    this.diContainer.getInstance(UIEvents).createScreen(GameScreenView, this.config.transitions.gameScreenEnter);
 
     // Cube
     this._cubeView = this.viewFactory.createView(CubeView);

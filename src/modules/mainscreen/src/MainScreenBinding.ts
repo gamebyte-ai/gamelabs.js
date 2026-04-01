@@ -29,7 +29,7 @@ export class MainScreenBinding extends ModuleBinding {
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
-    viewFactory.register<MainScreenView, MainScreenController>(MainScreenView, MainScreenController);
+    viewFactory.registerScreen<MainScreenView, MainScreenController>(MainScreenView, MainScreenController);
   }
 
 }

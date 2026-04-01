@@ -7,6 +7,7 @@ import { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
 import type { IScreenView } from "../ui/IScreenView.js";
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "../ui/ScreenTransition.js";
+import { UIEvents } from "../ui/UIEvents.js";
 import { IWorld } from "../world/IWorld.js";
 import { IHud } from "../hud/IHud.js";
 import { HudViewBase } from "../hud/HudViewBase.js";
@@ -23,10 +24,12 @@ export type ControllerCtor<TView extends IView, TController extends IViewControl
  */
 export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFactory {
   private readonly _registry = new Map<ViewCtor<any>, ControllerCtor<any, any>>();
+  private readonly _screenRegistry = new Map<ViewCtor<any>, ControllerCtor<any, any>>();
   private readonly _defaultScreenTransition: ScreenTransition = { type: SCREEN_TRANSITION_TYPES.INSTANT, durationMs: 0 };
   private _activeScreen: IScreenView | null = null;
   private _lastResize: { width: number; height: number; dpr: number } | null = null;
 
+  private _uiEvents: UIEvents | null = null;
   public world: IWorld | null = null;
   public hud: IHud | null = null;
 
@@ -35,6 +38,13 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     public readonly diContainer: DIContainer,
     public readonly viewDiContainer: TResolver
   ) {}
+
+  public setUIEvents(uiEvents: UIEvents): void {
+    this._uiEvents = uiEvents;
+    this._uiEvents.onCreateScreen((View, transition) => {
+      this.handleCreateScreen(View, transition);
+    });
+  }
 
   public setViewContainers(world: IWorld | null, hud: IHud | null): void {
     this.world = world;
@@ -48,26 +58,21 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     this._registry.set(View, Controller as ControllerCtor<any, any>);
   }
 
+  public registerScreen<TView extends IScreenView, TController extends IViewController<TView>>(
+    View: ViewCtor<TView>,
+    Controller: ControllerCtor<TView, TController>
+  ): void {
+    this._screenRegistry.set(View, Controller as ControllerCtor<any, any>);
+  }
+
   public resize(width: number, height: number, dpr: number): void {
     this._lastResize = { width, height, dpr };
     this._activeScreen?.onResize?.(width, height, dpr);
   }
 
-
-
-
-
-
-  private createInternal<TView extends IView, TController extends IViewController<TView>>(View: ViewCtor<TView>): TView {
-    const Controller = this._registry.get(View);
-    if (!Controller) {
-      const msg = `No ViewFactory registration for view: ${View.name || "(anonymous view)"}`;
-      this.logger.log(msg, LogTypes.Error);
-      throw new Error(msg);
-    }
-
+  private createWithController<TView extends IView>(View: ViewCtor<TView>, Controller: ControllerCtor<any, any>): TView {
     const view = new View() as TView;
-    const controller = new Controller() as TController;
+    const controller = new Controller();
 
     view.setViewFactory(this, ()=>{
       view.inject(this.viewDiContainer);
@@ -82,19 +87,32 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   }
 
   public createView<TView extends IView>(View: ViewCtor<TView>): TView {
-    return this.createInternal<TView, IViewController<TView>>(View);
+    const Controller = this._registry.get(View);
+    if (!Controller) {
+      const msg = `No ViewFactory registration for view: ${View.name || "(anonymous view)"}`;
+      this.logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
+    }
+    return this.createWithController(View, Controller);
   }
 
-  public createScreenView<TView extends IScreenView>(View: ViewCtor<TView>, enterTransition: ScreenTransition | null): void {
-    const resolvedEnterTransition = enterTransition ?? this._defaultScreenTransition;
+  private handleCreateScreen(View: new () => IScreenView, transition: ScreenTransition | null): void {
+    const Controller = this._screenRegistry.get(View as ViewCtor<any>);
+    if (!Controller) {
+      const msg = `No screen registration for: ${View.name || "(anonymous screen)"}`;
+      this.logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
+    }
+
+    const resolvedTransition = transition ?? this._defaultScreenTransition;
     if (this._activeScreen) {
-      this._activeScreen.onExit?.(resolvedEnterTransition);
+      this._activeScreen.onExit?.(resolvedTransition);
       this._activeScreen = null;
     }
 
-    const screen = this.createView(View);
+    const screen = this.createWithController(View as ViewCtor<any>, Controller) as IScreenView;
     if (!(screen instanceof HudViewBase)) {
-      const msg = `createScreenView: ${(View as any).name || "(anonymous)"} must extend HudViewBase`;
+      const msg = `Screen ${View.name || "(anonymous)"} must extend HudViewBase`;
       this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }
@@ -103,7 +121,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     if (this._lastResize) {
       this._activeScreen.onResize?.(this._lastResize.width, this._lastResize.height, this._lastResize.dpr);
     }
-    this._activeScreen.onEnter?.(resolvedEnterTransition);
+    this._activeScreen.onEnter?.(resolvedTransition);
   }
 
   public viewAdded(_view: IView): void {
@@ -111,6 +129,5 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
 
   public viewRemoved(_view: IView): void {
   }
-
 
 }
