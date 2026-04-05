@@ -15,5 +15,6 @@ export interface IAssetManager {
   loadAll(requests: Iterable<AssetRequest>): void;
   waitForAll(): Promise<void>;
   getAsset<T>(id: string): T | undefined;
+  setAsset(id: string, asset: unknown): void;
   isFallback(id: string): boolean;
 }

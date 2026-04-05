@@ -92,6 +92,22 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     }
   }
 
+  public createView<TView extends IView>(View: ViewCtor<TView>): TView {
+    const Controller = this._registry.get(View);
+    if (!Controller) {
+      const msg = `No ViewFactory registration for view: ${View.name || "(anonymous view)"}`;
+      this.logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
+    }
+    return this.createWithController(View, Controller);
+  }
+
+  public viewAdded(_view: IView): void {
+  }
+
+  public viewRemoved(_view: IView): void {
+  }
+
   private createWithController<TView extends IView>(View: ViewCtor<TView>, Controller: ControllerCtor<any, any>): TView {
     const view = new View() as TView;
     const controller = new Controller();
@@ -106,16 +122,6 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
       controller.initialize(view);
     }, ()=>{});
     return view;
-  }
-
-  public createView<TView extends IView>(View: ViewCtor<TView>): TView {
-    const Controller = this._registry.get(View);
-    if (!Controller) {
-      const msg = `No ViewFactory registration for view: ${View.name || "(anonymous view)"}`;
-      this.logger.log(msg, LogTypes.Error);
-      throw new Error(msg);
-    }
-    return this.createWithController(View, Controller);
   }
 
   private handleCreateScreen(View: new () => IScreenView, transition: ScreenTransition | null): void {
@@ -190,12 +196,6 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
         view.destroy();
       }
     }
-  }
-
-  public viewAdded(_view: IView): void {
-  }
-
-  public viewRemoved(_view: IView): void {
   }
 
 }

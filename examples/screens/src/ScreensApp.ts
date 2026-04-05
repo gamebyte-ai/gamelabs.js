@@ -1,4 +1,4 @@
-import { GamelabsApp, MainScreenAssetIds, UnsubscribeBag, UIEvents } from "gamelabsjs";
+import { GamelabsApp, MainScreenAssetIds, UnsubscribeBag, UIEvents, UIUtils } from "gamelabsjs";
 
 import { MainScreenBinding, MainScreenEvents, MainScreenView } from "gamelabsjs";
 import { LevelProgressScreenBinding, LevelProgressScreenView, LevelProgressScreenEvents } from "gamelabsjs";
@@ -16,7 +16,16 @@ export class ScreensApp extends GamelabsApp {
   }
 
   protected override registerModules(): void {
-    this.mainScreenBinding.assetRequestList.overrideRequestUrl(MainScreenAssetIds.Logo, new URL("../assets/example_logo.png", import.meta.url).href);
+    this.mainScreenBinding.assetRequestList.overrideRequest(MainScreenAssetIds.Logo, new URL("../assets/example_logo.png", import.meta.url).href);
+
+    const playPresetReq = this.mainScreenBinding.assetRequestList.getRequest(MainScreenAssetIds.PlayButtonPreset);
+    if (playPresetReq) {
+      const base = playPresetReq.content as string;
+      const parsed = JSON.parse(base);
+      const updated = UIUtils.updateFields(base, JSON.stringify({ width: parsed.width + 50 }));
+      this.mainScreenBinding.assetRequestList.overrideRequest(MainScreenAssetIds.PlayButtonPreset, "", updated);
+    }
+
     this.addModule(this.mainScreenBinding);
     this.addModule(this.levelProgressScreenBinding);
   }

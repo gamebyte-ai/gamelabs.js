@@ -188,6 +188,17 @@ Before registration it can be modified
 - Di and view configuration items can be altered
 
 
+### Existing modules
+
+The following modules are shipped with the library. See each module's `README.md` for detailed usage, configuration, and asset/preset options.
+
+- **`uicomponents`** — reusable Pixi UI components: `ButtonComponent`, `BackgroundComponent`, `ImageComponent`, `VerticalLayoutComponent`, `HorizontalLayoutComponent`. Each accepts a plain preset object (JSON-serializable) so configuration can be stored as `Text` assets and overridden per app.
+- **`mainscreen`** — ready-to-use main menu screen with a logo, play button, and settings button. Exposes `MainScreenEvents` for click wiring.
+- **`levelprogressscreen`** — vertical level-list screen showing previous/current/next levels with connector sprites and a back button. Exposes `LevelProgressScreenEvents`.
+- **`gamecamera`** — camera manager with multiple controller flavors (orbital, topdown 2D/3D, front 2D/3D, isometric 2D/3D) for common gameplay camera rigs.
+- **`gamegrid`** — grid model, grid items, and a grid view/controller pair for tile-based gameplay (used by the match3 and tictactoe examples).
+
+
 
 ### Commands
 - `npm run build` — build the library (tsup)

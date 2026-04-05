@@ -11,11 +11,15 @@ export class AssetRequestList implements IAssetRequestList {
         this._assets.set(request.id, request);
     }
 
-    public overrideRequestUrl(id: string, url: string): void {
+    public overrideRequest(id: string, url: string, content?: unknown | null): void {
         const request = this._assets.get(id);
         if (!request) return;
-        this._assets.set(id, new AssetRequest(request.type, id, url));
+        this._assets.set(id, new AssetRequest(request.type, id, url, content));
     }
+
+  public getRequest(id: string): AssetRequest | undefined {
+    return this._assets.get(id);
+  }
 
   public getRequests(): Iterable<AssetRequest> {
     return this._assets.values();

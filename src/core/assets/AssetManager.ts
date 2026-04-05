@@ -66,7 +66,17 @@ export class AssetManager implements IAssetManager {
   public load(request: AssetRequest): void;
   public load(typeOrRequest: AssetType | AssetRequest, id?: string, url?: string): void {
     if (typeOrRequest instanceof AssetRequest) {
-      this.load(typeOrRequest.type, typeOrRequest.id, typeOrRequest.url);
+      const request = typeOrRequest;
+      const hasUrl = typeof request.url === "string" && request.url.length > 0;
+
+      if (hasUrl) {
+        this.loadFromUrl(request.type, request.id, request.url);
+      } else if (request.content != null) {
+        this.loadFromContent(request.type, request.id, request.content);
+      } else {
+        this._logger.log(`[AssetManager] no url or content for id=${request.id}, using default`, LogTypes.Warning);
+        this._assetsById.set(request.id, this.getDefaultForType(request.type));
+      }
       return;
     }
 
@@ -77,10 +87,12 @@ export class AssetManager implements IAssetManager {
       throw new Error(msg);
     }
 
-    if (this._assetsById.has(id)) return;
+    this.loadFromUrl(type, id, url);
+  }
 
-    const inflight = this._inflightById.get(id);
-    if (inflight) return;
+  private loadFromUrl(type: AssetType, id: string, url: string): void {
+    if (this._assetsById.has(id)) return;
+    if (this._inflightById.has(id)) return;
 
     this._totalItems += 1;
 
@@ -101,8 +113,17 @@ export class AssetManager implements IAssetManager {
     this._inflightById.set(id, p);
   }
 
+  private loadFromContent(_type: AssetType, id: string, content: unknown): void {
+    if (this._assetsById.has(id)) return;
+    this._assetsById.set(id, content);
+  }
+
   public getAsset<T>(id: string): T | undefined {
     return this._assetsById.get(id) as T | undefined;
+  }
+
+  public setAsset(id: string, asset: unknown): void {
+    this._assetsById.set(id, asset);
   }
 
   private getDefaultHudTexture(): Texture {
@@ -155,6 +176,8 @@ export class AssetManager implements IAssetManager {
         return this.getDefaultWorldTexture();
       case AssetTypes.GLTF:
         return this.getDefaultGltf();
+      case AssetTypes.Text:
+        return "";
       default: {
         const neverType: never = type;
         throw new Error(`AssetLoader: unsupported asset type: ${String(neverType)}`);
@@ -171,6 +194,8 @@ export class AssetManager implements IAssetManager {
         return this.loadWorldTexture(url);
       case AssetTypes.GLTF:
         return this.loadGltf(url);
+      case AssetTypes.Text:
+        return this.loadText(url);
       default: {
         const neverType: never = type;
         const msg = `AssetManager: unsupported asset type: ${String(neverType)}`;
@@ -189,6 +214,12 @@ export class AssetManager implements IAssetManager {
     const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
     const loader = new GLTFLoader();
     return loader.loadAsync(url);
+  }
+
+  private async loadText(url: string): Promise<string> {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch text: ${response.status} ${url}`);
+    return response.text();
   }
 }
 

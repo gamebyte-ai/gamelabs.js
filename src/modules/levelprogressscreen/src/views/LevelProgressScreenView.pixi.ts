@@ -1,15 +1,14 @@
 import * as PIXI from "pixi.js";
-import { Button } from "@pixi/ui";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
+import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/ButtonComponent.pixi.js";
+import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/BackgroundComponent.pixi.js";
+import { VerticalLayoutComponent, parseVerticalLayoutComponentPreset } from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
 import type { ILevelProgressScreenView } from "./ILevelProgressScreenView.js";
 import { LevelProgressScreenAssetIds } from "../LevelProgressScreenAssetIds.js";
 
 type LevelItemRefs = {
-  view: PIXI.Container;
-  bgPlaceholder: PIXI.Graphics;
-  bgSprite: PIXI.Sprite;
+  button: ButtonComponent;
   text: PIXI.Text;
-  button: Button;
 };
 
 /**
@@ -23,48 +22,18 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
   private static readonly itemWidth = 180;
   private static readonly itemHeight = 84;
-  private static readonly itemGap = 18;
   private static readonly itemActiveExtraWidth = 22;
   private static readonly itemActiveExtraHeight = 10;
   private static readonly itemActiveTint = 0x22c55e;
-  private static readonly backButtonWidth = 220;
-  private static readonly backButtonHeight = 88;
   private static readonly backButtonAspect = 2.5;
 
-  private readonly cleanup: Array<() => void> = [];
+  private background!: BackgroundComponent;
+  private backButton!: ButtonComponent;
 
-  private readonly bgImage = new PIXI.Sprite(PIXI.Texture.EMPTY);
-  private readonly bg = new PIXI.Graphics();
+  private levelsCol!: VerticalLayoutComponent;
 
-  private backButtonBgTargetWidth = LevelProgressScreenView.backButtonWidth;
-  private backButtonBgTargetHeight = LevelProgressScreenView.backButtonHeight;
-
-  private readonly backButtonBgPlaceholder = new PIXI.Graphics();
-  private readonly backButtonBg = new PIXI.Sprite(PIXI.Texture.EMPTY);
-  private readonly backButtonLabel = new PIXI.Text({
-    text: "BACK",
-    style: {
-      fill: 0xe8eef6,
-      fontSize: 16,
-      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      fontWeight: "800",
-      letterSpacing: 1
-    }
-  });
-  private readonly backButtonView = this.createBackButtonView();
-  private readonly backButton = new Button(this.backButtonView);
-
-  private readonly levelsCol = new PIXI.Container({
-    layout: {
-      flexDirection: "column",
-      gap: LevelProgressScreenView.itemGap,
-      alignItems: "center"
-    }
-  });
-
-  private readonly connectors = new PIXI.Graphics({
-    layout: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }
-  });
+  private readonly connectors = new PIXI.Container();
+  private connectorSprites: PIXI.Sprite[] = [];
 
   private visibleCount = LevelProgressScreenView.defaultVisibleCount;
   private currentLevel = 1;
@@ -98,47 +67,39 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       alignItems: "center"
     };
 
-    // IMPORTANT: do not put the background sprite under @pixi/layout control.
-    // We manually size/position it for "cover" behavior in `redrawBackground()`.
-    this.bgImage.visible = false;
-    this.addChild(this.bgImage);
-
-    (this.bg as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
-    this.addChild(this.bg);
+    // Background component.
+    const bgPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackgroundPreset) ?? '{}';
+    this.background = new BackgroundComponent(parseBackgroundComponentPreset(bgPresetJson));
+    this.background.resolveAssets(this.assetLoader);
+    this.addChild(this.background);
 
     // Top-right back button.
+    const backButtonPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackButtonPreset) ?? '{}';
+    this.backButton = new ButtonComponent(parseButtonComponentPreset(backButtonPresetJson));
+    this.backButton.resolveAssets(this.assetLoader);
     this.applyBackButtonLayout((this as any).layout?.width ?? 1);
-    this.addChild(this.backButtonView);
-    const onBackPress = () => {
+    this.addChild(this.backButton);
+    this.backButton.onPress(() => {
       if (this.isInTransition) return;
       this.emitBackClick();
-    };
-    this.backButton.onPress.connect(onBackPress);
-    this.cleanup.push(() => this.backButton.onPress.disconnect(onBackPress));
+    });
 
-    // Keep connectors behind the items.
-    this.levelsCol.addChild(this.connectors);
+    // Connectors are a sibling of levelsCol, drawn on top in screen space.
+    this.addChild(this.connectors);
+    
+    // Levels column.
+    const levelsColPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.LevelsColPreset) ?? '{}';
+    this.levelsCol = new VerticalLayoutComponent(parseVerticalLayoutComponentPreset(levelsColPresetJson));
     this.addChild(this.levelsCol);
 
-    const onLayout = (layout: any) => {
-      const w = Math.max(1, Math.floor(layout.computedLayout.width));
-      const h = Math.max(1, Math.floor(layout.computedLayout.height));
-      this.redrawBackground(w, h);
-    };
-    this.on("layout", onLayout);
-    this.cleanup.push(() => this.off("layout", onLayout));
 
-    const onLevelsLayout = (layout: any) => {
-      const w = Math.max(1, Math.floor(layout.computedLayout.width));
-      const h = Math.max(1, Math.floor(layout.computedLayout.height));
-      this.redrawConnectors(w, h);
-    };
-    this.levelsCol.on("layout", onLevelsLayout);
-    this.cleanup.push(() => this.levelsCol.off("layout", onLevelsLayout));
+    // Redraw connectors after the screen's layout is computed (all descendants positioned).
+    this.on("layout", () => {
+      this.redrawConnectors();
+    });
 
     this.rebuildItems();
     this.applyLevels();
-    this.applyTextures();
   }
 
   public override onResize(width: number, height: number, _dpr: number): void {
@@ -146,7 +107,6 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     const h = Math.max(1, height);
     (this as any).layout = { width: w, height: h };
     this.applyBackButtonLayout(w);
-    this.redrawBackground(w, h);
   }
 
   private applyBackButtonLayout(screenWidth: number): void {
@@ -154,16 +114,15 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     const targetW = Math.max(220, Math.min(340, Math.round(w * 0.22)));
     const targetH = Math.max(64, Math.round(targetW / LevelProgressScreenView.backButtonAspect));
 
-    (this.backButtonView as any).layout = {
+    (this.backButton as any).layout = {
       position: "absolute",
       top: 16,
       right: 16,
       width: targetW,
-      height: targetH
+      height: targetH,
+      justifyContent: "center",
+      alignItems: "center",
     };
-
-    const targetFontSize = Math.max(16, Math.min(22, Math.round(targetH * 0.34)));
-    this.backButtonLabel.style = { ...this.backButtonLabel.style, fontSize: targetFontSize } as any;
   }
 
   public setCurrentLevel(level: number): void {
@@ -199,117 +158,31 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     for (const cb of this.backClickListeners) cb();
   }
 
-  private redrawBackground(width: number, height: number): void {
-    // If the JPEG is available, scale it to COVER the screen without distortion.
-    if (this.bgImage.texture !== PIXI.Texture.EMPTY) {
-      this.bgImage.visible = true;
-      const tw = Math.max(1, this.bgImage.texture.width);
-      const th = Math.max(1, this.bgImage.texture.height);
-      const scale = Math.max(width / tw, height / th);
-      this.bgImage.scale.set(scale, scale);
-      this.bgImage.position.set((width - tw * scale) / 2, (height - th * scale) / 2);
-
-      // Optional subtle dark overlay for UI readability.
-      this.bg.clear();
-      this.bg.rect(0, 0, width, height).fill({ color: 0x000000, alpha: 0.12 });
-      return;
-    }
-
-    // Fallback if the texture isn't loaded yet.
-    this.bgImage.visible = false;
-    this.bg.clear();
-    this.bg.rect(0, 0, width, height).fill({ color: 0x020617, alpha: 0.55 });
-  }
-
-  private applyTextures(): void {
-    const backButtonBg = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssetIds.BackButtonBg);
-    if (backButtonBg && this.backButtonBg.texture === PIXI.Texture.EMPTY) {
-      this.backButtonBg.texture = backButtonBg;
-      this.backButtonBg.visible = true;
-      this.backButtonBgPlaceholder.visible = false;
-      this.applyBackButtonBgSize();
-    }
-
-    this.applyLevelItemBgTextures();
-
-    const background = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssetIds.Background);
-    if (background && this.bgImage.texture === PIXI.Texture.EMPTY) {
-      this.bgImage.texture = background;
-      const layout = (this as any).layout;
-      if (layout?.width && layout?.height) this.redrawBackground(layout.width, layout.height);
-    }
-  }
-
-  private createBackButtonView(): PIXI.Container {
-    const view = new PIXI.Container();
-
-    (this.backButtonBgPlaceholder as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
-    view.addChild(this.backButtonBgPlaceholder);
-
-    (this.backButtonBg as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
-    this.backButtonBg.visible = false;
-    view.addChild(this.backButtonBg);
-
-    this.backButtonLabel.anchor.set(0.5, 0.5);
-    view.addChild(this.backButtonLabel);
-
-    const onLayout = (layout: any) => {
-      const w = Math.max(1, Math.floor(layout.computedLayout.width));
-      const h = Math.max(1, Math.floor(layout.computedLayout.height));
-      this.backButtonBgTargetWidth = w;
-      this.backButtonBgTargetHeight = h;
-      this.backButtonLabel.position.set(w / 2, h / 2);
-      this.redrawBackButtonPlaceholder(w, h);
-      this.applyBackButtonBgSize();
-    };
-    view.on("layout", onLayout);
-    this.cleanup.push(() => view.off("layout", onLayout));
-
-    return view;
-  }
-
-  private redrawBackButtonPlaceholder(width: number, height: number): void {
-    this.backButtonBgPlaceholder.clear();
-    this.backButtonBgPlaceholder.roundRect(0, 0, width, height, 12).fill({ color: 0x0b1220, alpha: 0.75 }).stroke({ color: 0x334155, width: 1 });
-  }
-
-  private applyBackButtonBgSize(): void {
-    if (this.backButtonBg.texture === PIXI.Texture.EMPTY) return;
-    this.backButtonBg.scale.set(1, 1);
-    this.backButtonBg.width = this.backButtonBgTargetWidth;
-    this.backButtonBg.height = this.backButtonBgTargetHeight;
-  }
-
   private rebuildItems(): void {
     for (const it of this.items) {
-      it.view.removeAllListeners();
-      it.view.removeFromParent();
+      it.button.removeFromParent();
     }
     this.items = [];
 
-    // Keep connectors as first child so it's behind.
-    if (!this.connectors.parent) this.levelsCol.addChild(this.connectors);
-
     for (let i = 0; i < this.visibleCount; i++) {
-      const { view, bgPlaceholder, bgSprite, text, button } = this.createLevelItemView(i);
-      (view as any).layout = { width: LevelProgressScreenView.itemWidth, height: LevelProgressScreenView.itemHeight };
-      this.items.push({ view, bgPlaceholder, bgSprite, text, button });
-      this.levelsCol.addChild(view);
+      const item = this.createLevelItem(i);
+      this.items.push(item);
+      this.levelsCol.addChild(item.button);
     }
   }
 
-  private createLevelItemView(index: number): LevelItemRefs {
-    const view = new PIXI.Container();
+  private createLevelItem(index: number): LevelItemRefs {
+    const isActive = index === this.getCurrentIndex();
 
-    const bgPlaceholder = new PIXI.Graphics({
-      layout: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }
+    const button = new ButtonComponent({
+      width: LevelProgressScreenView.itemWidth,
+      height: LevelProgressScreenView.itemHeight,
+      radius: 18,
+      fillColor: isActive ? 0x052e16 : 0x0b1220,
+      fillAlpha: isActive ? 0.78 : 0.72,
+      strokeColor: isActive ? 0x22c55e : 0x475569,
+      strokeWidth: 2,
     });
-    view.addChild(bgPlaceholder);
-
-    const bgSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
-    (bgSprite as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
-    bgSprite.visible = false;
-    view.addChild(bgSprite);
 
     const text = new PIXI.Text({
       text: "",
@@ -321,37 +194,16 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       }
     });
     text.anchor.set(0.5, 0.5);
-    view.addChild(text);
+    (text as any).layout = {};
+    button.addChild(text);
 
-    const button = new Button(view);
-    const onPress = () => {
+    button.onPress(() => {
       if (this.isInTransition) return;
-      // Only current level is clickable.
       if (index !== this.getCurrentIndex()) return;
       this.emitCurrentLevelClick();
-    };
-    button.onPress.connect(onPress);
-    this.cleanup.push(() => button.onPress.disconnect(onPress));
+    });
 
-    const onLayout = (layout: any) => {
-      const w = Math.max(1, Math.floor(layout.computedLayout.width));
-      const h = Math.max(1, Math.floor(layout.computedLayout.height));
-      text.position.set(w / 2, h / 2);
-
-      bgPlaceholder.clear();
-      const isActive = index === this.getCurrentIndex();
-      bgPlaceholder.roundRect(0, 0, w, h, 18).fill({ color: isActive ? 0x052e16 : 0x0b1220, alpha: isActive ? 0.78 : 0.72 }).stroke({ color: isActive ? 0x22c55e : 0x475569, width: 2, alpha: 0.9 });
-
-      if (bgSprite.texture !== PIXI.Texture.EMPTY) {
-        bgSprite.scale.set(1, 1);
-        bgSprite.width = w;
-        bgSprite.height = h;
-      }
-    };
-    view.on("layout", onLayout);
-    this.cleanup.push(() => view.off("layout", onLayout));
-
-    return { view, bgPlaceholder, bgSprite, text, button };
+    return { button, text };
   }
 
   private applyLevels(): void {
@@ -367,15 +219,11 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
         fill: i === currentIndex ? 0xffffff : 0xdbe7ff
       } as any;
 
-      // Visual cue: only current looks clickable (cursor/alpha).
-      it.view.alpha = i === currentIndex ? 1 : 0.85;
+      it.button.alpha = i === currentIndex ? 1 : 0.85;
     }
 
     this.applyLevelItemBgTextures();
-
-    // Redraw connectors (in case current styling changes).
-    const lc = (this.levelsCol as any).layout;
-    if (lc?.width && lc?.height) this.redrawConnectors(lc.width, lc.height);
+    this.redrawConnectors();
   }
 
   private applyLevelItemBgTextures(): void {
@@ -387,49 +235,64 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i]!;
       const isActive = i === currentIndex;
-      const desired = normal;
-      if (!desired) continue;
 
-      if (it.bgSprite.texture !== desired) {
-        it.bgSprite.texture = desired;
-        it.bgSprite.visible = true;
-        it.bgPlaceholder.visible = false;
-      }
-
-      it.bgSprite.tint = isActive ? LevelProgressScreenView.itemActiveTint : 0xffffff;
+      if (normal) it.button.setTexture(normal);
+      it.button.tint = isActive ? LevelProgressScreenView.itemActiveTint : 0xffffff;
 
       const baseW = LevelProgressScreenView.itemWidth;
       const baseH = LevelProgressScreenView.itemHeight;
       const w = isActive ? baseW + LevelProgressScreenView.itemActiveExtraWidth : baseW;
       const h = isActive ? baseH + LevelProgressScreenView.itemActiveExtraHeight : baseH;
-      (it.view as any).layout = { width: w, height: h };
-
-      it.bgSprite.scale.set(1, 1);
-      it.bgSprite.width = w;
-      it.bgSprite.height = h;
+      (it.button as any).layout = { width: w, height: h };
     }
   }
 
-  private redrawConnectors(_w: number, _h: number): void {
-    this.connectors.clear();
+  private redrawConnectors(): void {
+    // Remove previous sprites.
+    for (const s of this.connectorSprites) s.destroy();
+    this.connectorSprites = [];
 
     if (this.items.length < 2) return;
 
-    // Draw a vertical spine passing through the centers of item backgrounds.
-    const pad = 10;
+    const texture = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssetIds.Connector);
+    if (!texture) return;
 
-    this.connectors.stroke({ color: 0x94a3b8, width: 6, alpha: 0.18, cap: "round" as any });
+    const { currentIndex } = this.computeWindow();
+
+    const getItemDims = (i: number): { w: number; h: number } => {
+      const isActive = i === currentIndex;
+      const w = isActive ? LevelProgressScreenView.itemWidth + LevelProgressScreenView.itemActiveExtraWidth : LevelProgressScreenView.itemWidth;
+      const h = isActive ? LevelProgressScreenView.itemHeight + LevelProgressScreenView.itemActiveExtraHeight : LevelProgressScreenView.itemHeight;
+      return { w, h };
+    };
+
+    // Convert each button's top-left (its local 0,0) into connectors' local space.
+    const topLeftInConnectors = (button: PIXI.Container): PIXI.Point => {
+      return this.connectors.toLocal(new PIXI.Point(0, 0), button);
+    };
+
+    const spriteWidth = 8;
     for (let i = 0; i < this.items.length - 1; i++) {
       const a = this.items[i]!;
       const b = this.items[i + 1]!;
-      const aw = (a.view as any).layout?.width ?? LevelProgressScreenView.itemWidth;
-      const ah = (a.view as any).layout?.height ?? LevelProgressScreenView.itemHeight;
-      const bh = (b.view as any).layout?.height ?? LevelProgressScreenView.itemHeight;
-      const cx = a.view.x + aw / 2;
-      const ay = a.view.y + ah - pad;
-      const by = b.view.y + pad;
-      this.connectors.moveTo(cx, ay);
-      this.connectors.lineTo(cx, by);
+      const { w: aw, h: ah } = getItemDims(i);
+      const { h: bh } = getItemDims(i + 1);
+      const aPos = topLeftInConnectors(a.button);
+      const bPos = topLeftInConnectors(b.button);
+      const cx = aPos.x + aw / 2;
+      const ay = aPos.y + ah / 2;
+      const by = bPos.y + bh / 2;
+      const length = by - ay;
+      if (length <= 0) continue;
+
+      const sprite = new PIXI.Sprite(texture);
+      sprite.anchor.set(0.5, 0);
+      sprite.width = spriteWidth;
+      sprite.height = length;
+      sprite.position.set(cx, ay);
+      sprite.alpha = 0.6;
+      this.connectors.addChild(sprite);
+      this.connectorSprites.push(sprite);
     }
   }
 
@@ -441,7 +304,6 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     const levelsAsc = Array.from({ length: count }, (_, i) => start + i);
     const currentIndexAsc = this.currentLevel - start;
 
-    // Display in reverse order (highest at the top).
     const levels = levelsAsc.slice().reverse();
     const currentIndex = Math.max(0, Math.min(count - 1, (count - 1) - currentIndexAsc));
     return { levels, currentIndex };
@@ -450,11 +312,4 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
   private getCurrentIndex(): number {
     return this.computeWindow().currentIndex;
   }
-
-  public preDestroy(): void {
-    for (const c of this.cleanup) c();
-    this.cleanup.length = 0;
-    this.items.length = 0;
-  }
 }
-
