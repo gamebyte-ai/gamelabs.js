@@ -7,6 +7,7 @@ import { WinPopupView } from "./views/WinPopupView.pixi";
 import { WinPopupController } from "./controllers/WinPopupController";
 import { GridOperations } from "./utilities/GridOperations";
 import { TicTacToeConfig } from "./TicTacToeConfig";
+import { TicTacToeUIIds } from "./TicTacToeUIIds";
 import { TicTacToeGameGridBinding } from "./TicTacToeGameGridBinding";
 import { GameGridsView } from "./views/GameGridsView.three";
 
@@ -39,8 +40,8 @@ export class TicTacToeApp extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerScreen<GameScreenView, GameScreenController>(GameScreenView, GameScreenController);
-    this.viewFactory.registerPopup<WinPopupView, WinPopupController>(WinPopupView, WinPopupController);
+    this.viewFactory.registerScreen(TicTacToeUIIds.GameScreen, GameScreenView, GameScreenController);
+    this.viewFactory.registerPopup(TicTacToeUIIds.WinPopup, WinPopupView, WinPopupController);
   }
 
   protected override postInitialize(): void {
@@ -49,7 +50,7 @@ export class TicTacToeApp extends GamelabsApp {
       throw new Error("HUD is not initialized");
     }
 
-    this.diContainer.getInstance(UIEvents).createScreen(GameScreenView, this._config.transitions.gameScreenEnter);
+    this.diContainer.getInstance(UIEvents).createScreen(TicTacToeUIIds.GameScreen, this._config.transitions.gameScreenEnter);
 
     if (!this.world) {
       this.logger.log("Three world is not initialized", LogTypes.Error);

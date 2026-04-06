@@ -1,39 +1,38 @@
 import type { Unsubscribe } from "../events/subscriptions.js";
-import type { IScreenView } from "./IScreenView.js";
-import type { IPopupView } from "./IPopupView.js";
 import type { ScreenTransition } from "./ScreenTransition.js";
 
 /**
  * Core UI event bus for screen and popup navigation.
  *
  * Controllers can inject this to trigger screen changes and
- * popup management without needing direct access to ViewFactory.
+ * popup management using string IDs without needing direct
+ * access to ViewFactory or concrete view classes.
  */
 export class UIEvents {
   // Screen events
-  private readonly createScreenListeners = new Set<(View: new () => IScreenView, transition: ScreenTransition | null) => void>();
+  private readonly createScreenListeners = new Set<(id: string, transition: ScreenTransition | null) => void>();
 
-  onCreateScreen(cb: (View: new () => IScreenView, transition: ScreenTransition | null) => void): Unsubscribe {
+  onCreateScreen(cb: (id: string, transition: ScreenTransition | null) => void): Unsubscribe {
     this.createScreenListeners.add(cb);
     return () => { this.createScreenListeners.delete(cb); };
   }
 
-  createScreen(View: new () => IScreenView, transition: ScreenTransition | null): void {
-    for (const cb of this.createScreenListeners) cb(View, transition);
+  createScreen(id: string, transition: ScreenTransition | null): void {
+    for (const cb of this.createScreenListeners) cb(id, transition);
   }
 
   // Popup events
-  private readonly createPopupListeners = new Set<(View: new () => IPopupView) => void>();
+  private readonly createPopupListeners = new Set<(id: string) => void>();
   private readonly removeTopPopupListeners = new Set<() => void>();
   private readonly removeAllPopupsListeners = new Set<() => void>();
 
-  onCreatePopup(cb: (View: new () => IPopupView) => void): Unsubscribe {
+  onCreatePopup(cb: (id: string) => void): Unsubscribe {
     this.createPopupListeners.add(cb);
     return () => { this.createPopupListeners.delete(cb); };
   }
 
-  createPopup(View: new () => IPopupView): void {
-    for (const cb of this.createPopupListeners) cb(View);
+  createPopup(id: string): void {
+    for (const cb of this.createPopupListeners) cb(id);
   }
 
   onRemoveTopPopup(cb: () => void): Unsubscribe {

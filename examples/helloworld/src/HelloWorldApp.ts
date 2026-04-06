@@ -17,6 +17,7 @@ import { GameEvents } from "./events/GameEvents";
 
 import { HelloWorldConfig } from "./HelloWorldConfig";
 import { HelloWorldAssetIds } from "./HelloWorldAssetIds";
+import { HelloWorldUIIds } from "./HelloWorldUIIds";
 
 export class HelloWorldApp extends GamelabsApp {
 
@@ -44,7 +45,7 @@ export class HelloWorldApp extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerScreen<GameScreenView, GameScreenController> (GameScreenView, GameScreenController);
+    this.viewFactory.registerScreen(HelloWorldUIIds.GameScreen, GameScreenView, GameScreenController);
     this.viewFactory.register<TopBarView,     TopBarController>     (TopBarView,     TopBarController);
     this.viewFactory.register<DebugBarView,   DebugBarController>   (DebugBarView,   DebugBarController);
 
@@ -70,7 +71,7 @@ export class HelloWorldApp extends GamelabsApp {
     this.diContainer.bindInstance(Orbital3dCameraController, this._orbitalController);
 
     // Screen
-    this.diContainer.getInstance(UIEvents).createScreen(GameScreenView, this.config.transitions.gameScreenEnter);
+    this.diContainer.getInstance(UIEvents).createScreen(HelloWorldUIIds.GameScreen, this.config.transitions.gameScreenEnter);
 
     // Cube
     this._cubeView = this.viewFactory.createView(CubeView);

@@ -5,13 +5,13 @@ import { Match3GridItem } from "../models/Match3GridItem.js";
 import { Match3GridService } from "../utilities/Match3GridService.js";
 import { Match3Events } from "../events/Match3Events.js";
 import { Match3GemItemObjectOptions } from "../views/Match3GemItemObjectOptions.js";
-import { Match3GridsView } from "../views/Match3GridsView.three.js";
+import type { IMatch3GridsView } from "../views/IMatch3GridsView.js";
 
 export class Match3GridsViewController extends GridsViewController {
   private _gridService: Match3GridService | null = null;
   private _config: Match3Config | null = null;
   private _match3Events: Match3Events | null = null;
-  private _gridsView: Match3GridsView | null = null;
+  private _gridsView: IMatch3GridsView | null = null;
   private _selected: { col: number; row: number } | null = null;
   private _inputLocked = false;
 
@@ -24,10 +24,8 @@ export class Match3GridsViewController extends GridsViewController {
 
   public override initialize(view: IGridView): void {
     super.initialize(view);
-    if (view instanceof Match3GridsView) {
-      this._gridsView = view;
-      view.setCellPointerDownHandler((gridId, col, row) => this._onGridCellPointerDown(gridId, col, row));
-    }
+    this._gridsView = view as IMatch3GridsView;
+    this._gridsView.setCellPointerDownHandler((gridId, col, row) => this._onGridCellPointerDown(gridId, col, row));
   }
 
   protected override createItemObjectOption(item: GridItem, grid: Grid): Match3GemItemObjectOptions {
@@ -84,7 +82,7 @@ export class Match3GridsViewController extends GridsViewController {
     view.updateGemSelection(gridId, this._selected);
   }
 
-  private async _runMatchCascade(svc: Match3GridService, events: Match3Events, view: Match3GridsView, gridId: number): Promise<void> {
+  private async _runMatchCascade(svc: Match3GridService, events: Match3Events, view: IMatch3GridsView, gridId: number): Promise<void> {
     while (svc.findMatches().length > 0) {
       const matches = svc.findMatches();
       await view.animateClearMatches(gridId, matches);

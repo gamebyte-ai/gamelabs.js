@@ -25,8 +25,8 @@ export type ControllerCtor<TView extends IView, TController extends IViewControl
  */
 export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFactory {
   private readonly _registry = new Map<ViewCtor<any>, ControllerCtor<any, any>>();
-  private readonly _screenRegistry = new Map<ViewCtor<any>, ControllerCtor<any, any>>();
-  private readonly _popupRegistry = new Map<ViewCtor<any>, ControllerCtor<any, any>>();
+  private readonly _screenRegistry = new Map<string, { View: ViewCtor<any>; Controller: ControllerCtor<any, any> }>();
+  private readonly _popupRegistry = new Map<string, { View: ViewCtor<any>; Controller: ControllerCtor<any, any> }>();
   private readonly _defaultScreenTransition: ScreenTransition = { type: SCREEN_TRANSITION_TYPES.INSTANT, durationMs: 0 };
   private _activeScreen: IScreenView | null = null;
   private readonly _popupStack: IPopupView[] = [];
@@ -44,11 +44,11 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
 
   public setUIEvents(uiEvents: UIEvents): void {
     this._uiEvents = uiEvents;
-    this._uiEvents.onCreateScreen((View, transition) => {
-      this.handleCreateScreen(View, transition);
+    this._uiEvents.onCreateScreen((id, transition) => {
+      this.handleCreateScreen(id, transition);
     });
-    this._uiEvents.onCreatePopup((View) => {
-      this.handleCreatePopup(View);
+    this._uiEvents.onCreatePopup((id) => {
+      this.handleCreatePopup(id);
     });
     this._uiEvents.onRemoveTopPopup(() => {
       this.handleRemoveTopPopup();
@@ -71,17 +71,29 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   }
 
   public registerScreen<TView extends IScreenView, TController extends IViewController<TView>>(
+    id: string,
     View: ViewCtor<TView>,
     Controller: ControllerCtor<TView, TController>
   ): void {
-    this._screenRegistry.set(View, Controller as ControllerCtor<any, any>);
+    if (this._screenRegistry.has(id)) {
+      const msg = `Screen already registered with id: ${id}`;
+      this.logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
+    }
+    this._screenRegistry.set(id, { View, Controller: Controller as ControllerCtor<any, any> });
   }
 
   public registerPopup<TView extends IPopupView, TController extends IViewController<TView>>(
+    id: string,
     View: ViewCtor<TView>,
     Controller: ControllerCtor<TView, TController>
   ): void {
-    this._popupRegistry.set(View, Controller as ControllerCtor<any, any>);
+    if (this._popupRegistry.has(id)) {
+      const msg = `Popup already registered with id: ${id}`;
+      this.logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
+    }
+    this._popupRegistry.set(id, { View, Controller: Controller as ControllerCtor<any, any> });
   }
 
   public resize(width: number, height: number, dpr: number): void {
@@ -124,10 +136,10 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     return view;
   }
 
-  private handleCreateScreen(View: new () => IScreenView, transition: ScreenTransition | null): void {
-    const Controller = this._screenRegistry.get(View as ViewCtor<any>);
-    if (!Controller) {
-      const msg = `No screen registration for: ${View.name || "(anonymous screen)"}`;
+  private handleCreateScreen(id: string, transition: ScreenTransition | null): void {
+    const entry = this._screenRegistry.get(id);
+    if (!entry) {
+      const msg = `No screen registration for id: ${id}`;
       this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }
@@ -138,9 +150,9 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
       this._activeScreen = null;
     }
 
-    const screen = this.createWithController(View as ViewCtor<any>, Controller) as IScreenView;
+    const screen = this.createWithController(entry.View, entry.Controller) as IScreenView;
     if (!(screen instanceof HudViewBase)) {
-      const msg = `Screen ${View.name || "(anonymous)"} must extend HudViewBase`;
+      const msg = `Screen "${id}" must extend HudViewBase`;
       this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }
@@ -152,17 +164,17 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     this._activeScreen.onEnter?.(resolvedTransition);
   }
 
-  private handleCreatePopup(View: new () => IPopupView): void {
-    const Controller = this._popupRegistry.get(View as ViewCtor<any>);
-    if (!Controller) {
-      const msg = `No popup registration for: ${View.name || "(anonymous popup)"}`;
+  private handleCreatePopup(id: string): void {
+    const entry = this._popupRegistry.get(id);
+    if (!entry) {
+      const msg = `No popup registration for id: ${id}`;
       this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }
 
-    const popupView = this.createWithController(View as ViewCtor<any>, Controller);
+    const popupView = this.createWithController(entry.View, entry.Controller);
     if (!(popupView instanceof HudViewBase)) {
-      const msg = `Popup ${View.name || "(anonymous)"} must extend HudViewBase`;
+      const msg = `Popup "${id}" must extend HudViewBase`;
       this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }

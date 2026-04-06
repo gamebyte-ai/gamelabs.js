@@ -1,8 +1,8 @@
 import { UnsubscribeBag, UIEvents, type IInstanceResolver, type IViewController } from "gamelabsjs";
 import type { IGameScreenView } from "../views/IGameScreenView";
-import { WinPopupView } from "../views/WinPopupView.pixi.js";
 import { TicTacToeTurnManagerToken, type TicTacToeTurnManager } from "../utilities/TicTacToeTurnManager.js";
 import { TurnEvents } from "../events/TurnEvents.js";
+import { TicTacToeUIIds } from "../TicTacToeUIIds.js";
 import { Team } from "../models/GameItem.js";
 
 export class GameScreenController implements IViewController<IGameScreenView> {
@@ -25,11 +25,11 @@ export class GameScreenController implements IViewController<IGameScreenView> {
     this._subs.add(this._turnEvents?.onTurnChanged((team) => this._view?.setActiveTeam(team)));
 
     this._subs.add(this._turnEvents?.onGameWon(() => {
-      this._uiEvents?.createPopup(WinPopupView);
+      this._uiEvents?.createPopup(TicTacToeUIIds.WinPopup);
     }));
 
     this._subs.add(this._turnEvents?.onGameDraw(() => {
-      this._uiEvents?.createPopup(WinPopupView);
+      this._uiEvents?.createPopup(TicTacToeUIIds.WinPopup);
     }));
   }
 

@@ -10,6 +10,7 @@ import { MainScreenController } from "./controllers/MainScreenController.js";
 import { MainScreenEvents } from "./events/MainScreenEvents.js";
 import { MainScreenView } from "./views/MainScreenView.pixi.js";
 import { MainScreenAssetIds } from "./MainScreenAssetIds.js";
+import { MainScreenUIIds } from "./MainScreenUIIds.js";
 
 export class MainScreenBinding extends ModuleBinding {
   //  FIELDS
@@ -39,7 +40,7 @@ export class MainScreenBinding extends ModuleBinding {
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
-    viewFactory.registerScreen<MainScreenView, MainScreenController>(MainScreenView, MainScreenController);
+    viewFactory.registerScreen(MainScreenUIIds.MainScreen, MainScreenView, MainScreenController);
   }
 
 }

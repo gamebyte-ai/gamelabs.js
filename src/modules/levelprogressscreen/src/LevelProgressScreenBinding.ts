@@ -8,6 +8,7 @@ import { LevelProgressScreenEvents } from "./events/LevelProgressScreenEvents.js
 import { ILevelProgressScreenModel, type ILevelProgressScreenModel as LevelProgressScreenModel } from "./models/ILevelProgressScreenModel.js";
 import { LevelProgressScreenAssetIds } from "./LevelProgressScreenAssetIds.js";
 import { LevelProgressScreenView } from "./views/LevelProgressScreenView.pixi.js";
+import { LevelProgressScreenUIIds } from "./LevelProgressScreenUIIds.js";
 import { AssetRequest } from "../../../core/assets/AssetRequest.js";
 import { AssetTypes } from "../../../core/assets/AssetTypes.js";
 
@@ -39,7 +40,7 @@ export class LevelProgressScreenBinding extends ModuleBinding {
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
-    viewFactory.registerScreen<LevelProgressScreenView, LevelProgressScreenController>(LevelProgressScreenView, LevelProgressScreenController);
+    viewFactory.registerScreen(LevelProgressScreenUIIds.LevelProgressScreen, LevelProgressScreenView, LevelProgressScreenController);
   }
 
 }

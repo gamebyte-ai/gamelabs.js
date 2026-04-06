@@ -4,9 +4,10 @@ import type { GridObject, IInstanceResolver } from "gamelabsjs";
 import { GridsView, type GridCellObject } from "gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
 import type { GravityMove, RefillSpawn } from "../utilities/Match3GridService.js";
+import type { IMatch3GridsView } from "./IMatch3GridsView.js";
 import { Match3GemItemObject } from "./Match3GemItemObject.js";
 
-export class Match3GridsView extends GridsView {
+export class Match3GridsView extends GridsView implements IMatch3GridsView {
   private _cellPointerDownHandler: ((gridId: number, col: number, row: number) => void) | null = null;
   private _config: Match3Config | null = null;
 
