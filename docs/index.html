@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gamelabs.js — Documentation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: #0b0f14;
+      color: #c8d0db;
+      line-height: 1.65;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    nav.sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: 260px;
+      height: 100vh;
+      overflow-y: auto;
+      background: #0f1520;
+      border-right: 1px solid #1e293b;
+      padding: 24px 16px;
+      z-index: 10;
+    }
+    nav.sidebar .logo {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #e8eef6;
+      margin-bottom: 24px;
+      letter-spacing: -0.01em;
+    }
+    nav.sidebar ul { list-style: none; }
+    nav.sidebar > ul > li { margin-bottom: 6px; }
+    nav.sidebar a {
+      display: block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 0.85rem;
+      transition: background 0.15s, color 0.15s;
+    }
+    nav.sidebar a:hover { background: #1a2332; color: #e8eef6; }
+    nav.sidebar .section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #475569;
+      padding: 12px 8px 4px;
+    }
+
+    /* ── Main content ── */
+    main {
+      margin-left: 260px;
+      flex: 1;
+      padding: 48px 48px 80px;
+      max-width: 860px;
+    }
+    h1 { font-size: 2rem; font-weight: 800; color: #e8eef6; margin-bottom: 8px; }
+    h1 + p { color: #94a3b8; font-size: 1.05rem; margin-bottom: 32px; }
+    h2 { font-size: 1.35rem; font-weight: 700; color: #e8eef6; margin: 40px 0 12px; padding-top: 16px; border-top: 1px solid #1e293b; }
+    h3 { font-size: 1.05rem; font-weight: 700; color: #cbd5e1; margin: 24px 0 8px; }
+    p { margin-bottom: 12px; }
+    ul, ol { margin: 0 0 12px 20px; }
+    li { margin-bottom: 4px; }
+    strong { color: #e8eef6; }
+    code {
+      background: #161f2e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.88em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #93c5fd;
+    }
+    pre {
+      background: #111827;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      margin: 0 0 16px;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    pre code { background: none; padding: 0; color: #c8d0db; }
+    .tree { color: #94a3b8; }
+
+    /* ── Example cards ── */
+    .examples-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .example-card {
+      display: block;
+      background: #111827;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 16px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .example-card:hover { border-color: #334155; background: #161f2e; }
+    .example-card h3 { margin: 0 0 4px; font-size: 1rem; color: #e8eef6; }
+    .example-card p { color: #94a3b8; font-size: 0.82rem; margin-bottom: 8px; }
+    .example-card .launch { color: #60a5fa; font-size: 0.82rem; font-weight: 600; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      nav.sidebar { display: none; }
+      main { margin-left: 0; padding: 24px 16px 60px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="logo">Gamelabs.js</div>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+
+    <li class="section-title">Architecture</li>
+    <li><a href="#design">Design Decisions</a></li>
+    <li><a href="#project-structure">Project Structure</a></li>
+    <li><a href="#file-naming">File Naming</a></li>
+
+    <li class="section-title">Core Systems</li>
+    <li><a href="#app">App Lifecycle</a></li>
+    <li><a href="#dependency-injection">Dependency Injection</a></li>
+    <li><a href="#views">Views</a></li>
+    <li><a href="#controllers">View Controllers</a></li>
+    <li><a href="#screens">Screen Views</a></li>
+    <li><a href="#popups">Popup Views</a></li>
+    <li><a href="#events">Events</a></li>
+    <li><a href="#assets">Asset Management</a></li>
+    <li><a href="#ui-navigation">UI Navigation</a></li>
+    <li><a href="#devutils">DevUtils</a></li>
+
+    <li class="section-title">Modules</li>
+    <li><a href="#modules">Module System</a></li>
+    <li><a href="#module-uicomponents">UI Components</a></li>
+    <li><a href="#module-mainscreen">Main Screen</a></li>
+    <li><a href="#module-levelprogressscreen">Level Progress Screen</a></li>
+    <li><a href="#module-gamecamera">Game Camera</a></li>
+    <li><a href="#module-gamegrid">Game Grid</a></li>
+
+    <li class="section-title">Reference</li>
+    <li><a href="#rules">Rules &amp; Constraints</a></li>
+    <li><a href="#commands">Commands</a></li>
+
+    <li class="section-title">Examples</li>
+    <li><a href="#examples">Live Examples</a></li>
+  </ul>
+</nav>
+
+<main>
+
+<!-- ════════════════════════════════════════════ -->
+<h1 id="overview">Gamelabs.js</h1>
+<p>A TypeScript skeleton + reusable modules for web games — designed for AI-generated projects, consistent structure, and strict rendering/logic separation.</p>
+
+<p>Built on <strong>Three.js</strong> (3D world/scene), <strong>PixiJS</strong> (2D HUD/UI), and <strong>GSAP</strong> (animations).</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="design">Design Decisions</h2>
+<ul>
+  <li>Base <code>GamelabsApp</code> class — extend and override methods to control program flow</li>
+  <li>Two DI containers: <code>diContainer</code> (controllers/utilities) and <code>viewDiContainer</code> (views)</li>
+  <li>Strict View–ViewController separation
+    <ul>
+      <li><strong>World + WorldViews</strong> — 3D scene objects (Three.js)</li>
+      <li><strong>Hud + HudViews</strong> — 2D UI overlays (PixiJS)</li>
+    </ul>
+  </li>
+  <li>Module system for sharing features between projects</li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="project-structure">Project Structure</h2>
+
+<h3>Library</h3>
+<pre><code class="tree">src/
+├── core/
+│   ├── assets/        AssetManager, AssetRequest, AssetTypes
+│   ├── dev/           Logger, DevUtils, StatsPanel, GroundGrid
+│   ├── di/            DIContainer, InjectionToken
+│   ├── events/        Unsubscribe, UnsubscribeBag
+│   ├── hud/           Hud, HudViewBase
+│   ├── input/         InputManager, IPointerInputHandler
+│   ├── services/      UpdateService
+│   ├── ui/            ScreenView, PopupView, UIEvents, UIUtils
+│   ├── views/         ViewFactory, IView, IViewController
+│   ├── world/         World, WorldViewBase
+│   ├── GamelabsApp.ts
+│   └── ModuleBinding.ts
+├── modules/
+│   ├── uicomponents/  ButtonComponent, BackgroundComponent, ImageComponent, layouts
+│   ├── gamecamera/    GameCameraBinding, camera controllers
+│   ├── gamegrid/      Grid, GridsModel, GridsView
+│   ├── mainscreen/    MainScreenBinding, MainScreenView
+│   └── levelprogressscreen/
+└── index.ts</code></pre>
+
+<h3>Game project</h3>
+<pre><code class="tree">MyGame/
+├── assets/
+└── src/
+    ├── controllers/   MyScreenController.ts
+    ├── events/        MyEvents.ts
+    ├── models/        MyModel.ts
+    ├── utilities/     MyService.ts
+    ├── views/         IMyView.ts, MyView.pixi.ts, MyView.three.ts
+    ├── MyGameApp.ts
+    ├── MyGameAssetIds.ts
+    ├── MyGameUIIds.ts
+    └── MyGameConfig.ts</code></pre>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="file-naming">File Naming Conventions</h2>
+<ul>
+  <li>Interfaces: <code>IFoo.ts</code></li>
+  <li>HUD views: <code>FooView.pixi.ts</code></li>
+  <li>World views: <code>FooView.three.ts</code></li>
+  <li>Controllers: <code>FooController.ts</code></li>
+  <li>Events: <code>FooEvents.ts</code></li>
+  <li>Models: <code>Foo.ts</code> or <code>FooModel.ts</code></li>
+  <li>Config: <code>MyGameConfig.ts</code></li>
+  <li>Asset IDs: <code>MyGameAssetIds.ts</code> — enum with namespaced values like <code>"MyGame.ItemName"</code></li>
+  <li>UI IDs: <code>MyGameUIIds.ts</code> — enum with namespaced values like <code>"MyGame.GameScreen"</code></li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="app">App Lifecycle</h2>
+<p>Your app class extends <code>GamelabsApp</code> and overrides these methods (called in order):</p>
+<ol>
+  <li><code>registerModules()</code> — register <code>ModuleBinding</code> instances with <code>addModule()</code></li>
+  <li><code>configureDI()</code> — bind instances and singletons to DI containers</li>
+  <li><code>configureViews()</code> — register view/controller pairs into <code>viewFactory</code></li>
+  <li><code>loadAssets()</code> — enqueue app-specific assets in <code>assetManager</code></li>
+  <li><code>postInitialize()</code> — create initial screens/views, hook events (called after assets are loaded)</li>
+</ol>
+<p>Runtime: <code>onStep(timestepSeconds)</code> — per-frame logic hook.</p>
+<p>Cleanup: <code>preDestroy()</code> — unsubscribe and release resources.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="dependency-injection">Dependency Injection</h2>
+<ul>
+  <li><code>diContainer</code> — common tools, models, events, utilities. Given to controllers.</li>
+  <li><code>viewDiContainer</code> — common tools, scene managers. Given to views.</li>
+  <li>Interface tokens use the <code>InjectionToken</code> pattern so interfaces can serve as DI keys:<br>
+    <code>export const IFoo = new InjectionToken&lt;IFoo&gt;("IFoo")</code>
+  </li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="views">Views</h2>
+<ul>
+  <li>Define a view interface: <code>interface IMyView extends IView { ... }</code></li>
+  <li>Implement by extending <code>WorldViewBase</code> (3D), <code>HudViewBase</code> (2D), or <code>ScreenView</code>/<code>PopupView</code></li>
+  <li>Views manage scene objects, rendering, sub-views, and pointer input</li>
+  <li>Register: <code>viewFactory.register(MyView, MyController)</code></li>
+  <li>Create: <code>viewFactory.createView(MyView)</code></li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="controllers">View Controllers</h2>
+<ul>
+  <li>Implement <code>IViewController&lt;IMyView&gt;</code></li>
+  <li>Injected with <code>diContainer</code></li>
+  <li>Listen to view events and other events, drive view behavior through the interface</li>
+  <li>Must reference view <strong>interfaces</strong>, never concrete view classes</li>
+  <li>Use <code>UnsubscribeBag</code> for event cleanup</li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="screens">Screen Views</h2>
+<ul>
+  <li>Special HUD views that cover the full canvas — only one active at a time</li>
+  <li>Registered with a string ID: <code>viewFactory.registerScreen(id, View, Controller)</code></li>
+  <li>Created via <code>UIEvents</code>: <code>uiEvents.createScreen(id, transition)</code></li>
+  <li>Built-in transitions: instant, fade, slide (left/right/up/down)</li>
+  <li>Block interaction while <code>isInTransition</code> is true</li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="popups">Popup Views</h2>
+<ul>
+  <li>Stackable overlay views (dialogs, confirmations) with a full-screen input blocker</li>
+  <li>Registered with a string ID: <code>viewFactory.registerPopup(id, View, Controller)</code></li>
+  <li>Created via <code>UIEvents</code>: <code>uiEvents.createPopup(id)</code></li>
+  <li>Removed with <code>uiEvents.removeTopPopup()</code> or <code>uiEvents.removeAllPopups()</code></li>
+  <li>Fade-in on open, fade-out on close, with <code>isInTransition</code> guard</li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="events">Events</h2>
+<p>Events decouple communication between controllers and utilities. Each event class uses the <code>Set&lt;cb&gt;</code> + <code>Unsubscribe</code> pattern:</p>
+<pre><code>class MyEvents {
+  private readonly _listeners = new Set&lt;(data: T) =&gt; void&gt;();
+
+  onMyEvent(cb: (data: T) =&gt; void): Unsubscribe {
+    this._listeners.add(cb);
+    return () =&gt; this._listeners.delete(cb);
+  }
+
+  emitMyEvent(data: T): void {
+    for (const cb of this._listeners) cb(data);
+  }
+}</code></pre>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="assets">Asset Management</h2>
+<ul>
+  <li>Asset IDs are enums: <code>enum MyAssetIds { Bg = "My.Bg" }</code></li>
+  <li>Types: <code>HudTexture</code>, <code>WorldTexture</code>, <code>GLTF</code>, <code>Text</code></li>
+  <li>Load via URL: <code>new AssetRequest(type, id, url)</code></li>
+  <li>Load from content (no URL): <code>new AssetRequest(type, id, "", content)</code></li>
+  <li>Set manually: <code>assetManager.setAsset(id, value)</code></li>
+  <li>All loading completes before <code>postInitialize()</code>. Failed assets get fallbacks.</li>
+  <li>Retrieve: <code>assetManager.getAsset&lt;T&gt;(id)</code></li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="ui-navigation">UI Navigation (UIEvents)</h2>
+<p><code>UIEvents</code> is the core event bus for screen and popup navigation. Controllers inject it from <code>diContainer</code> and use string IDs (never concrete view classes) to trigger navigation:</p>
+<pre><code>// In configureViews:
+viewFactory.registerScreen(MyUIIds.GameScreen, GameScreenView, GameScreenController);
+viewFactory.registerPopup(MyUIIds.WinPopup, WinPopupView, WinPopupController);
+
+// In a controller:
+uiEvents.createScreen(MyUIIds.GameScreen, transition);
+uiEvents.createPopup(MyUIIds.WinPopup);
+uiEvents.removeTopPopup();</code></pre>
+<p>UI IDs follow the same namespaced enum pattern as asset IDs: <code>enum MyUIIds { GameScreen = "My.GameScreen" }</code></p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="devutils">DevUtils</h2>
+<p>Built-in development tools accessible via <code>this.devUtils</code> in your app class or <code>diContainer.getInstance(IDevUtils)</code>:</p>
+<ul>
+  <li><code>devUtils.logger</code> — on-screen log panel. <code>logger.log(msg, type?)</code>, <code>logger.show(bool)</code></li>
+  <li><code>devUtils.statsPanel</code> — FPS/render stats. <code>statsPanel.show(bool)</code></li>
+  <li><code>devUtils.groundGrid</code> — 3D ground grid helper. <code>groundGrid.show(bool)</code></li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="modules">Module System</h2>
+<p>Modules are contained, configurable feature sets. They replicate the project folder structure:</p>
+<pre><code class="tree">MyModule/
+├── assets/
+└── src/
+    ├── controllers/
+    ├── events/
+    ├── views/
+    ├── MyModuleBinding.ts
+    ├── MyModuleAssetIds.ts
+    ├── MyModuleUIIds.ts
+    └── index.ts</code></pre>
+<ul>
+  <li>Must have a binding class extending <code>ModuleBinding</code></li>
+  <li>Added in <code>registerModules()</code> before use</li>
+  <li>Assets and presets can be overridden before registration via <code>assetRequestList.overrideRequest()</code></li>
+</ul>
+
+<!-- ── Module: uicomponents ── -->
+<h3 id="module-uicomponents">UI Components</h3>
+<p>Reusable PixiJS components. Each accepts a JSON-serializable preset object so configuration can be stored as <code>Text</code> assets and overridden per app.</p>
+<ul>
+  <li><code>ButtonComponent</code> — pressable button with placeholder/texture background and label</li>
+  <li><code>BackgroundComponent</code> — full-screen cover-fit background with overlay</li>
+  <li><code>ImageComponent</code> — texture fitted into a box (contain/cover/stretch)</li>
+  <li><code>VerticalLayoutComponent</code> — flex column container</li>
+  <li><code>HorizontalLayoutComponent</code> — flex row container with absolute positioning support</li>
+</ul>
+<p>Use <code>UIUtils.updateFields(baseJson, overridesJson)</code> to tweak individual preset fields.</p>
+
+<!-- ── Module: mainscreen ── -->
+<h3 id="module-mainscreen">Main Screen</h3>
+<p>Ready-to-use main menu screen with logo, play button, and settings button. Exposes <code>MainScreenEvents</code> for click wiring. Button and background appearance configurable via presets.</p>
+
+<!-- ── Module: levelprogressscreen ── -->
+<h3 id="module-levelprogressscreen">Level Progress Screen</h3>
+<p>Vertical level-list screen showing previous/current/next levels with connector sprites and a back button. Exposes <code>LevelProgressScreenEvents</code>.</p>
+
+<!-- ── Module: gamecamera ── -->
+<h3 id="module-gamecamera">Game Camera</h3>
+<p>Camera manager with multiple controller types: <code>Orbital3d</code>, <code>Topdown2d/3d</code>, <code>Front2d/3d</code>, <code>Isometric2d/3d</code>. Supports orthographic and perspective modes with smooth follow.</p>
+
+<!-- ── Module: gamegrid ── -->
+<h3 id="module-gamegrid">Game Grid</h3>
+<p>Grid model, grid items, presets, and a view/controller pair for tile-based gameplay. Used by the match3 and tictactoe examples.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="rules">Rules &amp; Constraints</h2>
+<ul>
+  <li>Views must NOT access <code>diContainer</code> — views receive <code>viewDiContainer</code> only</li>
+  <li>Controllers must NOT import or manipulate rendering objects (Three.js, PixiJS). Use <code>IView</code> interfaces only.</li>
+  <li>Controllers must reference view <strong>interfaces</strong> (<code>IMyView</code>), not concrete classes</li>
+  <li>Cross-feature communication goes through event classes, not direct controller references</li>
+  <li>Views must not contain game logic — they render and report input</li>
+  <li>Event classes must use the <code>Set&lt;cb&gt;</code> + <code>Unsubscribe</code> pattern</li>
+  <li>Use <code>UnsubscribeBag</code> in controllers for event cleanup</li>
+  <li>Asset IDs and UI IDs must be enums with namespaced string values</li>
+  <li>Use <code>utilities/</code> for services, managers, tools — not <code>services/</code></li>
+  <li>Modules must not depend on app-specific code</li>
+  <li>Do not create empty lifecycle overrides</li>
+</ul>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="commands">Commands</h2>
+<pre><code>npm run build          # Build the library (tsup)
+npm run typecheck      # Type-check (tsc --noEmit)
+npm run build:docs     # Build library + all examples into docs/
+
+# Run an example in dev mode:
+cd examples/&lt;name&gt; &amp;&amp; npm install &amp;&amp; npm run dev</code></pre>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="examples">Live Examples</h2>
+<p>Click to launch each example in a new tab.</p>
+
+<div class="examples-grid">
+  <a class="example-card" href="examples/helloworld/" target="_blank">
+    <h3>Hello World</h3>
+    <p>3D rotating cube with orbital camera, HUD toolbar, and debug panel.</p>
+    <span class="launch">Launch &rarr;</span>
+  </a>
+  <a class="example-card" href="examples/screens/" target="_blank">
+    <h3>Screens</h3>
+    <p>Screen navigation with slide transitions between main menu and level select.</p>
+    <span class="launch">Launch &rarr;</span>
+  </a>
+  <a class="example-card" href="examples/tictactoe/" target="_blank">
+    <h3>Tic Tac Toe</h3>
+    <p>Two-player game with 3D grid, win/draw detection, and popup system.</p>
+    <span class="launch">Launch &rarr;</span>
+  </a>
+  <a class="example-card" href="examples/match3/" target="_blank">
+    <h3>Match 3</h3>
+    <p>Gem-swapping puzzle with cascade animations and score tracking.</p>
+    <span class="launch">Launch &rarr;</span>
+  </a>
+  <a class="example-card" href="examples/avoidance/" target="_blank">
+    <h3>Avoidance</h3>
+    <p>Survival game: dodge virus enemies across waves of increasing difficulty.</p>
+    <span class="launch">Launch &rarr;</span>
+  </a>
+</div>
+
+</main>
+</body>
+</html>

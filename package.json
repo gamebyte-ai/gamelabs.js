@@ -69,6 +69,7 @@
     "build": "npm run clean && tsup && node scripts/copy-module-assets.mjs",
     "dev": "tsup --watch",
     "clean": "rimraf dist",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:docs": "npm run build && node scripts/build-docs.mjs"
   }
 }
