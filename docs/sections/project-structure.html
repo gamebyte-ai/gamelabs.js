@@ -1,0 +1,39 @@
+<h2 id="project-structure">Project Structure</h2>
+
+<h3>Library</h3>
+<pre><code class="tree">src/
+├── core/
+│   ├── assets/        AssetManager, AssetRequest, AssetTypes
+│   ├── dev/           Logger, DevUtils, StatsPanel, GroundGrid
+│   ├── di/            DIContainer, InjectionToken
+│   ├── events/        Unsubscribe, UnsubscribeBag
+│   ├── hud/           Hud, HudViewBase
+│   ├── input/         InputManager, KeyboardListener, InputMapper
+│   ├── services/      UpdateService
+│   ├── ui/            ScreenView, PopupView, UIEvents, UIUtils
+│   ├── views/         ViewFactory, IView, IViewController
+│   ├── world/         World, WorldViewBase
+│   ├── GamelabsApp.ts
+│   └── ModuleBinding.ts
+├── modules/
+│   ├── uicomponents/  ButtonComponent, BackgroundComponent, ImageComponent, layouts
+│   ├── gamecamera/    GameCameraBinding, camera controllers
+│   ├── gamegrid/      Grid, GridsModel, GridsView
+│   ├── mainscreen/    MainScreenBinding, MainScreenView
+│   ├── levelprogressscreen/
+│   └── onscreencontrols/  OnScreenControlManager, virtual buttons &amp; joysticks
+└── index.ts</code></pre>
+
+<h3>Game project</h3>
+<pre><code class="tree">MyGame/
+├── assets/
+└── src/
+    ├── controllers/   MyScreenController.ts
+    ├── events/        MyEvents.ts
+    ├── models/        MyModel.ts
+    ├── utilities/     MyService.ts
+    ├── views/         IMyView.ts, MyView.pixi.ts, MyView.three.ts
+    ├── MyGameApp.ts
+    ├── MyGameAssetIds.ts
+    ├── MyGameUIIds.ts
+    └── MyGameConfig.ts</code></pre>

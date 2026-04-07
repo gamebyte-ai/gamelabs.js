@@ -1,0 +1,41 @@
+<h2 id="module-uicomponents">UI Components</h2>
+<p>Reusable PixiJS UI components built on <code>@pixi/layout</code> and <code>@pixi/ui</code>. Each accepts a JSON-serializable preset object so configuration can be stored as <code>Text</code> assets and overridden per app.</p>
+
+<h4>ButtonComponent</h4>
+<p>Pressable button with a rounded-rect placeholder that can be replaced by a texture, plus an optional centered label.</p>
+<pre><code>const btn = new ButtonComponent({
+  width: 400, height: 200,
+  label: "PLAY",
+  bgTextureId: "MainScreen.PlayButtonBg",
+});
+btn.resolveAssets(assetManager);
+btn.onPress(() =&gt; { /* ... */ });</code></pre>
+<p><strong>Preset:</strong> <code>x</code>, <code>y</code>, <code>width</code>, <code>height</code>, <code>label</code>, <code>labelStyle</code>, <code>radius</code> (12), <code>fillColor</code>, <code>fillAlpha</code>, <code>strokeColor</code>, <code>strokeWidth</code>, <code>bgTextureId</code>.</p>
+<p><strong>Methods:</strong> <code>setTexture()</code>, <code>setLabel()</code>, <code>onPress(cb): Unsubscribe</code>, <code>resolveAssets(assetManager)</code>.</p>
+
+<h4>BackgroundComponent</h4>
+<p>Full-screen cover-fit background with overlay and fallback color.</p>
+<p><strong>Preset:</strong> <code>bgTextureId</code>, <code>overlayColor</code> (0x000000), <code>overlayAlpha</code> (0.12), <code>fallbackColor</code> (0x020617), <code>fallbackAlpha</code> (0.55).</p>
+
+<h4>ImageComponent</h4>
+<p>Texture fitted into a layout-managed box with configurable scaling.</p>
+<p><strong>Preset:</strong> <code>x</code>, <code>y</code>, <code>width</code>, <code>height</code>, <code>textureId</code>, <code>fit</code> (<code>"contain"</code>/<code>"cover"</code>/<code>"stretch"</code>), <code>padding</code> (0–1).</p>
+
+<h4>VerticalLayoutComponent</h4>
+<p>Flex column container. <strong>Preset:</strong> <code>x</code>, <code>y</code>, <code>width</code>, <code>height</code>, <code>gap</code>, <code>padding</code>, <code>alignItems</code>, <code>justifyContent</code>.</p>
+
+<h4>HorizontalLayoutComponent</h4>
+<p>Flex row container with optional absolute positioning. Same preset as vertical plus <code>position</code>, <code>left</code>, <code>top</code>, <code>right</code>, <code>bottom</code>.</p>
+
+<h4>JSON preset pattern</h4>
+<p>Every component has a <code>parse*Preset(json)</code> helper. Store presets as <code>Text</code> assets and override per app:</p>
+<pre><code>// In ModuleBinding:
+this._assetRequestList.addRequest(
+  new AssetRequest(AssetTypes.Text, MyAssetIds.MyBtnPreset, "",
+    '{"width":400,"height":200,"label":"PLAY"}')
+);
+
+// In View:
+const json = this.assetLoader.getAsset&lt;string&gt;(MyAssetIds.MyBtnPreset) ?? "{}";
+const button = new ButtonComponent(parseButtonComponentPreset(json));</code></pre>
+<p>Use <code>UIUtils.updateFields(baseJson, overridesJson)</code> to tweak individual fields.</p>

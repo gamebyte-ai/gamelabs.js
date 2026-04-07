@@ -1,0 +1,39 @@
+<h2 id="module-mainscreen">Main Screen</h2>
+<p>Main menu / title screen with a logo, play button, and settings button. Ready to use out of the box — register the module, wire events, and show the screen.</p>
+
+<h4>Usage</h4>
+<pre><code>const mainScreenBinding = new MainScreenBinding();
+this.addModule(mainScreenBinding);
+
+// In postInitialize:
+const events = this.diContainer.getInstance(MainScreenEvents);
+events.onPlayClick(() =&gt; this.showLevelSelect());
+events.onSettingsClick(() =&gt; this.openSettings());
+
+uiEvents.createScreen(MainScreenUIIds.MainScreen, transition);</code></pre>
+
+<h4>Asset overrides</h4>
+<p>Replace default assets before adding the module:</p>
+<pre><code>mainScreenBinding.assetRequestList.overrideRequest(
+  MainScreenAssetIds.Logo, myLogoUrl
+);
+mainScreenBinding.assetRequestList.overrideRequest(
+  MainScreenAssetIds.Background, myBgUrl
+);</code></pre>
+
+<h4>Events</h4>
+<ul>
+  <li><code>MainScreenEvents.onPlayClick(cb)</code> — play button tapped</li>
+  <li><code>MainScreenEvents.onSettingsClick(cb)</code> — settings button tapped</li>
+</ul>
+
+<h4>Customization</h4>
+<ul>
+  <li><strong>Assets:</strong> override via <code>assetRequestList.overrideRequest()</code></li>
+  <li><strong>Button presets:</strong> override <code>PlayButtonPreset</code> / <code>SettingsButtonPreset</code> text assets</li>
+  <li><strong>View:</strong> subclass <code>MainScreenView</code> and register your own binding</li>
+  <li><strong>Events:</strong> bind your own <code>MainScreenEvents</code> instance in DI before the binding runs</li>
+</ul>
+
+<h4>Exports</h4>
+<p><code>MainScreenView</code>, <code>MainScreenController</code>, <code>MainScreenEvents</code>, <code>MainScreenBinding</code>, <code>MainScreenAssetIds</code>, <code>MainScreenUIIds</code>.</p>

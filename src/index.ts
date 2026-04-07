@@ -39,6 +39,8 @@ export * from "./core/types.js";
 export * from "./core/version.js";
 export * from "./core/input/InputManager.js";
 export * from "./core/input/IInputManager.js";
+export * from "./core/input/KeyboardListener.js";
+export * from "./core/input/InputMapper.js";
 export { POINTER_INPUT_LAYER } from "./core/input/PointerInputLayer.js";
 export type { IPointerInputHandler } from "./core/input/IPointerInputHandler.js";
 
@@ -47,4 +49,5 @@ export * from "./modules/mainscreen/src/index.js";
 export * from "./modules/levelprogressscreen/src/index.js";
 export * from "./modules/gamecamera/src/index.js";
 export * from "./modules/gamegrid/src/index.js";
+export * from "./modules/onscreencontrols/src/index.js";
 

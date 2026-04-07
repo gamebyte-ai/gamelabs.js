@@ -1,0 +1,14 @@
+<h2 id="rules">Rules &amp; Constraints</h2>
+<ul>
+  <li>Views must NOT access <code>diContainer</code> — views receive <code>viewDiContainer</code> only</li>
+  <li>Controllers must NOT import or manipulate rendering objects (Three.js, PixiJS). Use <code>IView</code> interfaces only.</li>
+  <li>Controllers must reference view <strong>interfaces</strong> (<code>IMyView</code>), not concrete classes</li>
+  <li>Cross-feature communication goes through event classes, not direct controller references</li>
+  <li>Views must not contain game logic — they render and report input</li>
+  <li>Event classes must use the <code>Set&lt;cb&gt;</code> + <code>Unsubscribe</code> pattern</li>
+  <li>Use <code>UnsubscribeBag</code> in controllers for event cleanup</li>
+  <li>Asset IDs and UI IDs must be enums with namespaced string values</li>
+  <li>Use <code>utilities/</code> for services, managers, tools — not <code>services/</code></li>
+  <li>Modules must not depend on app-specific code</li>
+  <li>Do not create empty lifecycle overrides</li>
+</ul>

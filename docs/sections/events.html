@@ -1,0 +1,14 @@
+<h2 id="events">Events</h2>
+<p>Events decouple communication between controllers and utilities. Each event class uses the <code>Set&lt;cb&gt;</code> + <code>Unsubscribe</code> pattern:</p>
+<pre><code>class MyEvents {
+  private readonly _listeners = new Set&lt;(data: T) =&gt; void&gt;();
+
+  onMyEvent(cb: (data: T) =&gt; void): Unsubscribe {
+    this._listeners.add(cb);
+    return () =&gt; this._listeners.delete(cb);
+  }
+
+  emitMyEvent(data: T): void {
+    for (const cb of this._listeners) cb(data);
+  }
+}</code></pre>

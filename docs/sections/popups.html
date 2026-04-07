@@ -1,0 +1,8 @@
+<h2 id="popups">Popup Views</h2>
+<ul>
+  <li>Stackable overlay views (dialogs, confirmations) with a full-screen input blocker</li>
+  <li>Registered with a string ID: <code>viewFactory.registerPopup(id, View, Controller)</code></li>
+  <li>Created via <code>UIEvents</code>: <code>uiEvents.createPopup(id)</code></li>
+  <li>Removed with <code>uiEvents.removeTopPopup()</code> or <code>uiEvents.removeAllPopups()</code></li>
+  <li>Fade-in on open, fade-out on close, with <code>isInTransition</code> guard</li>
+</ul>

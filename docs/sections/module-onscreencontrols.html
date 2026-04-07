@@ -1,0 +1,63 @@
+<h2 id="module-onscreencontrols">On-Screen Controls</h2>
+<p>Touch-friendly virtual controls rendered as a PixiJS HUD overlay. <code>OnScreenControlManager</code> implements <code>IInputDeviceListener</code> so controls integrate with <code>InputMapper</code> alongside keyboard.</p>
+
+<h4>Setup</h4>
+<pre><code>const binding = new OnScreenControlsBinding();
+
+binding.addControl({
+  type: ControlType.Joystick,
+  id: "move",
+  anchor: ControlAnchor.BottomLeft,
+  offsetX: 120, offsetY: 120,
+  baseSize: 60, knobSize: 25,
+  dynamic: false, threshold: 0.2,
+});
+
+binding.addControl({
+  type: ControlType.Button,
+  id: "fire",
+  anchor: ControlAnchor.BottomRight,
+  offsetX: 80, offsetY: 80,
+  size: 70,
+});
+
+this.addModule(binding);</code></pre>
+
+<h4>Create the view</h4>
+<pre><code>// In your screen view's postInitialize():
+this._controls = this.viewFactory.createView(OnScreenControlsView);
+this.addChild(this._controls);
+
+// In onResize:
+this._controls.resize(width, height);</code></pre>
+
+<h4>Map to InputMapper</h4>
+<pre><code>mapper.addDeviceListener(binding.manager); // deviceId = "onscreen"
+
+// Joystick virtual keys: &lt;id&gt;.up, &lt;id&gt;.down, &lt;id&gt;.left, &lt;id&gt;.right
+mapper.mapKeysToDirection("onscreen",
+  "move.up", "move.down", "move.left", "move.right", "move");
+
+// Button: id is the key code
+mapper.mapKeyToAction("onscreen", "fire", "shoot");</code></pre>
+
+<h4>Virtual buttons</h4>
+<p>Circular touch targets with up/down visual states and optional icon textures.</p>
+<p><strong>Config:</strong> <code>size</code>, <code>iconTextureId</code>, <code>upColor</code> (0x222222), <code>downColor</code> (0x444444), <code>upAlpha</code> (0.5), <code>downAlpha</code> (0.8).</p>
+
+<h4>Virtual joysticks</h4>
+<p>Base circle + draggable knob. Fires virtual key press/release when the knob exceeds the threshold.</p>
+<ul>
+  <li><strong>Static</strong> (<code>dynamic: false</code>) — always visible at the anchor position</li>
+  <li><strong>Dynamic</strong> (<code>dynamic: true</code>) — hidden until touched; appears at finger position within the touch area</li>
+</ul>
+<p><strong>Config:</strong> <code>baseSize</code>, <code>knobSize</code>, <code>dynamic</code>, <code>dynamicAreaWidth</code>, <code>dynamicAreaHeight</code>, <code>threshold</code> (0.3), <code>baseColor</code>, <code>baseAlpha</code>, <code>knobColor</code>, <code>knobAlpha</code>.</p>
+
+<h4>Positioning</h4>
+<p><code>ControlAnchor</code> enum positions controls relative to screen edges: <code>TopLeft</code>, <code>TopCenter</code>, <code>TopRight</code>, <code>CenterLeft</code>, <code>Center</code>, <code>CenterRight</code>, <code>BottomLeft</code>, <code>BottomCenter</code>, <code>BottomRight</code>. <code>offsetX</code>/<code>offsetY</code> move inward from the anchor.</p>
+
+<h4>Runtime changes</h4>
+<p>Controls can be added or removed at any time via <code>binding.addControl()</code> / <code>binding.removeControl(id)</code>. The view updates automatically through <code>OnScreenControlEvents</code> (<code>controlAdded</code>, <code>controlRemoved</code>).</p>
+
+<h4>Exports</h4>
+<p><code>OnScreenControlsBinding</code>, <code>OnScreenControlManager</code>, <code>OnScreenControlEvents</code>, <code>OnScreenControlsView</code>, <code>OnScreenControlsController</code>, <code>ControlType</code>, <code>ControlAnchor</code>, <code>VirtualControlConfig</code>, <code>VirtualButtonConfig</code>, <code>VirtualJoystickConfig</code>.</p>

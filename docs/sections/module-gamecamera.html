@@ -1,0 +1,39 @@
+<h2 id="module-gamecamera">Game Camera</h2>
+<p>Controls the 3D scene camera in Three.js. Supports multiple projection modes, object/position following, and smooth easing.</p>
+
+<h4>Usage</h4>
+<pre><code>const cameraBinding = new GameCameraBinding();
+this.addModule(cameraBinding);
+
+// In postInitialize:
+cameraBinding.cameraManager.initialize(this.world);
+const controller = new Topdown2dCameraController(cameraBinding.cameraManager);
+controller.followPosition(0, 0, 0);
+cameraBinding.cameraManager.setOrthoSize(20);
+
+// In onResize:
+cameraBinding.cameraManager.resize(width, height);
+
+// In onStep:
+cameraBinding.cameraManager.update(dtSeconds);</code></pre>
+
+<h4>Camera modes</h4>
+<ul>
+  <li><strong>Front 2D/3D</strong> — orthographic/perspective facing -Z</li>
+  <li><strong>Topdown 2D/3D</strong> — orthographic/perspective facing -Y</li>
+  <li><strong>Isometric 2D/3D</strong> — orthographic/perspective from (a,a,a) toward origin</li>
+  <li><strong>Orbital 3D</strong> — perspective spherical orbit with <code>distance</code>, <code>azimuth</code>, <code>pitch</code> controls</li>
+  <li><strong>Custom</strong> — extend <code>BaseCustomCameraController</code></li>
+</ul>
+
+<h4>Common API</h4>
+<ul>
+  <li><code>followObject(mesh, ease?)</code> — smooth follow a 3D object</li>
+  <li><code>followPosition(x, y, z, ease?)</code> — smooth follow a point</li>
+  <li><code>setPosition(x, y, z)</code> — instant position</li>
+  <li><code>setOrthoSize(size)</code> — orthographic visible height</li>
+  <li><code>activate()</code> / <code>deactivate()</code> — toggle updates</li>
+</ul>
+
+<h4>Exports</h4>
+<p><code>GameCameraManager</code>, <code>GameCameraBinding</code>, <code>GameCameraMode</code>, <code>BaseCameraController</code>, <code>Front2d/3dCameraController</code>, <code>Topdown2d/3dCameraController</code>, <code>Isometric2d/3dCameraController</code>, <code>Orbital3dCameraController</code>, <code>BaseCustomCameraController</code>.</p>

@@ -1,0 +1,12 @@
+<h2 id="design">Design Decisions</h2>
+<ul>
+  <li>Base <code>GamelabsApp</code> class — extend and override methods to control program flow</li>
+  <li>Two DI containers: <code>diContainer</code> (controllers/utilities) and <code>viewDiContainer</code> (views)</li>
+  <li>Strict View–ViewController separation
+    <ul>
+      <li><strong>World + WorldViews</strong> — 3D scene objects (Three.js)</li>
+      <li><strong>Hud + HudViews</strong> — 2D UI overlays (PixiJS)</li>
+    </ul>
+  </li>
+  <li>Module system for sharing features between projects</li>
+</ul>

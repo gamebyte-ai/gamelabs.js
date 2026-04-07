@@ -197,6 +197,7 @@ The following modules are shipped with the library. See each module's `README.md
 - **`levelprogressscreen`** — vertical level-list screen showing previous/current/next levels with connector sprites and a back button. Exposes `LevelProgressScreenEvents`.
 - **`gamecamera`** — camera manager with multiple controller flavors (orbital, topdown 2D/3D, front 2D/3D, isometric 2D/3D) for common gameplay camera rigs.
 - **`gamegrid`** — grid model, grid items, and a grid view/controller pair for tile-based gameplay (used by the match3 and tictactoe examples).
+- **`onscreencontrols`** — touch-friendly virtual buttons and joysticks rendered as a PixiJS HUD overlay. `OnScreenControlManager` implements `IInputDeviceListener` so controls integrate with `InputMapper` alongside keyboard. Supports static and dynamic joysticks, dynamic add/remove at runtime via `OnScreenControlEvents`.
 
 
 

@@ -16,6 +16,7 @@ import { IViewFactory } from "./views/IViewFactory.js";
 import { InputManager } from "./input/InputManager.js";
 import { IInputManager } from "./input/IInputManager.js";
 import { UIEvents } from "./ui/UIEvents.js";
+import { KeyboardListener } from "./input/KeyboardListener.js";
 
 export class GamelabsApp {
   //  MEMBERS
@@ -34,6 +35,7 @@ export class GamelabsApp {
   public readonly viewDiContainer: DIContainer;
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
   private _inputManager: InputManager | null = null;
+  private _keyboardListener: KeyboardListener | null = null;
 
   private _isInitialized = false;
   private _moduleList: ModuleBinding[] = [];
@@ -169,6 +171,10 @@ export class GamelabsApp {
 
     this._inputManager = new InputManager(this.canvas, this.hud, this.world);
     this.viewDiContainer.bindInstance(IInputManager, this._inputManager);
+
+    this._keyboardListener = new KeyboardListener();
+    this.diContainer.bindInstance(KeyboardListener, this._keyboardListener);
+    this.viewDiContainer.bindInstance(KeyboardListener, this._keyboardListener);
     
     this.registerModules();
 
@@ -192,6 +198,7 @@ export class GamelabsApp {
     this.requestResize();
 
     this._inputManager.startListening();
+    this._keyboardListener!.startListening();
 
     this._isInitialized = true;
   }
@@ -331,6 +338,8 @@ export class GamelabsApp {
   destroy(): void {
     this.stopMainLoop();
     this._inputManager?.stopListening();
+    this._keyboardListener?.stopListening();
+    this._keyboardListener = null;
     this._inputManager = null;
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();

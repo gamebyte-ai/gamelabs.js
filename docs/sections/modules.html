@@ -1,0 +1,17 @@
+<h2 id="modules">Module System</h2>
+<p>Modules are contained, configurable feature sets. They replicate the project folder structure:</p>
+<pre><code class="tree">MyModule/
+├── assets/
+└── src/
+    ├── controllers/
+    ├── events/
+    ├── views/
+    ├── MyModuleBinding.ts
+    ├── MyModuleAssetIds.ts
+    ├── MyModuleUIIds.ts
+    └── index.ts</code></pre>
+<ul>
+  <li>Must have a binding class extending <code>ModuleBinding</code></li>
+  <li>Added in <code>registerModules()</code> before use</li>
+  <li>Assets and presets can be overridden before registration via <code>assetRequestList.overrideRequest()</code></li>
+</ul>

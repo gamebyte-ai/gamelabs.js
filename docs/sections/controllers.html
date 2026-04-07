@@ -1,0 +1,8 @@
+<h2 id="controllers">View Controllers</h2>
+<ul>
+  <li>Implement <code>IViewController&lt;IMyView&gt;</code></li>
+  <li>Injected with <code>diContainer</code></li>
+  <li>Listen to view events and other events, drive view behavior through the interface</li>
+  <li>Must reference view <strong>interfaces</strong>, never concrete view classes</li>
+  <li>Use <code>UnsubscribeBag</code> for event cleanup</li>
+</ul>

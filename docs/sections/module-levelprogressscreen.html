@@ -1,0 +1,35 @@
+<h2 id="module-levelprogressscreen">Level Progress Screen</h2>
+<p>Level selection / progress screen showing a vertical list of level numbers with the current level highlighted and clickable. Includes a back button.</p>
+
+<h4>Usage</h4>
+<pre><code>// Implement the model contract
+class MyLevelModel implements ILevelProgressScreenModel {
+  readonly visibleItemCount = 5;
+  readonly currentLevel = 1;
+}
+
+const levelBinding = new LevelProgressScreenBinding(new MyLevelModel());
+this.addModule(levelBinding);
+
+// In postInitialize:
+const events = this.diContainer.getInstance(LevelProgressScreenEvents);
+events.onCurrentLevelClick(() =&gt; this.startLevel());
+events.onBackClick(() =&gt; this.showMainMenu());
+
+uiEvents.createScreen(LevelProgressScreenUIIds.LevelProgressScreen, transition);</code></pre>
+
+<h4>Events</h4>
+<ul>
+  <li><code>LevelProgressScreenEvents.onCurrentLevelClick(cb)</code> — current level item tapped</li>
+  <li><code>LevelProgressScreenEvents.onBackClick(cb)</code> — back button tapped</li>
+</ul>
+
+<h4>Customization</h4>
+<ul>
+  <li><strong>Model:</strong> implement <code>ILevelProgressScreenModel</code> (drives <code>visibleItemCount</code> and <code>currentLevel</code>)</li>
+  <li><strong>Assets:</strong> override via <code>assetRequestList.overrideRequest()</code></li>
+  <li><strong>View:</strong> subclass <code>LevelProgressScreenView</code> and override layout/styling</li>
+</ul>
+
+<h4>Exports</h4>
+<p><code>LevelProgressScreenView</code>, <code>LevelProgressScreenController</code>, <code>LevelProgressScreenEvents</code>, <code>LevelProgressScreenBinding</code>, <code>ILevelProgressScreenModel</code>, <code>LevelProgressScreenAssetIds</code>, <code>LevelProgressScreenUIIds</code>.</p>
