@@ -6,8 +6,8 @@ This project is a **TypeScript skeleton + reusable modules** for web games. It i
 - Strict separation between **rendering/scene** and **game logic**
 
 It depends on:
-- **Three.js** for 3D (world / scene)
-- **PixiJS** for 2D (HUD / UI)
+- **Three.js** for 3D (world scene)
+- **PixiJS** for 2D (HUD and UI)
 - **GSAP** for animations
 
 
@@ -211,6 +211,7 @@ The following modules are shipped with the library. See each module's `README.md
 
 - Views must NOT access `diContainer`. Views receive `viewDiContainer` only.
 - Controllers must NOT import or manipulate rendering objects (Three.js meshes, PixiJS containers, etc.). Controllers talk to views only through `IView` interfaces.
+- Basic logic can be in controllers, complicated operations can be moved to utility classes
 - Cross-feature communication must go through event classes, not direct references between controllers.
 - Do not call other controllers directly. Use events to decouple.
 - Scene setup (fog, lights, post-processing) belongs in views, not in the app class.
@@ -223,3 +224,4 @@ The following modules are shipped with the library. See each module's `README.md
 - Modules must not depend on app-specific code. They should be reusable across projects.
 - Do not override lifecycle methods without calling `super` where required (`super.inject()`, `super.destroy()`, etc.).
 - Do not create empty lifecycle overrides (empty `loadAssets()`, `onStep()` that only calls `super`). Only override when adding behavior.
+- Game related object should be in world, even if it is a 2d game.

@@ -97,6 +97,8 @@ src/
 | `screens` | Screen navigation using built-in modules |
 | `tictactoe` | TicTacToe with gamegrid module, win detection |
 | `match3` | Match-3 puzzle with animated gem board |
+| `avoidance` | Survival game with keyboard + on-screen joystick input |
+| `watersort` | Puzzle game with tween pour animations |
 
 ```bash
 npm run build                    # Build library first
