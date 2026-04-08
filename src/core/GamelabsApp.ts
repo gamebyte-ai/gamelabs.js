@@ -6,6 +6,7 @@ import { DIContainer } from "./di/DIContainer.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewFactory } from "./views/ViewFactory.js";
 import { UpdateService } from "./services/UpdateService.js";
+import { StorageService } from "./services/StorageService.js";
 import { Hud } from "./hud/Hud.js";
 import { AssetManager } from "./assets/AssetManager.js";
 import { ModuleBinding } from "./ModuleBinding.js";
@@ -31,6 +32,7 @@ export class GamelabsApp {
   private readonly _logger: Logger;
 
   readonly updateService = new UpdateService();
+  readonly storageService = new StorageService(this.constructor.name);
   public readonly diContainer: DIContainer;
   public readonly viewDiContainer: DIContainer;
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
@@ -141,6 +143,7 @@ export class GamelabsApp {
 
     // Base DI bindings (always available).
     this.diContainer.bindInstance(UpdateService, this.updateService);
+    this.diContainer.bindInstance(StorageService, this.storageService);
     this.diContainer.bindInstance(GamelabsApp, this);
     this.diContainer.bindInstance(ILogger, this._logger, [Logger]);
     this.viewDiContainer.bindInstance(ILogger, this._logger, [Logger]);

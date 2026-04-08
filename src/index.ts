@@ -13,6 +13,7 @@ export * from "./core/world/World.js";
 export * from "./core/world/WorldInteractiveObject.js";
 export * from "./core/world/WorldViewBase.js";
 export * from "./core/services/UpdateService.js";
+export * from "./core/services/StorageService.js";
 export * from "./core/dev/ILogger.js";
 export * from "./core/dev/LogTypes.js";
 export * from "./core/dev/IDevUtils.js";
@@ -50,4 +51,5 @@ export * from "./modules/levelprogressscreen/src/index.js";
 export * from "./modules/gamecamera/src/index.js";
 export * from "./modules/gamegrid/src/index.js";
 export * from "./modules/onscreencontrols/src/index.js";
+export * from "./modules/settings/src/index.js";
 
