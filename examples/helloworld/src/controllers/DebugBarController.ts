@@ -1,4 +1,4 @@
-import { IDevUtils, UnsubscribeBag, type IInstanceResolver, type IViewController } from "gamelabsjs";
+import { IDevUtils, UnsubscribeBag, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
 import type { IDebugBarView } from "../views/IDebugBarView";
 import { DebugEvents } from "../events/DebugEvents";
 

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { IInputManager } from "../input/IInputManager.js";
-import { IPointerInputHandler } from "../input/IPointerInputHandler.js";
+import type { IPointerInputHandler } from "../input/IPointerInputHandler.js";
 
 export class WorldInteractiveObject extends THREE.Group {
   //  MEMBERS
@@ -33,7 +33,7 @@ export class WorldInteractiveObject extends THREE.Group {
 
   //  METHODS
   protected setInputManager(inputManager: IInputManager | null): void {
-    if (this._inputManager===null && inputManager!==null) {
+    if (this._inputManager === null && inputManager !== null) {
       this._inputManager = inputManager;
       if (this._isPointerListener) {
         this._inputManager.addPointerHandler(this as unknown as IPointerInputHandler);
@@ -46,14 +46,14 @@ export class WorldInteractiveObject extends THREE.Group {
     this.removeEventListener("removed", this.onRemoved);
   }
 
-  private onAdded(event: Object): void {
+  private onAdded(event: object): void {
     if (this.isPointerInputHandler) {
       this._isPointerListener = true;
       this._inputManager?.addPointerHandler(this as unknown as IPointerInputHandler);
     }
   }
 
-  private onRemoved(event: Object): void {
+  private onRemoved(event: object): void {
     if (this._isPointerListener) {
       this._isPointerListener = false;
       this._inputManager?.removePointerHandler(this as unknown as IPointerInputHandler);

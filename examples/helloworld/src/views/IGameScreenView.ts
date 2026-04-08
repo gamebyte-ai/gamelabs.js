@@ -1,4 +1,4 @@
-import type { IScreenView } from "gamelabsjs";
+import type { IScreenView } from "@gamebyte/gamelabsjs";
 
 /**
  * HelloWorld "gameplay" screen contract.

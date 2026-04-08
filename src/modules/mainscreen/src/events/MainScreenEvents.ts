@@ -29,4 +29,3 @@ export class MainScreenEvents {
     for (const cb of this.settingsClickListeners) cb();
   }
 }
-

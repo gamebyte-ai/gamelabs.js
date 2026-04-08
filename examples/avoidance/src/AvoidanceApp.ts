@@ -1,4 +1,4 @@
-import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, Topdown2dCameraController } from "gamelabsjs";
+import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, Topdown2dCameraController } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenController } from "./controllers/GameScreenController";

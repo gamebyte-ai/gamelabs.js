@@ -1,4 +1,4 @@
-import { UnsubscribeBag, UIEvents, UpdateService, type IInstanceResolver, type IViewController, type Unsubscribe } from "gamelabsjs";
+import { UnsubscribeBag, UIEvents, UpdateService, type IInstanceResolver, type IViewController, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "../views/IGameScreenView";
 import { AvoidanceUIIds } from "../AvoidanceUIIds.js";
 import { GameEvents } from "../events/GameEvents.js";

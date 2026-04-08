@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { WorldViewBase, LogTypes, POINTER_INPUT_LAYER, type IPointerInputHandler, type Unsubscribe } from "gamelabsjs";
+import { WorldViewBase, LogTypes, POINTER_INPUT_LAYER, type IPointerInputHandler, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { ICubeView } from "./ICubeView";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { HelloWorldAssetIds } from "../HelloWorldAssetIds";

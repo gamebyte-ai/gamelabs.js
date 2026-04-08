@@ -1,5 +1,5 @@
-import type { GridPreset } from "gamelabsjs";
-import { GridItemObjectOptions } from "gamelabsjs";
+import type { GridPreset } from "@gamebyte/gamelabsjs";
+import { GridItemObjectOptions } from "@gamebyte/gamelabsjs";
 
 export class Match3GemItemObjectOptions extends GridItemObjectOptions {
   public readonly gemType: number;

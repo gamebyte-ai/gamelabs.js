@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { AssetRequest, AssetTypes, GamelabsApp, GameCameraBinding, Grid, GridEvents, GridPreset, GridsModel, LogTypes, Topdown2dCameraController, UIEvents } from "gamelabsjs";
+import { AssetRequest, AssetTypes, GamelabsApp, GameCameraBinding, Grid, GridEvents, GridPreset, GridsModel, LogTypes, Topdown2dCameraController, UIEvents } from "@gamebyte/gamelabsjs";
 import { Match3AssetIds } from "./Match3AssetIds.js";
 import { Match3Config } from "./Match3Config.js";
 import { Match3GameGridBinding } from "./Match3GameGridBinding.js";

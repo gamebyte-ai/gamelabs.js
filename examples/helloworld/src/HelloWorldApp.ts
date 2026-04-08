@@ -1,4 +1,4 @@
-import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController, UIEvents } from "gamelabsjs";
+import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController, UIEvents } from "@gamebyte/gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeController } from "./controllers/CubeController";

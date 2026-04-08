@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "gamelabsjs";
+import type { Unsubscribe } from "@gamebyte/gamelabsjs";
 
 export class Match3Events {
   private readonly _scoreChangedListeners = new Set<(score: number) => void>();

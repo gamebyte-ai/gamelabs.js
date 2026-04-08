@@ -2,16 +2,23 @@ import * as THREE from "three";
 import type { AddGridData } from "./IGridView.js";
 import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 import { GridPreset } from "../models/GridPreset.js";
-import { GridObjectCreator } from "./GridObjectCreator.js";
+import type { GridObjectCreator } from "./GridObjectCreator.js";
 import type { GridItemObject } from "./GridItemObject.js";
 import { GridCellObjectOptions } from "./GridCellObject.js";
 import type { GridCellObject } from "./GridCellObject.js";
-import { IGridObjectListener } from "./IGridObjectListener.js";
+import type { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../core/input/IInputManager.js";
 import type { IPointerInputHandler } from "../../../../core/input/IPointerInputHandler.js";
 
 function isPointerInputHandler(obj: unknown): obj is IPointerInputHandler {
-  return typeof obj === "object" && obj !== null && typeof (obj as IPointerInputHandler).onPointerDown === "function" && typeof (obj as IPointerInputHandler).onPointerMove === "function" && typeof (obj as IPointerInputHandler).onPointerUp === "function" && typeof (obj as IPointerInputHandler).onPointerCancel === "function";
+  return (
+    typeof obj === "object" &&
+    obj !== null &&
+    typeof (obj as IPointerInputHandler).onPointerDown === "function" &&
+    typeof (obj as IPointerInputHandler).onPointerMove === "function" &&
+    typeof (obj as IPointerInputHandler).onPointerUp === "function" &&
+    typeof (obj as IPointerInputHandler).onPointerCancel === "function"
+  );
 }
 
 export class GridObject extends THREE.Group {
@@ -24,7 +31,13 @@ export class GridObject extends THREE.Group {
   private readonly _inputManager: IInputManager | null;
   private readonly _cells: GridCellObject[][];
 
-  public constructor(data: AddGridData, creator: GridObjectCreator, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
+  public constructor(
+    data: AddGridData,
+    creator: GridObjectCreator,
+    pointerListener: IGridObjectListener,
+    inputManager: IInputManager | null,
+    assetManager?: IAssetManager | null,
+  ) {
     super();
     this.gridId = data.id;
     this.columnCount = data.columnCount;
@@ -41,7 +54,12 @@ export class GridObject extends THREE.Group {
       const colArr: GridCellObject[] = [];
       for (let row = 0; row < this.rowCount; row++) {
         const pos = this.preset.getCellPosition(col, row);
-        const cell = this._creator.createCellObject(new GridCellObjectOptions(this.gridId, col, row, pos, this.preset), this._pointerListener, this._inputManager, assetManager);
+        const cell = this._creator.createCellObject(
+          new GridCellObjectOptions(this.gridId, col, row, pos, this.preset),
+          this._pointerListener,
+          this._inputManager,
+          assetManager,
+        );
         colArr.push(cell);
         this.add(cell);
       }

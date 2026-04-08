@@ -32,4 +32,3 @@ export class UpdateService {
     this.entries = [];
   }
 }
-

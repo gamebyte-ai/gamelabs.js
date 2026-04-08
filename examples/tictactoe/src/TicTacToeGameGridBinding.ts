@@ -1,4 +1,4 @@
-import { AssetRequest, AssetTypes, GameGridBinding } from "gamelabsjs";
+import { AssetRequest, AssetTypes, GameGridBinding } from "@gamebyte/gamelabsjs";
 import { TicTacToeAssetIds } from "./TicTacToeAssetIds";
 import { GameGridObjectCreator } from "./views/GameGridObjectCreator";
 import { GameGridsView } from "./views/GameGridsView.three";

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import type { IAssetManager, IInputManager } from "gamelabsjs";
-import { GridItemObject, type IGridObjectListener } from "gamelabsjs";
+import type { IAssetManager, IInputManager } from "@gamebyte/gamelabsjs";
+import { GridItemObject, type IGridObjectListener } from "@gamebyte/gamelabsjs";
 import { GEM_ASSET_IDS_BY_TYPE } from "../Match3AssetIds.js";
 import type { Match3GemItemObjectOptions } from "./Match3GemItemObjectOptions.js";
 

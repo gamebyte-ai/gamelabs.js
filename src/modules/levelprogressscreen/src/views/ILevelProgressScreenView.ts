@@ -4,7 +4,6 @@ import type { IScreenView } from "../../../../core/ui/IScreenView.js";
  * Screens level progress screen contract.
  */
 export interface ILevelProgressScreenView extends IScreenView {
-
   /**
    * Sets the current level number (1-indexed).
    */
@@ -25,4 +24,3 @@ export interface ILevelProgressScreenView extends IScreenView {
    */
   onBackClick(cb: () => void): () => void;
 }
-

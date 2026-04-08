@@ -1,4 +1,4 @@
-import { Grid } from "./Grid.js";
+import type { Grid } from "./Grid.js";
 import type { GridItem } from "./GridItem.js";
 
 export class GridCell {

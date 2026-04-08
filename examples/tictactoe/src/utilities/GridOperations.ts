@@ -1,4 +1,4 @@
-import { Grid, GridsModel, GridEvents, type IInstanceResolver, type IInjectionTarget } from "gamelabsjs";
+import { Grid, GridsModel, GridEvents, type IInstanceResolver, type IInjectionTarget } from "@gamebyte/gamelabsjs";
 import { TicTacToeConfig } from "../TicTacToeConfig";
 import { GameGridAllocator } from "./GameGridAllocator.js";
 

@@ -1,8 +1,8 @@
 import "@pixi/layout";
 import { Application, Container, type ApplicationOptions } from "pixi.js";
 import type { ILogger } from "../dev/ILogger.js";
-import { IHud } from "./IHud.js";
-import { HudViewBase } from "./HudViewBase.js";
+import type { IHud } from "./IHud.js";
+import type { HudViewBase } from "./HudViewBase.js";
 
 export type HudCreateOptions = {
   /**
@@ -113,9 +113,9 @@ export class Hud implements IHud {
           autoUpdate: true,
           enableDebug: false,
           debugModificationCount: 0,
-          throttle: 100
-        }
-      }
+          throttle: 100,
+        },
+      },
     };
 
     if (options.canvas) initOptions.canvas = options.canvas;
@@ -131,8 +131,8 @@ export class Hud implements IHud {
         autoUpdate: true,
         enableDebug: false,
         debugModificationCount: 0,
-        throttle: 100
-      }
+        throttle: 100,
+      },
     });
 
     const canvas = app.canvas as unknown as HTMLCanvasElement;

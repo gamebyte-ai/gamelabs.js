@@ -1,5 +1,5 @@
-import type { Grid, GridItem, IGridView, IInstanceResolver } from "gamelabsjs";
-import { GridsViewController } from "gamelabsjs";
+import type { Grid, GridItem, IGridView, IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { GridsViewController } from "@gamebyte/gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
 import { Match3GridItem } from "../models/Match3GridItem.js";
 import { Match3GridService } from "../utilities/Match3GridService.js";

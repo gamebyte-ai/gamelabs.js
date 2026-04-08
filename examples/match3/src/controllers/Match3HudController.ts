@@ -1,4 +1,4 @@
-import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "gamelabsjs";
+import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
 import { Match3Events } from "../events/Match3Events.js";
 import type { IGameScreenView } from "../views/IGameScreenView.js";
 

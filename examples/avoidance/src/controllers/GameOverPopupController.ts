@@ -1,4 +1,4 @@
-import { UnsubscribeBag, UIEvents, type IInstanceResolver, type IViewController } from "gamelabsjs";
+import { UnsubscribeBag, UIEvents, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
 import type { IGameOverPopupView } from "../views/IGameOverPopupView";
 import { GameEvents } from "../events/GameEvents.js";
 import { WaveManager } from "../utilities/WaveManager.js";

@@ -60,7 +60,9 @@ export class ButtonComponent extends PIXI.Container {
   private readonly _bgSprite: PIXI.Sprite;
   private readonly _label: PIXI.Text | null;
   private readonly _button: Button;
-  private readonly _opts: Required<Pick<ButtonComponentPreset, "radius" | "fillColor" | "fillAlpha" | "strokeColor" | "strokeWidth">>;
+  private readonly _opts: Required<
+    Pick<ButtonComponentPreset, "radius" | "fillColor" | "fillAlpha" | "strokeColor" | "strokeWidth">
+  >;
   private readonly _bgTextureId: string | undefined;
 
   private _layoutWidth = 0;

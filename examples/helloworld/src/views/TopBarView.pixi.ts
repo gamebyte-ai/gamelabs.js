@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { HudViewBase, ButtonComponent, VerticalLayoutComponent, HorizontalLayoutComponent } from "gamelabsjs";
+import { HudViewBase, ButtonComponent, VerticalLayoutComponent, HorizontalLayoutComponent } from "@gamebyte/gamelabsjs";
 import type { ITopBarView, Unsubscribe } from "./ITopBarView";
 
 export class TopBarView extends HudViewBase implements ITopBarView {

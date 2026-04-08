@@ -28,11 +28,13 @@ export class ScreenView extends HudViewBase implements IScreenView {
     return this._isInTransition;
   }
 
-  private static readonly slideDeltas: Partial<Record<string, { enter: { x: number; y: number }; exit: { x: number; y: number } }>> = {
+  private static readonly slideDeltas: Partial<
+    Record<string, { enter: { x: number; y: number }; exit: { x: number; y: number } }>
+  > = {
     [SCREEN_TRANSITION_TYPES.SLIDE_IN_LEFT]: { enter: { x: -1, y: 0 }, exit: { x: 1, y: 0 } },
     [SCREEN_TRANSITION_TYPES.SLIDE_IN_RIGHT]: { enter: { x: 1, y: 0 }, exit: { x: -1, y: 0 } },
     [SCREEN_TRANSITION_TYPES.SLIDE_IN_DOWN]: { enter: { x: 0, y: 1 }, exit: { x: 0, y: -1 } },
-    [SCREEN_TRANSITION_TYPES.SLIDE_IN_UP]: { enter: { x: 0, y: -1 }, exit: { x: 0, y: 1 } }
+    [SCREEN_TRANSITION_TYPES.SLIDE_IN_UP]: { enter: { x: 0, y: -1 }, exit: { x: 0, y: 1 } },
   };
 
   private cancelTransitionTimers(): void {
@@ -89,7 +91,11 @@ export class ScreenView extends HudViewBase implements IScreenView {
     const ph = typeof parentLayout?.height === "number" ? parentLayout.height : undefined;
     if (pw && ph) return { width: Math.max(1, pw), height: Math.max(1, ph) };
 
-    if (typeof window !== "undefined" && typeof window.innerWidth === "number" && typeof window.innerHeight === "number") {
+    if (
+      typeof window !== "undefined" &&
+      typeof window.innerWidth === "number" &&
+      typeof window.innerHeight === "number"
+    ) {
       return { width: Math.max(1, window.innerWidth), height: Math.max(1, window.innerHeight) };
     }
 
@@ -106,7 +112,8 @@ export class ScreenView extends HudViewBase implements IScreenView {
     }
 
     if (typeof requestAnimationFrame === "function" && typeof cancelAnimationFrame === "function") {
-      const startMs = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+      const startMs =
+        typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
       const step = (nowMs: number): void => {
         if (isDestroyed()) return;
         const t = Math.min(1, Math.max(0, (nowMs - startMs) / durationMs));
@@ -154,24 +161,32 @@ export class ScreenView extends HudViewBase implements IScreenView {
       this.visible = true;
       this.alpha = 1;
       this.position.set(baseX + enterDx, baseY + enterDy);
-      this.runTransition(transition.durationMs, (t) => {
-        const inv = 1 - t;
-        this.position.set(baseX + enterDx * inv, baseY + enterDy * inv);
-      }, () => {
-        if ((this as any).destroyed) return;
-        this.position.set(baseX, baseY);
-        this._isInTransition = false;
-      });
+      this.runTransition(
+        transition.durationMs,
+        (t) => {
+          const inv = 1 - t;
+          this.position.set(baseX + enterDx * inv, baseY + enterDy * inv);
+        },
+        () => {
+          if ((this as any).destroyed) return;
+          this.position.set(baseX, baseY);
+          this._isInTransition = false;
+        },
+      );
       return;
     }
 
-    this.runTransition(transition.durationMs, (t) => {
-      this.position.set(baseX + exitDx * t, baseY + exitDy * t);
-    }, () => {
-      if ((this as any).destroyed) return;
-      this._isInTransition = false;
-      this.destroy();
-    });
+    this.runTransition(
+      transition.durationMs,
+      (t) => {
+        this.position.set(baseX + exitDx * t, baseY + exitDy * t);
+      },
+      () => {
+        if ((this as any).destroyed) return;
+        this._isInTransition = false;
+        this.destroy();
+      },
+    );
   }
 
   public override postInitialize(): void {
@@ -221,13 +236,17 @@ export class ScreenView extends HudViewBase implements IScreenView {
         this.visible = true;
         this.alpha = 0;
         this._isInTransition = true;
-        this.runTransition(transition.durationMs, (t) => {
-          this.alpha = t;
-        }, () => {
-          if ((this as any).destroyed) return;
-          this.alpha = 1;
-          this._isInTransition = false;
-        });
+        this.runTransition(
+          transition.durationMs,
+          (t) => {
+            this.alpha = t;
+          },
+          () => {
+            if ((this as any).destroyed) return;
+            this.alpha = 1;
+            this._isInTransition = false;
+          },
+        );
         return;
       }
 
@@ -242,11 +261,15 @@ export class ScreenView extends HudViewBase implements IScreenView {
     switch (transition.type) {
       case SCREEN_TRANSITION_TYPES.INSTANT: {
         this._isInTransition = true;
-        this.runTransition(transition.durationMs, () => {}, () => {
-          if ((this as any).destroyed) return;
-          this._isInTransition = false;
-          this.destroy();
-        });
+        this.runTransition(
+          transition.durationMs,
+          () => {},
+          () => {
+            if ((this as any).destroyed) return;
+            this._isInTransition = false;
+            this.destroy();
+          },
+        );
         return;
       }
 
@@ -261,13 +284,17 @@ export class ScreenView extends HudViewBase implements IScreenView {
 
       case SCREEN_TRANSITION_TYPES.FADE_IN: {
         this._isInTransition = true;
-        this.runTransition(transition.durationMs, (t) => {
-          this.alpha = 1 - t;
-        }, () => {
-          if ((this as any).destroyed) return;
-          this._isInTransition = false;
-          this.destroy();
-        });
+        this.runTransition(
+          transition.durationMs,
+          (t) => {
+            this.alpha = 1 - t;
+          },
+          () => {
+            if ((this as any).destroyed) return;
+            this._isInTransition = false;
+            this.destroy();
+          },
+        );
         return;
       }
 
@@ -295,6 +322,4 @@ export class ScreenView extends HudViewBase implements IScreenView {
   public onResize(width: number, height: number, _dpr: number): void {
     (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
   }
-
 }
-

@@ -7,7 +7,7 @@ export const SCREEN_TRANSITION_TYPES = {
   SLIDE_IN_LEFT: "slide_in_left",
   SLIDE_IN_RIGHT: "slide_in_right",
   SLIDE_IN_DOWN: "slide_in_down",
-  SLIDE_IN_UP: "slide_in_up"
+  SLIDE_IN_UP: "slide_in_up",
 } as const;
 
 export type ScreenTransitionType = (typeof SCREEN_TRANSITION_TYPES)[keyof typeof SCREEN_TRANSITION_TYPES];

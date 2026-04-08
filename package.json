@@ -1,6 +1,6 @@
 {
-  "name": "gamelabsjs",
-  "version": "0.1.0",
+  "name": "@gamebyte/gamelabsjs",
+  "version": "0.2.0",
   "description": "Gamelabsjs: a game framework powered by Three.js (3D) and PixiJS (2D).",
   "license": "MIT",
   "author": "Oguz Sandikci",
@@ -39,8 +39,8 @@
     "3d"
   ],
   "dependencies": {
-    "gsap": "^3.12.0",
-    "@js-basics/vector": "^2.2.5"
+    "@js-basics/vector": "^2.2.5",
+    "gsap": "^3.12.0"
   },
   "peerDependencies": {
     "@pixi/layout": "^3.2.0",
@@ -55,20 +55,32 @@
     }
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@pixi/layout": "^3.2.0",
     "@pixi/ui": "^2.3.2",
     "@types/three": "^0.182.0",
+    "eslint": "^10.2.0",
+    "eslint-config-prettier": "^10.1.8",
     "pixi.js": "^8.0.0",
+    "prettier": "^3.8.1",
     "rimraf": "^6.0.0",
     "three": "^0.182.0",
     "tsup": "^8.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.3"
   },
   "scripts": {
     "prepare": "npm run build",
     "build": "npm run clean && tsup && node scripts/copy-module-assets.mjs",
     "dev": "tsup --watch",
     "clean": "rimraf dist",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
+    "test": "vitest run",
+    "test:watch": "vitest"
   }
 }

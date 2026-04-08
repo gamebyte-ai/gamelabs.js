@@ -1,6 +1,6 @@
-import * as THREE from "three";
+import type * as THREE from "three";
 import type { GameCameraManager } from "../GameCameraManager.js";
-import { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraMode } from "../GameCameraMode.js";
 import type { ICameraController } from "./ICameraController.js";
 
 export abstract class BaseCameraController implements ICameraController {

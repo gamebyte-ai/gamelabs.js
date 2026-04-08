@@ -26,7 +26,14 @@ export class Grid {
     return this._rotation;
   }
 
-  public constructor(gridId: number, columnCount: number, rowCount: number, events: GridEvents | null = null, preset: GridPreset | null = null, allocator: IGridAllocator | null = null) {
+  public constructor(
+    gridId: number,
+    columnCount: number,
+    rowCount: number,
+    events: GridEvents | null = null,
+    preset: GridPreset | null = null,
+    allocator: IGridAllocator | null = null,
+  ) {
     this.gridId = gridId;
     this.columnCount = columnCount;
     this.rowCount = rowCount;

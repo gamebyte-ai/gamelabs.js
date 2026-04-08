@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import type { IGridObjectListener, IInputManager } from "gamelabsjs";
-import { GridItemObject } from "gamelabsjs";
+import type { IGridObjectListener, IInputManager } from "@gamebyte/gamelabsjs";
+import { GridItemObject } from "@gamebyte/gamelabsjs";
 import { Team } from "../models/GameItem.js";
 import { TicTacToeAssetIds } from "../TicTacToeAssetIds.js";
 import type { GameItemObjectOptions } from "./GameItemObjectOptions.js";
@@ -9,7 +9,7 @@ import type { GameItemObjectOptions } from "./GameItemObjectOptions.js";
 export class GameItemObject extends GridItemObject {
   private static readonly TWEEN_DURATION = 0.25;
 
-  public constructor(options: GameItemObjectOptions, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: import("gamelabsjs").IAssetManager | null) {
+  public constructor(options: GameItemObjectOptions, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: import("@gamebyte/gamelabsjs").IAssetManager | null) {
     super(options, pointerListener, inputManager, assetManager);
   }
 

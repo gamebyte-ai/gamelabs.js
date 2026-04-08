@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import type { IAssetManager, IInputManager, IPointerInputHandler } from "gamelabsjs";
-import { GridCellObject, GridCellObjectOptions, POINTER_INPUT_LAYER, type IGridObjectListener } from "gamelabsjs";
+import type { IAssetManager, IInputManager, IPointerInputHandler } from "@gamebyte/gamelabsjs";
+import { GridCellObject, GridCellObjectOptions, POINTER_INPUT_LAYER, type IGridObjectListener } from "@gamebyte/gamelabsjs";
 
 export class Match3CellObject extends GridCellObject implements IPointerInputHandler {
   private static readonly COLLIDER_THICKNESS = 0.22;

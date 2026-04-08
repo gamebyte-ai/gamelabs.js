@@ -8,7 +8,7 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "gamelabsjs": ["../../dist/index.d.ts"]
+      "@gamebyte/gamelabsjs": ["../../dist/index.d.ts"]
     },
     "resolveJsonModule": true,
     "isolatedModules": true,

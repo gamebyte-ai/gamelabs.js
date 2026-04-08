@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { GridCellObject, GridCellObjectOptions, POINTER_INPUT_LAYER } from "gamelabsjs";
-import type { IAssetManager, IInputManager, IPointerInputHandler } from "gamelabsjs";
-import type { IGridObjectListener } from "gamelabsjs";
+import { GridCellObject, GridCellObjectOptions, POINTER_INPUT_LAYER } from "@gamebyte/gamelabsjs";
+import type { IAssetManager, IInputManager, IPointerInputHandler } from "@gamebyte/gamelabsjs";
+import type { IGridObjectListener } from "@gamebyte/gamelabsjs";
 import { TicTacToeAssetIds } from "../TicTacToeAssetIds";
 
 export class GameCellObject extends GridCellObject implements IPointerInputHandler {

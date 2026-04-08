@@ -1,4 +1,4 @@
-import type { IView } from "gamelabsjs";
+import type { IView } from "@gamebyte/gamelabsjs";
 
 export interface IGameAreaView extends IView {
   setPlayerPosition(x: number, y: number): void;

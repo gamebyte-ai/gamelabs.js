@@ -29,4 +29,3 @@ export class LevelProgressScreenEvents {
     for (const cb of this.backClickListeners) cb();
   }
 }
-

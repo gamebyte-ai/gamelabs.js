@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import type { GridObject, IInstanceResolver } from "gamelabsjs";
-import { GridsView, type GridCellObject } from "gamelabsjs";
+import type { GridObject, IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { GridsView, type GridCellObject } from "@gamebyte/gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
 import type { GravityMove, RefillSpawn } from "../utilities/Match3GridService.js";
 import type { IMatch3GridsView } from "./IMatch3GridsView.js";

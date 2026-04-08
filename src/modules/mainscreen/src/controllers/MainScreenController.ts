@@ -28,4 +28,3 @@ export class MainScreenController implements IViewController<IMainScreenView> {
     this.events = null;
   }
 }
-

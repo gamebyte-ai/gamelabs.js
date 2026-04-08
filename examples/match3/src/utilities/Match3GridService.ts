@@ -1,5 +1,5 @@
-import type { IInstanceResolver } from "gamelabsjs";
-import { Grid } from "gamelabsjs";
+import type { IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { Grid } from "@gamebyte/gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
 import { Match3GridItem } from "../models/Match3GridItem.js";
 

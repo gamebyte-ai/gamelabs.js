@@ -1,5 +1,5 @@
-import { ViewFactory } from "./views/ViewFactory.js";
-import { DIContainer } from "./di/DIContainer.js";
+import type { ViewFactory } from "./views/ViewFactory.js";
+import type { DIContainer } from "./di/DIContainer.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { AssetRequestList } from "./assets/AssetRequestList.js";
 
@@ -13,10 +13,8 @@ export class ModuleBinding {
   }
 
   //  METHODS
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+
   public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {}
-  
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void{}
-  
+
+  public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {}
 }

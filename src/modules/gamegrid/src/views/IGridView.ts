@@ -18,6 +18,14 @@ export interface IGridView extends IView {
   updateGridPosition(gridId: number, position: Vector3): void;
   updateGridRotation(gridId: number, rotation: Vector3): void;
   createItem(itemOptions: GridItemObjectOptions, gridId: number, col: number, row: number): void;
-  moveItem(itemId: number, gridId: number, col: number, row: number, toGridId: number, toCol: number, toRow: number): void;
+  moveItem(
+    itemId: number,
+    gridId: number,
+    col: number,
+    row: number,
+    toGridId: number,
+    toCol: number,
+    toRow: number,
+  ): void;
   destroyItem(itemId: number, gridId: number, col: number, row: number): void;
 }

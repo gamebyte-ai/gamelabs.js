@@ -1,4 +1,4 @@
-import type { IPopupView, Unsubscribe } from "gamelabsjs";
+import type { IPopupView, Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { Team } from "../models/GameItem.js";
 
 export interface IWinPopupView extends IPopupView {

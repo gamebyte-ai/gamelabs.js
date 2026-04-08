@@ -1,7 +1,13 @@
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/ButtonComponent.pixi.js";
-import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/BackgroundComponent.pixi.js";
-import { VerticalLayoutComponent, parseVerticalLayoutComponentPreset } from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
+import {
+  BackgroundComponent,
+  parseBackgroundComponentPreset,
+} from "../../../uicomponents/src/BackgroundComponent.pixi.js";
+import {
+  VerticalLayoutComponent,
+  parseVerticalLayoutComponentPreset,
+} from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
 import { HorizontalLayoutComponent } from "../../../uicomponents/src/HorizontalLayoutComponent.pixi.js";
 import { ImageComponent } from "../../../uicomponents/src/ImageComponent.pixi.js";
 import type { IMainScreenView } from "./IMainScreenView.js";
@@ -42,19 +48,19 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
 
   public postInitialize(): void {
     // Create components from presets stored in asset manager.
-    const bgPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.BackgroundPreset) ?? '{}';
+    const bgPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.BackgroundPreset) ?? "{}";
     this.background = new BackgroundComponent(parseBackgroundComponentPreset(bgPresetJson));
     this.background.resolveAssets(this.assetLoader);
 
-    const playPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.PlayButtonPreset) ?? '{}';
+    const playPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.PlayButtonPreset) ?? "{}";
     this.playButton = new ButtonComponent(parseButtonComponentPreset(playPresetJson));
     this.playButton.resolveAssets(this.assetLoader);
 
-    const settingsPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.SettingsButtonPreset) ?? '{}';
+    const settingsPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.SettingsButtonPreset) ?? "{}";
     this.settingsButton = new ButtonComponent(parseButtonComponentPreset(settingsPresetJson));
     this.settingsButton.resolveAssets(this.assetLoader);
 
-    const buttonsColPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.ButtonsColPreset) ?? '{}';
+    const buttonsColPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.ButtonsColPreset) ?? "{}";
     this.buttonsCol = new VerticalLayoutComponent(parseVerticalLayoutComponentPreset(buttonsColPresetJson));
 
     // Full-screen layout container that centers its children.
@@ -62,7 +68,7 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
       width: 1,
       height: 1,
       justifyContent: "center",
-      alignItems: "center"
+      alignItems: "center",
     };
 
     this.addChild(this.background);
@@ -97,5 +103,4 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
       cb();
     });
   }
-
 }

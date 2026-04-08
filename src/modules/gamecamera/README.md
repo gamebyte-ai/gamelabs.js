@@ -14,7 +14,7 @@ Controls the 3D scene camera in Three.js. Supports multiple projection modes, ob
 ### Basic setup
 
 ```ts
-import { GamelabsApp, GameCameraManager, Front2dCameraController } from "gamelabsjs";
+import { GamelabsApp, GameCameraManager, Front2dCameraController } from "@gamebyte/gamelabsjs";
 
 class MyApp extends GamelabsApp {
   private readonly _cameraManager = new GameCameraManager();
@@ -59,8 +59,8 @@ this._cameraManager.setPosition(0, 5, 0);
 ### Change controller
 
 ```ts
-import { Topdown2dCameraController } from "gamelabsjs";
-new Topdown2dCameraController(this._cameraManager);  // constructor calls setController
+import { Topdown2dCameraController } from "@gamebyte/gamelabsjs";
+new Topdown2dCameraController(this._cameraManager); // constructor calls setController
 ```
 
 ### Orthographic size (ortho modes)
@@ -72,22 +72,22 @@ this._cameraManager.setOrthoSize(20);
 ### Activate / deactivate
 
 ```ts
-this._cameraManager.deactivate();  // update() does nothing
-this._cameraManager.activate();   // update() runs again
+this._cameraManager.deactivate(); // update() does nothing
+this._cameraManager.activate(); // update() runs again
 ```
 
 ## Camera modes
 
-| Mode           | Projection  | Direction                                |
-|----------------|-------------|------------------------------------------|
-| `front2d`      | Orthographic| Facing -z                                |
-| `front3d`      | Perspective | Facing -z                                |
-| `topdown2d`    | Orthographic| Facing -y                                |
-| `topdown3d`    | Perspective | Facing -y                                |
-| `isometric2d`  | Orthographic| From (a,a,a) toward (0,0,0)              |
-| `isometric3d`  | Perspective | From (a,a,a) toward (0,0,0)              |
-| `orbital3d`    | Perspective | Spherical orbit around focus             |
-| `custom`       | —           | User-defined via `BaseCustomCameraController` |
+| Mode          | Projection   | Direction                                     |
+| ------------- | ------------ | --------------------------------------------- |
+| `front2d`     | Orthographic | Facing -z                                     |
+| `front3d`     | Perspective  | Facing -z                                     |
+| `topdown2d`   | Orthographic | Facing -y                                     |
+| `topdown3d`   | Perspective  | Facing -y                                     |
+| `isometric2d` | Orthographic | From (a,a,a) toward (0,0,0)                   |
+| `isometric3d` | Perspective  | From (a,a,a) toward (0,0,0)                   |
+| `orbital3d`   | Perspective  | Spherical orbit around focus                  |
+| `custom`      | —            | User-defined via `BaseCustomCameraController` |
 
 ## Camera controllers
 

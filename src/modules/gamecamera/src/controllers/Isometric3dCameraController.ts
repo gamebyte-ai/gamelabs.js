@@ -22,7 +22,11 @@ export class Isometric3dCameraController extends IsometricBaseCameraController {
   }
 
   public getFocusFromOrthoPosition(orthoPos: THREE.Vector3, _orthoSize: number): THREE.Vector3 {
-    return new THREE.Vector3(orthoPos.x - ISOMETRIC_DISTANCE, orthoPos.y - ISOMETRIC_DISTANCE, orthoPos.z - ISOMETRIC_DISTANCE);
+    return new THREE.Vector3(
+      orthoPos.x - ISOMETRIC_DISTANCE,
+      orthoPos.y - ISOMETRIC_DISTANCE,
+      orthoPos.z - ISOMETRIC_DISTANCE,
+    );
   }
 
   public override move(x: number, y: number, z: number): void {

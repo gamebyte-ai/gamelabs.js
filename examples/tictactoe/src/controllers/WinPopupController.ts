@@ -1,4 +1,4 @@
-import { UnsubscribeBag, UIEvents, type IInstanceResolver, type IViewController } from "gamelabsjs";
+import { UnsubscribeBag, UIEvents, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
 import type { IWinPopupView } from "../views/IWinPopupView";
 import { TicTacToeTurnManagerToken, type TicTacToeTurnManager } from "../utilities/TicTacToeTurnManager.js";
 import { TurnEvents } from "../events/TurnEvents.js";

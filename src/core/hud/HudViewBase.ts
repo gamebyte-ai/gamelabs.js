@@ -16,8 +16,8 @@ import { LogTypes } from "../dev/LogTypes.js";
 export class HudViewBase extends PIXI.Container implements IView {
   //  MEMBERS
   private _viewFactory: IViewFactory | null = null;
-  private _addedForFactory:(() => void) | null = null;
-  private _removedForFactory:(() => void) | null = null;
+  private _addedForFactory: (() => void) | null = null;
+  private _removedForFactory: (() => void) | null = null;
   private _assetLoader: AssetManager | null = null;
   private _logger: ILogger | null = null;
   private _controller: IViewController | null = null;
@@ -46,14 +46,13 @@ export class HudViewBase extends PIXI.Container implements IView {
     return this._logger;
   }
 
- 
   //  METHODS
   public inject(resolver: IInstanceResolver): void {
     this._assetLoader = resolver.getInstance(AssetManager);
     this._logger = resolver.getInstance(ILogger);
   }
 
-  public setViewFactory(viewFactory: IViewFactory, addedForFactory:() => void, removedForFactory:() => void): void {
+  public setViewFactory(viewFactory: IViewFactory, addedForFactory: () => void, removedForFactory: () => void): void {
     if (this._viewFactory) {
       throw new Error("View factory already set");
     }
@@ -64,12 +63,12 @@ export class HudViewBase extends PIXI.Container implements IView {
     this.addEventListener("removed", this.onRemovedForManager);
   }
 
-  private onAddedForManager(event: Object): void {
+  private onAddedForManager(event: object): void {
     this._addedForFactory?.();
     this._viewFactory?.viewAdded(this);
   }
 
-  private onRemovedForManager(event: Object): void {
+  private onRemovedForManager(event: object): void {
     if (this._viewFactory) {
       this._removedForFactory?.();
       this._viewFactory?.viewRemoved(this);
@@ -91,8 +90,6 @@ export class HudViewBase extends PIXI.Container implements IView {
   }
 
   public preDestroy(): void {}
-
-
 
   public destroy(): void {
     this.preDestroy();

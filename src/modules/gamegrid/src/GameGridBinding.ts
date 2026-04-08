@@ -15,7 +15,11 @@ export class GameGridBinding extends ModuleBinding {
   private readonly _viewClass: typeof GridsView;
   private readonly _controllerClass: typeof GridsViewController;
 
-  public constructor(objectCreator: GridObjectCreator | null = null, viewClass: typeof GridsView | null = null, controllerClass: typeof GridsViewController | null = null) {
+  public constructor(
+    objectCreator: GridObjectCreator | null = null,
+    viewClass: typeof GridsView | null = null,
+    controllerClass: typeof GridsViewController | null = null,
+  ) {
     super();
     this._objectCreator = objectCreator ?? new GridObjectCreator();
     this._viewClass = viewClass ?? GridsView;

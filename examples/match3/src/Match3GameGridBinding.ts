@@ -1,4 +1,4 @@
-import { GameGridBinding } from "gamelabsjs";
+import { GameGridBinding } from "@gamebyte/gamelabsjs";
 import { Match3GridsViewController } from "./controllers/Match3GridsViewController.js";
 import { Match3GridObjectCreator } from "./views/Match3GridObjectCreator.js";
 import { Match3GridsView } from "./views/Match3GridsView.three.js";

@@ -1,6 +1,5 @@
-import { AssetRequest } from "./AssetRequest";
-import { AssetType } from "./AssetTypes";
-
+import type { AssetRequest } from "./AssetRequest";
+import type { AssetType } from "./AssetTypes";
 
 export interface IAssetManager {
   //  PROPERTIES

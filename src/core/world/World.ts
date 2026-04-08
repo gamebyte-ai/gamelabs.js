@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { ILogger } from "../dev/ILogger.js";
-import { IWorld } from "./IWorld.js";
-import { WorldViewBase } from "./WorldViewBase.js";
+import type { IWorld } from "./IWorld.js";
+import type { WorldViewBase } from "./WorldViewBase.js";
 
 type Create3DRendererOptions = ConstructorParameters<typeof THREE.WebGLRenderer>[0];
 
@@ -55,7 +55,7 @@ export class World implements IWorld {
       canvas: params.canvas,
       antialias: true,
       stencil: true,
-      powerPreference: "high-performance"
+      powerPreference: "high-performance",
     });
     this.renderer.setClearColor(0x0b0f14, 1);
 

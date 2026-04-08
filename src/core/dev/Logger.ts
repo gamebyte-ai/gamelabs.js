@@ -76,4 +76,3 @@ export class Logger implements ILogger {
     this._panel?.log(message, logType);
   }
 }
-

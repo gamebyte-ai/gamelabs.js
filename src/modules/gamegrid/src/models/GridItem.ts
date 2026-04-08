@@ -1,4 +1,4 @@
-import { GridCell } from "./GridCell";
+import type { GridCell } from "./GridCell";
 
 export class GridItem {
   //  FIELDS

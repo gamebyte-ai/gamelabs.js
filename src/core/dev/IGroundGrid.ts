@@ -13,4 +13,3 @@ export interface IGroundGrid {
   setOptions(options: GroundGridOptions): void;
   show(visible: boolean): void;
 }
-

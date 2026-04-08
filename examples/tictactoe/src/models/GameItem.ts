@@ -1,4 +1,4 @@
-import { GridItem } from "gamelabsjs";
+import { GridItem } from "@gamebyte/gamelabsjs";
 
 export enum Team {
   X = "X",

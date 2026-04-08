@@ -4,7 +4,7 @@ import type { IGridView, AddGridData } from "./IGridView.js";
 import type { GridItemObjectOptions } from "./GridItemObject.js";
 import { GridObject } from "./GridObject.js";
 import { GridObjectCreator } from "./GridObjectCreator.js";
-import { IGridObjectListener } from "./IGridObjectListener.js";
+import type { IGridObjectListener } from "./IGridObjectListener.js";
 
 export class GridsView extends WorldViewBase implements IGridView, IGridObjectListener {
   private readonly _gridObjects = new Map<number, GridObject>();
@@ -51,7 +51,15 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
     gridObj.addItem(itemObj, col, row);
   }
 
-  public moveItem(itemId: number, gridId: number, col: number, row: number, toGridId: number, toCol: number, toRow: number): void {
+  public moveItem(
+    itemId: number,
+    gridId: number,
+    col: number,
+    row: number,
+    toGridId: number,
+    toCol: number,
+    toRow: number,
+  ): void {
     const gridObj = this._gridObjects.get(gridId);
     const toGridObj = this._gridObjects.get(toGridId);
     if (!gridObj || !toGridObj) return;

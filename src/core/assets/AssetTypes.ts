@@ -6,4 +6,3 @@ export const AssetTypes = {
 } as const;
 
 export type AssetType = (typeof AssetTypes)[keyof typeof AssetTypes];
-

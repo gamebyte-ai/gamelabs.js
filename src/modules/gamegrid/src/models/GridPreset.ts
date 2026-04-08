@@ -8,7 +8,12 @@ export class GridPreset {
   public readonly columnAxis: Vector3;
   public readonly rowAxis: Vector3;
 
-  public constructor(columnSize: number = 1, rowSize: number = 1, columnAxis: Vector3 = vector(1, 0, 0), rowAxis: Vector3 = vector(0, 0, 1)) {
+  public constructor(
+    columnSize: number = 1,
+    rowSize: number = 1,
+    columnAxis: Vector3 = vector(1, 0, 0),
+    rowAxis: Vector3 = vector(0, 0, 1),
+  ) {
     this.columnSize = columnSize;
     this.rowSize = rowSize;
     this.columnAxis = columnAxis;

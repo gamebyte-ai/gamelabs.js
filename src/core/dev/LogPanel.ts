@@ -70,8 +70,8 @@ export class LogPanel {
         fontFamily:
           'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         fontSize: 13,
-        fontWeight: "600"
-      })
+        fontWeight: "600",
+      }),
     });
 
     const closeRoot = new Container();
@@ -86,8 +86,8 @@ export class LogPanel {
         fontFamily:
           'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         fontSize: 13,
-        fontWeight: "600"
-      })
+        fontWeight: "600",
+      }),
     });
 
     closeText.anchor.set(0.5, 0.5);
@@ -170,12 +170,11 @@ export class LogPanel {
     const fill = this.getFillForType(type);
     const style = new TextStyle({
       fill,
-      fontFamily:
-        'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
       fontSize: 12,
       // Keep log lines single-line; overflow is clipped by the panel mask.
       wordWrap: false,
-      breakWords: false
+      breakWords: false,
     });
 
     const itemRoot = new Container();
@@ -332,4 +331,3 @@ export class LogPanel {
     this._itemsRoot.y = -this._scrollY;
   }
 }
-

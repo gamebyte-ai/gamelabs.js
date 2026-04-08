@@ -1,11 +1,9 @@
 import type { IInjectionTarget } from "../di/IInjectionTarget.js";
 import type { IViewController } from "./IViewController.js";
-import { IViewFactory } from "./IViewFactory.js";
-
+import type { IViewFactory } from "./IViewFactory.js";
 
 export interface IView extends IInjectionTarget {
-
-  setViewFactory (viewFactory: IViewFactory, added:() => void, removed:() => void): void;
+  setViewFactory(viewFactory: IViewFactory, added: () => void, removed: () => void): void;
   /**
    * Hook for view-side setup after injection.
    * Called after `inject()` by the ViewFactory.

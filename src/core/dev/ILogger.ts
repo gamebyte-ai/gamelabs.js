@@ -8,4 +8,3 @@ export interface ILogger {
 }
 
 export const ILogger = new InjectionToken<ILogger>("ILogger");
-

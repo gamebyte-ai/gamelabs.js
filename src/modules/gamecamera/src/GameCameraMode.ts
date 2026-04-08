@@ -6,5 +6,5 @@ export enum GameCameraMode {
   Isometric2d = "isometric2d",
   Isometric3d = "isometric3d",
   Orbital3d = "orbital3d",
-  Custom = "custom"
+  Custom = "custom",
 }

@@ -13,4 +13,3 @@ export class AssetRequest {
     this.content = content ?? null;
   }
 }
-

@@ -33,9 +33,15 @@ export class PopupView extends HudViewBase implements IPopupView {
     (this._blocker as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this.addChildAt(this._blocker, 0);
 
-    this._blocker.on("pointerdown", (e: PIXI.FederatedPointerEvent) => { e.stopPropagation(); });
-    this._blocker.on("pointerup", (e: PIXI.FederatedPointerEvent) => { e.stopPropagation(); });
-    this._blocker.on("pointermove", (e: PIXI.FederatedPointerEvent) => { e.stopPropagation(); });
+    this._blocker.on("pointerdown", (e: PIXI.FederatedPointerEvent) => {
+      e.stopPropagation();
+    });
+    this._blocker.on("pointerup", (e: PIXI.FederatedPointerEvent) => {
+      e.stopPropagation();
+    });
+    this._blocker.on("pointermove", (e: PIXI.FederatedPointerEvent) => {
+      e.stopPropagation();
+    });
   }
 
   public onOpen(): void {

@@ -1,8 +1,6 @@
-import { HudViewBase } from "./HudViewBase";
-
+import type { HudViewBase } from "./HudViewBase";
 
 export interface IHud {
-    addView(view: HudViewBase): void;
-    removeView(view: HudViewBase): void;
+  addView(view: HudViewBase): void;
+  removeView(view: HudViewBase): void;
 }
-  

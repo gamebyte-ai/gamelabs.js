@@ -7,7 +7,6 @@ import type { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-
 export class AssetManager implements IAssetManager {
   private _logger: ILogger;
   private _defaultHudTexture: Texture | null = null;
@@ -44,7 +43,7 @@ export class AssetManager implements IAssetManager {
     return this._failedIds.has(id);
   }
 
-  public loadAll(requests: Iterable<AssetRequest> ): void{
+  public loadAll(requests: Iterable<AssetRequest>): void {
     for (const request of requests) {
       this.load(request);
     }
@@ -163,7 +162,7 @@ export class AssetManager implements IAssetManager {
       cameras: [],
       asset: { version: "2.0", generator: "Gamelab-Fallback" },
       parser: null as unknown as GLTF["parser"],
-      userData: {}
+      userData: {},
     };
     return this._defaultGltf;
   }
@@ -222,4 +221,3 @@ export class AssetManager implements IAssetManager {
     return response.text();
   }
 }
-

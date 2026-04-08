@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { PopupView, type Unsubscribe } from "gamelabsjs";
+import { PopupView, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IWinPopupView } from "./IWinPopupView";
 import { Team } from "../models/GameItem.js";
 

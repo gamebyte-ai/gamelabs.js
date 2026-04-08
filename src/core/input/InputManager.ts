@@ -43,7 +43,7 @@ export class InputManager implements IInputManager {
 
   private readonly _onPointerDown = (event: PointerEvent): void => {
     const raycastView = this._getRaycastHandler(event);
-//    if (raycastView) console.log("InputManager raycast nearest view:", raycastView);
+    //    if (raycastView) console.log("InputManager raycast nearest view:", raycastView);
     for (const h of this._handlers) h.onPointerDown(event, h === raycastView);
   };
 

@@ -3,4 +3,3 @@ export interface IStatsPanel {
   show(show: boolean): void;
   destroy(): void;
 }
-

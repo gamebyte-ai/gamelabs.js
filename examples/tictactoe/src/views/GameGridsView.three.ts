@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { GridsView } from "gamelabsjs";
+import { GridsView } from "@gamebyte/gamelabsjs";
 
 export class GameGridsView extends GridsView {
   private _cellPointerDownHandler: ((gridId: number, col: number, row: number) => void) | null = null;

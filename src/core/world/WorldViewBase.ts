@@ -17,12 +17,11 @@ import { LogTypes } from "../dev/LogTypes.js";
 export class WorldViewBase extends WorldInteractiveObject implements IView {
   //  MEMBERS
   private _viewFactory: IViewFactory | null = null;
-  private _addedForFactory:(() => void) | null = null;
-  private _removedForFactory:(() => void) | null = null;
+  private _addedForFactory: (() => void) | null = null;
+  private _removedForFactory: (() => void) | null = null;
   private _assetLoader: AssetManager | null = null;
   private _logger: ILogger | null = null;
   private _controller: IViewController | null = null;
-
 
   //  PROPERTIES
   protected get viewFactory(): IViewFactory {
@@ -48,7 +47,6 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
     return this._logger;
   }
 
-
   //  METHODS
   public inject(resolver: IInstanceResolver): void {
     this.setInputManager(resolver.getInstance(IInputManagerToken));
@@ -56,7 +54,7 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
     this._logger = resolver.getInstance(ILogger);
   }
 
-  public setViewFactory(viewFactory: IViewFactory, addedForFactory:() => void, removedForFactory:() => void): void {
+  public setViewFactory(viewFactory: IViewFactory, addedForFactory: () => void, removedForFactory: () => void): void {
     if (this._viewFactory) {
       throw new Error("View factory already set");
     }
@@ -67,12 +65,12 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
     this.addEventListener("removed", this.onRemovedForManager);
   }
 
-  private onAddedForManager(event: Object): void {
+  private onAddedForManager(event: object): void {
     this._addedForFactory?.();
     this._viewFactory?.viewAdded(this);
   }
 
-  private onRemovedForManager(event: Object): void {
+  private onRemovedForManager(event: object): void {
     if (this._viewFactory) {
       this._removedForFactory?.();
       this._viewFactory?.viewRemoved(this);

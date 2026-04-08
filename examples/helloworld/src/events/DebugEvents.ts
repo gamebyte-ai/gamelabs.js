@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "gamelabsjs";
+import type { Unsubscribe } from "@gamebyte/gamelabsjs";
 
 export class DebugEvents {
   private readonly _toggleDebugPanelListeners = new Set<() => void>();
