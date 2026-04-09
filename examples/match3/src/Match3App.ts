@@ -1,20 +1,21 @@
 import { vector } from "@js-basics/vector";
-import { AssetRequest, AssetTypes, GamelabsApp, GameCameraBinding, Grid, GridEvents, GridPreset, GridsModel, LogTypes, Topdown2dCameraController, UIEvents } from "gamelabsjs";
+import { AssetRequest, AssetTypes, GamelabsApp, GameCameraBinding, Grid, GridEvents, GridPreset, GridsModel, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "gamelabsjs";
 import { Match3AssetIds } from "./Match3AssetIds.js";
 import { Match3Config } from "./Match3Config.js";
 import { Match3GameGridBinding } from "./Match3GameGridBinding.js";
-import { Match3HudController } from "./controllers/Match3HudController.js";
+import { GameScreenController } from "./controllers/GameScreenController.js";
 import { Match3GridService } from "./utilities/Match3GridService.js";
-import { Match3Events } from "./events/Match3Events.js";
+import { GameEvents } from "./events/GameEvents.js";
 import { GameScreenView } from "./views/GameScreenView.pixi.js";
-import { Match3GridsView } from "./views/Match3GridsView.three.js";
+import { GameBoardsView } from "./views/GameBoardsView.three.js";
 import { Match3UIIds } from "./Match3UIIds.js";
 
 export class Match3App extends GamelabsApp {
   private readonly _config = new Match3Config();
   private readonly _gameGridBinding = new Match3GameGridBinding();
   private readonly _gameCameraBinding = new GameCameraBinding();
-  private readonly _events = new Match3Events();
+  private readonly _settingsBinding = new SettingsBinding();
+  private readonly _gameEvents = new GameEvents();
   private _cameraController: Topdown2dCameraController | null = null;
 
   public constructor(stageEl: HTMLElement) {
@@ -24,12 +25,18 @@ export class Match3App extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._gameGridBinding);
+
+    this._settingsBinding.addField(new SettingsBooleanField("music", "Music", true));
+    this._settingsBinding.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
+    this._settingsBinding.addField(new SettingsNumberField("musicVolume", "Music Volume", 70, 0, 100, 5));
+    this._settingsBinding.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 100, 0, 100, 5));
+    this.addModule(this._settingsBinding);
   }
 
   protected override configureDI(): void {
     this.diContainer.bindInstance(Match3Config, this._config);
     this.viewDiContainer.bindInstance(Match3Config, this._config);
-    this.diContainer.bindInstance(Match3Events, this._events);
+    this.diContainer.bindInstance(GameEvents, this._gameEvents);
     this.diContainer.bindSingleton(Match3GridService, (resolver) => {
       const model = resolver.getInstance(GridsModel);
       const config = resolver.getInstance(Match3Config);
@@ -49,10 +56,17 @@ export class Match3App extends GamelabsApp {
     this.assetManager.load(AssetTypes.WorldTexture, Match3AssetIds.GemGreen, new URL("../assets/gem_green.svg", import.meta.url).href);
     this.assetManager.load(AssetTypes.WorldTexture, Match3AssetIds.GemYellow, new URL("../assets/gem_yellow.svg", import.meta.url).href);
     this.assetManager.load(AssetTypes.WorldTexture, Match3AssetIds.GemPurple, new URL("../assets/gem_purple.svg", import.meta.url).href);
+
+    // Audio
+    this.assetManager.load(AssetTypes.Audio, Match3AssetIds.SfxSelect, new URL("../assets/sfx_select.wav", import.meta.url).href);
+    this.assetManager.load(AssetTypes.Audio, Match3AssetIds.SfxSwap, new URL("../assets/sfx_swap.wav", import.meta.url).href);
+    this.assetManager.load(AssetTypes.Audio, Match3AssetIds.SfxWrong, new URL("../assets/sfx_wrong.wav", import.meta.url).href);
+    this.assetManager.load(AssetTypes.Audio, Match3AssetIds.SfxPop, new URL("../assets/sfx_pop.wav", import.meta.url).href);
+    this.assetManager.load(AssetTypes.Audio, Match3AssetIds.MusicBg, new URL("../assets/music_bg.wav", import.meta.url).href);
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerScreen(Match3UIIds.GameScreen, GameScreenView, Match3HudController);
+    this.viewFactory.registerScreen(Match3UIIds.GameScreen, GameScreenView, GameScreenController);
   }
 
   protected override postInitialize(): void {
@@ -61,7 +75,7 @@ export class Match3App extends GamelabsApp {
       throw new Error("HUD or world is not initialized");
     }
     this.diContainer.getInstance(UIEvents).createScreen(Match3UIIds.GameScreen, this._config.transitions.gameScreenEnter);
-    this.world.addView(this.viewFactory.createView(Match3GridsView));
+    this.world.addView(this.viewFactory.createView(GameBoardsView));
     
     const grid = this._gameGridBinding.model.getGrid(Match3Config.GRID_ID);
     if (grid) {

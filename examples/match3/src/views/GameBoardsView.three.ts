@@ -4,10 +4,10 @@ import type { GridObject, IInstanceResolver } from "gamelabsjs";
 import { GridsView, type GridCellObject } from "gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
 import type { GravityMove, RefillSpawn } from "../utilities/Match3GridService.js";
-import type { IMatch3GridsView } from "./IMatch3GridsView.js";
-import { Match3GemItemObject } from "./Match3GemItemObject.js";
+import type { IGameBoardsView } from "./IGameBoardsView.js";
+import { GameBoardItemObject } from "./GameBoardItemObject.js";
 
-export class Match3GridsView extends GridsView implements IMatch3GridsView {
+export class GameBoardsView extends GridsView implements IGameBoardsView {
   private _cellPointerDownHandler: ((gridId: number, col: number, row: number) => void) | null = null;
   private _config: Match3Config | null = null;
 
@@ -30,7 +30,7 @@ export class Match3GridsView extends GridsView implements IMatch3GridsView {
     for (let c = 0; c < go.columnCount; c++) {
       for (let r = 0; r < go.rowCount; r++) {
         const item = go.getCell(c, r)?.item;
-        if (item instanceof Match3GemItemObject) item.setHighlighted(selected !== null && selected.col === c && selected.row === r);
+        if (item instanceof GameBoardItemObject) item.setHighlighted(selected !== null && selected.col === c && selected.row === r);
       }
     }
   }
@@ -180,24 +180,24 @@ export class Match3GridsView extends GridsView implements IMatch3GridsView {
     for (let c = 0; c < go.columnCount; c++) {
       for (let r = 0; r < go.rowCount; r++) {
         const item = go.getCell(c, r)?.item;
-        if (item instanceof Match3GemItemObject) item.killAnimations();
+        if (item instanceof GameBoardItemObject) item.killAnimations();
       }
     }
   }
 
-  private _getGem(go: GridObject, col: number, row: number): Match3GemItemObject | null {
+  private _getGem(go: GridObject, col: number, row: number): GameBoardItemObject | null {
     const item = go.getCell(col, row)?.item;
-    return item instanceof Match3GemItemObject ? item : null;
+    return item instanceof GameBoardItemObject ? item : null;
   }
 
-  private _swapPair(gridId: number, r1: number, c1: number, r2: number, c2: number): { gem1: Match3GemItemObject; gem2: Match3GemItemObject; cell1: GridCellObject; cell2: GridCellObject; go: GridObject } | null {
+  private _swapPair(gridId: number, r1: number, c1: number, r2: number, c2: number): { gem1: GameBoardItemObject; gem2: GameBoardItemObject; cell1: GridCellObject; cell2: GridCellObject; go: GridObject } | null {
     const go = this.getGridObject(gridId);
     if (!go) return null;
     const cell1 = go.getCell(c1, r1);
     const cell2 = go.getCell(c2, r2);
     const g1 = cell1?.item;
     const g2 = cell2?.item;
-    if (!(g1 instanceof Match3GemItemObject) || !(g2 instanceof Match3GemItemObject) || !cell1 || !cell2) return null;
+    if (!(g1 instanceof GameBoardItemObject) || !(g2 instanceof GameBoardItemObject) || !cell1 || !cell2) return null;
     return { gem1: g1, gem2: g2, cell1, cell2, go };
   }
 

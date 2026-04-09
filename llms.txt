@@ -26,6 +26,7 @@ TypeScript skeleton + reusable modules for web games. Three.js (3D world) + Pixi
 
 - `IFoo.ts` (interfaces), `FooView.pixi.ts` (HUD), `FooView.three.ts` (world), `FooController.ts`, `FooEvents.ts`
 - Asset IDs: enum with namespaced values `"MyGame.ItemName"`
+- Every per-board gamegrid class an example defines uses role-based `GameBoard*` prefix (not game prefix): `GameBoardItem`, `IGameBoardsView`, `GameBoardsView`, `GameBoardsViewController`, `GameBoardCellObject`, `GameBoardItemObject`, `GameBoardItemObjectOptions`, `GameBoardObjectCreator`. App / Config / AssetIds / Events / Service / Binding / screen views keep the game prefix.
 
 ## Project layout
 

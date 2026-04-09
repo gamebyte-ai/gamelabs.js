@@ -5,12 +5,12 @@ A match-3 puzzle game demonstrating the `GameGrid` module with gem matching, gra
 ## What it shows
 
 - Extending the `GameGrid` module with custom models, views, and controllers
-- Custom `Match3GridItem` model with `gemType` property
+- Custom `GameBoardItem` model with `gemType` property
 - Match-3 game rules in a utility (`Match3GridService`): match detection, gravity, refill, swap validation
 - Initial board generation with no pre-existing matches
 - Animated gem interactions using GSAP: swap, invalid swap bounce, match pop (scale up + shrink), gravity drop (bounce), refill spawn
 - Gem selection highlighting with wireframe shell, halo ring, and emissive glow
-- Event-driven score updates via `Match3Events`
+- Event-driven score updates via `GameEvents`
 - Using `GameCameraBinding` with `Topdown2dCameraController` and orthographic projection
 - HUD controller (`Match3HudController`) wired to view interface, not concrete class
 
@@ -20,22 +20,23 @@ A match-3 puzzle game demonstrating the `GameGrid` module with gem matching, gra
 match3
 ├──src
 │   ├──controllers
-│   │   ├──Match3GridsViewController.ts
+│   │   ├──GameBoardsViewController.ts
 │   │   └──Match3HudController.ts
 │   ├──events
-│   │   └──Match3Events.ts
+│   │   └──GameEvents.ts
 │   ├──models
-│   │   └──Match3GridItem.ts
+│   │   └──GameBoardItem.ts
 │   ├──utilities
 │   │   └──Match3GridService.ts
 │   ├──views
 │   │   ├──IGameScreenView.ts
 │   │   ├──GameScreenView.pixi.ts
-│   │   ├──Match3CellObject.ts
-│   │   ├──Match3GemItemObject.ts
-│   │   ├──Match3GemItemObjectOptions.ts
-│   │   ├──Match3GridObjectCreator.ts
-│   │   └──Match3GridsView.three.ts
+│   │   ├──IGameBoardsView.ts
+│   │   ├──GameBoardCellObject.ts
+│   │   ├──GameBoardItemObject.ts
+│   │   ├──GameBoardItemObjectOptions.ts
+│   │   ├──GameBoardObjectCreator.ts
+│   │   └──GameBoardsView.three.ts
 │   ├──Match3App.ts
 │   ├──Match3Config.ts
 │   ├──Match3GameGridBinding.ts
@@ -46,23 +47,25 @@ match3
 
 | View | Controller | Description |
 |------|-----------|-------------|
-| `Match3GridsView` (GridsView) | `Match3GridsViewController` | 3D gem board with selection, swap, match, gravity, and refill animations |
+| `GameBoardsView` (GridsView) | `GameBoardsViewController` | 3D gem board with selection, swap, match, gravity, and refill animations |
 | `GameScreenView` (ScreenView) | `Match3HudController` | HUD displaying score and hint text |
-| `Match3CellObject` | — | Individual board cell with pointer input |
-| `Match3GemItemObject` | — | 3D gem sphere with selection highlight and GSAP animations |
+| `GameBoardCellObject` | — | Individual board cell with pointer input |
+| `GameBoardItemObject` | — | 3D gem sphere with selection highlight and GSAP animations |
+
+> **Naming convention:** every per-board class — model (`GameBoardItem`), view (`GameBoardsView`), controller (`GameBoardsViewController`), view interface (`IGameBoardsView`), cell object, item object, item options, and object creator — is named `GameBoard*` rather than the game-specific `Match3*`. The names describe the *role* in the architecture (a thing that lives on the game's board), not the gameplay (a "gem"). Game-specific code (App, Config, AssetIds, Events, Service, Binding, the screen-level HUD controller) keeps the `Match3*` prefix. This convention is shared across all examples — see `DeveloperNotes.md`.
 
 ## Events
 
 | Event class | Signals | Flow |
 |------------|---------|------|
-| `Match3Events` | `onScoreChanged` | Match3GridsViewController emits after clearing matches, Match3HudController updates score display |
+| `GameEvents` | `onScoreChanged` | GameBoardsViewController emits after clearing matches, Match3HudController updates score display |
 
 ## Game flow
 
 ```
 Player clicks gem A → selects it (highlight)
 Player clicks adjacent gem B
-    → Match3GridsViewController checks swap validity
+    → GameBoardsViewController checks swap validity
         → if creates match:
             animate swap → apply swap → match cascade loop:
                 find matches → animate pop → clear cells → emit score

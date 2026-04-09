@@ -38,6 +38,34 @@ It depends on:
 - Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
 
 
+### `GameBoard*` convention for gamegrid subclasses
+
+Every per-board class an example defines on top of the `gamegrid` module — the
+model, the view, the controller, the view interface, and the four view-side
+helper classes — is named after the **role** it plays in the architecture
+("a thing that lives on the game's board"), not after the gameplay (a "gem",
+"tile", "marker", ...). The eight canonical names are:
+
+| File                                | Extends / implements             | Purpose                                                |
+|-------------------------------------|----------------------------------|--------------------------------------------------------|
+| `models/GameBoardItem.ts`           | `GridItem`                       | Per-game grid item model (carries game-specific data)  |
+| `views/IGameBoardsView.ts`          | `IGridView`                      | Per-game grid view interface                           |
+| `views/GameBoardsView.three.ts`     | `GridsView`                      | Per-game world view rendering the board                |
+| `views/GameBoardCellObject.ts`      | `GridCellObject`                 | Visual / pointer behavior of one board cell            |
+| `views/GameBoardItemObject.ts`      | `GridItemObject`                 | Visual of one item placed on a cell                    |
+| `views/GameBoardItemObjectOptions.ts` | `GridItemObjectOptions`        | Constructor options carrying game-specific item data   |
+| `views/GameBoardObjectCreator.ts`   | `GridObjectCreator`              | Factory wiring the cell + item objects above           |
+| `controllers/GameBoardsViewController.ts` | `GridsViewController`      | Per-game controller driving the board view             |
+
+Game-specific code (App, Config, AssetIds, Events, Service, Binding, the screen-level
+HUD controller, screen views, popups) keeps the **game** prefix
+(`Match3App`, `Match3Config`, `Match3GridService`, `Match3GameGridBinding`,
+`Match3HudController`, `Game2048App`, `Game2048GridService`, `Game2048GameGridBinding`,
+...). Each example owns its own copies of the `GameBoard*` files inside its own
+`src/` tree — they don't collide because they're scoped to the example folder.
+See `examples/match3` and `examples/2048` for the convention applied end-to-end.
+
+
 ## Library folder structure (`src/`)
 ```
 src
@@ -199,7 +227,7 @@ The following modules are shipped with the library. See each module's `README.md
 - **`mainscreen`** — ready-to-use main menu screen with a logo, play button, and settings button. Exposes `MainScreenEvents` for click wiring.
 - **`levelprogressscreen`** — vertical level-list screen showing previous/current/next levels with connector sprites and a back button. Exposes `LevelProgressScreenEvents`.
 - **`gamecamera`** — camera manager with multiple controller flavors (orbital, topdown 2D/3D, front 2D/3D, isometric 2D/3D) for common gameplay camera rigs.
-- **`gamegrid`** — grid model, grid items, and a grid view/controller pair for tile-based gameplay (used by the match3 and tictactoe examples).
+- **`gamegrid`** — grid model, grid items, and a grid view/controller pair for tile-based gameplay (used by the match3, tictactoe, and 2048 examples).
 - **`onscreencontrols`** — touch-friendly virtual buttons and joysticks rendered as a PixiJS HUD overlay. `OnScreenControlManager` implements `IInputDeviceListener` so controls integrate with `InputMapper` alongside keyboard. Supports static and dynamic joysticks, dynamic add/remove at runtime via `OnScreenControlEvents`.
 - **`settings`** — typed settings system with boolean toggles and number sliders. `SettingsManager` persists values via `StorageService` (localStorage), validates on write (clamp, step), and emits `SettingsEvents.onValueChanged`. Includes a ready-to-use `SettingsPopupView` with toggle switches and drag sliders.
 - **`audiodsp`** — audio DSP effects built on Web Audio API. `DspChain` connects effects in series; effects include `FilterEffect`, `ReverbEffect`, `DelayEffect`, `DistortionEffect`, `CompressorEffect`. `DspPresets` provides one-liner chains for common scenarios (underwater, radio, echo, lo-fi).

@@ -1,14 +1,14 @@
 import type { IInstanceResolver } from "gamelabsjs";
 import { Grid } from "gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
-import { Match3GridItem } from "../models/Match3GridItem.js";
+import { GameBoardItem } from "../models/GameBoardItem.js";
 
 export type GravityMove = { fromRow: number; fromCol: number; toRow: number; toCol: number; gemType: number };
 
 export type RefillSpawn = { row: number; col: number; gemType: number };
 
 /**
- * Match-3 rules on top of gamegrid {@link Grid} (cells hold {@link Match3GridItem}).
+ * Match-3 rules on top of gamegrid {@link Grid} (cells hold {@link GameBoardItem}).
  */
 export class Match3GridService {
   private readonly _grid: Grid;
@@ -42,7 +42,7 @@ export class Match3GridService {
 
   public gemTypeAt(row: number, col: number): number {
     const item = this._grid.getCell(col, row)?.item;
-    if (!item || !(item instanceof Match3GridItem)) return -1;
+    if (!item || !(item instanceof GameBoardItem)) return -1;
     return item.gemType;
   }
 
@@ -86,7 +86,7 @@ export class Match3GridService {
         const cell = this._grid.getCell(col, row);
         if (!cell?.item) continue;
         const item = cell.item;
-        const gemType = item instanceof Match3GridItem ? item.gemType : 0;
+        const gemType = item instanceof GameBoardItem ? item.gemType : 0;
         if (write !== row) {
           moves.push({ fromRow: row, fromCol: col, toRow: write, toCol: col, gemType });
           this._grid.setCellItem(col, row, null);
@@ -106,7 +106,7 @@ export class Match3GridService {
         const cell = this._grid.getCell(col, row);
         if (cell?.item) continue;
         const t = Math.floor(Math.random() * n);
-        const item = new Match3GridItem(this._nextItemId++, t);
+        const item = new GameBoardItem(this._nextItemId++, t);
         this._grid.setCellItem(col, row, item);
         spawns.push({ row, col, gemType: t });
       }
@@ -114,8 +114,8 @@ export class Match3GridService {
     return spawns;
   }
 
-  private _createItem(gemType: number): Match3GridItem {
-    return new Match3GridItem(this._nextItemId++, gemType);
+  private _createItem(gemType: number): GameBoardItem {
+    return new GameBoardItem(this._nextItemId++, gemType);
   }
 
   private _swapItems(col1: number, row1: number, col2: number, row2: number): void {
@@ -204,7 +204,7 @@ export class Match3GridService {
 
   private _gemAt(col: number, row: number): number {
     const item = this._grid.getCell(col, row)?.item;
-    if (!item || !(item instanceof Match3GridItem)) return -1;
+    if (!item || !(item instanceof GameBoardItem)) return -1;
     return item.gemType;
   }
 

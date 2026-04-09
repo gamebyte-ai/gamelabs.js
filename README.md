@@ -75,6 +75,13 @@ MyGame/src
 - Controllers: `FooController.ts`
 - Events: `FooEvents.ts`
 - Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
+- Every per-board `gamegrid` class an example defines uses the role-based `GameBoard*`
+  prefix (`GameBoardItem`, `IGameBoardsView`, `GameBoardsView`, `GameBoardsViewController`,
+  `GameBoardCellObject`, `GameBoardItemObject`, `GameBoardItemObjectOptions`,
+  `GameBoardObjectCreator`) instead of a game-specific prefix. App / Config / AssetIds
+  / Events / Service / Binding / screen views keep the game prefix. See
+  `DeveloperNotes.md` for the canonical table, and `examples/match3` / `examples/2048`
+  for the convention applied end-to-end.
 
 ## Repository layout
 
@@ -103,6 +110,7 @@ src/
 | `match3` | Match-3 puzzle with animated gem board |
 | `avoidance` | Survival game with keyboard + on-screen joystick input |
 | `watersort` | Puzzle game with tween pour animations |
+| `2048` | 2048 sliding-tile puzzle with keyboard / swipe input and best-score persistence |
 
 ```bash
 npm run build                    # Build library first

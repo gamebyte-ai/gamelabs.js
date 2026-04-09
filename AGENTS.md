@@ -31,6 +31,17 @@ Read `DeveloperNotes.md` for full architecture and implementation details.
 - Models: `Foo.ts` or `FooModel.ts`
 - Config: `MyGameConfig.ts`
 - Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
+- Every per-board class an example defines on top of the `gamegrid` module uses
+  the role-based `GameBoard*` prefix instead of the game-specific prefix:
+  `GameBoardItem` (model), `IGameBoardsView`, `GameBoardsView` (world view),
+  `GameBoardsViewController`, `GameBoardCellObject`, `GameBoardItemObject`,
+  `GameBoardItemObjectOptions`, `GameBoardObjectCreator`. Game-specific code
+  (App, Config, AssetIds, Events, Service, Binding, screen views and the
+  screen-level HUD controller) keeps the game prefix
+  (e.g. `Match3App`, `Match3GridService`, `Game2048GridService`). Each example
+  owns its own copies of the `GameBoard*` files inside its own `src/` tree —
+  they don't collide because they're scoped to the example folder. See
+  `DeveloperNotes.md` for the canonical table.
 
 ## Project structure
 

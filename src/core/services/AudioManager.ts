@@ -279,14 +279,18 @@ export class AudioManager {
   }
 
   private _applyVolumes(): void {
+    const t = this._ctx?.currentTime ?? 0;
     if (this._masterGain) {
-      this._masterGain.gain.value = this._masterMuted ? 0 : this._masterVolume;
+      this._masterGain.gain.cancelScheduledValues(t);
+      this._masterGain.gain.setValueAtTime(this._masterMuted ? 0 : this._masterVolume, t);
     }
     if (this._sfxGain) {
-      this._sfxGain.gain.value = this._sfxMuted ? 0 : this._sfxVolume;
+      this._sfxGain.gain.cancelScheduledValues(t);
+      this._sfxGain.gain.setValueAtTime(this._sfxMuted ? 0 : this._sfxVolume, t);
     }
     if (this._musicGain) {
-      this._musicGain.gain.value = this._musicMuted ? 0 : this._musicVolume;
+      this._musicGain.gain.cancelScheduledValues(t);
+      this._musicGain.gain.setValueAtTime(this._musicMuted ? 0 : this._musicVolume, t);
     }
   }
 }

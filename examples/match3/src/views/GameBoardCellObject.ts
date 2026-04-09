@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { IAssetManager, IInputManager, IPointerInputHandler } from "gamelabsjs";
 import { GridCellObject, GridCellObjectOptions, POINTER_INPUT_LAYER, type IGridObjectListener } from "gamelabsjs";
 
-export class Match3CellObject extends GridCellObject implements IPointerInputHandler {
+export class GameBoardCellObject extends GridCellObject implements IPointerInputHandler {
   private static readonly COLLIDER_THICKNESS = 0.22;
   private static readonly PLANE_Y = 0.01;
 
@@ -16,15 +16,15 @@ export class Match3CellObject extends GridCellObject implements IPointerInputHan
     const mesh = new THREE.Mesh(geom, material);
     mesh.rotation.x = -Math.PI / 2;
     mesh.receiveShadow = true;
-    mesh.position.set(0, Match3CellObject.PLANE_Y, 0);
+    mesh.position.set(0, GameBoardCellObject.PLANE_Y, 0);
     this.add(mesh);
   }
 
   protected override createCollider(): void {
     const material = new THREE.MeshBasicMaterial({ visible: false });
-    const geom = new THREE.BoxGeometry(this.preset.columnSize * 0.92, Match3CellObject.COLLIDER_THICKNESS, this.preset.rowSize * 0.92);
+    const geom = new THREE.BoxGeometry(this.preset.columnSize * 0.92, GameBoardCellObject.COLLIDER_THICKNESS, this.preset.rowSize * 0.92);
     const mesh = new THREE.Mesh(geom, material);
-    mesh.position.set(0, Match3CellObject.COLLIDER_THICKNESS * 0.5, 0);
+    mesh.position.set(0, GameBoardCellObject.COLLIDER_THICKNESS * 0.5, 0);
     mesh.layers.enable(POINTER_INPUT_LAYER);
     this.add(mesh);
   }
