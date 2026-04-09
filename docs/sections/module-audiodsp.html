@@ -1,0 +1,56 @@
+<h2 id="module-audiodsp">Audio DSP</h2>
+<p>Audio effects built on the Web Audio API. Chain multiple effects in series and apply them to SFX or music channels via <code>AudioManager</code>.</p>
+
+<h4>DspChain</h4>
+<p>A serial chain of effects. Audio flows through each effect in order.</p>
+<pre><code>const chain = new DspChain(audioManager.context!);
+chain.addEffect(new FilterEffect({ type: "lowpass", frequency: 800 }));
+chain.addEffect(new DelayEffect({ time: 0.2, feedback: 0.3 }));
+
+// Wire into AudioManager
+chain.connectTo(audioManager.sfxGain!);
+audioManager.setSfxDestination(chain.input);
+
+// Remove chain
+audioManager.setSfxDestination(null);
+chain.destroy();</code></pre>
+
+<h4>Effects</h4>
+
+<p><strong>FilterEffect</strong> — biquad filter (low-pass, high-pass, bandpass, etc.)</p>
+<pre><code>new FilterEffect({ type: "lowpass", frequency: 1000, Q: 2 })
+// Real-time sweep:
+filter.setFrequency(200, 500); // ramp to 200Hz over 500ms</code></pre>
+
+<p><strong>ReverbEffect</strong> — convolution reverb using an impulse response <code>AudioBuffer</code>.</p>
+<pre><code>const reverb = new ReverbEffect({ impulseAssetId: "MyGame.CaveIR", mix: 0.6 });
+// After assets loaded:
+reverb.resolveAssets(assetManager);</code></pre>
+
+<p><strong>DelayEffect</strong> — delay with feedback loop.</p>
+<pre><code>new DelayEffect({ time: 0.3, feedback: 0.4, mix: 0.5 })</code></pre>
+
+<p><strong>DistortionEffect</strong> — waveshaper distortion with tanh curve.</p>
+<pre><code>new DistortionEffect({ drive: 50, mix: 0.5 })</code></pre>
+
+<p><strong>CompressorEffect</strong> — dynamics compressor to prevent clipping.</p>
+<pre><code>new CompressorEffect({ threshold: -24, ratio: 4, attack: 0.003, release: 0.25 })</code></pre>
+
+<h4>All effects share</h4>
+<ul>
+  <li><code>bypassed</code> property — toggle effect on/off without removing from chain</li>
+  <li><code>setMix(0–1)</code> — dry/wet blend (where applicable)</li>
+  <li><code>destroy()</code> — disconnect and clean up nodes</li>
+</ul>
+
+<h4>DspPresets</h4>
+<p>One-liner factory methods for common scenarios:</p>
+<pre><code>DspPresets.underwater(ctx)       // low-pass 400Hz
+DspPresets.occluded(ctx)         // low-pass 800Hz (behind wall)
+DspPresets.echo(ctx)             // short delay + feedback
+DspPresets.radio(ctx)            // bandpass + distortion
+DspPresets.lofi(ctx)             // heavy distortion + high-pass
+DspPresets.masterCompressor(ctx) // prevent clipping</code></pre>
+
+<h4>Exports</h4>
+<p><code>DspEffect</code>, <code>FilterEffect</code>, <code>ReverbEffect</code>, <code>DelayEffect</code>, <code>DistortionEffect</code>, <code>CompressorEffect</code>, <code>DspChain</code>, <code>DspPresets</code>.</p>

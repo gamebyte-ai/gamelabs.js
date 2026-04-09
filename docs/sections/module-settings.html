@@ -1,0 +1,52 @@
+<h2 id="module-settings">Settings</h2>
+<p>Typed settings system with boolean toggles and number sliders. Values are persisted via <code>StorageService</code> (localStorage), validated on write, and broadcast via events. Includes a ready-to-use popup UI.</p>
+
+<h4>Setup</h4>
+<pre><code>const settings = new SettingsBinding("MyGame");
+settings.addField(new SettingsBooleanField("music", "Music", true));
+settings.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
+settings.addField(new SettingsNumberField("volume", "Volume", 80, 0, 100, 5));
+settings.addField(new SettingsNumberField("difficulty", "Difficulty", 1, 1, 10, 1));
+this.addModule(settings);</code></pre>
+
+<h4>Open settings popup</h4>
+<pre><code>// From any controller:
+uiEvents.createPopup(SettingsUIIds.SettingsPopup);</code></pre>
+<p>The popup renders toggle switches for booleans and drag sliders for numbers. Values save instantly on change.</p>
+
+<h4>React to changes</h4>
+<pre><code>const events = resolver.getInstance(SettingsEvents);
+events.onValueChanged((name) =&gt; {
+  if (name === "music") {
+    const on = manager.getBooleanValue("music");
+    // toggle audio
+  }
+  if (name === "volume") {
+    const vol = manager.getNumberValue("volume");
+    // adjust volume
+  }
+});</code></pre>
+
+<h4>Field types</h4>
+<ul>
+  <li><code>SettingsBooleanField(name, label, defaultValue)</code> — on/off toggle</li>
+  <li><code>SettingsNumberField(name, label, defaultValue, min, max, step)</code> — numeric slider. <code>step</code> controls granularity (e.g. <code>1</code> for integers, <code>0.1</code> for decimals, <code>5</code> for coarse steps)</li>
+</ul>
+
+<h4>SettingsManager API</h4>
+<ul>
+  <li><code>addField(field)</code> — register a field (loads persisted value or falls back to default)</li>
+  <li><code>getBooleanValue(name): boolean</code> / <code>getNumberValue(name): number</code> — typed getters</li>
+  <li><code>setBooleanValue(name, value)</code> / <code>setNumberValue(name, value)</code> — validates, persists, emits event</li>
+  <li><code>getFields(): Iterable&lt;SettingsField&gt;</code> — iterate all registered fields</li>
+  <li><code>resetToDefaults()</code> — reset all fields to their default values</li>
+</ul>
+
+<h4>Persistence</h4>
+<p>Values are stored in <code>localStorage</code> via <code>StorageService</code>. The <code>SettingsBinding</code> constructor takes a prefix string (e.g. <code>"MyGame"</code>) so multiple games on the same domain don't collide. Values persist across page reloads and sessions.</p>
+
+<h4>Validation</h4>
+<p>Number values are clamped to <code>[min, max]</code> and rounded to the nearest <code>step</code> before saving. Boolean values are type-checked. Invalid persisted data (e.g. from a schema change) falls back to the field's default.</p>
+
+<h4>Exports</h4>
+<p><code>SettingsBinding</code>, <code>SettingsManager</code>, <code>SettingsEvents</code>, <code>SettingsUIIds</code>, <code>SettingsFieldType</code>, <code>SettingsBooleanField</code>, <code>SettingsNumberField</code>, <code>SettingsPopupView</code>, <code>SettingsPopupController</code>.</p>

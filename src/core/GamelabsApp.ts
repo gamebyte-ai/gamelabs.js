@@ -18,6 +18,7 @@ import { InputManager } from "./input/InputManager.js";
 import { IInputManager } from "./input/IInputManager.js";
 import { UIEvents } from "./ui/UIEvents.js";
 import { KeyboardListener } from "./input/KeyboardListener.js";
+import { AudioManager } from "./services/AudioManager.js";
 
 export class GamelabsApp {
   //  MEMBERS
@@ -38,6 +39,7 @@ export class GamelabsApp {
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
   private _inputManager: InputManager | null = null;
   private _keyboardListener: KeyboardListener | null = null;
+  private _audioManager: AudioManager | null = null;
 
   private _isInitialized = false;
   private _moduleList: ModuleBinding[] = [];
@@ -116,6 +118,14 @@ export class GamelabsApp {
     return this._viewFactory;
   }
 
+  protected get audioManager(): AudioManager {
+    if (!this._audioManager) {
+      this._logger.log("AudioManager is not initialized", LogTypes.Error);
+      throw new Error("AudioManager is not initialized");
+    }
+    return this._audioManager;
+  }
+
 
   //  CONSTRUCTOR
   constructor(config: GamelabsAppConfig) {
@@ -178,7 +188,11 @@ export class GamelabsApp {
     this._keyboardListener = new KeyboardListener();
     this.diContainer.bindInstance(KeyboardListener, this._keyboardListener);
     this.viewDiContainer.bindInstance(KeyboardListener, this._keyboardListener);
-    
+
+    this._audioManager = new AudioManager();
+    this._audioManager.initialize(this._assetManager);
+    this.diContainer.bindInstance(AudioManager, this._audioManager);
+
     this.registerModules();
 
     for (const moduleBinding of this._moduleList) {
@@ -342,6 +356,8 @@ export class GamelabsApp {
     this.stopMainLoop();
     this._inputManager?.stopListening();
     this._keyboardListener?.stopListening();
+    this._audioManager?.destroy();
+    this._audioManager = null;
     this._keyboardListener = null;
     this._inputManager = null;
     if (this._resizeObserver) {

@@ -1,0 +1,54 @@
+<h2 id="audio">Audio</h2>
+<p><code>AudioManager</code> provides game audio built on the Web Audio API. It's created automatically by <code>GamelabsApp</code> and bound to <code>diContainer</code>.</p>
+
+<h4>Loading audio assets</h4>
+<pre><code>// Use AssetTypes.Audio to load audio files (decoded to AudioBuffer)
+this._assetRequestList.addRequest(
+  new AssetRequest(AssetTypes.Audio, MyAssetIds.Jump, jumpUrl)
+);
+this._assetRequestList.addRequest(
+  new AssetRequest(AssetTypes.Audio, MyAssetIds.BgMusic, musicUrl)
+);</code></pre>
+
+<h4>Playing sounds</h4>
+<pre><code>const audio = resolver.getInstance(AudioManager);
+
+// Fire-and-forget SFX
+audio.playSfx("MyGame.Jump");
+audio.playSfx("MyGame.Jump", { volume: 0.5, rate: 1.2 });
+
+// Background music (single track, looping by default)
+audio.playMusic("MyGame.BgMusic", { fadeInMs: 500 });
+audio.stopMusic({ fadeOutMs: 300 });</code></pre>
+
+<h4>Volume control</h4>
+<pre><code>audio.setMasterVolume(0.8);   // 0–1
+audio.setSfxVolume(0.5);
+audio.setMusicVolume(0.7);
+
+audio.setMasterMute(true);
+audio.setSfxMute(true);
+audio.setMusicMute(false);</code></pre>
+
+<h4>Browser autoplay policy</h4>
+<p>Browsers block audio playback until a user gesture. Call <code>audioManager.resume()</code> on the first user interaction (click/tap). The manager auto-pauses when the page loses visibility and resumes when it regains focus.</p>
+
+<h4>DSP integration</h4>
+<p>Insert a <code>DspChain</code> (from the <code>audiodsp</code> module) between sources and the gain nodes:</p>
+<pre><code>const chain = DspPresets.underwater(audio.context!);
+chain.connectTo(audio.sfxGain!);
+audio.setSfxDestination(chain.input);</code></pre>
+
+<h4>API summary</h4>
+<ul>
+  <li><code>playSfx(assetId, { volume?, rate?, loop? })</code> — play a sound effect</li>
+  <li><code>playMusic(assetId, { volume?, loop?, fadeInMs? })</code> — play background music</li>
+  <li><code>stopMusic({ fadeOutMs? })</code> — stop current music</li>
+  <li><code>setMasterVolume/setSfxVolume/setMusicVolume(0–1)</code> — volume controls</li>
+  <li><code>setMasterMute/setSfxMute/setMusicMute(bool)</code> — mute toggles</li>
+  <li><code>resume()</code> — resume AudioContext after user gesture</li>
+  <li><code>pauseAll() / resumeAll()</code> — suspend/resume all audio</li>
+  <li><code>setSfxDestination(node) / setMusicDestination(node)</code> — insert DSP chains</li>
+  <li><code>context</code> — the underlying <code>AudioContext</code></li>
+  <li><code>sfxGain / musicGain</code> — gain nodes for DSP chain wiring</li>
+</ul>

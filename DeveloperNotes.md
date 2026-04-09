@@ -48,7 +48,7 @@ src
 │   ├──events/            Unsubscribe, UnsubscribeBag
 │   ├──hud/               Hud, HudViewBase, IHud
 │   ├──input/             InputManager, IPointerInputHandler
-│   ├──services/          UpdateService
+│   ├──services/          UpdateService, StorageService, AudioManager
 │   ├──ui/                ScreenView, ScreenTransition, IScreenView
 │   ├──views/             ViewFactory, IView, IViewController, IViewFactory
 │   ├──world/             World, WorldViewBase, IWorld
@@ -58,7 +58,10 @@ src
 │   ├──gamecamera/        GameCameraBinding, GameCameraManager, camera controllers
 │   ├──gamegrid/          GameGridBinding, Grid, GridsModel, GridsView, GridsViewController
 │   ├──mainscreen/        MainScreenBinding, MainScreenView, MainScreenController
-│   └──levelprogressscreen/  LevelProgressScreenBinding, LevelProgressScreenView
+│   ├──levelprogressscreen/  LevelProgressScreenBinding, LevelProgressScreenView
+│   ├──onscreencontrols/  OnScreenControlManager, virtual buttons & joysticks
+│   ├──settings/          SettingsBinding, SettingsManager, SettingsPopupView
+│   └──audiodsp/          DspChain, DspPresets, filter/reverb/delay/distortion/compressor effects
 └──index.ts               Barrel exports
 ```
 
@@ -198,6 +201,8 @@ The following modules are shipped with the library. See each module's `README.md
 - **`gamecamera`** — camera manager with multiple controller flavors (orbital, topdown 2D/3D, front 2D/3D, isometric 2D/3D) for common gameplay camera rigs.
 - **`gamegrid`** — grid model, grid items, and a grid view/controller pair for tile-based gameplay (used by the match3 and tictactoe examples).
 - **`onscreencontrols`** — touch-friendly virtual buttons and joysticks rendered as a PixiJS HUD overlay. `OnScreenControlManager` implements `IInputDeviceListener` so controls integrate with `InputMapper` alongside keyboard. Supports static and dynamic joysticks, dynamic add/remove at runtime via `OnScreenControlEvents`.
+- **`settings`** — typed settings system with boolean toggles and number sliders. `SettingsManager` persists values via `StorageService` (localStorage), validates on write (clamp, step), and emits `SettingsEvents.onValueChanged`. Includes a ready-to-use `SettingsPopupView` with toggle switches and drag sliders.
+- **`audiodsp`** — audio DSP effects built on Web Audio API. `DspChain` connects effects in series; effects include `FilterEffect`, `ReverbEffect`, `DelayEffect`, `DistortionEffect`, `CompressorEffect`. `DspPresets` provides one-liner chains for common scenarios (underwater, radio, echo, lo-fi).
 
 
 

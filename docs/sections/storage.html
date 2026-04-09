@@ -1,0 +1,26 @@
+<h2 id="storage">Storage</h2>
+<p><code>StorageService</code> provides simple key-value persistence backed by <code>localStorage</code>. Keys are automatically prefixed to avoid collisions between games on the same domain.</p>
+
+<h4>Usage</h4>
+<pre><code>// In configureDI:
+const storage = new StorageService("MyGame");
+this.diContainer.bindInstance(StorageService, storage);
+
+// In a controller or utility:
+storage.save("highScore", 42);
+const score = storage.load&lt;number&gt;("highScore"); // 42 or null
+
+storage.has("highScore");  // true
+storage.remove("highScore");
+storage.clear();           // removes all "MyGame.*" keys</code></pre>
+
+<h4>API</h4>
+<ul>
+  <li><code>constructor(prefix)</code> — namespaces all keys (e.g. <code>"MyGame"</code> → stored as <code>"MyGame.highScore"</code>)</li>
+  <li><code>save&lt;T&gt;(key, value)</code> — JSON-serializes and writes to localStorage</li>
+  <li><code>load&lt;T&gt;(key): T | null</code> — reads and parses; returns <code>null</code> on miss or error</li>
+  <li><code>has(key): boolean</code> — check existence</li>
+  <li><code>remove(key)</code> — delete one key</li>
+  <li><code>clear()</code> — delete all keys with this prefix</li>
+</ul>
+<p>All methods silently handle <code>localStorage</code> being unavailable or full.</p>

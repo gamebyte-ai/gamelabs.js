@@ -178,6 +178,8 @@ export class AssetManager implements IAssetManager {
         return this.getDefaultGltf();
       case AssetTypes.Text:
         return "";
+      case AssetTypes.Audio:
+        return null;
       default: {
         const neverType: never = type;
         throw new Error(`AssetLoader: unsupported asset type: ${String(neverType)}`);
@@ -196,6 +198,8 @@ export class AssetManager implements IAssetManager {
         return this.loadGltf(url);
       case AssetTypes.Text:
         return this.loadText(url);
+      case AssetTypes.Audio:
+        return this.loadAudio(url);
       default: {
         const neverType: never = type;
         const msg = `AssetManager: unsupported asset type: ${String(neverType)}`;
@@ -220,6 +224,16 @@ export class AssetManager implements IAssetManager {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Failed to fetch text: ${response.status} ${url}`);
     return response.text();
+  }
+
+  private async loadAudio(url: string): Promise<AudioBuffer> {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch audio: ${response.status} ${url}`);
+    const arrayBuffer = await response.arrayBuffer();
+    const audioCtx = new (globalThis.AudioContext || (globalThis as any).webkitAudioContext)();
+    const buffer = await audioCtx.decodeAudioData(arrayBuffer);
+    audioCtx.close();
+    return buffer;
   }
 }
 
