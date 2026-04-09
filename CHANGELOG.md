@@ -14,8 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CHANGELOG.md for version tracking
 - ISSUES.md documenting 9 known issues with severity ratings
 - Avoidance game example (enemy spawning, waves, game over popup, score tracking)
+- Water Sort puzzle example with tween pour animations
 - UI components module: ButtonComponent, BackgroundComponent, ImageComponent, VerticalLayoutComponent, HorizontalLayoutComponent
 - Popup system with PopupView
+- On-screen controls module: virtual joystick and buttons for touch input
+- Settings module: settings manager with persistence and popup UI
+- Audio DSP module: effects chain (filter, reverb, delay, distortion, compressor)
+- AudioManager core service with asset integration
+- KeyboardListener and InputMapper for keyboard input handling
+- StorageService for persistent key-value storage
+- Documentation site with HTML pages (`docs/`, `build:docs` script)
 
 ### Changed
 - Package name changed from `gamelabsjs` to `@gamebyte/gamelabsjs`
