@@ -5,9 +5,9 @@ import type { IMainScreenView } from "../views/IMainScreenView.js";
 import { MainScreenEvents } from "../events/MainScreenEvents.js";
 
 /**
- * Main screen controller.
+ * Main screen view controller.
  */
-export class MainScreenController implements IViewController<IMainScreenView> {
+export class MainScreenViewController implements IViewController<IMainScreenView> {
   private view: IMainScreenView | null = null;
   private readonly subs = new UnsubscribeBag();
   private events: MainScreenEvents | null = null;

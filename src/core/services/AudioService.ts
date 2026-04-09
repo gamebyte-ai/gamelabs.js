@@ -17,14 +17,18 @@ export type StopMusicOptions = {
 };
 
 /**
- * Game audio manager built on the Web Audio API.
+ * Game audio service built on the Web Audio API.
  *
  * - Plays sound effects (fire-and-forget) and a single music track.
  * - Separate volume controls for master, SFX, and music.
  * - Handles browser autoplay policy via `resume()`.
  * - Auto-pauses on page visibility change.
+ *
+ * This is a real service: it's a boundary to the Web Audio API
+ * (an external browser subsystem that can fail because of the environment,
+ * e.g. suspended context, autoplay policy), so it lives in `services/`.
  */
-export class AudioManager {
+export class AudioService {
   private _ctx: AudioContext | null = null;
   private _assetManager: IAssetManager | null = null;
 

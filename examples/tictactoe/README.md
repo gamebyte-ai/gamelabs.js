@@ -25,7 +25,7 @@ tictactoe
 └──src
     ├──controllers
     │   ├──GameGridsViewController.ts
-    │   └──GameScreenController.ts
+    │   └──GameScreenViewController.ts
     ├──events
     │   └──TurnEvents.ts
     ├──models
@@ -54,7 +54,7 @@ tictactoe
 | View | Controller | Description |
 |------|-----------|-------------|
 | `GameGridsView` (GridsView) | `GameGridsViewController` | 3D board with cell pointer handling and scene fog |
-| `GameScreenView` (ScreenView) | `GameScreenController` | HUD showing active player, win/draw popup with Play Again |
+| `GameScreenView` (ScreenView) | `GameScreenViewController` | HUD showing active player, win/draw popup with Play Again |
 | `GameCellObject` | — | Individual cell with pointer input and texture |
 | `GameItemObject` | — | X/O mark with GSAP spawn animation |
 
@@ -62,10 +62,10 @@ tictactoe
 
 | Event class | Signals | Flow |
 |------------|---------|------|
-| `TurnEvents` | `onTurnChanged` | TicTacToeTurnManager emits → GameScreenController updates active player display |
-| `TurnEvents` | `onGameWon` | TicTacToeTurnManager emits → GameScreenController shows win popup |
-| `TurnEvents` | `onGameDraw` | TicTacToeTurnManager emits → GameScreenController shows draw popup |
-| `TurnEvents` | `onGameRestarted` | TicTacToeTurnManager emits → GameScreenController hides popup |
+| `TurnEvents` | `onTurnChanged` | TicTacToeTurnManager emits → GameScreenViewController updates active player display |
+| `TurnEvents` | `onGameWon` | TicTacToeTurnManager emits → GameScreenViewController shows win popup |
+| `TurnEvents` | `onGameDraw` | TicTacToeTurnManager emits → GameScreenViewController shows draw popup |
+| `TurnEvents` | `onGameRestarted` | TicTacToeTurnManager emits → GameScreenViewController hides popup |
 
 ## Game flow
 
@@ -77,7 +77,7 @@ Player X places mark
         → else → switch turn → emitTurnChanged(nextTeam)
 
 Play Again button
-    → GameScreenController → TicTacToeTurnManager.restart()
+    → GameScreenViewController → TicTacToeTurnManager.restart()
         → clear board → emitGameRestarted() → emitTurnChanged(X)
 ```
 

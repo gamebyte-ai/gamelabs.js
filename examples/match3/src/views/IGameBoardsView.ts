@@ -1,5 +1,5 @@
 import type { IGridView } from "gamelabsjs";
-import type { GravityMove, RefillSpawn } from "../utilities/Match3GridService.js";
+import type { GravityMove, RefillSpawn } from "../utilities/Match3Operations.js";
 
 export interface IGameBoardsView extends IGridView {
   setCellPointerDownHandler(handler: ((gridId: number, col: number, row: number) => void) | null): void;

@@ -111,5 +111,5 @@ Changes are applied and saved instantly as the user interacts. No "Apply" or "Sa
 - `SettingsUIIds` — popup UI ID enum
 - `SettingsFieldType` — field type enum
 - `SettingsBooleanField`, `SettingsNumberField` — field definition classes
-- `SettingsPopupView`, `SettingsPopupController` — popup view/controller
+- `SettingsPopupView`, `SettingsPopupViewController` — popup view/controller
 - `ISettingsPopupView` — view interface

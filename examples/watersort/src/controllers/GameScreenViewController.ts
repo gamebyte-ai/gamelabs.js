@@ -5,7 +5,7 @@ import { WaterSortUIIds } from "../WaterSortUIIds.js";
 import { WaterSortOperations } from "../utilities/WaterSortOperations.js";
 import { GameEvents } from "../events/GameEvents.js";
 
-export class GameScreenController implements IViewController<IGameScreenView> {
+export class GameScreenViewController implements IViewController<IGameScreenView> {
   private _view: IGameScreenView | null = null;
   private readonly _subs = new UnsubscribeBag();
   private _config: WaterSortConfig | null = null;

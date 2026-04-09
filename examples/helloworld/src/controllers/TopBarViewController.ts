@@ -3,7 +3,7 @@ import type { ITopBarView } from "../views/ITopBarView";
 import { GameEvents } from "../events/GameEvents";
 import { DebugEvents } from "../events/DebugEvents";
 
-export class TopBarController implements IViewController<ITopBarView> {
+export class TopBarViewController implements IViewController<ITopBarView> {
   private view: ITopBarView | null = null;
   private devUtils: IDevUtils | null = null;
   private gameEvents: GameEvents | null = null;

@@ -16,47 +16,87 @@ Read `DeveloperNotes.md` for full architecture and implementation details.
 - Use `UnsubscribeBag` for event cleanup in controllers. Do not track unsubscribe functions manually.
 - Controllers must reference view interfaces (`IMyView`), not concrete view classes (`MyView`).
 - Asset IDs must be enums with namespaced string values (`"MyGame.ItemName"`), not plain objects or bare strings.
-- Do not put files in a `services/` folder. Use `utilities/` for services, managers, and tools. Use `events/` for event classes.
+- Put in-app logic (domain rules, operations, stateful managers) in `utilities/`. Put boundaries to the outside world (storage, network, browser/OS APIs, audio output) in `services/`. Put event classes in `events/`. See "Where logic lives" below.
 - Modules must not depend on app-specific code. They should be reusable across projects.
 - Do not override lifecycle methods without calling `super` where required (`super.inject()`, `super.destroy()`, etc.).
 - Do not create empty lifecycle overrides (empty `loadAssets()`, `onStep()` that only calls `super`). Only override when adding behavior.
+
+## Where logic lives
+
+Three buckets with strict definitions. Decide which one a new class belongs to
+**before** writing it, not after.
+
+- **Domain rules / operations** — `utilities/`, suffix `*Rules` / `*Operations` /
+  `*Solver` / `*Calculator`. Pure in-app logic that computes results from
+  models. Examples: match-finding, swap validation, move planning, win
+  detection, gravity. No DOM, no THREE/PIXI, no I/O. Must be unit-testable
+  without a view present. Holding game state is fine (`_score`, grid
+  references) — the key property is that nothing fails because of the
+  *environment*.
+
+- **State managers** — `utilities/`, suffix `*Manager`. Own mutable state for
+  a subsystem and coordinate it across controllers. Examples: `TurnManager`,
+  `WaveManager`, `UpdateManager` (per-frame tick dispatch). May call rules and
+  services. Lifecycle is longer than a single controller method.
+
+- **Services** — `services/`, suffix `*Service`. Boundaries to the outside
+  world. Anything that can fail because of the environment: storage
+  (`StorageService`), network (`*ApiService`), browser/OS APIs
+  (`NotificationService`, `GeolocationService`, `ShareService`), audio output
+  (`AudioService`). Side-effecting by definition. Mockable for tests.
+  **Do not use the `*Service` suffix for in-app logic.** If a class holds game
+  rules or coordinates state but never talks to a browser/OS/network API, it
+  is an `*Operations` / `*Manager`, not a service.
+
+Controllers stay thin. They sequence async work, branch on results, dispatch
+events, and handle view input. When a controller starts doing real computation
+(loops, searches, aggregations, anything unit-testable in isolation), extract
+that work into an `*Operations` / `*Manager` / `*Rules` class in `utilities/`.
 
 ## File naming conventions
 
 - Interfaces: `IFoo.ts` (prefix with `I`)
 - HUD views: `FooView.pixi.ts` (suffix `.pixi.ts`)
 - World views: `FooView.three.ts` (suffix `.three.ts`)
-- Controllers: `FooController.ts`
+- View controllers: `FooViewController.ts` (every controller in this codebase is a view controller — even though there's only one kind, the suffix stays explicit so it matches the `IViewController<IFooView>` interface and disambiguates from things like `ICameraController` in the gamecamera module)
 - Events: `FooEvents.ts`
 - Models: `Foo.ts` or `FooModel.ts`
 - Config: `MyGameConfig.ts`
 - Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
+- In-domain logic: `FooOperations.ts` / `FooRules.ts` / `FooSolver.ts` (in `utilities/`)
+- State managers: `FooManager.ts` (in `utilities/`)
+- External-boundary services: `FooService.ts` (in `services/`)
 - Every per-board class an example defines on top of the `gamegrid` module uses
   the role-based `GameBoard*` prefix instead of the game-specific prefix:
   `GameBoardItem` (model), `IGameBoardsView`, `GameBoardsView` (world view),
   `GameBoardsViewController`, `GameBoardCellObject`, `GameBoardItemObject`,
   `GameBoardItemObjectOptions`, `GameBoardObjectCreator`. Game-specific code
-  (App, Config, AssetIds, Events, Service, Binding, screen views and the
-  screen-level HUD controller) keeps the game prefix
-  (e.g. `Match3App`, `Match3GridService`, `Game2048GridService`). Each example
-  owns its own copies of the `GameBoard*` files inside its own `src/` tree —
-  they don't collide because they're scoped to the example folder. See
-  `DeveloperNotes.md` for the canonical table.
+  (App, Config, AssetIds, Events, Operations, Binding, screen views, and the
+  screen-level `GameScreenViewController`) keeps the game prefix or stays
+  generic (e.g. `Match3App`, `Match3Operations`, `Game2048Operations`,
+  `GameScreenViewController`). Each example owns its own copies of the
+  `GameBoard*` files inside its own `src/` tree — they don't collide because
+  they're scoped to the example folder. See `DeveloperNotes.md` for the
+  canonical table.
 
 ## Project structure
 
 Game projects follow this layout:
 ```
 MyGame/src
-├── controllers/       MyScreenController.ts, MyGridController.ts
+├── controllers/       MyScreenViewController.ts, MyGridViewController.ts
 ├── events/            MyEvents.ts
 ├── models/            MyModel.ts
-├── utilities/         MyService.ts, MyUtilities.ts, MyOperations.ts
+├── services/          MyApiService.ts, MyShareService.ts   (external I/O only)
+├── utilities/         MyOperations.ts, MyRules.ts, MyManager.ts   (in-app logic)
 ├── views/             IMyView.ts, MyView.pixi.ts, MyView.three.ts
 ├── MyGameApp.ts       (extends GamelabsApp)
 ├── MyGameAssetIds.ts  (unique asset ids with enums)
 └── MyGameConfig.ts    (initial values, tweaks, timings, sizes, animation values)
 ```
+
+`services/` is only present when the game actually talks to external systems
+(storage, network, platform APIs). A simple offline game can skip it entirely.
 
 Modules follow the same layout under `src/modules/<name>/src/` with a `ModuleBinding` and `index.ts`.
 
@@ -81,7 +121,7 @@ Modules follow the same layout under `src/modules/<name>/src/` with a `ModuleBin
 - Define a view interface: `interface IMyView extends IView { ... }`
 - Extend `WorldViewBase` (3D), `HudViewBase` (2D), or `ScreenView` (full-screen 2D)
 - Controller implements `IViewController<IMyView>`
-- Register: `viewFactory.register<MyView, MyController>(MyView, MyController)`
+- Register: `viewFactory.register<MyView, MyViewController>(MyView, MyViewController)`
 - Create: `viewFactory.createView(MyView)` or `viewFactory.createScreenView(MyScreenView, transition)`
 
 ## Coding conventions

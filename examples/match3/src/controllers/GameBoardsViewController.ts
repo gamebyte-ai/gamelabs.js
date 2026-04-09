@@ -3,13 +3,13 @@ import { GridsViewController } from "gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
 import { Match3AssetIds } from "../Match3AssetIds.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";
-import { Match3GridService } from "../utilities/Match3GridService.js";
+import { Match3Operations } from "../utilities/Match3Operations.js";
 import { GameEvents } from "../events/GameEvents.js";
 import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions.js";
 import type { IGameBoardsView } from "../views/IGameBoardsView.js";
 
 export class GameBoardsViewController extends GridsViewController {
-  private _gridService: Match3GridService | null = null;
+  private _operations: Match3Operations | null = null;
   private _config: Match3Config | null = null;
   private _gameEvents: GameEvents | null = null;
   private _gridsView: IGameBoardsView | null = null;
@@ -18,7 +18,7 @@ export class GameBoardsViewController extends GridsViewController {
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
-    this._gridService = resolver.getInstance(Match3GridService);
+    this._operations = resolver.getInstance(Match3Operations);
     this._config = resolver.getInstance(Match3Config);
     this._gameEvents = resolver.getInstance(GameEvents);
   }
@@ -39,7 +39,7 @@ export class GameBoardsViewController extends GridsViewController {
   }
 
   private async _handleGridCellAsync(gridId: number, col: number, row: number): Promise<void> {
-    const svc = this._gridService;
+    const svc = this._operations;
     const cfg = this._config;
     const view = this._gridsView;
     const events = this._gameEvents;
@@ -86,7 +86,7 @@ export class GameBoardsViewController extends GridsViewController {
     view.updateGemSelection(gridId, this._selected);
   }
 
-  private async _runMatchCascade(svc: Match3GridService, events: GameEvents, view: IGameBoardsView, gridId: number): Promise<void> {
+  private async _runMatchCascade(svc: Match3Operations, events: GameEvents, view: IGameBoardsView, gridId: number): Promise<void> {
     while (svc.findMatches().length > 0) {
       const matches = svc.findMatches();
       events.emitPlaySfx(Match3AssetIds.SfxPop);
@@ -104,7 +104,7 @@ export class GameBoardsViewController extends GridsViewController {
   public override destroy(): void {
     this._gridsView?.setCellPointerDownHandler(null);
     this._gridsView = null;
-    this._gridService = null;
+    this._operations = null;
     this._config = null;
     this._gameEvents = null;
     this._selected = null;

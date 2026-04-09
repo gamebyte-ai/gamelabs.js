@@ -10,8 +10,11 @@ type Entry = {
 /**
  * Ordered per-frame update registry.
  * Controllers (or other logic objects) can register update callbacks.
+ *
+ * This is a stateful in-app coordinator (not a service — no external I/O),
+ * so it lives in `utilities/` with the `*Manager` suffix.
  */
-export class UpdateService {
+export class UpdateManager {
   private entries: Entry[] = [];
 
   register(cb: UpdateCallback, order = 0): Unsubscribe {

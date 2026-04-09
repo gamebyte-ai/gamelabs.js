@@ -37,15 +37,19 @@ export type MovePlan = {
 };
 
 /**
- * 2048 rules on top of gamegrid {@link Grid} (cells hold {@link GameBoardItem}).
+ * 2048 in-domain logic on top of gamegrid {@link Grid} (cells hold {@link GameBoardItem}).
  *
  * Two-phase mutation:
  *  - {@link planMove} computes a plan from the current model state without mutating it,
  *    so the view can animate tiles from their original cells to the target cells.
  *  - {@link commitPlan} applies the plan to the model (and spawns one new tile) once
  *    the slide animation completes.
+ *
+ * This is a stateful in-app operations class (score / best / grid state + move
+ * rules), not a service — it has no external I/O, so it lives in `utilities/`
+ * with the `*Operations` suffix. See "Where logic lives" in `DeveloperNotes.md`.
  */
-export class Game2048GridService {
+export class Game2048Operations {
   private readonly _grid: Grid;
   private readonly _config: Game2048Config;
   private _nextItemId = 1;

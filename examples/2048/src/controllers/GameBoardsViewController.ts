@@ -3,7 +3,7 @@ import { GridsViewController, KeyboardListener, UnsubscribeBag } from "gamelabsj
 import { Game2048Config } from "../Game2048Config.js";
 import { Game2048AssetIds } from "../Game2048AssetIds.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";
-import { Game2048GridService, type MoveDirection } from "../utilities/Game2048GridService.js";
+import { Game2048Operations, type MoveDirection } from "../utilities/Game2048Operations.js";
 import { GameEvents } from "../events/GameEvents.js";
 import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions.js";
 import type { IGameBoardsView } from "../views/IGameBoardsView.js";
@@ -28,7 +28,7 @@ const SWIPE_MIN_DISTANCE_PX = 24;
 export class GameBoardsViewController extends GridsViewController {
   // Note: base `GridsViewController` already declares private `_view`, `_subs`, `_model`, `_events`.
   // We must use distinct names here so we don't shadow the base instance fields.
-  private _service: Game2048GridService | null = null;
+  private _operations: Game2048Operations | null = null;
   private _gameEvents: GameEvents | null = null;
   private _keyboard: KeyboardListener | null = null;
   private _gridsView: IGameBoardsView | null = null;
@@ -43,7 +43,7 @@ export class GameBoardsViewController extends GridsViewController {
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
-    this._service = resolver.getInstance(Game2048GridService);
+    this._operations = resolver.getInstance(Game2048Operations);
     this._gameEvents = resolver.getInstance(GameEvents);
     this._keyboard = resolver.getInstance(KeyboardListener);
   }
@@ -60,8 +60,8 @@ export class GameBoardsViewController extends GridsViewController {
     window.addEventListener("pointerup", this._onPointerUp, { passive: true });
 
     // Initial score / best are zero, but emit so HUD reflects current state.
-    this._gameEvents?.emitScoreChanged(this._service?.score ?? 0);
-    this._gameEvents?.emitBestChanged(this._service?.best ?? 0);
+    this._gameEvents?.emitScoreChanged(this._operations?.score ?? 0);
+    this._gameEvents?.emitBestChanged(this._operations?.best ?? 0);
   }
 
   protected override createItemObjectOption(item: GridItem, grid: Grid): GameBoardItemObjectOptions {
@@ -92,7 +92,7 @@ export class GameBoardsViewController extends GridsViewController {
   }
 
   private async _tryMove(direction: MoveDirection): Promise<void> {
-    const svc = this._service;
+    const svc = this._operations;
     const events = this._gameEvents;
     const view = this._gridsView;
     if (!svc || !events || !view || this._inputLocked || this._gameOver) return;
@@ -126,7 +126,7 @@ export class GameBoardsViewController extends GridsViewController {
   }
 
   private _restart(): void {
-    const svc = this._service;
+    const svc = this._operations;
     const events = this._gameEvents;
     if (!svc || !events) return;
     svc.reset();
@@ -143,7 +143,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._keyUnsub = null;
     this._ownSubs.flush();
     this._gridsView = null;
-    this._service = null;
+    this._operations = null;
     this._gameEvents = null;
     this._keyboard = null;
     super.destroy();

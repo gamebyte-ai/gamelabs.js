@@ -5,7 +5,7 @@ import { Logger } from "./dev/Logger.js";
 import { DIContainer } from "./di/DIContainer.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewFactory } from "./views/ViewFactory.js";
-import { UpdateService } from "./services/UpdateService.js";
+import { UpdateManager } from "./utilities/UpdateManager.js";
 import { StorageService } from "./services/StorageService.js";
 import { Hud } from "./hud/Hud.js";
 import { AssetManager } from "./assets/AssetManager.js";
@@ -18,7 +18,7 @@ import { InputManager } from "./input/InputManager.js";
 import { IInputManager } from "./input/IInputManager.js";
 import { UIEvents } from "./ui/UIEvents.js";
 import { KeyboardListener } from "./input/KeyboardListener.js";
-import { AudioManager } from "./services/AudioManager.js";
+import { AudioService } from "./services/AudioService.js";
 
 export class GamelabsApp {
   //  MEMBERS
@@ -32,14 +32,14 @@ export class GamelabsApp {
   private _assetManager: AssetManager | null = null;
   private readonly _logger: Logger;
 
-  readonly updateService = new UpdateService();
+  readonly updateManager = new UpdateManager();
   readonly storageService = new StorageService(this.constructor.name);
   public readonly diContainer: DIContainer;
   public readonly viewDiContainer: DIContainer;
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
   private _inputManager: InputManager | null = null;
   private _keyboardListener: KeyboardListener | null = null;
-  private _audioManager: AudioManager | null = null;
+  private _audioService: AudioService | null = null;
 
   private _isInitialized = false;
   private _moduleList: ModuleBinding[] = [];
@@ -118,12 +118,12 @@ export class GamelabsApp {
     return this._viewFactory;
   }
 
-  protected get audioManager(): AudioManager {
-    if (!this._audioManager) {
-      this._logger.log("AudioManager is not initialized", LogTypes.Error);
-      throw new Error("AudioManager is not initialized");
+  protected get audioService(): AudioService {
+    if (!this._audioService) {
+      this._logger.log("AudioService is not initialized", LogTypes.Error);
+      throw new Error("AudioService is not initialized");
     }
-    return this._audioManager;
+    return this._audioService;
   }
 
 
@@ -152,7 +152,7 @@ export class GamelabsApp {
     }
 
     // Base DI bindings (always available).
-    this.diContainer.bindInstance(UpdateService, this.updateService);
+    this.diContainer.bindInstance(UpdateManager, this.updateManager);
     this.diContainer.bindInstance(StorageService, this.storageService);
     this.diContainer.bindInstance(GamelabsApp, this);
     this.diContainer.bindInstance(ILogger, this._logger, [Logger]);
@@ -189,9 +189,9 @@ export class GamelabsApp {
     this.diContainer.bindInstance(KeyboardListener, this._keyboardListener);
     this.viewDiContainer.bindInstance(KeyboardListener, this._keyboardListener);
 
-    this._audioManager = new AudioManager();
-    this._audioManager.initialize(this._assetManager);
-    this.diContainer.bindInstance(AudioManager, this._audioManager);
+    this._audioService = new AudioService();
+    this._audioService.initialize(this._assetManager);
+    this.diContainer.bindInstance(AudioService, this._audioService);
 
     this.registerModules();
 
@@ -311,7 +311,7 @@ export class GamelabsApp {
       const dtSeconds = Math.max(0, (nowMs - this._lastFrameTimeMs) / 1000);
       this._lastFrameTimeMs = nowMs;
 
-      this.updateService.tick(dtSeconds);
+      this.updateManager.tick(dtSeconds);
       this.onStep(dtSeconds);
       this.world?.render();
       if (this.hud?.manualRender) this.hud.render();
@@ -356,8 +356,8 @@ export class GamelabsApp {
     this.stopMainLoop();
     this._inputManager?.stopListening();
     this._keyboardListener?.stopListening();
-    this._audioManager?.destroy();
-    this._audioManager = null;
+    this._audioService?.destroy();
+    this._audioService = null;
     this._keyboardListener = null;
     this._inputManager = null;
     if (this._resizeObserver) {
@@ -367,7 +367,7 @@ export class GamelabsApp {
       window.removeEventListener("resize", this._onWindowResize);
     }
     this.preDestroy();
-    this.updateService.clear();
+    this.updateManager.clear();
 
     this._devUtils?.destroy();
     this._devUtils = null;

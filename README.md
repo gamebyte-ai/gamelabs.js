@@ -57,29 +57,42 @@ Your `MyGameApp` extends `GamelabsApp` and overrides these methods (called in th
 
 ```
 MyGame/src
-├── controllers/       FooController.ts
+├── controllers/       FooViewController.ts
 ├── events/            FooEvents.ts
 ├── models/            FooModel.ts
-├── utilities/         FooService.ts
+├── services/          FooApiService.ts, FooShareService.ts   (external I/O only; omit if you have none)
+├── utilities/         FooOperations.ts, FooRules.ts, FooManager.ts   (in-app logic)
 ├── views/             IFooView.ts, FooView.pixi.ts, FooView.three.ts
 ├── MyGameApp.ts
 ├── MyGameAssetIds.ts
 └── MyGameConfig.ts
 ```
 
+### Where logic lives
+
+Three buckets with strict definitions:
+
+- **Domain rules / operations** (`utilities/`, suffix `*Operations` / `*Rules` / `*Solver`): pure in-app logic on models. No DOM, no THREE/PIXI, no I/O. Unit-testable without a view. Examples: `Match3Operations`, `Game2048Operations`, match-finders, move solvers.
+- **State managers** (`utilities/`, suffix `*Manager`): own mutable subsystem state across controller methods. Examples: `TurnManager`, `WaveManager`, `UpdateManager`, `SettingsManager`.
+- **Services** (`services/`, suffix `*Service`): boundaries to the outside world — anything that can fail because of the environment. Examples: `StorageService`, `AudioService`, `NotificationService`, `*ApiService`. **Do not use the `*Service` suffix for in-app logic.**
+
+Controllers stay thin: sequence async work, branch on results, dispatch events. Extract computation into an `*Operations` / `*Rules` / `*Manager` class in `utilities/` when it would be unit-testable without a view. See `DeveloperNotes.md` for the full rationale and a worked example.
+
 ### File naming conventions
 
 - Interfaces: `IFoo.ts` (prefix with `I`)
 - HUD views: `FooView.pixi.ts` (suffix `.pixi.ts`)
 - World views: `FooView.three.ts` (suffix `.three.ts`)
-- Controllers: `FooController.ts`
+- View controllers: `FooViewController.ts` (every controller in this codebase implements `IViewController<IFooView>`; the suffix stays explicit so concrete class names match the interface and disambiguate from things like `ICameraController`)
 - Events: `FooEvents.ts`
+- In-domain logic: `FooOperations.ts` / `FooRules.ts` / `FooManager.ts` (in `utilities/`)
+- External-boundary services: `FooService.ts` (in `services/`)
 - Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
 - Every per-board `gamegrid` class an example defines uses the role-based `GameBoard*`
   prefix (`GameBoardItem`, `IGameBoardsView`, `GameBoardsView`, `GameBoardsViewController`,
   `GameBoardCellObject`, `GameBoardItemObject`, `GameBoardItemObjectOptions`,
   `GameBoardObjectCreator`) instead of a game-specific prefix. App / Config / AssetIds
-  / Events / Service / Binding / screen views keep the game prefix. See
+  / Events / Operations / Binding / screen views keep the game prefix. See
   `DeveloperNotes.md` for the canonical table, and `examples/match3` / `examples/2048`
   for the convention applied end-to-end.
 

@@ -3,7 +3,7 @@ import type { IGameScreenView } from "../views/IGameScreenView";
 import { AvoidanceUIIds } from "../AvoidanceUIIds.js";
 import { GameEvents } from "../events/GameEvents.js";
 
-export class GameScreenController implements IViewController<IGameScreenView> {
+export class GameScreenViewController implements IViewController<IGameScreenView> {
   private _view: IGameScreenView | null = null;
   private readonly _subs = new UnsubscribeBag();
   private _uiEvents: UIEvents | null = null;

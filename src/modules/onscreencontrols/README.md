@@ -66,7 +66,7 @@ mapper.mapKeyToAction("onscreen", "fire", "shoot");
 ```
 onscreencontrols/
 ├── controllers/
-│   └── OnScreenControlsController.ts   — bridges view events to manager
+│   └── OnScreenControlsViewController.ts   — bridges view events to manager
 ├── utilities/
 │   └── OnScreenControlManager.ts       — stores configs, tracks state, implements IInputDeviceListener
 ├── views/

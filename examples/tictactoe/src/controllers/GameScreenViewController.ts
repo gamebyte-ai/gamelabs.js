@@ -5,7 +5,7 @@ import { TurnEvents } from "../events/TurnEvents.js";
 import { TicTacToeUIIds } from "../TicTacToeUIIds.js";
 import { Team } from "../models/GameItem.js";
 
-export class GameScreenController implements IViewController<IGameScreenView> {
+export class GameScreenViewController implements IViewController<IGameScreenView> {
   private _view: IGameScreenView | null = null;
   private readonly _subs = new UnsubscribeBag();
   private _turnManager: TicTacToeTurnManager | null = null;

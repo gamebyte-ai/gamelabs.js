@@ -3,8 +3,8 @@ import { AssetTypes, GamelabsApp, GameCameraBinding, Grid, GridEvents, GridPrese
 import { Game2048AssetIds } from "./Game2048AssetIds.js";
 import { Game2048Config } from "./Game2048Config.js";
 import { Game2048GameGridBinding } from "./Game2048GameGridBinding.js";
-import { GameScreenController } from "./controllers/GameScreenController.js";
-import { Game2048GridService } from "./utilities/Game2048GridService.js";
+import { GameScreenViewController } from "./controllers/GameScreenViewController.js";
+import { Game2048Operations } from "./utilities/Game2048Operations.js";
 import { GameEvents } from "./events/GameEvents.js";
 import { GameScreenView } from "./views/GameScreenView.pixi.js";
 import { GameBoardsView } from "./views/GameBoardsView.three.js";
@@ -35,16 +35,16 @@ export class Game2048App extends GamelabsApp {
     this.diContainer.bindInstance(Game2048Config, this._config);
     this.viewDiContainer.bindInstance(Game2048Config, this._config);
     this.diContainer.bindInstance(GameEvents, this._gameEvents);
-    this.diContainer.bindSingleton(Game2048GridService, (resolver) => {
+    this.diContainer.bindSingleton(Game2048Operations, (resolver) => {
       const model = resolver.getInstance(GridsModel);
       const config = resolver.getInstance(Game2048Config);
       const events = resolver.getInstance(GridEvents);
       const preset = new GridPreset(config.gridColumnSize, config.gridRowSize, vector(1, 0, 0), vector(0, 0, 1));
       const grid = new Grid(Game2048Config.GRID_ID, config.cols, config.rows, events, preset);
       model.addGrid(grid);
-      const svc = new Game2048GridService(grid, config);
-      svc.inject(resolver);
-      return svc;
+      const ops = new Game2048Operations(grid, config);
+      ops.inject(resolver);
+      return ops;
     });
   }
 
@@ -56,7 +56,7 @@ export class Game2048App extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerScreen(Game2048UIIds.GameScreen, GameScreenView, GameScreenController);
+    this.viewFactory.registerScreen(Game2048UIIds.GameScreen, GameScreenView, GameScreenViewController);
   }
 
   protected override postInitialize(): void {

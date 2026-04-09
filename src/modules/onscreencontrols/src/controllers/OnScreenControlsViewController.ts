@@ -4,7 +4,7 @@ import type { IViewController } from "../../../../core/views/IViewController.js"
 import type { IOnScreenControlsView } from "../views/IOnScreenControlsView.js";
 import { OnScreenControlManager } from "../utilities/OnScreenControlManager.js";
 
-export class OnScreenControlsController implements IViewController<IOnScreenControlsView> {
+export class OnScreenControlsViewController implements IViewController<IOnScreenControlsView> {
   private _view: IOnScreenControlsView | null = null;
   private _manager: OnScreenControlManager | null = null;
   private readonly _subs = new UnsubscribeBag();

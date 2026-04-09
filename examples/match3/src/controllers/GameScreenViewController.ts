@@ -1,20 +1,20 @@
-import { UnsubscribeBag, UIEvents, AudioManager, SettingsManager, SettingsEvents, SettingsUIIds, type IInstanceResolver, type IViewController } from "gamelabsjs";
+import { UnsubscribeBag, UIEvents, AudioService, SettingsManager, SettingsEvents, SettingsUIIds, type IInstanceResolver, type IViewController } from "gamelabsjs";
 import { GameEvents } from "../events/GameEvents.js";
 import { Match3AssetIds } from "../Match3AssetIds.js";
 import type { IGameScreenView } from "../views/IGameScreenView.js";
 
-export class GameScreenController implements IViewController<IGameScreenView> {
+export class GameScreenViewController implements IViewController<IGameScreenView> {
   private _view: IGameScreenView | null = null;
   private _gameEvents: GameEvents | null = null;
   private _uiEvents: UIEvents | null = null;
-  private _audioManager: AudioManager | null = null;
+  private _audioService: AudioService | null = null;
   private _settingsManager: SettingsManager | null = null;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
     this._gameEvents = resolver.getInstance(GameEvents);
     this._uiEvents = resolver.getInstance(UIEvents);
-    this._audioManager = resolver.getInstance(AudioManager);
+    this._audioService = resolver.getInstance(AudioService);
     this._settingsManager = resolver.getInstance(SettingsManager);
   }
 
@@ -26,7 +26,7 @@ export class GameScreenController implements IViewController<IGameScreenView> {
 
     // Play SFX from game events
     this._subs.add(this._gameEvents?.onPlaySfx((sfxId) => {
-      this._audioManager?.playSfx(sfxId);
+      this._audioService?.playSfx(sfxId);
     }));
 
     // Settings button opens settings popup
@@ -46,26 +46,26 @@ export class GameScreenController implements IViewController<IGameScreenView> {
     this._applyAllAudioSettings();
 
     // Start background music
-    this._audioManager?.playMusic(Match3AssetIds.MusicBg, { fadeInMs: 1000 });
+    this._audioService?.playMusic(Match3AssetIds.MusicBg, { fadeInMs: 1000 });
 
     // Resume audio context on first interaction
-    this._audioManager?.resume();
+    this._audioService?.resume();
   }
 
   private _applyAudioSetting(name: string): void {
-    if (!this._audioManager || !this._settingsManager) return;
+    if (!this._audioService || !this._settingsManager) return;
     switch (name) {
       case "music":
-        this._audioManager.setMusicMute(!this._settingsManager.getBooleanValue("music"));
+        this._audioService.setMusicMute(!this._settingsManager.getBooleanValue("music"));
         break;
       case "sfx":
-        this._audioManager.setSfxMute(!this._settingsManager.getBooleanValue("sfx"));
+        this._audioService.setSfxMute(!this._settingsManager.getBooleanValue("sfx"));
         break;
       case "musicVolume":
-        this._audioManager.setMusicVolume(this._settingsManager.getNumberValue("musicVolume") / 100);
+        this._audioService.setMusicVolume(this._settingsManager.getNumberValue("musicVolume") / 100);
         break;
       case "sfxVolume":
-        this._audioManager.setSfxVolume(this._settingsManager.getNumberValue("sfxVolume") / 100);
+        this._audioService.setSfxVolume(this._settingsManager.getNumberValue("sfxVolume") / 100);
         break;
     }
   }
@@ -78,12 +78,12 @@ export class GameScreenController implements IViewController<IGameScreenView> {
   }
 
   public destroy(): void {
-    this._audioManager?.stopMusic({ fadeOutMs: 300 });
+    this._audioService?.stopMusic({ fadeOutMs: 300 });
     this._subs.flush();
     this._view = null;
     this._gameEvents = null;
     this._uiEvents = null;
-    this._audioManager = null;
+    this._audioService = null;
     this._settingsManager = null;
   }
 }

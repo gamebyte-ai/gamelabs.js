@@ -5,7 +5,7 @@ Level selection / progress screen that shows a vertical list of level numbers wi
 ## Purpose
 
 - Provides a ready-to-use level progress HUD screen built with PixiJS.
-- Registers `LevelProgressScreenView` and `LevelProgressScreenController` with the `ViewFactory`.
+- Registers `LevelProgressScreenView` and `LevelProgressScreenViewController` with the `ViewFactory`.
 - Exposes `LevelProgressScreenEvents` for app-level wiring (e.g. level click → start game, back click → go to main menu).
 - Supports a custom `ILevelProgressScreenModel` for visible count and current level.
 
@@ -83,7 +83,7 @@ this.addModule(this.levelBinding);
 ## Exports
 
 - `LevelProgressScreenView` — Pixi screen view.
-- `LevelProgressScreenController` — Controller for the level progress screen.
+- `LevelProgressScreenViewController` — Controller for the level progress screen.
 - `LevelProgressScreenEvents` — Event emitter for level/back clicks.
 - `LevelProgressScreenBinding` — Module binding (DI + view registration + asset requests).
 - `ILevelProgressScreenModel` — Model contract + DI token.

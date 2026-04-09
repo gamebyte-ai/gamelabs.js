@@ -6,7 +6,7 @@ import type { ViewFactory } from "../../../core/views/ViewFactory.js";
 import { OnScreenControlManager } from "./utilities/OnScreenControlManager.js";
 import { OnScreenControlEvents } from "./events/OnScreenControlEvents.js";
 import { OnScreenControlsView } from "./views/OnScreenControlsView.pixi.js";
-import { OnScreenControlsController } from "./controllers/OnScreenControlsController.js";
+import { OnScreenControlsViewController } from "./controllers/OnScreenControlsViewController.js";
 import type { ControlConfig } from "./OnScreenControlTypes.js";
 
 export class OnScreenControlsBinding extends ModuleBinding {
@@ -35,6 +35,6 @@ export class OnScreenControlsBinding extends ModuleBinding {
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
-    viewFactory.register(OnScreenControlsView, OnScreenControlsController);
+    viewFactory.register(OnScreenControlsView, OnScreenControlsViewController);
   }
 }

@@ -8,9 +8,13 @@ export type GravityMove = { fromRow: number; fromCol: number; toRow: number; toC
 export type RefillSpawn = { row: number; col: number; gemType: number };
 
 /**
- * Match-3 rules on top of gamegrid {@link Grid} (cells hold {@link GameBoardItem}).
+ * Match-3 in-domain logic on top of gamegrid {@link Grid} (cells hold {@link GameBoardItem}).
+ *
+ * This is a stateful in-app operations class (score + grid state + match rules),
+ * not a service — it has no external I/O, so it lives in `utilities/` with the
+ * `*Operations` suffix. See "Where logic lives" in `DeveloperNotes.md`.
  */
-export class Match3GridService {
+export class Match3Operations {
   private readonly _grid: Grid;
   private readonly _config: Match3Config;
   private _nextItemId = 1;

@@ -1,11 +1,11 @@
-import { UnsubscribeBag, type IInstanceResolver, type IViewController, UpdateService, Orbital3dCameraController } from "gamelabsjs";
+import { UnsubscribeBag, type IInstanceResolver, type IViewController, UpdateManager, Orbital3dCameraController } from "gamelabsjs";
 import type { ICubeView } from "../views/ICubeView";
 import { GameEvents } from "../events/GameEvents";
 import { HelloWorldConfig } from "../HelloWorldConfig";
 
-export class CubeController implements IViewController<ICubeView> {
+export class CubeViewController implements IViewController<ICubeView> {
   private view: ICubeView | null = null;
-  private update: UpdateService | null = null;
+  private update: UpdateManager | null = null;
   private gameEvents: GameEvents | null = null;
   private orbitalController: Orbital3dCameraController | null = null;
   private config: HelloWorldConfig | null = null;
@@ -13,7 +13,7 @@ export class CubeController implements IViewController<ICubeView> {
   private rotationEnabled = true;
 
   inject(resolver: IInstanceResolver): void {
-    this.update = resolver.getInstance(UpdateService);
+    this.update = resolver.getInstance(UpdateManager);
     this.gameEvents = resolver.getInstance(GameEvents);
     this.orbitalController = resolver.getInstance(Orbital3dCameraController);
     this.config = resolver.getInstance(HelloWorldConfig);

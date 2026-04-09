@@ -6,9 +6,9 @@ import { LevelProgressScreenEvents } from "../events/LevelProgressScreenEvents.j
 import { ILevelProgressScreenModel, type ILevelProgressScreenModel as LevelProgressScreenModel } from "../models/ILevelProgressScreenModel.js";
 
 /**
- * Level progress screen controller.
+ * Level progress screen view controller.
  */
-export class LevelProgressScreenController implements IViewController<ILevelProgressScreenView> {
+export class LevelProgressScreenViewController implements IViewController<ILevelProgressScreenView> {
   private view: ILevelProgressScreenView | null = null;
   private viewModel: LevelProgressScreenModel | null = null;
   private readonly subs = new UnsubscribeBag();

@@ -1,7 +1,7 @@
 import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "gamelabsjs";
 import type { IGameScreenView } from "../views/IGameScreenView";
 
-export class GameScreenController implements IViewController<IGameScreenView> {
+export class GameScreenViewController implements IViewController<IGameScreenView> {
   private view: IGameScreenView | null = null;
   private readonly subs = new UnsubscribeBag();
 

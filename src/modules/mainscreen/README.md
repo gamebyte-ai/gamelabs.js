@@ -5,7 +5,7 @@ Main menu / title screen with a logo, play button, and settings button. Intended
 ## Purpose
 
 - Provides a ready-to-use main menu HUD screen built with PixiJS.
-- Registers `MainScreenView` and `MainScreenController` with the `ViewFactory`.
+- Registers `MainScreenView` and `MainScreenViewController` with the `ViewFactory`.
 - Exposes `MainScreenEvents` for app-level wiring (e.g. play click → go to level select, settings click → open settings).
 
 ## Usage
@@ -55,7 +55,7 @@ Subscribe in `postInitialize()` and route to your navigation or settings logic.
 | Area | How |
 |------|-----|
 | **View** | Extend `MainScreenView`, implement `IMainScreenView`. Register your custom view in a module binding that overrides `configureViews` to use your class instead of `MainScreenView`. |
-| **Controller** | Use a different controller by registering a custom View/Controller pair in `configureViews` (your binding replaces `MainScreenView` + `MainScreenController`). |
+| **Controller** | Use a different controller by registering a custom View/Controller pair in `configureViews` (your binding replaces `MainScreenView` + `MainScreenViewController`). |
 | **Events** | `MainScreenEvents` is a concrete class. To replace it, bind your own instance in DI before the binding runs, or create a new binding that extends `MainScreenBinding` and overrides `configureDI`. |
 | **Assets** | Use `assetRequestList.overrideRequestUrl(id, url)` for any `MainScreenAssetIds` before `addModule()`. |
 | **Layout / styling** | Subclass `MainScreenView` and override `postInitialize()`, `onResize()`, or layout-related methods. Call `super` where needed. |
@@ -64,7 +64,7 @@ Subscribe in `postInitialize()` and route to your navigation or settings logic.
 ## Exports
 
 - `MainScreenView` — Pixi screen view.
-- `MainScreenController` — Controller for the main screen.
+- `MainScreenViewController` — Controller for the main screen.
 - `MainScreenEvents` — Event emitter for play/settings clicks.
 - `MainScreenBinding` — Module binding (DI + view registration + asset requests).
 - `MainScreenAssetIds` — Asset ID enum for overrides.

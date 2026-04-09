@@ -1,4 +1,4 @@
-import { UnsubscribeBag, UpdateService, type IInstanceResolver, type IViewController, type Unsubscribe } from "gamelabsjs";
+import { UnsubscribeBag, UpdateManager, type IInstanceResolver, type IViewController, type Unsubscribe } from "gamelabsjs";
 import type { IGameAreaView } from "../views/IGameAreaView";
 import { AvoidanceConfig } from "../AvoidanceConfig.js";
 import { GameEvents } from "../events/GameEvents.js";
@@ -16,11 +16,11 @@ type ActiveEnemy = {
   traveled: number;
 };
 
-export class GameAreaController implements IViewController<IGameAreaView> {
+export class GameAreaViewController implements IViewController<IGameAreaView> {
   private _view: IGameAreaView | null = null;
   private readonly _subs = new UnsubscribeBag();
   private _config: AvoidanceConfig | null = null;
-  private _updateService: UpdateService | null = null;
+  private _updateManager: UpdateManager | null = null;
   private _gameEvents: GameEvents | null = null;
   private _waveManager: WaveManager | null = null;
 
@@ -41,7 +41,7 @@ export class GameAreaController implements IViewController<IGameAreaView> {
 
   public inject(resolver: IInstanceResolver): void {
     this._config = resolver.getInstance(AvoidanceConfig);
-    this._updateService = resolver.getInstance(UpdateService);
+    this._updateManager = resolver.getInstance(UpdateManager);
     this._gameEvents = resolver.getInstance(GameEvents);
     this._waveManager = resolver.getInstance(WaveManager);
   }
@@ -58,7 +58,7 @@ export class GameAreaController implements IViewController<IGameAreaView> {
       this.restart();
     }));
 
-    this._updateUnsub = this._updateService!.register((dt) => this.update(dt));
+    this._updateUnsub = this._updateManager!.register((dt) => this.update(dt));
 
     this.startGame();
   }
@@ -183,7 +183,7 @@ export class GameAreaController implements IViewController<IGameAreaView> {
     this._subs.flush();
     this._view = null;
     this._config = null;
-    this._updateService = null;
+    this._updateManager = null;
     this._gameEvents = null;
     this._waveManager = null;
     this._enemies = [];

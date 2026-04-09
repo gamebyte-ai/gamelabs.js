@@ -6,13 +6,13 @@ A match-3 puzzle game demonstrating the `GameGrid` module with gem matching, gra
 
 - Extending the `GameGrid` module with custom models, views, and controllers
 - Custom `GameBoardItem` model with `gemType` property
-- Match-3 game rules in a utility (`Match3GridService`): match detection, gravity, refill, swap validation
+- Match-3 in-domain logic in a utility (`Match3Operations`): match detection, gravity, refill, swap validation
 - Initial board generation with no pre-existing matches
 - Animated gem interactions using GSAP: swap, invalid swap bounce, match pop (scale up + shrink), gravity drop (bounce), refill spawn
 - Gem selection highlighting with wireframe shell, halo ring, and emissive glow
 - Event-driven score updates via `GameEvents`
 - Using `GameCameraBinding` with `Topdown2dCameraController` and orthographic projection
-- HUD controller (`Match3HudController`) wired to view interface, not concrete class
+- HUD controller (`GameScreenViewController`) wired to view interface, not concrete class
 
 ## Project structure
 
@@ -21,13 +21,13 @@ match3
 ├──src
 │   ├──controllers
 │   │   ├──GameBoardsViewController.ts
-│   │   └──Match3HudController.ts
+│   │   └──GameScreenViewController.ts
 │   ├──events
 │   │   └──GameEvents.ts
 │   ├──models
 │   │   └──GameBoardItem.ts
 │   ├──utilities
-│   │   └──Match3GridService.ts
+│   │   └──Match3Operations.ts
 │   ├──views
 │   │   ├──IGameScreenView.ts
 │   │   ├──GameScreenView.pixi.ts
@@ -48,17 +48,17 @@ match3
 | View | Controller | Description |
 |------|-----------|-------------|
 | `GameBoardsView` (GridsView) | `GameBoardsViewController` | 3D gem board with selection, swap, match, gravity, and refill animations |
-| `GameScreenView` (ScreenView) | `Match3HudController` | HUD displaying score and hint text |
+| `GameScreenView` (ScreenView) | `GameScreenViewController` | HUD displaying score and hint text |
 | `GameBoardCellObject` | — | Individual board cell with pointer input |
 | `GameBoardItemObject` | — | 3D gem sphere with selection highlight and GSAP animations |
 
-> **Naming convention:** every per-board class — model (`GameBoardItem`), view (`GameBoardsView`), controller (`GameBoardsViewController`), view interface (`IGameBoardsView`), cell object, item object, item options, and object creator — is named `GameBoard*` rather than the game-specific `Match3*`. The names describe the *role* in the architecture (a thing that lives on the game's board), not the gameplay (a "gem"). Game-specific code (App, Config, AssetIds, Events, Service, Binding, the screen-level HUD controller) keeps the `Match3*` prefix. This convention is shared across all examples — see `DeveloperNotes.md`.
+> **Naming convention:** every per-board class — model (`GameBoardItem`), view (`GameBoardsView`), controller (`GameBoardsViewController`), view interface (`IGameBoardsView`), cell object, item object, item options, and object creator — is named `GameBoard*` rather than the game-specific `Match3*`. The names describe the *role* in the architecture (a thing that lives on the game's board), not the gameplay (a "gem"). Game-specific code (App, Config, AssetIds, Events, Operations, Binding) keeps the `Match3*` prefix. The in-domain logic class `Match3Operations` uses the `*Operations` suffix rather than `*Service` because it's pure in-app logic (no external I/O) — see "Where logic lives" in `DeveloperNotes.md`.
 
 ## Events
 
 | Event class | Signals | Flow |
 |------------|---------|------|
-| `GameEvents` | `onScoreChanged` | GameBoardsViewController emits after clearing matches, Match3HudController updates score display |
+| `GameEvents` | `onScoreChanged` | `GameBoardsViewController` emits after clearing matches, `GameScreenViewController` updates score display |
 
 ## Game flow
 

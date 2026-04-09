@@ -35,8 +35,8 @@ watersort
 │   └──star.png
 └──src
     ├──controllers
-    │   ├──GameScreenController.ts
-    │   └──WinPopupController.ts
+    │   ├──GameScreenViewController.ts
+    │   └──WinPopupViewController.ts
     ├──events
     │   └──GameEvents.ts
     ├──models

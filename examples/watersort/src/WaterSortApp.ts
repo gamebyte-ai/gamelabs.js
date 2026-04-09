@@ -1,9 +1,9 @@
 import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList } from "gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
-import { GameScreenController } from "./controllers/GameScreenController";
+import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { WinPopupView } from "./views/WinPopupView.pixi";
-import { WinPopupController } from "./controllers/WinPopupController";
+import { WinPopupViewController } from "./controllers/WinPopupViewController";
 
 import { GameEvents } from "./events/GameEvents";
 import { WaterSortConfig } from "./WaterSortConfig";
@@ -30,8 +30,8 @@ export class WaterSortApp extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerScreen(WaterSortUIIds.GameScreen, GameScreenView, GameScreenController);
-    this.viewFactory.registerPopup(WaterSortUIIds.WinPopup, WinPopupView, WinPopupController);
+    this.viewFactory.registerScreen(WaterSortUIIds.GameScreen, GameScreenView, GameScreenViewController);
+    this.viewFactory.registerPopup(WaterSortUIIds.WinPopup, WinPopupView, WinPopupViewController);
   }
 
   protected override loadAssets(): void {

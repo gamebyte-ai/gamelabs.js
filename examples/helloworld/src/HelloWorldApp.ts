@@ -1,16 +1,16 @@
 import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController, UIEvents } from "gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
-import { CubeController } from "./controllers/CubeController";
+import { CubeViewController } from "./controllers/CubeViewController";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
-import { GameScreenController } from "./controllers/GameScreenController";
+import { GameScreenViewController } from "./controllers/GameScreenViewController";
 
 import { TopBarView } from "./views/TopBarView.pixi";
-import { TopBarController } from "./controllers/TopBarController";
+import { TopBarViewController } from "./controllers/TopBarViewController";
 
 import { DebugBarView } from "./views/DebugBarView.pixi";
-import { DebugBarController } from "./controllers/DebugBarController";
+import { DebugBarViewController } from "./controllers/DebugBarViewController";
 
 import { DebugEvents } from "./events/DebugEvents";
 import { GameEvents } from "./events/GameEvents";
@@ -45,11 +45,11 @@ export class HelloWorldApp extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerScreen(HelloWorldUIIds.GameScreen, GameScreenView, GameScreenController);
-    this.viewFactory.register<TopBarView,     TopBarController>     (TopBarView,     TopBarController);
-    this.viewFactory.register<DebugBarView,   DebugBarController>   (DebugBarView,   DebugBarController);
+    this.viewFactory.registerScreen(HelloWorldUIIds.GameScreen, GameScreenView, GameScreenViewController);
+    this.viewFactory.register<TopBarView,     TopBarViewController>     (TopBarView,     TopBarViewController);
+    this.viewFactory.register<DebugBarView,   DebugBarViewController>   (DebugBarView,   DebugBarViewController);
 
-    this.viewFactory.register<CubeView, CubeController>(CubeView, CubeController);
+    this.viewFactory.register<CubeView, CubeViewController>(CubeView, CubeViewController);
   }
 
   protected override loadAssets(): void {

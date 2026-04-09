@@ -3,7 +3,7 @@ import type { IWinPopupView } from "../views/IWinPopupView";
 import { TicTacToeTurnManagerToken, type TicTacToeTurnManager } from "../utilities/TicTacToeTurnManager.js";
 import { TurnEvents } from "../events/TurnEvents.js";
 
-export class WinPopupController implements IViewController<IWinPopupView> {
+export class WinPopupViewController implements IViewController<IWinPopupView> {
   private _view: IWinPopupView | null = null;
   private readonly _subs = new UnsubscribeBag();
   private _turnManager: TicTacToeTurnManager | null = null;

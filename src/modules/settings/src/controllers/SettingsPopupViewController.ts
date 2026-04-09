@@ -7,7 +7,7 @@ import { SettingsManager } from "../utilities/SettingsManager.js";
 import { SettingsFieldType } from "../SettingsField.js";
 import type { SettingsNumberField } from "../SettingsField.js";
 
-export class SettingsPopupController implements IViewController<ISettingsPopupView> {
+export class SettingsPopupViewController implements IViewController<ISettingsPopupView> {
   private _view: ISettingsPopupView | null = null;
   private _manager: SettingsManager | null = null;
   private _uiEvents: UIEvents | null = null;

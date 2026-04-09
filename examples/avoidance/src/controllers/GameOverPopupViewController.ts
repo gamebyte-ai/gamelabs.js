@@ -1,28 +1,28 @@
 import { UnsubscribeBag, UIEvents, type IInstanceResolver, type IViewController } from "gamelabsjs";
-import type { IWinPopupView } from "../views/IWinPopupView";
-import { WaterSortOperations } from "../utilities/WaterSortOperations.js";
+import type { IGameOverPopupView } from "../views/IGameOverPopupView";
 import { GameEvents } from "../events/GameEvents.js";
+import { WaveManager } from "../utilities/WaveManager.js";
 
-export class WinPopupController implements IViewController<IWinPopupView> {
-  private _view: IWinPopupView | null = null;
+export class GameOverPopupViewController implements IViewController<IGameOverPopupView> {
+  private _view: IGameOverPopupView | null = null;
   private readonly _subs = new UnsubscribeBag();
   private _uiEvents: UIEvents | null = null;
   private _gameEvents: GameEvents | null = null;
-  private _ops: WaterSortOperations | null = null;
+  private _waveManager: WaveManager | null = null;
 
   public inject(resolver: IInstanceResolver): void {
     this._uiEvents = resolver.getInstance(UIEvents);
     this._gameEvents = resolver.getInstance(GameEvents);
-    this._ops = resolver.getInstance(WaterSortOperations);
+    this._waveManager = resolver.getInstance(WaveManager);
   }
 
-  public initialize(view: IWinPopupView): void {
+  public initialize(view: IGameOverPopupView): void {
     this._view = view;
-    this._view.setResult(this._ops!.level, this._ops!.moves);
+    this._view.setWave(this._waveManager?.currentWave ?? 0);
 
-    this._subs.add(this._view.onNextLevel(() => {
+    this._subs.add(this._view.onPlayAgain(() => {
       this._uiEvents?.removeTopPopup();
-      this._gameEvents?.emitNextLevel();
+      this._gameEvents?.emitRestart();
     }));
   }
 
@@ -31,6 +31,6 @@ export class WinPopupController implements IViewController<IWinPopupView> {
     this._view = null;
     this._uiEvents = null;
     this._gameEvents = null;
-    this._ops = null;
+    this._waveManager = null;
   }
 }

@@ -2,7 +2,7 @@ import { IDevUtils, UnsubscribeBag, type IInstanceResolver, type IViewController
 import type { IDebugBarView } from "../views/IDebugBarView";
 import { DebugEvents } from "../events/DebugEvents";
 
-export class DebugBarController implements IViewController<IDebugBarView> {
+export class DebugBarViewController implements IViewController<IDebugBarView> {
   private _view: IDebugBarView | null = null;
   private _events: DebugEvents | null = null;
   private _devUtils: IDevUtils | null = null;
