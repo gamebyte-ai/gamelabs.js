@@ -6,6 +6,7 @@ import { DIContainer } from "./di/DIContainer.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewFactory } from "./views/ViewFactory.js";
 import { UpdateService } from "./services/UpdateService.js";
+import { StorageService } from "./services/StorageService.js";
 import { Hud } from "./hud/Hud.js";
 import { AssetManager } from "./assets/AssetManager.js";
 import type { ModuleBinding } from "./ModuleBinding.js";
@@ -16,6 +17,8 @@ import { IViewFactory } from "./views/IViewFactory.js";
 import { InputManager } from "./input/InputManager.js";
 import { IInputManager } from "./input/IInputManager.js";
 import { UIEvents } from "./ui/UIEvents.js";
+import { KeyboardListener } from "./input/KeyboardListener.js";
+import { AudioManager } from "./services/AudioManager.js";
 
 export class GamelabsApp {
   //  MEMBERS
@@ -30,10 +33,13 @@ export class GamelabsApp {
   private readonly _logger: Logger;
 
   readonly updateService = new UpdateService();
+  readonly storageService = new StorageService(this.constructor.name);
   public readonly diContainer: DIContainer;
   public readonly viewDiContainer: DIContainer;
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
   private _inputManager: InputManager | null = null;
+  private _keyboardListener: KeyboardListener | null = null;
+  private _audioManager: AudioManager | null = null;
 
   private _isInitialized = false;
   private _moduleList: ModuleBinding[] = [];
@@ -109,6 +115,14 @@ export class GamelabsApp {
     return this._viewFactory;
   }
 
+  protected get audioManager(): AudioManager {
+    if (!this._audioManager) {
+      this._logger.log("AudioManager is not initialized", LogTypes.Error);
+      throw new Error("AudioManager is not initialized");
+    }
+    return this._audioManager;
+  }
+
   //  CONSTRUCTOR
   constructor(config: GamelabsAppConfig) {
     this.canvas = config.canvas ?? document.createElement("canvas");
@@ -135,6 +149,7 @@ export class GamelabsApp {
 
     // Base DI bindings (always available).
     this.diContainer.bindInstance(UpdateService, this.updateService);
+    this.diContainer.bindInstance(StorageService, this.storageService);
     this.diContainer.bindInstance(GamelabsApp, this);
     this.diContainer.bindInstance(ILogger, this._logger, [Logger]);
     this.viewDiContainer.bindInstance(ILogger, this._logger, [Logger]);
@@ -165,6 +180,14 @@ export class GamelabsApp {
     this._inputManager = new InputManager(this.canvas, this.hud, this.world);
     this.viewDiContainer.bindInstance(IInputManager, this._inputManager);
 
+    this._keyboardListener = new KeyboardListener();
+    this.diContainer.bindInstance(KeyboardListener, this._keyboardListener);
+    this.viewDiContainer.bindInstance(KeyboardListener, this._keyboardListener);
+
+    this._audioManager = new AudioManager();
+    this._audioManager.initialize(this._assetManager);
+    this.diContainer.bindInstance(AudioManager, this._audioManager);
+
     this.registerModules();
 
     for (const moduleBinding of this._moduleList) {
@@ -187,6 +210,7 @@ export class GamelabsApp {
     this.requestResize();
 
     this._inputManager.startListening();
+    this._keyboardListener!.startListening();
 
     this._isInitialized = true;
   }
@@ -324,6 +348,10 @@ export class GamelabsApp {
   destroy(): void {
     this.stopMainLoop();
     this._inputManager?.stopListening();
+    this._keyboardListener?.stopListening();
+    this._audioManager?.destroy();
+    this._audioManager = null;
+    this._keyboardListener = null;
     this._inputManager = null;
     if (this._resizeObserver) {
       this._resizeObserver.disconnect();

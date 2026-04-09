@@ -87,10 +87,6 @@ export class GameAreaController implements IViewController<IGameAreaView> {
     this.spawnEnemies(dt);
     this.updateEnemies(dt);
     this.checkCollisions();
-
-    // Reset frame input
-    this._inputDx = 0;
-    this._inputDy = 0;
   }
 
   private updatePlayer(dt: number): void {

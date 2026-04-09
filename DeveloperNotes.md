@@ -6,8 +6,8 @@ This project is a **TypeScript skeleton + reusable modules** for web games. It i
 - Strict separation between **rendering/scene** and **game logic**
 
 It depends on:
-- **Three.js** for 3D (world / scene)
-- **PixiJS** for 2D (HUD / UI)
+- **Three.js** for 3D (world scene)
+- **PixiJS** for 2D (HUD and UI)
 - **GSAP** for animations
 
 
@@ -48,7 +48,7 @@ src
 │   ├──events/            Unsubscribe, UnsubscribeBag
 │   ├──hud/               Hud, HudViewBase, IHud
 │   ├──input/             InputManager, IPointerInputHandler
-│   ├──services/          UpdateService
+│   ├──services/          UpdateService, StorageService, AudioManager
 │   ├──ui/                ScreenView, ScreenTransition, IScreenView
 │   ├──views/             ViewFactory, IView, IViewController, IViewFactory
 │   ├──world/             World, WorldViewBase, IWorld
@@ -58,7 +58,10 @@ src
 │   ├──gamecamera/        GameCameraBinding, GameCameraManager, camera controllers
 │   ├──gamegrid/          GameGridBinding, Grid, GridsModel, GridsView, GridsViewController
 │   ├──mainscreen/        MainScreenBinding, MainScreenView, MainScreenController
-│   └──levelprogressscreen/  LevelProgressScreenBinding, LevelProgressScreenView
+│   ├──levelprogressscreen/  LevelProgressScreenBinding, LevelProgressScreenView
+│   ├──onscreencontrols/  OnScreenControlManager, virtual buttons & joysticks
+│   ├──settings/          SettingsBinding, SettingsManager, SettingsPopupView
+│   └──audiodsp/          DspChain, DspPresets, filter/reverb/delay/distortion/compressor effects
 └──index.ts               Barrel exports
 ```
 
@@ -197,6 +200,9 @@ The following modules are shipped with the library. See each module's `README.md
 - **`levelprogressscreen`** — vertical level-list screen showing previous/current/next levels with connector sprites and a back button. Exposes `LevelProgressScreenEvents`.
 - **`gamecamera`** — camera manager with multiple controller flavors (orbital, topdown 2D/3D, front 2D/3D, isometric 2D/3D) for common gameplay camera rigs.
 - **`gamegrid`** — grid model, grid items, and a grid view/controller pair for tile-based gameplay (used by the match3 and tictactoe examples).
+- **`onscreencontrols`** — touch-friendly virtual buttons and joysticks rendered as a PixiJS HUD overlay. `OnScreenControlManager` implements `IInputDeviceListener` so controls integrate with `InputMapper` alongside keyboard. Supports static and dynamic joysticks, dynamic add/remove at runtime via `OnScreenControlEvents`.
+- **`settings`** — typed settings system with boolean toggles and number sliders. `SettingsManager` persists values via `StorageService` (localStorage), validates on write (clamp, step), and emits `SettingsEvents.onValueChanged`. Includes a ready-to-use `SettingsPopupView` with toggle switches and drag sliders.
+- **`audiodsp`** — audio DSP effects built on Web Audio API. `DspChain` connects effects in series; effects include `FilterEffect`, `ReverbEffect`, `DelayEffect`, `DistortionEffect`, `CompressorEffect`. `DspPresets` provides one-liner chains for common scenarios (underwater, radio, echo, lo-fi).
 
 
 
@@ -210,6 +216,7 @@ The following modules are shipped with the library. See each module's `README.md
 
 - Views must NOT access `diContainer`. Views receive `viewDiContainer` only.
 - Controllers must NOT import or manipulate rendering objects (Three.js meshes, PixiJS containers, etc.). Controllers talk to views only through `IView` interfaces.
+- Basic logic can be in controllers, complicated operations can be moved to utility classes
 - Cross-feature communication must go through event classes, not direct references between controllers.
 - Do not call other controllers directly. Use events to decouple.
 - Scene setup (fog, lights, post-processing) belongs in views, not in the app class.
@@ -222,3 +229,4 @@ The following modules are shipped with the library. See each module's `README.md
 - Modules must not depend on app-specific code. They should be reusable across projects.
 - Do not override lifecycle methods without calling `super` where required (`super.inject()`, `super.destroy()`, etc.).
 - Do not create empty lifecycle overrides (empty `loadAssets()`, `onStep()` that only calls `super`). Only override when adding behavior.
+- Game related object should be in world, even if it is a 2d game.

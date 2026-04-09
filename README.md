@@ -80,12 +80,16 @@ MyGame/src
 
 ```
 src/
-├── core/          App lifecycle, DI, views/controllers, world, hud, screens, assets, input
+├── core/          App lifecycle, DI, views/controllers, world, hud, screens, assets, input, audio
 ├── modules/       Reusable feature modules
+│   ├── uicomponents/         Button, Background, Image, layout components
 │   ├── gamecamera/           Camera controllers (topdown, front, isometric, orbital)
 │   ├── gamegrid/             Grid system with models, views, cell/item objects
 │   ├── mainscreen/           Main menu screen with play/settings buttons
-│   └── levelprogressscreen/  Level selection screen with progress
+│   ├── levelprogressscreen/  Level selection screen with progress
+│   ├── onscreencontrols/     Virtual buttons and joysticks for touch input
+│   ├── settings/             Settings manager with persistence and popup UI
+│   └── audiodsp/             DSP effects chain (filter, reverb, delay, distortion)
 └── index.ts       Barrel exports
 ```
 
@@ -97,6 +101,8 @@ src/
 | `screens` | Screen navigation using built-in modules |
 | `tictactoe` | TicTacToe with gamegrid module, win detection |
 | `match3` | Match-3 puzzle with animated gem board |
+| `avoidance` | Survival game with keyboard + on-screen joystick input |
+| `watersort` | Puzzle game with tween pour animations |
 
 ```bash
 npm run build                    # Build library first

@@ -3,9 +3,15 @@ import "@pixi/layout";
 
 import { TicTacToeApp } from "./TicTacToeApp";
 
-const stage = document.getElementById("stage");
-if (!stage) throw new Error("Missing #stage element");
+async function start(): Promise<void> {
+  const stage = document.getElementById("stage");
+  if (!stage) throw new Error("Missing #stage element");
 
-const app = new TicTacToeApp(stage);
-await app.initialize();
-app.mainLoop();
+  const app = new TicTacToeApp(stage);
+  await app.initialize();
+  app.mainLoop();
+}
+
+window.addEventListener("load", () => {
+  start().catch(err => console.error("App failed:", err));
+});

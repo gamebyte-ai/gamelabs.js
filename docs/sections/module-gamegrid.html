@@ -1,0 +1,28 @@
+<h2 id="module-gamegrid">Game Grid</h2>
+<p>Grid model, grid items, presets, and a view/controller pair for tile-based gameplay. Used by the match3 and tictactoe examples.</p>
+
+<h4>Usage</h4>
+<pre><code>const gridBinding = new GameGridBinding(MyGridsView, MyGridsViewController);
+this.addModule(gridBinding);
+
+// Access the model:
+const model = gridBinding.model; // GridsModel
+const grid = new Grid(id, cols, rows, gridEvents, preset);
+model.addGrid(grid);</code></pre>
+
+<h4>Core classes</h4>
+<ul>
+  <li><code>Grid</code> — a single grid instance with cells, items, and a preset (column/row size, axes)</li>
+  <li><code>GridsModel</code> — stores multiple grids by ID</li>
+  <li><code>GridPreset</code> — defines grid geometry (cell sizes, axis directions)</li>
+  <li><code>GridItem</code> — base class for items placed in grid cells</li>
+  <li><code>GridEvents</code> — emits cell/item change events</li>
+  <li><code>GridsView</code> — Three.js world view that renders grids with cell and item objects</li>
+  <li><code>GridsViewController</code> — controller that syncs model changes to the view</li>
+</ul>
+
+<h4>Custom grid objects</h4>
+<p>Override <code>GridsViewController.createItemObjectOption()</code> to return custom options for your grid items. Override <code>GridObjectCreator</code> methods in your view to create custom cell/item 3D meshes.</p>
+
+<h4>Exports</h4>
+<p><code>GameGridBinding</code>, <code>Grid</code>, <code>GridsModel</code>, <code>GridPreset</code>, <code>GridItem</code>, <code>GridEvents</code>, <code>GridsView</code>, <code>GridsViewController</code>, <code>GridCellObject</code>, <code>GridObject</code>, <code>GridItemObjectOptions</code>.</p>

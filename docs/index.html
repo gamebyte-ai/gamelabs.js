@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gamelabs.js — Documentation</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="logo">Gamelabs.js</div>
+  <ul>
+    <li><a href="#overview" data-section="overview">Overview</a></li>
+
+    <li class="section-title">Architecture</li>
+    <li><a href="#design" data-section="design">Design Decisions</a></li>
+    <li><a href="#project-structure" data-section="project-structure">Project Structure</a></li>
+    <li><a href="#file-naming" data-section="file-naming">File Naming</a></li>
+
+    <li class="section-title">Core Systems</li>
+    <li><a href="#app" data-section="app">App Lifecycle</a></li>
+    <li><a href="#dependency-injection" data-section="dependency-injection">Dependency Injection</a></li>
+    <li><a href="#views" data-section="views">Views</a></li>
+    <li><a href="#controllers" data-section="controllers">View Controllers</a></li>
+    <li><a href="#screens" data-section="screens">Screen Views</a></li>
+    <li><a href="#popups" data-section="popups">Popup Views</a></li>
+    <li><a href="#events" data-section="events">Events</a></li>
+    <li><a href="#assets" data-section="assets">Asset Management</a></li>
+    <li><a href="#ui-navigation" data-section="ui-navigation">UI Navigation</a></li>
+    <li><a href="#devutils" data-section="devutils">DevUtils</a></li>
+    <li><a href="#storage" data-section="storage">Storage</a></li>
+    <li><a href="#audio" data-section="audio">Audio</a></li>
+
+    <li class="section-title">Modules</li>
+    <li><a href="#modules" data-section="modules">Module System</a></li>
+    <li><a href="#module-uicomponents" data-section="module-uicomponents">UI Components</a></li>
+    <li><a href="#module-mainscreen" data-section="module-mainscreen">Main Screen</a></li>
+    <li><a href="#module-levelprogressscreen" data-section="module-levelprogressscreen">Level Progress Screen</a></li>
+    <li><a href="#module-gamecamera" data-section="module-gamecamera">Game Camera</a></li>
+    <li><a href="#module-gamegrid" data-section="module-gamegrid">Game Grid</a></li>
+    <li><a href="#module-onscreencontrols" data-section="module-onscreencontrols">On-Screen Controls</a></li>
+    <li><a href="#module-settings" data-section="module-settings">Settings</a></li>
+    <li><a href="#module-audiodsp" data-section="module-audiodsp">Audio DSP</a></li>
+
+    <li class="section-title">Reference</li>
+    <li><a href="#rules" data-section="rules">Rules &amp; Constraints</a></li>
+    <li><a href="#commands" data-section="commands">Commands</a></li>
+
+    <li class="section-title">Examples</li>
+    <li><a href="#examples" data-section="examples">Live Examples</a></li>
+  </ul>
+</nav>
+
+<main id="content">
+  <p style="color:#475569;">Loading...</p>
+</main>
+
+<script>
+  const container = document.getElementById("content");
+  const cache = {};
+  let activeLink = null;
+
+  async function loadSection(name) {
+    if (!cache[name]) {
+      try {
+        const res = await fetch("sections/" + name + ".html");
+        if (!res.ok) { cache[name] = ""; return; }
+        cache[name] = await res.text();
+      } catch { cache[name] = ""; }
+    }
+    container.innerHTML = cache[name];
+    container.scrollTop = 0;
+    window.scrollTo(0, 0);
+
+    // Update active sidebar link
+    if (activeLink) activeLink.classList.remove("active");
+    activeLink = document.querySelector('a[data-section="' + name + '"]');
+    if (activeLink) activeLink.classList.add("active");
+
+    // Update URL hash without triggering hashchange
+    history.replaceState(null, "", "#" + name);
+  }
+
+  // Intercept sidebar clicks
+  document.querySelector(".sidebar").addEventListener("click", function(e) {
+    const link = e.target.closest("a[data-section]");
+    if (!link) return;
+    e.preventDefault();
+    loadSection(link.dataset.section);
+  });
+
+  // Load section from URL hash or default to overview
+  const initial = location.hash ? location.hash.slice(1) : "overview";
+  loadSection(initial);
+</script>
+
+</body>
+</html>

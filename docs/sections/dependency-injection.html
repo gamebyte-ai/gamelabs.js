@@ -1,0 +1,8 @@
+<h2 id="dependency-injection">Dependency Injection</h2>
+<ul>
+  <li><code>diContainer</code> — common tools, models, events, utilities. Given to controllers.</li>
+  <li><code>viewDiContainer</code> — common tools, scene managers. Given to views.</li>
+  <li>Interface tokens use the <code>InjectionToken</code> pattern so interfaces can serve as DI keys:<br>
+    <code>export const IFoo = new InjectionToken&lt;IFoo&gt;("IFoo")</code>
+  </li>
+</ul>

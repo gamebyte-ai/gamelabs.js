@@ -1,4 +1,4 @@
-import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, Topdown2dCameraController } from "@gamebyte/gamelabsjs";
+import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, Topdown2dCameraController, OnScreenControlsBinding, ControlType, ControlAnchor } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenController } from "./controllers/GameScreenController";
@@ -9,6 +9,7 @@ import { GameOverPopupController } from "./controllers/GameOverPopupController";
 
 import { GameEvents } from "./events/GameEvents";
 import { WaveManager } from "./utilities/WaveManager";
+import { PlayerInputManager } from "./utilities/PlayerInputManager";
 import { AvoidanceConfig } from "./AvoidanceConfig";
 import { AvoidanceAssetIds } from "./AvoidanceAssetIds";
 import { AvoidanceUIIds } from "./AvoidanceUIIds";
@@ -18,6 +19,7 @@ export class AvoidanceApp extends GamelabsApp {
   private readonly _assetRequestList = new AssetRequestList();
   private readonly _gameEvents = new GameEvents();
   private readonly _gameCameraBinding = new GameCameraBinding();
+  private readonly _onScreenControlsBinding = new OnScreenControlsBinding();
 
   private _gameAreaView: GameAreaView | null = null;
   private _cameraController: Topdown2dCameraController | null = null;
@@ -28,6 +30,7 @@ export class AvoidanceApp extends GamelabsApp {
 
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
+    this.addModule(this._onScreenControlsBinding);
   }
 
   protected override configureDI(): void {
@@ -37,6 +40,9 @@ export class AvoidanceApp extends GamelabsApp {
 
     const waveManager = new WaveManager(this._config, this._gameEvents);
     this.diContainer.bindInstance(WaveManager, waveManager);
+
+    const playerInput = new PlayerInputManager();
+    playerInput.inject(this.diContainer);
   }
 
   protected override configureViews(): void {
@@ -53,7 +59,7 @@ export class AvoidanceApp extends GamelabsApp {
   }
 
   protected override postInitialize(): void {
-    if (!this.world) throw new Error("World is not initialized");
+    if (!this.world || !this.hud) throw new Error("World or HUD is not initialized");
 
     // Camera: top-down orthographic, centered on game area
     this._gameCameraBinding.cameraManager.initialize(this.world);
@@ -66,7 +72,7 @@ export class AvoidanceApp extends GamelabsApp {
     this._gameAreaView = this.viewFactory.createView(GameAreaView);
     this.world.addView(this._gameAreaView);
 
-    // HUD screen
+    // HUD screen (creates on-screen controls as a sub-view)
     this.diContainer.getInstance(UIEvents).createScreen(AvoidanceUIIds.GameScreen, this._config.transitions.gameScreenEnter);
   }
 
@@ -80,8 +86,6 @@ export class AvoidanceApp extends GamelabsApp {
     const margin = 1.2;
     const areaSize = this._config.gameAreaSize * margin;
     const aspect = Math.max(0.01, screenWidth) / Math.max(0.01, screenHeight);
-
-    // orthoSize = full visible height. If screen is portrait, widen vertically to fit width.
     const orthoSize = aspect < 1 ? areaSize / aspect : areaSize;
     this._gameCameraBinding.cameraManager.setOrthoSize(orthoSize);
   }

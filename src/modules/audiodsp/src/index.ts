@@ -1,0 +1,13 @@
+export { DspEffect } from "./effects/DspEffect.js";
+export { FilterEffect } from "./effects/FilterEffect.js";
+export type { FilterEffectOptions } from "./effects/FilterEffect.js";
+export { ReverbEffect } from "./effects/ReverbEffect.js";
+export type { ReverbEffectOptions } from "./effects/ReverbEffect.js";
+export { DelayEffect } from "./effects/DelayEffect.js";
+export type { DelayEffectOptions } from "./effects/DelayEffect.js";
+export { DistortionEffect } from "./effects/DistortionEffect.js";
+export type { DistortionEffectOptions } from "./effects/DistortionEffect.js";
+export { CompressorEffect } from "./effects/CompressorEffect.js";
+export type { CompressorEffectOptions } from "./effects/CompressorEffect.js";
+export { DspChain } from "./DspChain.js";
+export { DspPresets } from "./DspPresets.js";

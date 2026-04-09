@@ -1,0 +1,11 @@
+<h2 id="app">App Lifecycle</h2>
+<p>Your app class extends <code>GamelabsApp</code> and overrides these methods (called in order):</p>
+<ol>
+  <li><code>registerModules()</code> — register <code>ModuleBinding</code> instances with <code>addModule()</code></li>
+  <li><code>configureDI()</code> — bind instances and singletons to DI containers</li>
+  <li><code>configureViews()</code> — register view/controller pairs into <code>viewFactory</code></li>
+  <li><code>loadAssets()</code> — enqueue app-specific assets in <code>assetManager</code></li>
+  <li><code>postInitialize()</code> — create initial screens/views, hook events (called after assets are loaded)</li>
+</ol>
+<p>Runtime: <code>onStep(timestepSeconds)</code> — per-frame logic hook.</p>
+<p>Cleanup: <code>preDestroy()</code> — unsubscribe and release resources.</p>

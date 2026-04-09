@@ -6,6 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export default defineConfig({
+  base: "./",
   optimizeDeps: {
     // Prevent Vite from caching/prebundling a stale local build of the framework.
     // We want changes in `../../dist/index.js` to be picked up immediately.
