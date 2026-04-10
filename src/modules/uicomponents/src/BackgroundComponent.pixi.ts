@@ -57,10 +57,10 @@ export class BackgroundComponent extends PIXI.Container {
     this.addChild(this._bgImage);
 
     this._overlay = new PIXI.Graphics();
-    (this._overlay as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    this._overlay.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this.addChild(this._overlay);
 
-    (this as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    this.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
 
     this.on("layout", (l: any) => {
       const w = Math.max(1, Math.floor(l.computedLayout.width));

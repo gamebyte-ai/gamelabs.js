@@ -25,12 +25,12 @@ export class PopupView extends HudViewBase implements IPopupView {
 
   public override postInitialize(): void {
     super.postInitialize();
-    (this as any).layout = { width: "100%", height: "100%" };
+    this.layout = { width: "100%", height: "100%" };
 
     this._blocker = new PIXI.Graphics();
     this._blocker.rect(0, 0, 1, 1).fill({ color: 0x000000, alpha: 0.5 });
     (this._blocker as any).eventMode = "static";
-    (this._blocker as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    this._blocker.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this.addChildAt(this._blocker, 0);
 
     this._blocker.on("pointerdown", (e: PIXI.FederatedPointerEvent) => {
@@ -69,7 +69,7 @@ export class PopupView extends HudViewBase implements IPopupView {
   }
 
   public onResize(width: number, height: number, _dpr: number): void {
-    (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
+    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
   }
 
   private cancelTransition(): void {

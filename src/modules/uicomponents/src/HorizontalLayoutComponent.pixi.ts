@@ -1,4 +1,4 @@
-import "@pixi/layout";
+import type { LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 
 export type HorizontalLayoutComponentPreset = {
@@ -7,9 +7,9 @@ export type HorizontalLayoutComponentPreset = {
   /** Y position. */
   y?: number;
   /** Fixed width. Accepts a number or a percentage string like "100%". */
-  width?: number | string;
+  width?: LayoutOptions["width"];
   /** Fixed height. Accepts a number or a percentage string like "100%". */
-  height?: number | string;
+  height?: LayoutOptions["height"];
   /** Gap between children. @default 0 */
   gap?: number;
   /** Padding on all sides. @default 0 */
@@ -51,7 +51,7 @@ export class HorizontalLayoutComponent extends PIXI.Container {
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
 
-    const layout: Record<string, unknown> = {
+    const layout: Omit<LayoutOptions, "target"> = {
       flexDirection: "row",
       gap: opts.gap ?? 0,
       padding: opts.padding ?? 0,
@@ -65,6 +65,6 @@ export class HorizontalLayoutComponent extends PIXI.Container {
     if (opts.top !== undefined) layout.top = opts.top;
     if (opts.right !== undefined) layout.right = opts.right;
     if (opts.bottom !== undefined) layout.bottom = opts.bottom;
-    (this as any).layout = layout;
+    this.layout = layout;
   }
 }

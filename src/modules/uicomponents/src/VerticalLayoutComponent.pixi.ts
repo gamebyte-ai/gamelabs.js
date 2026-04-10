@@ -1,4 +1,4 @@
-import "@pixi/layout";
+import type { LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 
 export type VerticalLayoutComponentPreset = {
@@ -7,9 +7,9 @@ export type VerticalLayoutComponentPreset = {
   /** Y position. */
   y?: number;
   /** Fixed width. Accepts a number or a percentage string like "100%". */
-  width?: number | string;
+  width?: LayoutOptions["width"];
   /** Fixed height. Accepts a number or a percentage string like "100%". */
-  height?: number | string;
+  height?: LayoutOptions["height"];
   /** Gap between children. @default 0 */
   gap?: number;
   /** Padding on all sides. @default 0 */
@@ -40,7 +40,7 @@ export class VerticalLayoutComponent extends PIXI.Container {
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
 
-    const layout: Record<string, unknown> = {
+    const layout: Omit<LayoutOptions, "target"> = {
       flexDirection: "column",
       gap: opts.gap ?? 0,
       padding: opts.padding ?? 0,
@@ -49,6 +49,6 @@ export class VerticalLayoutComponent extends PIXI.Container {
     };
     if (opts.width !== undefined) layout.width = opts.width;
     if (opts.height !== undefined) layout.height = opts.height;
-    (this as any).layout = layout;
+    this.layout = layout;
   }
 }

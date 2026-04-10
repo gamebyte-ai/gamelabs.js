@@ -1,4 +1,4 @@
-import "@pixi/layout";
+import type { LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import type { IAssetManager } from "../../../core/assets/IAssetManager.js";
 
@@ -8,9 +8,9 @@ export type ImageComponentPreset = {
   /** Y position. */
   y?: number;
   /** Fixed width. Accepts a number or a percentage string like "100%". */
-  width?: number | string;
+  width?: LayoutOptions["width"];
   /** Fixed height. Accepts a number or a percentage string like "100%". */
-  height?: number | string;
+  height?: LayoutOptions["height"];
   /** Asset ID for the texture. Resolved via `resolveAssets()`. */
   textureId?: string;
   /**
@@ -67,10 +67,10 @@ export class ImageComponent extends PIXI.Container {
     this._sprite.visible = false;
     this.addChild(this._sprite);
 
-    const layout: Record<string, unknown> = {};
-    if (opts.width !== undefined) layout.width = opts.width;
-    if (opts.height !== undefined) layout.height = opts.height;
-    (this as any).layout = layout;
+    this.layout = {
+      ...(opts.width !== undefined ? { width: opts.width } : {}),
+      ...(opts.height !== undefined ? { height: opts.height } : {}),
+    };
 
     this.on("layout", (l: any) => {
       this._boxWidth = Math.max(1, Math.floor(l.computedLayout.width));

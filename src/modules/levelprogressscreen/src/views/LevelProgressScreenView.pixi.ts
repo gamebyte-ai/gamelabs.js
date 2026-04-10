@@ -66,7 +66,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     }
 
     // Full-screen container that centers its children.
-    (this as any).layout = {
+    this.layout = {
       width: 1,
       height: 1,
       justifyContent: "center",
@@ -84,7 +84,8 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackButtonPreset) ?? "{}";
     this.backButton = new ButtonComponent(parseButtonComponentPreset(backButtonPresetJson));
     this.backButton.resolveAssets(this.assetLoader);
-    this.applyBackButtonLayout((this as any).layout?.width ?? 1);
+    const initialWidth = this.layout?.style?.width;
+    this.applyBackButtonLayout(typeof initialWidth === "number" ? initialWidth : 1);
     this.addChild(this.backButton);
     this.backButton.onPress(() => {
       if (this.isInTransition) return;
@@ -111,7 +112,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
   public override onResize(width: number, height: number, _dpr: number): void {
     const w = Math.max(1, width);
     const h = Math.max(1, height);
-    (this as any).layout = { width: w, height: h };
+    this.layout = { width: w, height: h };
     this.applyBackButtonLayout(w);
   }
 
@@ -120,7 +121,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     const targetW = Math.max(220, Math.min(340, Math.round(w * 0.22)));
     const targetH = Math.max(64, Math.round(targetW / LevelProgressScreenView.backButtonAspect));
 
-    (this.backButton as any).layout = {
+    this.backButton.layout = {
       position: "absolute",
       top: 16,
       right: 16,
@@ -200,7 +201,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       },
     });
     text.anchor.set(0.5, 0.5);
-    (text as any).layout = {};
+    text.layout = {};
     button.addChild(text);
 
     button.onPress(() => {
@@ -249,7 +250,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       const baseH = LevelProgressScreenView.itemHeight;
       const w = isActive ? baseW + LevelProgressScreenView.itemActiveExtraWidth : baseW;
       const h = isActive ? baseH + LevelProgressScreenView.itemActiveExtraHeight : baseH;
-      (it.button as any).layout = { width: w, height: h };
+      it.button.layout = { width: w, height: h };
     }
   }
 

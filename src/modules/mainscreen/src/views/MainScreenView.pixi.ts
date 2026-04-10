@@ -64,7 +64,7 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     this.buttonsCol = new VerticalLayoutComponent(parseVerticalLayoutComponentPreset(buttonsColPresetJson));
 
     // Full-screen layout container that centers its children.
-    (this as any).layout = {
+    this.layout = {
       width: 1,
       height: 1,
       justifyContent: "center",
@@ -87,7 +87,7 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
   public override onResize(width: number, height: number, _dpr: number): void {
     const w = Math.max(1, width);
     const h = Math.max(1, height);
-    (this as any).layout = { width: w, height: h };
+    this.layout = { width: w, height: h };
   }
 
   onPlayClick(cb: () => void): () => void {

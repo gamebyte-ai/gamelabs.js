@@ -67,7 +67,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
       this._clipMask = new PIXI.Graphics();
       this._clipMask.alpha = 0;
       (this._clipMask as any).eventMode = "none";
-      (this._clipMask as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+      this._clipMask.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
       this.addChildAt(this._clipMask, 0);
       this.mask = this._clipMask;
     }
@@ -81,14 +81,14 @@ export class ScreenView extends HudViewBase implements IScreenView {
   }
 
   private getTransitionViewportSize(): { width: number; height: number } {
-    const layout = (this as any).layout;
-    const w = typeof layout?.width === "number" ? layout.width : undefined;
-    const h = typeof layout?.height === "number" ? layout.height : undefined;
+    const style = this.layout?.style;
+    const w = typeof style?.width === "number" ? style.width : undefined;
+    const h = typeof style?.height === "number" ? style.height : undefined;
     if (w && h) return { width: Math.max(1, w), height: Math.max(1, h) };
 
-    const parentLayout = (this.parent as any)?.layout;
-    const pw = typeof parentLayout?.width === "number" ? parentLayout.width : undefined;
-    const ph = typeof parentLayout?.height === "number" ? parentLayout.height : undefined;
+    const parentStyle = this.parent?.layout?.style;
+    const pw = typeof parentStyle?.width === "number" ? parentStyle.width : undefined;
+    const ph = typeof parentStyle?.height === "number" ? parentStyle.height : undefined;
     if (pw && ph) return { width: Math.max(1, pw), height: Math.max(1, ph) };
 
     if (
@@ -192,7 +192,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
   public override postInitialize(): void {
     super.postInitialize();
     // Enable layout by default for Pixi screens. Apps can override styles in subclasses.
-    (this as any).layout = { width: 1, height: 1 };
+    this.layout = { width: 1, height: 1 };
 
     const onLayout = (layout: any) => {
       const w = Math.max(1, Math.floor(layout.computedLayout.width));
@@ -320,6 +320,6 @@ export class ScreenView extends HudViewBase implements IScreenView {
    * If you don't use layouts, you can ignore this.
    */
   public onResize(width: number, height: number, _dpr: number): void {
-    (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
+    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
   }
 }

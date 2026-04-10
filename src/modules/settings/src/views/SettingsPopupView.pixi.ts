@@ -47,7 +47,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     super.postInitialize();
 
     const panel = new PIXI.Container();
-    (panel as any).layout = {
+    panel.layout = {
       width: SettingsPopupView.PANEL_WIDTH,
       flexDirection: "column",
       alignItems: "center",
@@ -56,7 +56,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     };
 
     const panelBg = new PIXI.Graphics();
-    (panelBg as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    panelBg.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     panel.addChild(panelBg);
     this._panelBg = panelBg;
 
@@ -71,12 +71,12 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
       },
     });
     title.anchor.set(0.5, 0.5);
-    (title as any).layout = {};
+    title.layout = {};
     panel.addChild(title);
 
     // Rows container
     this._rowsContainer = new PIXI.Container();
-    (this._rowsContainer as any).layout = {
+    this._rowsContainer.layout = {
       width: "100%",
       flexDirection: "column",
       gap: 4,
@@ -95,7 +95,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
       fillAlpha: 0.8,
       strokeColor: 0xcbd5e0,
     });
-    (this._closeBtn as any).layout = { marginTop: 8 };
+    this._closeBtn.layout = { marginTop: 8 };
     panel.addChild(this._closeBtn);
     this._closeBtn.onPress(() => {
       for (const cb of this._closeListeners) cb();
@@ -103,7 +103,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
 
     // Wrapper to center panel
     const wrapper = new PIXI.Container();
-    (wrapper as any).layout = { width: "100%", height: "100%", justifyContent: "center", alignItems: "center" };
+    wrapper.layout = { width: "100%", height: "100%", justifyContent: "center", alignItems: "center" };
     wrapper.addChild(panel);
     this.addChild(wrapper);
 
@@ -276,7 +276,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
 
   private _createRowContainer(): PIXI.Container {
     const row = new PIXI.Container();
-    (row as any).layout = { width: "100%", height: SettingsPopupView.ROW_HEIGHT };
+    row.layout = { width: "100%", height: SettingsPopupView.ROW_HEIGHT };
     return row;
   }
 
@@ -325,9 +325,9 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     // Defer to next frame so layout has computed height
     requestAnimationFrame(() => {
       if (!this._panelBg || !this._panel) return;
-      const layout = (this._panel as any).layout;
-      const w = layout?.computedLayout?.width ?? SettingsPopupView.PANEL_WIDTH;
-      const h = layout?.computedLayout?.height ?? 300;
+      const computed = this._panel.layout?.computedLayout;
+      const w = computed?.width ?? SettingsPopupView.PANEL_WIDTH;
+      const h = computed?.height ?? 300;
       this._panelBg.clear();
       this._panelBg.roundRect(0, 0, w, h, 16);
       this._panelBg.fill({ color: 0xffffff, alpha: 0.95 });

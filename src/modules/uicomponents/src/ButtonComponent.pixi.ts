@@ -1,4 +1,4 @@
-import "@pixi/layout";
+import type { LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
 import type { Unsubscribe } from "../../../core/events/subscriptions.js";
@@ -82,12 +82,12 @@ export class ButtonComponent extends PIXI.Container {
 
     // Placeholder background
     this._placeholder = new PIXI.Graphics();
-    (this._placeholder as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    this._placeholder.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this.addChild(this._placeholder);
 
     // Texture background (hidden until a texture is set)
     this._bgSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
-    (this._bgSprite as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    this._bgSprite.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this._bgSprite.visible = false;
     this.addChild(this._bgSprite);
 
@@ -96,7 +96,7 @@ export class ButtonComponent extends PIXI.Container {
       const mergedStyle = { ...DEFAULT_LABEL_STYLE, ...opts.labelStyle };
       this._label = new PIXI.Text({ text: opts.label, style: mergedStyle });
       this._label.anchor.set(0.5, 0.5);
-      (this._label as any).layout = {};
+      this._label.layout = {};
       this.addChild(this._label);
     } else {
       this._label = null;
@@ -107,10 +107,10 @@ export class ButtonComponent extends PIXI.Container {
     if (opts.y !== undefined) this.y = opts.y;
 
     // Layout
-    const layout: Record<string, unknown> = { justifyContent: "center", alignItems: "center" };
+    const layout: Omit<LayoutOptions, "target"> = { justifyContent: "center", alignItems: "center" };
     if (opts.width !== undefined) layout.width = opts.width;
     if (opts.height !== undefined) layout.height = opts.height;
-    (this as any).layout = layout;
+    this.layout = layout;
 
     this.on("layout", (l: any) => {
       const w = Math.max(1, Math.floor(l.computedLayout.width));
