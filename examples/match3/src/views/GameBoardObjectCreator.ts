@@ -1,5 +1,5 @@
-import type { IAssetManager, IInputManager } from "gamelabsjs";
-import { GridCellObjectOptions, GridObjectCreator, GridItemObjectOptions, type IGridObjectListener } from "gamelabsjs";
+import type { IAssetManager, IInputManager } from "@gamebyte/gamelabsjs";
+import { GridCellObjectOptions, GridObjectCreator, GridItemObjectOptions, type IGridObjectListener } from "@gamebyte/gamelabsjs";
 import { GameBoardCellObject } from "./GameBoardCellObject.js";
 import { GameBoardItemObject } from "./GameBoardItemObject.js";
 import type { GameBoardItemObjectOptions } from "./GameBoardItemObjectOptions.js";

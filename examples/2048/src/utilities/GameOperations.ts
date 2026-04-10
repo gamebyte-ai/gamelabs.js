@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { Grid, GridEvents, GridPreset, GridsModel, type IInjectionTarget, type IInstanceResolver } from "gamelabsjs";
+import { Grid, GridEvents, GridPreset, GridsModel, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { Game2048Config } from "../Game2048Config.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";
 

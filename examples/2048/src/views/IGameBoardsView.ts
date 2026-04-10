@@ -1,4 +1,4 @@
-import type { IGridView } from "gamelabsjs";
+import type { IGridView } from "@gamebyte/gamelabsjs";
 import type { MovePlan, SpawnResult } from "../utilities/GameOperations.js";
 
 export interface IGameBoardsView extends IGridView {

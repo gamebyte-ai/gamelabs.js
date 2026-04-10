@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { AssetTypes, GamelabsApp, GameCameraBinding, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "gamelabsjs";
+import { AssetTypes, GamelabsApp, GameCameraBinding, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "@gamebyte/gamelabsjs";
 import { Game2048AssetIds } from "./Game2048AssetIds.js";
 import { Game2048Config } from "./Game2048Config.js";
 import { Game2048GameGridBinding } from "./Game2048GameGridBinding.js";

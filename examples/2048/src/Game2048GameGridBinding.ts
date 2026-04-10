@@ -1,4 +1,4 @@
-import { GameGridBinding } from "gamelabsjs";
+import { GameGridBinding } from "@gamebyte/gamelabsjs";
 import { GameBoardsViewController } from "./controllers/GameBoardsViewController.js";
 import { GameBoardObjectCreator } from "./views/GameBoardObjectCreator.js";
 import { GameBoardsView } from "./views/GameBoardsView.three.js";

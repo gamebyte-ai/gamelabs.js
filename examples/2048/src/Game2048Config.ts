@@ -1,4 +1,4 @@
-import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "gamelabsjs";
+import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "@gamebyte/gamelabsjs";
 
 /**
  * 2048 board sizing, animation tunings and screen transitions.

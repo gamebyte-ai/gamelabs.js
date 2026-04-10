@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import type { IAssetManager, IInputManager } from "gamelabsjs";
-import { GridCellObject, GridCellObjectOptions, type IGridObjectListener } from "gamelabsjs";
+import type { IAssetManager, IInputManager } from "@gamebyte/gamelabsjs";
+import { GridCellObject, GridCellObjectOptions, type IGridObjectListener } from "@gamebyte/gamelabsjs";
 
 /**
  * Static board cell — non-interactive (2048 input is keyboard / swipe-driven, not per-cell).

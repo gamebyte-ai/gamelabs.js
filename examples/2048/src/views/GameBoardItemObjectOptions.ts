@@ -1,5 +1,5 @@
-import type { GridPreset } from "gamelabsjs";
-import { GridItemObjectOptions } from "gamelabsjs";
+import type { GridPreset } from "@gamebyte/gamelabsjs";
+import { GridItemObjectOptions } from "@gamebyte/gamelabsjs";
 
 export class GameBoardItemObjectOptions extends GridItemObjectOptions {
   public readonly value: number;

@@ -1,5 +1,5 @@
-import type { Grid, GridItem, IGridView, IInstanceResolver, Unsubscribe } from "gamelabsjs";
-import { GridsViewController, KeyboardListener, UnsubscribeBag } from "gamelabsjs";
+import type { Grid, GridItem, IGridView, IInstanceResolver, Unsubscribe } from "@gamebyte/gamelabsjs";
+import { GridsViewController, KeyboardListener, UnsubscribeBag } from "@gamebyte/gamelabsjs";
 import { Game2048Config } from "../Game2048Config.js";
 import { Game2048AssetIds } from "../Game2048AssetIds.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";

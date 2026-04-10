@@ -8,7 +8,7 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "gamelabsjs": ["../../dist/index.d.ts"],
+      "@gamebyte/gamelabsjs": ["../../dist/index.d.ts"],
       "pixi.js": ["../../node_modules/pixi.js"],
       "pixi.js/*": ["../../node_modules/pixi.js/*"],
       "@pixi/layout": ["../../node_modules/@pixi/layout"],

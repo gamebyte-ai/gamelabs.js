@@ -1,4 +1,4 @@
-import { GridItem } from "gamelabsjs";
+import { GridItem } from "@gamebyte/gamelabsjs";
 
 /**
  * Per-board item model for 2048: unique `itemId` (gamegrid) + `value` (tile face number, e.g. 2, 4, 8 ...).
