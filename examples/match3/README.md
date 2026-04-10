@@ -6,7 +6,7 @@ A match-3 puzzle game demonstrating the `GameGrid` module with gem matching, gra
 
 - Extending the `GameGrid` module with custom models, views, and controllers
 - Custom `GameBoardItem` model with `gemType` property
-- Match-3 in-domain logic in a utility (`Match3Operations`): match detection, gravity, refill, swap validation
+- Match-3 in-domain logic in a utility (`GameOperations`): match detection, gravity, refill, swap validation
 - Initial board generation with no pre-existing matches
 - Animated gem interactions using GSAP: swap, invalid swap bounce, match pop (scale up + shrink), gravity drop (bounce), refill spawn
 - Gem selection highlighting with wireframe shell, halo ring, and emissive glow
@@ -27,7 +27,7 @@ match3
 │   ├──models
 │   │   └──GameBoardItem.ts
 │   ├──utilities
-│   │   └──Match3Operations.ts
+│   │   └──GameOperations.ts
 │   ├──views
 │   │   ├──IGameScreenView.ts
 │   │   ├──GameScreenView.pixi.ts
@@ -52,7 +52,7 @@ match3
 | `GameBoardCellObject` | — | Individual board cell with pointer input |
 | `GameBoardItemObject` | — | 3D gem sphere with selection highlight and GSAP animations |
 
-> **Naming convention:** every per-board class — model (`GameBoardItem`), view (`GameBoardsView`), controller (`GameBoardsViewController`), view interface (`IGameBoardsView`), cell object, item object, item options, and object creator — is named `GameBoard*` rather than the game-specific `Match3*`. The names describe the *role* in the architecture (a thing that lives on the game's board), not the gameplay (a "gem"). Game-specific code (App, Config, AssetIds, Events, Operations, Binding) keeps the `Match3*` prefix. The in-domain logic class `Match3Operations` uses the `*Operations` suffix rather than `*Service` because it's pure in-app logic (no external I/O) — see "Where logic lives" in `DeveloperNotes.md`.
+> **Naming convention:** every per-board class — model (`GameBoardItem`), view (`GameBoardsView`), controller (`GameBoardsViewController`), view interface (`IGameBoardsView`), cell object, item object, item options, and object creator — is named `GameBoard*` rather than the game-specific `Match3*`. The names describe the *role* in the architecture (a thing that lives on the game's board), not the gameplay (a "gem"). Game-specific code (App, Config, AssetIds, Binding) keeps the `Match3*` prefix; generic in-app pieces (`GameOperations`, `GameEvents`, `GameScreenViewController`) drop the prefix. The in-domain logic class `GameOperations` uses the `*Operations` suffix rather than `*Service` because it's pure in-app logic (no external I/O) — see "Where logic lives" in `DeveloperNotes.md`.
 
 ## Events
 

@@ -3,13 +3,13 @@ import { GridsViewController } from "gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
 import { Match3AssetIds } from "../Match3AssetIds.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";
-import { Match3Operations } from "../utilities/Match3Operations.js";
+import { GameOperations } from "../utilities/GameOperations.js";
 import { GameEvents } from "../events/GameEvents.js";
 import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions.js";
 import type { IGameBoardsView } from "../views/IGameBoardsView.js";
 
 export class GameBoardsViewController extends GridsViewController {
-  private _operations: Match3Operations | null = null;
+  private _operations: GameOperations | null = null;
   private _config: Match3Config | null = null;
   private _gameEvents: GameEvents | null = null;
   private _gridsView: IGameBoardsView | null = null;
@@ -18,7 +18,7 @@ export class GameBoardsViewController extends GridsViewController {
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
-    this._operations = resolver.getInstance(Match3Operations);
+    this._operations = resolver.getInstance(GameOperations);
     this._config = resolver.getInstance(Match3Config);
     this._gameEvents = resolver.getInstance(GameEvents);
   }
@@ -86,7 +86,7 @@ export class GameBoardsViewController extends GridsViewController {
     view.updateGemSelection(gridId, this._selected);
   }
 
-  private async _runMatchCascade(svc: Match3Operations, events: GameEvents, view: IGameBoardsView, gridId: number): Promise<void> {
+  private async _runMatchCascade(svc: GameOperations, events: GameEvents, view: IGameBoardsView, gridId: number): Promise<void> {
     while (svc.findMatches().length > 0) {
       const matches = svc.findMatches();
       events.emitPlaySfx(Match3AssetIds.SfxPop);

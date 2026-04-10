@@ -1,5 +1,5 @@
-import type { IInstanceResolver } from "gamelabsjs";
-import { Grid } from "gamelabsjs";
+import { vector } from "@js-basics/vector";
+import { Grid, GridEvents, GridPreset, GridsModel, type IInjectionTarget, type IInstanceResolver } from "gamelabsjs";
 import { Game2048Config } from "../Game2048Config.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";
 
@@ -48,22 +48,31 @@ export type MovePlan = {
  * This is a stateful in-app operations class (score / best / grid state + move
  * rules), not a service — it has no external I/O, so it lives in `utilities/`
  * with the `*Operations` suffix. See "Where logic lives" in `DeveloperNotes.md`.
+ *
+ * Implements {@link IInjectionTarget}: the constructor takes no arguments. The
+ * DI container creates the instance via the
+ * `bindSingleton(GameOperations, () => new GameOperations())` factory and then
+ * automatically calls `inject(resolver)` once. All dependencies (config, model,
+ * grid events) are pulled in `inject`, the `Grid` is constructed and registered
+ * with the model there, and the initial tiles are spawned.
  */
-export class Game2048Operations {
-  private readonly _grid: Grid;
-  private readonly _config: Game2048Config;
+export class GameOperations implements IInjectionTarget {
+  private _grid!: Grid;
+  private _config!: Game2048Config;
   private _nextItemId = 1;
   private _score = 0;
   private _best = 0;
   private _highestValue = 0;
 
-  public constructor(grid: Grid, config: Game2048Config) {
-    this._grid = grid;
-    this._config = config;
+  public inject(resolver: IInstanceResolver): void {
+    this._config = resolver.getInstance(Game2048Config);
+    const model = resolver.getInstance(GridsModel);
+    const gridEvents = resolver.getInstance(GridEvents);
+    const preset = new GridPreset(this._config.gridColumnSize, this._config.gridRowSize, vector(1, 0, 0), vector(0, 0, 1));
+    this._grid = new Grid(Game2048Config.GRID_ID, this._config.cols, this._config.rows, gridEvents, preset);
+    model.addGrid(this._grid);
     this._spawnInitialTiles();
   }
-
-  public inject(_resolver: IInstanceResolver): void {}
 
   public get grid(): Grid {
     return this._grid;

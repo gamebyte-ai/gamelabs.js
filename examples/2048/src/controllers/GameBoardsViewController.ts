@@ -3,7 +3,7 @@ import { GridsViewController, KeyboardListener, UnsubscribeBag } from "gamelabsj
 import { Game2048Config } from "../Game2048Config.js";
 import { Game2048AssetIds } from "../Game2048AssetIds.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";
-import { Game2048Operations, type MoveDirection } from "../utilities/Game2048Operations.js";
+import { GameOperations, type MoveDirection } from "../utilities/GameOperations.js";
 import { GameEvents } from "../events/GameEvents.js";
 import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions.js";
 import type { IGameBoardsView } from "../views/IGameBoardsView.js";
@@ -28,7 +28,7 @@ const SWIPE_MIN_DISTANCE_PX = 24;
 export class GameBoardsViewController extends GridsViewController {
   // Note: base `GridsViewController` already declares private `_view`, `_subs`, `_model`, `_events`.
   // We must use distinct names here so we don't shadow the base instance fields.
-  private _operations: Game2048Operations | null = null;
+  private _operations: GameOperations | null = null;
   private _gameEvents: GameEvents | null = null;
   private _keyboard: KeyboardListener | null = null;
   private _gridsView: IGameBoardsView | null = null;
@@ -43,7 +43,7 @@ export class GameBoardsViewController extends GridsViewController {
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
-    this._operations = resolver.getInstance(Game2048Operations);
+    this._operations = resolver.getInstance(GameOperations);
     this._gameEvents = resolver.getInstance(GameEvents);
     this._keyboard = resolver.getInstance(KeyboardListener);
   }

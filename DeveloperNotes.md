@@ -57,13 +57,17 @@ helper classes — is named after the **role** it plays in the architecture
 | `views/GameBoardObjectCreator.ts`   | `GridObjectCreator`              | Factory wiring the cell + item objects above           |
 | `controllers/GameBoardsViewController.ts` | `GridsViewController`      | Per-game controller driving the board view             |
 
-Game-specific code (App, Config, AssetIds, Events, Operations, Binding, the screen-level
-HUD controller, screen views, popups) keeps the **game** prefix
-(`Match3App`, `Match3Config`, `Match3Operations`, `Match3GameGridBinding`,
-`Game2048App`, `Game2048Operations`, `Game2048GameGridBinding`, ...). Each example owns
-its own copies of the `GameBoard*` files inside its own `src/` tree — they don't
-collide because they're scoped to the example folder. See `examples/match3` and
-`examples/2048` for the convention applied end-to-end.
+App-level / config / asset-id / module-binding / popup classes keep the **game**
+prefix (`Match3App`, `Match3Config`, `Match3AssetIds`, `Match3GameGridBinding`,
+`Game2048App`, `Game2048Config`, `Game2048AssetIds`, `Game2048GameGridBinding`, ...).
+Generic per-game pieces — `GameOperations` (the in-domain operations class),
+`GameEvents`, `GameBoard*` (per-board model + view + controller + helpers),
+`GameScreenViewController` — drop the game prefix because they describe the
+*role* in the architecture. Each example owns its own copies of the
+`GameOperations` / `GameEvents` / `GameBoard*` / `GameScreen*` files inside its
+own `src/` tree — they don't collide because they're scoped to the example
+folder. See `examples/match3` and `examples/2048` for the convention applied
+end-to-end.
 
 
 ### Where logic lives (rules / managers / services)
@@ -74,7 +78,7 @@ If yes, it's a service. If no, it's a rules class or a manager.
 
 | Bucket | Folder | Suffix | Holds state? | Talks to outside world? | Examples |
 |---|---|---|---|---|---|
-| **Domain rules / operations** | `utilities/` | `*Operations` / `*Rules` / `*Solver` / `*Calculator` / `*Finder` | Yes or no | **No** | `Match3Operations`, `Game2048Operations`, `WaterSortOperations`, `TicTacToeTurnManager` (actually a manager), match-finders, move solvers |
+| **Domain rules / operations** | `utilities/` | `*Operations` / `*Rules` / `*Solver` / `*Calculator` / `*Finder` | Yes or no | **No** | `GameOperations` (the per-game operations class in match3 and 2048), `WaterSortOperations`, `TicTacToeTurnManager` (actually a manager), match-finders, move solvers |
 | **State managers** | `utilities/` | `*Manager` | Yes | **No** (uses rules + services as inputs) | `TurnManager`, `WaveManager`, `UpdateManager`, `GameCameraManager`, `SettingsManager` |
 | **Services** | `services/` | `*Service` | Usually minimal (cache) | **Yes** — browser APIs, network, OS, sensors, file system | `StorageService`, `AudioService`, `NotificationService`, `GeolocationService`, `ShareService`, `AnalyticsService`, `*ApiService` |
 
@@ -84,7 +88,7 @@ Acid tests:
 - **Manager:** *does it own mutable state that outlives any single controller method?* Turn order, wave spawn state, camera rig position, settings values. Manager is the catch-all for in-app coordinators that are neither pure rules nor external boundaries.
 - **Service:** *can this fail because of the environment and not because of the inputs?* Network timeout, quota exceeded, autoplay policy, permission denied. If yes → service. Services must be mockable for tests (tests should never actually hit the network or localStorage).
 
-**Do not name a class `*Service` if it never touches the outside world.** That was a historical mistake in this repo (`Match3GridService`, `Game2048GridService`, `UpdateService`) — these have been renamed to `Match3Operations`, `Game2048Operations`, and `UpdateManager`. The `*Service` suffix is now reserved for boundary code.
+**Do not name a class `*Service` if it never touches the outside world.** That was a historical mistake in this repo (`Match3GridService`, `Game2048GridService`, `UpdateService`) — these have been renamed to `GameOperations` (in both match3 and 2048) and `UpdateManager`. The `*Service` suffix is now reserved for boundary code.
 
 #### Controllers
 
@@ -103,9 +107,12 @@ The 2048 example splits responsibilities like this:
   `operations.planMove(direction)`, awaits slide animation, calls
   `operations.commitPlan(plan)`, dispatches score / best / game-over events.
   No matching/gravity/merge math in the controller.
-- `Game2048Operations` (in-domain logic): pure move planning, grid compaction,
+- `GameOperations` (in-domain logic): pure move planning, grid compaction,
   merge detection, spawn logic, canMove / game-over checks. Holds game state
-  (score, best, grid reference). No DOM, no THREE. Lives in `utilities/`.
+  (score, best, grid reference). Implements `IInjectionTarget`: the constructor
+  takes no arguments, dependencies are pulled in `inject(resolver)`, and the
+  `Grid` is built and registered with `GridsModel` there. No DOM, no THREE.
+  Lives in `utilities/`.
 - `GameBoardsView` (view): tile sliding / pop / spawn animations on THREE
   objects. No game logic.
 - `StorageService` (service, from the framework): persists best score.

@@ -70,14 +70,15 @@ that work into an `*Operations` / `*Manager` / `*Rules` class in `utilities/`.
   the role-based `GameBoard*` prefix instead of the game-specific prefix:
   `GameBoardItem` (model), `IGameBoardsView`, `GameBoardsView` (world view),
   `GameBoardsViewController`, `GameBoardCellObject`, `GameBoardItemObject`,
-  `GameBoardItemObjectOptions`, `GameBoardObjectCreator`. Game-specific code
-  (App, Config, AssetIds, Events, Operations, Binding, screen views, and the
-  screen-level `GameScreenViewController`) keeps the game prefix or stays
-  generic (e.g. `Match3App`, `Match3Operations`, `Game2048Operations`,
-  `GameScreenViewController`). Each example owns its own copies of the
-  `GameBoard*` files inside its own `src/` tree — they don't collide because
-  they're scoped to the example folder. See `DeveloperNotes.md` for the
-  canonical table.
+  `GameBoardItemObjectOptions`, `GameBoardObjectCreator`. Generic per-game
+  pieces (`GameOperations`, `GameEvents`, `GameScreenViewController`) also drop
+  the game prefix because they describe the role, not the game. App / Config /
+  AssetIds / Binding classes keep the game prefix (`Match3App`, `Match3Config`,
+  `Match3AssetIds`, `Match3GameGridBinding`, `Game2048App`, `Game2048Config`,
+  `Game2048AssetIds`, `Game2048GameGridBinding`, ...). Each example owns its own
+  copies of the `GameOperations` / `GameEvents` / `GameBoard*` / `GameScreen*`
+  files inside its own `src/` tree — they don't collide because they're scoped
+  to the example folder. See `DeveloperNotes.md` for the canonical table.
 
 ## Project structure
 

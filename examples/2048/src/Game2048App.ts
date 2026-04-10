@@ -1,10 +1,10 @@
 import { vector } from "@js-basics/vector";
-import { AssetTypes, GamelabsApp, GameCameraBinding, Grid, GridEvents, GridPreset, GridsModel, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "gamelabsjs";
+import { AssetTypes, GamelabsApp, GameCameraBinding, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "gamelabsjs";
 import { Game2048AssetIds } from "./Game2048AssetIds.js";
 import { Game2048Config } from "./Game2048Config.js";
 import { Game2048GameGridBinding } from "./Game2048GameGridBinding.js";
 import { GameScreenViewController } from "./controllers/GameScreenViewController.js";
-import { Game2048Operations } from "./utilities/Game2048Operations.js";
+import { GameOperations } from "./utilities/GameOperations.js";
 import { GameEvents } from "./events/GameEvents.js";
 import { GameScreenView } from "./views/GameScreenView.pixi.js";
 import { GameBoardsView } from "./views/GameBoardsView.three.js";
@@ -35,17 +35,10 @@ export class Game2048App extends GamelabsApp {
     this.diContainer.bindInstance(Game2048Config, this._config);
     this.viewDiContainer.bindInstance(Game2048Config, this._config);
     this.diContainer.bindInstance(GameEvents, this._gameEvents);
-    this.diContainer.bindSingleton(Game2048Operations, (resolver) => {
-      const model = resolver.getInstance(GridsModel);
-      const config = resolver.getInstance(Game2048Config);
-      const events = resolver.getInstance(GridEvents);
-      const preset = new GridPreset(config.gridColumnSize, config.gridRowSize, vector(1, 0, 0), vector(0, 0, 1));
-      const grid = new Grid(Game2048Config.GRID_ID, config.cols, config.rows, events, preset);
-      model.addGrid(grid);
-      const ops = new Game2048Operations(grid, config);
-      ops.inject(resolver);
-      return ops;
-    });
+    // GameOperations is an IInjectionTarget; the container calls inject(resolver)
+    // automatically after the no-arg constructor returns. The grid is built and
+    // registered with GridsModel inside GameOperations.inject().
+    this.diContainer.bindSingleton(GameOperations, () => new GameOperations());
   }
 
   protected override loadAssets(): void {

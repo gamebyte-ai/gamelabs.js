@@ -72,7 +72,7 @@ MyGame/src
 
 Three buckets with strict definitions:
 
-- **Domain rules / operations** (`utilities/`, suffix `*Operations` / `*Rules` / `*Solver`): pure in-app logic on models. No DOM, no THREE/PIXI, no I/O. Unit-testable without a view. Examples: `Match3Operations`, `Game2048Operations`, match-finders, move solvers.
+- **Domain rules / operations** (`utilities/`, suffix `*Operations` / `*Rules` / `*Solver`): pure in-app logic on models. No DOM, no THREE/PIXI, no I/O. Unit-testable without a view. Examples: `GameOperations` (the per-game operations class in match3 and 2048), `WaterSortOperations`, match-finders, move solvers.
 - **State managers** (`utilities/`, suffix `*Manager`): own mutable subsystem state across controller methods. Examples: `TurnManager`, `WaveManager`, `UpdateManager`, `SettingsManager`.
 - **Services** (`services/`, suffix `*Service`): boundaries to the outside world — anything that can fail because of the environment. Examples: `StorageService`, `AudioService`, `NotificationService`, `*ApiService`. **Do not use the `*Service` suffix for in-app logic.**
 

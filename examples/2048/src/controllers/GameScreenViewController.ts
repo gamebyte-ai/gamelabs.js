@@ -1,6 +1,6 @@
 import { UnsubscribeBag, UIEvents, AudioService, SettingsManager, SettingsEvents, SettingsUIIds, StorageService, type IInstanceResolver, type IViewController } from "gamelabsjs";
 import { GameEvents } from "../events/GameEvents.js";
-import { Game2048Operations } from "../utilities/Game2048Operations.js";
+import { GameOperations } from "../utilities/GameOperations.js";
 import type { IGameScreenView } from "../views/IGameScreenView.js";
 
 const BEST_STORAGE_KEY = "best";
@@ -13,7 +13,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   private _settingsManager: SettingsManager | null = null;
   private _settingsEvents: SettingsEvents | null = null;
   private _storage: StorageService | null = null;
-  private _operations: Game2048Operations | null = null;
+  private _operations: GameOperations | null = null;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
@@ -23,7 +23,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._settingsManager = resolver.getInstance(SettingsManager);
     this._settingsEvents = resolver.getInstance(SettingsEvents);
     this._storage = resolver.getInstance(StorageService);
-    this._operations = resolver.getInstance(Game2048Operations);
+    this._operations = resolver.getInstance(GameOperations);
     // SettingsManager pulls StorageService / SettingsEvents from DI itself (it implements IInjectionTarget).
     this._settingsManager.inject(resolver);
   }

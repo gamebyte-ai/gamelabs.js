@@ -6,7 +6,7 @@ A classic 2048 sliding-tile puzzle built on the `gamegrid` module. Uses Three.js
 ## What it shows
 
 - Extending the `GameGrid` module with a custom `GameBoardItem` model and a 4x4 grid
-- Two-phase grid mutation in `Game2048Operations`: `planMove` computes a slide / merge
+- Two-phase grid mutation in `GameOperations`: `planMove` computes a slide / merge
   plan from the current model state, `commitPlan` applies it once the slide animation
   completes
 - 2048 rules: directional compaction, single-merge-per-tile per move, 90/10 spawn for
@@ -38,7 +38,7 @@ A classic 2048 sliding-tile puzzle built on the `gamegrid` module. Uses Three.js
 │   ├──models
 │   │   └──GameBoardItem.ts
 │   ├──utilities
-│   │   └──Game2048Operations.ts
+│   │   └──GameOperations.ts
 │   ├──views
 │   │   ├──IGameScreenView.ts
 │   │   ├──GameScreenView.pixi.ts
@@ -65,7 +65,7 @@ A classic 2048 sliding-tile puzzle built on the `gamegrid` module. Uses Three.js
 | `GameBoardCellObject` | — | Static board cell (non-interactive) |
 | `GameBoardItemObject` | — | Tile rendered as a canvas-textured plane keyed by value |
 
-> **Naming convention:** every per-board class — model (`GameBoardItem`), view (`GameBoardsView`), controller (`GameBoardsViewController`), view interface (`IGameBoardsView`), cell object, item object, item options, and object creator — is named `GameBoard*` rather than the game-specific `Game2048*`. The names describe the *role* in the architecture (a thing that lives on the game's board), not the gameplay (a "tile"). Game-specific code (App, Config, AssetIds, Events, Operations, Binding) keeps the `Game2048*` prefix. The in-domain logic class `Game2048Operations` uses the `*Operations` suffix rather than `*Service` because it's pure in-app logic (no external I/O) — see "Where logic lives" in `DeveloperNotes.md`.
+> **Naming convention:** every per-board class — model (`GameBoardItem`), view (`GameBoardsView`), controller (`GameBoardsViewController`), view interface (`IGameBoardsView`), cell object, item object, item options, and object creator — is named `GameBoard*` rather than the game-specific `Game2048*`. The names describe the *role* in the architecture (a thing that lives on the game's board), not the gameplay (a "tile"). Game-specific code (App, Config, AssetIds, Events, Operations, Binding) keeps the `Game2048*` prefix. The in-domain logic class `GameOperations` uses the `*Operations` suffix rather than `*Service` because it's pure in-app logic (no external I/O) — see "Where logic lives" in `DeveloperNotes.md`.
 
 ## Events
 
@@ -81,7 +81,7 @@ A classic 2048 sliding-tile puzzle built on the `gamegrid` module. Uses Three.js
 
 ```
 Player presses arrow / WASD key OR swipes a direction
-    → GameBoardsViewController computes a MovePlan via Game2048Operations.planMove
+    → GameBoardsViewController computes a MovePlan via GameOperations.planMove
         → if plan.moved is false:
             play "invalid" sfx, ignore
         → otherwise:

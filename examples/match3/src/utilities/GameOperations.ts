@@ -1,5 +1,5 @@
-import type { IInstanceResolver } from "gamelabsjs";
-import { Grid } from "gamelabsjs";
+import { vector } from "@js-basics/vector";
+import { Grid, GridEvents, GridPreset, GridsModel, type IInjectionTarget, type IInstanceResolver } from "gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";
 
@@ -13,20 +13,30 @@ export type RefillSpawn = { row: number; col: number; gemType: number };
  * This is a stateful in-app operations class (score + grid state + match rules),
  * not a service — it has no external I/O, so it lives in `utilities/` with the
  * `*Operations` suffix. See "Where logic lives" in `DeveloperNotes.md`.
+ *
+ * Implements {@link IInjectionTarget}: the constructor takes no arguments. The
+ * DI container creates the instance via the
+ * `bindSingleton(GameOperations, () => new GameOperations())` factory and then
+ * automatically calls `inject(resolver)` once. All dependencies (config, model,
+ * grid events) are pulled in `inject`, the `Grid` is constructed and registered
+ * with the model there, and the initial board (with no pre-existing matches) is
+ * filled.
  */
-export class Match3Operations {
-  private readonly _grid: Grid;
-  private readonly _config: Match3Config;
+export class GameOperations implements IInjectionTarget {
+  private _grid!: Grid;
+  private _config!: Match3Config;
   private _nextItemId = 1;
   private _score = 0;
 
-  public constructor(grid: Grid, config: Match3Config) {
-    this._grid = grid;
-    this._config = config;
+  public inject(resolver: IInstanceResolver): void {
+    this._config = resolver.getInstance(Match3Config);
+    const model = resolver.getInstance(GridsModel);
+    const gridEvents = resolver.getInstance(GridEvents);
+    const preset = new GridPreset(this._config.gridColumnSize, this._config.gridRowSize, vector(1, 0, 0), vector(0, 0, 1));
+    this._grid = new Grid(Match3Config.GRID_ID, this._config.cols, this._config.rows, gridEvents, preset);
+    model.addGrid(this._grid);
     this._fillInitialNoMatches();
   }
-
-  public inject(_resolver: IInstanceResolver): void {}
 
   public get grid(): Grid {
     return this._grid;

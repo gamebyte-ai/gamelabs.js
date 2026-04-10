@@ -46,7 +46,7 @@ TypeScript skeleton + reusable modules for web games. Three.js (3D world) + Pixi
 
 Three buckets — pick before writing a class:
 
-- **Domain rules / operations** → `utilities/`, suffix `*Operations` / `*Rules` / `*Solver`. Pure in-app logic on models. No DOM, no network, no browser APIs. Unit-testable without a view. Examples: `Match3Operations`, `Game2048Operations`, match-finders, move solvers.
+- **Domain rules / operations** → `utilities/`, suffix `*Operations` / `*Rules` / `*Solver`. Pure in-app logic on models. No DOM, no network, no browser APIs. Unit-testable without a view. Examples: `GameOperations` (the per-game operations class in match3 and 2048), `WaterSortOperations`, match-finders, move solvers.
 - **State managers** → `utilities/`, suffix `*Manager`. Own mutable subsystem state across controller methods. Examples: `TurnManager`, `WaveManager`, `UpdateManager`, `SettingsManager`.
 - **Services** → `services/`, suffix `*Service`. Boundaries to the outside world — anything that can fail because of the environment (network, quota, permission, autoplay). Examples: `StorageService`, `AudioService`, `NotificationService`, `*ApiService`. **Do not use `*Service` for in-app logic.**
 
