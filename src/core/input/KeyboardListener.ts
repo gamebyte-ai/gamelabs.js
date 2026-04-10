@@ -1,5 +1,5 @@
 import type { Unsubscribe } from "../events/subscriptions.js";
-import { IInputDeviceListener } from "./IInputDeviceListener.js";
+import type { IInputDeviceListener } from "./IInputDeviceListener.js";
 
 /**
  * Tracks keyboard state and dispatches press/release callbacks.

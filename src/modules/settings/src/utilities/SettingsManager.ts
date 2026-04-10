@@ -2,8 +2,8 @@ import { StorageService } from "../../../../core/services/StorageService.js";
 import { SettingsFieldType } from "../SettingsField.js";
 import type { SettingsField, SettingsNumberField } from "../SettingsField.js";
 import { SettingsEvents } from "../events/SettingsEvents.js";
-import { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
-import { IInjectionTarget } from "../../../../core/di/IInjectionTarget.js";
+import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
+import type { IInjectionTarget } from "../../../../core/di/IInjectionTarget.js";
 
 /**
  * Manages typed settings fields with validation, persistence, and change events.

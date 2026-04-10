@@ -1,4 +1,4 @@
-import { Unsubscribe } from "../events/subscriptions";
+import type { Unsubscribe } from "../events/subscriptions";
 
 
 export interface IInputDeviceListener

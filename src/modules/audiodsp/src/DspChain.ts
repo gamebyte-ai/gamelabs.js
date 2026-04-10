@@ -1,4 +1,4 @@
-import { DspEffect } from "./effects/DspEffect.js";
+import type { DspEffect } from "./effects/DspEffect.js";
 
 /**
  * A serial chain of DspEffects.
