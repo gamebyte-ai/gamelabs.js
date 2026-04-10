@@ -1,4 +1,4 @@
-import type { IView, Unsubscribe } from "gamelabsjs";
+import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
 
 export interface ICubeView extends IView {
   rotate(dx: number, dy: number): void;

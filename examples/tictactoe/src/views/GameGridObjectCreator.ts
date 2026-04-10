@@ -1,7 +1,7 @@
-import type { IAssetManager } from "gamelabsjs";
-import { GridCellObjectOptions, GridObjectCreator, GridItemObjectOptions } from "gamelabsjs";
-import type { IGridObjectListener } from "gamelabsjs";
-import type { IInputManager } from "gamelabsjs";
+import type { IAssetManager } from "@gamebyte/gamelabsjs";
+import { GridCellObjectOptions, GridObjectCreator, GridItemObjectOptions } from "@gamebyte/gamelabsjs";
+import type { IGridObjectListener } from "@gamebyte/gamelabsjs";
+import type { IInputManager } from "@gamebyte/gamelabsjs";
 import { GameCellObject } from "./GameCellObject.js";
 import { GameItemObject } from "./GameItemObject.js";
 import type { GameItemObjectOptions } from "./GameItemObjectOptions.js";

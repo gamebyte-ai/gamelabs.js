@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "gamelabsjs";
+import type { Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { Team } from "../models/GameItem.js";
 
 export class TurnEvents {

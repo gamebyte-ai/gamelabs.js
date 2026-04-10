@@ -1,4 +1,4 @@
-import type { IScreenView } from "gamelabsjs";
+import type { IScreenView } from "@gamebyte/gamelabsjs";
 import type { Team } from "../models/GameItem.js";
 
 export interface IGameScreenView extends IScreenView {

@@ -12,4 +12,3 @@ export interface ILevelProgressScreenModel {
  * Runtime token for DI.
  */
 export const ILevelProgressScreenModel = new InjectionToken<ILevelProgressScreenModel>("ILevelProgressScreenModel");
-

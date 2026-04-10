@@ -35,4 +35,3 @@ export class UpdateManager {
     this.entries = [];
   }
 }
-

@@ -1,4 +1,4 @@
-import { UnsubscribeBag, type IInstanceResolver, type IViewController, UpdateManager, Orbital3dCameraController } from "gamelabsjs";
+import { UnsubscribeBag, type IInstanceResolver, type IViewController, UpdateManager, Orbital3dCameraController } from "@gamebyte/gamelabsjs";
 import type { ICubeView } from "../views/ICubeView";
 import { GameEvents } from "../events/GameEvents";
 import { HelloWorldConfig } from "../HelloWorldConfig";

@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "gamelabsjs";
+import type { Unsubscribe } from "@gamebyte/gamelabsjs";
 
 export class GameEvents {
   private readonly _gameOverListeners = new Set<(wave: number) => void>();

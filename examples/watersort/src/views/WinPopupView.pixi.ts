@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { PopupView, ButtonComponent, type Unsubscribe } from "gamelabsjs";
+import { PopupView, ButtonComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IWinPopupView } from "./IWinPopupView";
 import { WaterSortAssetIds } from "../WaterSortAssetIds.js";
 

@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { AssetRequest, AssetTypes, GamelabsApp, GameCameraBinding, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "gamelabsjs";
+import { AssetTypes, GamelabsApp, GameCameraBinding, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "@gamebyte/gamelabsjs";
 import { Match3AssetIds } from "./Match3AssetIds.js";
 import { Match3Config } from "./Match3Config.js";
 import { Match3GameGridBinding } from "./Match3GameGridBinding.js";
@@ -69,7 +69,7 @@ export class Match3App extends GamelabsApp {
     }
     this.diContainer.getInstance(UIEvents).createScreen(Match3UIIds.GameScreen, this._config.transitions.gameScreenEnter);
     this.world.addView(this.viewFactory.createView(GameBoardsView));
-    
+
     const grid = this._gameGridBinding.model.getGrid(Match3Config.GRID_ID);
     if (grid) {
       const midX = ((this._config.cols - 1) * grid.preset.columnSize) * 0.5;

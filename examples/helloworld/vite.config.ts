@@ -10,15 +10,15 @@ export default defineConfig({
   optimizeDeps: {
     // Prevent Vite from caching/prebundling a stale local build of the framework.
     // We want changes in `../../dist/index.js` to be picked up immediately.
-    exclude: ["gamelabsjs"]
+    exclude: ["@gamebyte/gamelabsjs"]
   },
   resolve: {
-    // Example uses `gamelabsjs: file:../..` (symlink) during local dev.
+    // Example uses `@gamebyte/gamelabsjs: file:../..` (symlink) during local dev.
     preserveSymlinks: true,
 
     // Always resolve to the repo-local build output.
     alias: {
-      gamelabsjs: resolve(__dirname, "../../dist/index.js")
+      "@gamebyte/gamelabsjs": resolve(__dirname, "../../dist/index.js")
     },
 
     // CRITICAL: Ensure we only ever bundle ONE copy of Pixi + layout/ui.

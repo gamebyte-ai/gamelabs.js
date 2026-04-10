@@ -13,8 +13,8 @@ Main menu / title screen with a logo, play button, and settings button. Intended
 ### Basic wiring
 
 ```ts
-import { GamelabsApp } from "gamelabsjs";
-import { MainScreenBinding, MainScreenEvents, MainScreenView } from "gamelabsjs";
+import { GamelabsApp } from "@gamebyte/gamelabsjs";
+import { MainScreenBinding, MainScreenEvents, MainScreenView } from "@gamebyte/gamelabsjs";
 
 export class MyApp extends GamelabsApp {
   private readonly mainScreenBinding = new MainScreenBinding();
@@ -52,14 +52,14 @@ Subscribe in `postInitialize()` and route to your navigation or settings logic.
 
 ## What can be overridden
 
-| Area | How |
-|------|-----|
-| **View** | Extend `MainScreenView`, implement `IMainScreenView`. Register your custom view in a module binding that overrides `configureViews` to use your class instead of `MainScreenView`. |
-| **Controller** | Use a different controller by registering a custom View/Controller pair in `configureViews` (your binding replaces `MainScreenView` + `MainScreenViewController`). |
-| **Events** | `MainScreenEvents` is a concrete class. To replace it, bind your own instance in DI before the binding runs, or create a new binding that extends `MainScreenBinding` and overrides `configureDI`. |
-| **Assets** | Use `assetRequestList.overrideRequestUrl(id, url)` for any `MainScreenAssetIds` before `addModule()`. |
-| **Layout / styling** | Subclass `MainScreenView` and override `postInitialize()`, `onResize()`, or layout-related methods. Call `super` where needed. |
-| **Button behavior** | Subclass `MainScreenView` and override `onPlayClick` / `onSettingsClick` wiring, or keep defaults and react via `MainScreenEvents` in the app. |
+| Area                 | How                                                                                                                                                                                                |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **View**             | Extend `MainScreenView`, implement `IMainScreenView`. Register your custom view in a module binding that overrides `configureViews` to use your class instead of `MainScreenView`.                 |
+| **Controller**       | Use a different controller by registering a custom View/Controller pair in `configureViews` (your binding replaces `MainScreenView` + `MainScreenViewController`).                                 |
+| **Events**           | `MainScreenEvents` is a concrete class. To replace it, bind your own instance in DI before the binding runs, or create a new binding that extends `MainScreenBinding` and overrides `configureDI`. |
+| **Assets**           | Use `assetRequestList.overrideRequestUrl(id, url)` for any `MainScreenAssetIds` before `addModule()`.                                                                                              |
+| **Layout / styling** | Subclass `MainScreenView` and override `postInitialize()`, `onResize()`, or layout-related methods. Call `super` where needed.                                                                     |
+| **Button behavior**  | Subclass `MainScreenView` and override `onPlayClick` / `onSettingsClick` wiring, or keep defaults and react via `MainScreenEvents` in the app.                                                     |
 
 ## Exports
 

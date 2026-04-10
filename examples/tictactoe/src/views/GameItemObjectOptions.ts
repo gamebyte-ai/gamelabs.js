@@ -1,4 +1,4 @@
-import { GridItemObjectOptions, type GridPreset } from "gamelabsjs";
+import { GridItemObjectOptions, type GridPreset } from "@gamebyte/gamelabsjs";
 import { Team } from "../models/GameItem.js";
 
 export class GameItemObjectOptions extends GridItemObjectOptions {

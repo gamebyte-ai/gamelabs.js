@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import type { Vector3 } from "../types/Vector3.js";
 import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
-import { GridPreset } from "../models/GridPreset.js";
-import { GridItemObject } from "./GridItemObject.js";
+import type { GridPreset } from "../models/GridPreset.js";
+import type { GridItemObject } from "./GridItemObject.js";
 import { WorldInteractiveObject } from "../../../../core/world/WorldInteractiveObject.js";
-import { IGridObjectListener } from "./IGridObjectListener.js";
+import type { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../core/input/IInputManager.js";
 import type { IPointerInputHandler } from "../../../../core/input/IPointerInputHandler.js";
 
@@ -35,7 +35,12 @@ export class GridCellObject extends WorldInteractiveObject {
   protected _item: GridItemObject | null;
   protected readonly _assetManager: IAssetManager | null;
 
-  public constructor(options: GridCellObjectOptions, pointerListener: IGridObjectListener, __inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
+  public constructor(
+    options: GridCellObjectOptions,
+    pointerListener: IGridObjectListener,
+    __inputManager: IInputManager | null,
+    assetManager?: IAssetManager | null,
+  ) {
     super();
     this.gridId = options.gridId;
     this.col = options.col;
@@ -78,7 +83,11 @@ export class GridCellObject extends WorldInteractiveObject {
 
   protected createVisual(): void {
     const material = new THREE.MeshStandardMaterial({ color: 0x334155 });
-    const geom = new THREE.BoxGeometry(this.preset.columnSize * 0.4, GridCellObject.DEFAULT_THICKNESS, this.preset.rowSize * 0.4);
+    const geom = new THREE.BoxGeometry(
+      this.preset.columnSize * 0.4,
+      GridCellObject.DEFAULT_THICKNESS,
+      this.preset.rowSize * 0.4,
+    );
     const mesh = new THREE.Mesh(geom, material!);
     mesh.position.set(0, -GridCellObject.DEFAULT_THICKNESS * 0.5, 0);
     this.add(mesh);

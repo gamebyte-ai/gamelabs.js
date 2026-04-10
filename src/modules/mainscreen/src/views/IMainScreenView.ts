@@ -8,4 +8,3 @@ export interface IMainScreenView extends IScreenView {
   onPlayClick(cb: () => void): () => void;
   onSettingsClick(cb: () => void): () => void;
 }
-

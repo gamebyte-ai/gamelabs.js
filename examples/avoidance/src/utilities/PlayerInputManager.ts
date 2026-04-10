@@ -1,4 +1,4 @@
-import { ControlAnchor, ControlType, InputMapper, KeyboardListener, OnScreenControlManager, type IInstanceResolver } from "gamelabsjs";
+import { ControlAnchor, ControlType, InputMapper, KeyboardListener, OnScreenControlManager, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { GameEvents } from "../events/GameEvents.js";
 
 export class PlayerInputManager {

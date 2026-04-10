@@ -1,4 +1,4 @@
-import type { Unsubscribe } from "gamelabsjs";
+import type { Unsubscribe } from "@gamebyte/gamelabsjs";
 
 export class GameEvents {
   private readonly changeCubeColorListeners = new Set<(hex: number) => void>();

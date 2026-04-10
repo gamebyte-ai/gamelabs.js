@@ -1,4 +1,4 @@
-import type { IScreenView } from "gamelabsjs";
+import type { IScreenView } from "@gamebyte/gamelabsjs";
 
 export interface IGameScreenView extends IScreenView {
   showWaveText(wave: number): void;

@@ -15,4 +15,3 @@ export class InjectionToken<T> {
 }
 
 export type Token<T> = Ctor<T> | InjectionToken<T>;
-

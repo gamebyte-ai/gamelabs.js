@@ -14,7 +14,9 @@ export class UIEvents {
 
   onCreateScreen(cb: (id: string, transition: ScreenTransition | null) => void): Unsubscribe {
     this.createScreenListeners.add(cb);
-    return () => { this.createScreenListeners.delete(cb); };
+    return () => {
+      this.createScreenListeners.delete(cb);
+    };
   }
 
   createScreen(id: string, transition: ScreenTransition | null): void {
@@ -28,7 +30,9 @@ export class UIEvents {
 
   onCreatePopup(cb: (id: string) => void): Unsubscribe {
     this.createPopupListeners.add(cb);
-    return () => { this.createPopupListeners.delete(cb); };
+    return () => {
+      this.createPopupListeners.delete(cb);
+    };
   }
 
   createPopup(id: string): void {
@@ -37,7 +41,9 @@ export class UIEvents {
 
   onRemoveTopPopup(cb: () => void): Unsubscribe {
     this.removeTopPopupListeners.add(cb);
-    return () => { this.removeTopPopupListeners.delete(cb); };
+    return () => {
+      this.removeTopPopupListeners.delete(cb);
+    };
   }
 
   removeTopPopup(): void {
@@ -46,7 +52,9 @@ export class UIEvents {
 
   onRemoveAllPopups(cb: () => void): Unsubscribe {
     this.removeAllPopupsListeners.add(cb);
-    return () => { this.removeAllPopupsListeners.delete(cb); };
+    return () => {
+      this.removeAllPopupsListeners.delete(cb);
+    };
   }
 
   removeAllPopups(): void {

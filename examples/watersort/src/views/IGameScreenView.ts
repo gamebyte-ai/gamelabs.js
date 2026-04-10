@@ -1,4 +1,4 @@
-import type { IScreenView, Unsubscribe } from "gamelabsjs";
+import type { IScreenView, Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { Bottle } from "../models/Bottle.js";
 
 export interface IGameScreenView extends IScreenView {

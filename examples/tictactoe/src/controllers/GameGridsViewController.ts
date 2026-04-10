@@ -1,7 +1,7 @@
-import type { Grid } from "gamelabsjs";
-import type { GridItem } from "gamelabsjs";
-import type { IInstanceResolver } from "gamelabsjs";
-import { GridsViewController } from "gamelabsjs";
+import type { Grid } from "@gamebyte/gamelabsjs";
+import type { GridItem } from "@gamebyte/gamelabsjs";
+import type { IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { GridsViewController } from "@gamebyte/gamelabsjs";
 import { GameItem } from "../models/GameItem.js";
 import { GameItemObjectOptions } from "../views/GameItemObjectOptions.js";
 import { GameGridsView } from "../views/GameGridsView.three.js";
@@ -18,7 +18,7 @@ export class GameGridsViewController extends GridsViewController {
     this._config = resolver.getInstance(TicTacToeConfig);
   }
 
-  public override initialize(view: import("gamelabsjs").IGridView): void {
+  public override initialize(view: import("@gamebyte/gamelabsjs").IGridView): void {
     super.initialize(view);
     if (view instanceof GameGridsView) {
       view.setCellPointerDownHandler((gridId, col, row) => this._handleCellPointerDown(gridId, col, row));

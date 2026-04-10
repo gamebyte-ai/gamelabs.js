@@ -1,8 +1,14 @@
 import * as PIXI from "pixi.js";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/ButtonComponent.pixi.js";
-import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/BackgroundComponent.pixi.js";
-import { VerticalLayoutComponent, parseVerticalLayoutComponentPreset } from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
+import {
+  BackgroundComponent,
+  parseBackgroundComponentPreset,
+} from "../../../uicomponents/src/BackgroundComponent.pixi.js";
+import {
+  VerticalLayoutComponent,
+  parseVerticalLayoutComponentPreset,
+} from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
 import type { ILevelProgressScreenView } from "./ILevelProgressScreenView.js";
 import { LevelProgressScreenAssetIds } from "../LevelProgressScreenAssetIds.js";
 
@@ -64,17 +70,18 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       width: 1,
       height: 1,
       justifyContent: "center",
-      alignItems: "center"
+      alignItems: "center",
     };
 
     // Background component.
-    const bgPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackgroundPreset) ?? '{}';
+    const bgPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackgroundPreset) ?? "{}";
     this.background = new BackgroundComponent(parseBackgroundComponentPreset(bgPresetJson));
     this.background.resolveAssets(this.assetLoader);
     this.addChild(this.background);
 
     // Top-right back button.
-    const backButtonPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackButtonPreset) ?? '{}';
+    const backButtonPresetJson =
+      this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackButtonPreset) ?? "{}";
     this.backButton = new ButtonComponent(parseButtonComponentPreset(backButtonPresetJson));
     this.backButton.resolveAssets(this.assetLoader);
     this.applyBackButtonLayout((this as any).layout?.width ?? 1);
@@ -86,12 +93,11 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
     // Connectors are a sibling of levelsCol, drawn on top in screen space.
     this.addChild(this.connectors);
-    
+
     // Levels column.
-    const levelsColPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.LevelsColPreset) ?? '{}';
+    const levelsColPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.LevelsColPreset) ?? "{}";
     this.levelsCol = new VerticalLayoutComponent(parseVerticalLayoutComponentPreset(levelsColPresetJson));
     this.addChild(this.levelsCol);
-
 
     // Redraw connectors after the screen's layout is computed (all descendants positioned).
     this.on("layout", () => {
@@ -190,8 +196,8 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
         fill: 0xe8eef6,
         fontSize: 24,
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-        fontWeight: "800"
-      }
+        fontWeight: "800",
+      },
     });
     text.anchor.set(0.5, 0.5);
     (text as any).layout = {};
@@ -216,7 +222,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       it.text.text = String(levelNo);
       it.text.style = {
         ...it.text.style,
-        fill: i === currentIndex ? 0xffffff : 0xdbe7ff
+        fill: i === currentIndex ? 0xffffff : 0xdbe7ff,
       } as any;
 
       it.button.alpha = i === currentIndex ? 1 : 0.85;
@@ -261,8 +267,12 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
     const getItemDims = (i: number): { w: number; h: number } => {
       const isActive = i === currentIndex;
-      const w = isActive ? LevelProgressScreenView.itemWidth + LevelProgressScreenView.itemActiveExtraWidth : LevelProgressScreenView.itemWidth;
-      const h = isActive ? LevelProgressScreenView.itemHeight + LevelProgressScreenView.itemActiveExtraHeight : LevelProgressScreenView.itemHeight;
+      const w = isActive
+        ? LevelProgressScreenView.itemWidth + LevelProgressScreenView.itemActiveExtraWidth
+        : LevelProgressScreenView.itemWidth;
+      const h = isActive
+        ? LevelProgressScreenView.itemHeight + LevelProgressScreenView.itemActiveExtraHeight
+        : LevelProgressScreenView.itemHeight;
       return { w, h };
     };
 
@@ -305,7 +315,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     const currentIndexAsc = this.currentLevel - start;
 
     const levels = levelsAsc.slice().reverse();
-    const currentIndex = Math.max(0, Math.min(count - 1, (count - 1) - currentIndexAsc));
+    const currentIndex = Math.max(0, Math.min(count - 1, count - 1 - currentIndexAsc));
     return { levels, currentIndex };
   }
 

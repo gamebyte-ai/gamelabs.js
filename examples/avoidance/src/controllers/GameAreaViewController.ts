@@ -1,4 +1,4 @@
-import { UnsubscribeBag, UpdateManager, type IInstanceResolver, type IViewController, type Unsubscribe } from "gamelabsjs";
+import { UnsubscribeBag, UpdateManager, type IInstanceResolver, type IViewController, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IGameAreaView } from "../views/IGameAreaView";
 import { AvoidanceConfig } from "../AvoidanceConfig.js";
 import { GameEvents } from "../events/GameEvents.js";

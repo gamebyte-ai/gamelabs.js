@@ -14,13 +14,13 @@ Level selection / progress screen that shows a vertical list of level numbers wi
 ### Basic wiring
 
 ```ts
-import { GamelabsApp } from "gamelabsjs";
+import { GamelabsApp } from "@gamebyte/gamelabsjs";
 import {
   LevelProgressScreenBinding,
   LevelProgressScreenView,
   LevelProgressScreenEvents,
-  ILevelProgressScreenModel
-} from "gamelabsjs";
+  ILevelProgressScreenModel,
+} from "@gamebyte/gamelabsjs";
 
 // Implement the model contract (visible count + current level).
 class MyLevelModel implements ILevelProgressScreenModel {
@@ -70,15 +70,15 @@ this.addModule(this.levelBinding);
 
 ## What can be overridden
 
-| Area | How |
-|------|-----|
-| **View** | Extend `LevelProgressScreenView`, implement `ILevelProgressScreenView`. Register your custom view in a module binding that overrides `configureViews`. |
-| **Model** | Implement `ILevelProgressScreenModel` and pass to `LevelProgressScreenBinding(model)`. The model drives `visibleItemCount` and `currentLevel`. |
-| **Controller** | Use a different controller by registering a custom View/Controller pair in `configureViews`. |
-| **Events** | Replace `LevelProgressScreenEvents` by binding your own instance in DI, or extend the binding and override `configureDI`. |
-| **Assets** | Use `assetRequestList.overrideRequestUrl(id, url)` for any `LevelProgressScreenAssetIds` before `addModule()`. |
+| Area                    | How                                                                                                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **View**                | Extend `LevelProgressScreenView`, implement `ILevelProgressScreenView`. Register your custom view in a module binding that overrides `configureViews`.             |
+| **Model**               | Implement `ILevelProgressScreenModel` and pass to `LevelProgressScreenBinding(model)`. The model drives `visibleItemCount` and `currentLevel`.                     |
+| **Controller**          | Use a different controller by registering a custom View/Controller pair in `configureViews`.                                                                       |
+| **Events**              | Replace `LevelProgressScreenEvents` by binding your own instance in DI, or extend the binding and override `configureDI`.                                          |
+| **Assets**              | Use `assetRequestList.overrideRequestUrl(id, url)` for any `LevelProgressScreenAssetIds` before `addModule()`.                                                     |
 | **Layout / item count** | Subclass `LevelProgressScreenView`; you can also pass `{ visibleCount?, currentLevel? }` to the constructor for initial values (overridden by model when present). |
-| **Visual styling** | Subclass and override layout constants, colors, or layout logic in `postInitialize` / `onResize`. |
+| **Visual styling**      | Subclass and override layout constants, colors, or layout logic in `postInitialize` / `onResize`.                                                                  |
 
 ## Exports
 

@@ -1,4 +1,4 @@
-import { GamelabsApp, LogTypes, GameCameraBinding, Topdown3dCameraController, IViewFactory, UIEvents } from "gamelabsjs";
+import { GamelabsApp, LogTypes, GameCameraBinding, Topdown3dCameraController, IViewFactory, UIEvents } from "@gamebyte/gamelabsjs";
 import { TicTacToeTurnManager, TicTacToeTurnManagerToken } from "./utilities/TicTacToeTurnManager";
 import { TurnEvents } from "./events/TurnEvents";
 import { GameScreenView } from "./views/GameScreenView.pixi";

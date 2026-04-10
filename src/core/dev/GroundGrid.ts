@@ -41,7 +41,12 @@ export class GroundGrid implements IGroundGrid {
 
   private _createGrid(visible: boolean): void {
     this._destroyGrid();
-    const grid = new THREE.GridHelper(this._options.size, this._options.divisions, this._options.color1, this._options.color2);
+    const grid = new THREE.GridHelper(
+      this._options.size,
+      this._options.divisions,
+      this._options.color1,
+      this._options.color2,
+    );
     grid.position.y = this._options.y;
     grid.visible = visible;
     this._world.scene.add(grid);
@@ -62,4 +67,3 @@ export class GroundGrid implements IGroundGrid {
     this._grid = null;
   }
 }
-

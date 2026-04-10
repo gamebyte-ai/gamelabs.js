@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { ScreenView, ButtonComponent, type Unsubscribe } from "gamelabsjs";
+import { ScreenView, ButtonComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView.js";
 
 export class GameScreenView extends ScreenView implements IGameScreenView {

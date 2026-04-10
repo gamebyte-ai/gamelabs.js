@@ -8,12 +8,12 @@ const __dirname = dirname(__filename);
 export default defineConfig({
   base: "./",
   optimizeDeps: {
-    exclude: ["gamelabsjs"]
+    exclude: ["@gamebyte/gamelabsjs"]
   },
   resolve: {
     preserveSymlinks: true,
     alias: {
-      gamelabsjs: resolve(__dirname, "../../dist/index.js")
+      "@gamebyte/gamelabsjs": resolve(__dirname, "../../dist/index.js")
     },
     dedupe: ["three", "pixi.js", "@pixi/layout", "@pixi/ui"]
   },

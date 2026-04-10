@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { WorldViewBase, type IInstanceResolver } from "gamelabsjs";
+import { WorldViewBase, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import type { IGameAreaView } from "./IGameAreaView";
 import { AvoidanceConfig } from "../AvoidanceConfig.js";
 import { AvoidanceAssetIds } from "../AvoidanceAssetIds.js";

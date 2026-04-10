@@ -5,4 +5,3 @@ export interface IViewController<TView extends IView = IView> extends IInjection
   initialize(view: TView): void;
   destroy(): void;
 }
-

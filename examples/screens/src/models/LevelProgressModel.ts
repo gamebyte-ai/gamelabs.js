@@ -1,4 +1,4 @@
-import type { ILevelProgressScreenModel } from "gamelabsjs";
+import type { ILevelProgressScreenModel } from "@gamebyte/gamelabsjs";
 
 export class LevelProgressModel implements ILevelProgressScreenModel {
   readonly visibleItemCount = 5;

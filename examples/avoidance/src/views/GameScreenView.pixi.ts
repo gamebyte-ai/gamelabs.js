@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { ScreenView, OnScreenControlsView } from "gamelabsjs";
+import { ScreenView, OnScreenControlsView } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView";
 
 export class GameScreenView extends ScreenView implements IGameScreenView {

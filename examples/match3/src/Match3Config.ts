@@ -1,4 +1,4 @@
-import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "gamelabsjs";
+import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "@gamebyte/gamelabsjs";
 
 /**
  * Match-3 tuning, gem palette, and screen transition.

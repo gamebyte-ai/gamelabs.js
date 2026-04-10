@@ -1,4 +1,4 @@
-import type { IView } from "gamelabsjs";
+import type { IView } from "@gamebyte/gamelabsjs";
 
 export type Unsubscribe = () => void;
 

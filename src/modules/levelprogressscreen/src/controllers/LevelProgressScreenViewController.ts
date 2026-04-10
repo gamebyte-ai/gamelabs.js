@@ -3,7 +3,10 @@ import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js
 import type { IViewController } from "../../../../core/views/IViewController.js";
 import type { ILevelProgressScreenView } from "../views/ILevelProgressScreenView.js";
 import { LevelProgressScreenEvents } from "../events/LevelProgressScreenEvents.js";
-import { ILevelProgressScreenModel, type ILevelProgressScreenModel as LevelProgressScreenModel } from "../models/ILevelProgressScreenModel.js";
+import {
+  ILevelProgressScreenModel,
+  type ILevelProgressScreenModel as LevelProgressScreenModel,
+} from "../models/ILevelProgressScreenModel.js";
 
 /**
  * Level progress screen view controller.
@@ -34,4 +37,3 @@ export class LevelProgressScreenViewController implements IViewController<ILevel
     this.events = null;
   }
 }
-

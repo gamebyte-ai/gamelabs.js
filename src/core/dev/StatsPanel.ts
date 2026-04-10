@@ -32,8 +32,8 @@ export class StatsPanel implements IStatsPanel {
         fill: 0xffffff,
         fontFamily:
           'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-        fontSize: 12
-      })
+        fontSize: 12,
+      }),
     });
 
     text.x = 8;
@@ -89,4 +89,3 @@ export class StatsPanel implements IStatsPanel {
     this._bg.fill({ color: 0x000000, alpha: 0.45 });
   }
 }
-

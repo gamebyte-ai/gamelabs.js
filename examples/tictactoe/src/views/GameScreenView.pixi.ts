@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { ScreenView } from "gamelabsjs";
+import { ScreenView } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView";
 import { Team } from "../models/GameItem.js";
 

@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { PopupView, ButtonComponent, type Unsubscribe } from "gamelabsjs";
+import { PopupView, ButtonComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IGameOverPopupView } from "./IGameOverPopupView";
 
 export class GameOverPopupView extends PopupView implements IGameOverPopupView {

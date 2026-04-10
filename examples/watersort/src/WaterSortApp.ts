@@ -1,4 +1,4 @@
-import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList } from "gamelabsjs";
+import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";

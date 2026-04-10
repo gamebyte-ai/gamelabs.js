@@ -1,4 +1,4 @@
-# gamelabsjs
+# @gamebyte/gamelabsjs
 
 TypeScript skeleton + reusable modules for web games. Three.js (3D world) + PixiJS (2D HUD/UI) + GSAP (animations). Designed for AI-generated game projects with human review.
 

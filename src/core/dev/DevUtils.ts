@@ -3,15 +3,15 @@ import type { World } from "../world/World.js";
 import type { IStatsPanel } from "./IStatsPanel.js";
 import type { IGroundGrid } from "./IGroundGrid.js";
 import { GroundGrid } from "./GroundGrid.js";
-import { Logger } from "./Logger.js";
+import type { Logger } from "./Logger.js";
 import { LogPanel } from "./LogPanel.js";
 import { StatsPanel } from "./StatsPanel.js";
-import { ILogger } from "./ILogger.js";
-import { IDevUtils } from "./IDevUtils.js";
+import type { ILogger } from "./ILogger.js";
+import type { IDevUtils } from "./IDevUtils.js";
 
 export type { GroundGridOptions } from "./IGroundGrid.js";
 
-export class DevUtils implements IDevUtils{
+export class DevUtils implements IDevUtils {
   public readonly world: World;
   private readonly _hud: Hud;
   private readonly _logger: Logger;
@@ -62,4 +62,3 @@ export class DevUtils implements IDevUtils{
     this._logPanel.destroy();
   }
 }
-

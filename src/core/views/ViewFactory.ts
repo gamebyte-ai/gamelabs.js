@@ -3,14 +3,14 @@ import type { IViewController } from "./IViewController.js";
 import type { IViewFactory } from "./IViewFactory.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { DIContainer } from "../di/DIContainer.js";
-import { ILogger } from "../dev/ILogger.js";
+import type { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
 import type { IScreenView } from "../ui/IScreenView.js";
 import type { IPopupView } from "../ui/IPopupView.js";
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "../ui/ScreenTransition.js";
-import { UIEvents } from "../ui/UIEvents.js";
-import { IWorld } from "../world/IWorld.js";
-import { IHud } from "../hud/IHud.js";
+import type { UIEvents } from "../ui/UIEvents.js";
+import type { IWorld } from "../world/IWorld.js";
+import type { IHud } from "../hud/IHud.js";
 import { HudViewBase } from "../hud/HudViewBase.js";
 
 export type ViewCtor<TView extends IView> = new () => TView;
@@ -27,7 +27,10 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   private readonly _registry = new Map<ViewCtor<any>, ControllerCtor<any, any>>();
   private readonly _screenRegistry = new Map<string, { View: ViewCtor<any>; Controller: ControllerCtor<any, any> }>();
   private readonly _popupRegistry = new Map<string, { View: ViewCtor<any>; Controller: ControllerCtor<any, any> }>();
-  private readonly _defaultScreenTransition: ScreenTransition = { type: SCREEN_TRANSITION_TYPES.INSTANT, durationMs: 0 };
+  private readonly _defaultScreenTransition: ScreenTransition = {
+    type: SCREEN_TRANSITION_TYPES.INSTANT,
+    durationMs: 0,
+  };
   private _activeScreen: IScreenView | null = null;
   private readonly _popupStack: IPopupView[] = [];
   private _lastResize: { width: number; height: number; dpr: number } | null = null;
@@ -39,7 +42,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   constructor(
     public readonly logger: ILogger,
     public readonly diContainer: DIContainer,
-    public readonly viewDiContainer: TResolver
+    public readonly viewDiContainer: TResolver,
   ) {}
 
   public setUIEvents(uiEvents: UIEvents): void {
@@ -65,7 +68,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
 
   public register<TView extends IView, TController extends IViewController<TView>>(
     View: ViewCtor<TView>,
-    Controller: ControllerCtor<TView, TController>
+    Controller: ControllerCtor<TView, TController>,
   ): void {
     this._registry.set(View, Controller as ControllerCtor<any, any>);
   }
@@ -73,7 +76,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   public registerScreen<TView extends IScreenView, TController extends IViewController<TView>>(
     id: string,
     View: ViewCtor<TView>,
-    Controller: ControllerCtor<TView, TController>
+    Controller: ControllerCtor<TView, TController>,
   ): void {
     if (this._screenRegistry.has(id)) {
       const msg = `Screen already registered with id: ${id}`;
@@ -86,7 +89,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   public registerPopup<TView extends IPopupView, TController extends IViewController<TView>>(
     id: string,
     View: ViewCtor<TView>,
-    Controller: ControllerCtor<TView, TController>
+    Controller: ControllerCtor<TView, TController>,
   ): void {
     if (this._popupRegistry.has(id)) {
       const msg = `Popup already registered with id: ${id}`;
@@ -114,25 +117,30 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     return this.createWithController(View, Controller);
   }
 
-  public viewAdded(_view: IView): void {
-  }
+  public viewAdded(_view: IView): void {}
 
-  public viewRemoved(_view: IView): void {
-  }
+  public viewRemoved(_view: IView): void {}
 
-  private createWithController<TView extends IView>(View: ViewCtor<TView>, Controller: ControllerCtor<any, any>): TView {
+  private createWithController<TView extends IView>(
+    View: ViewCtor<TView>,
+    Controller: ControllerCtor<any, any>,
+  ): TView {
     const view = new View() as TView;
     const controller = new Controller();
 
-    view.setViewFactory(this, ()=>{
-      view.inject(this.viewDiContainer);
-      view.initialize();
-      view.postInitialize();
+    view.setViewFactory(
+      this,
+      () => {
+        view.inject(this.viewDiContainer);
+        view.initialize();
+        view.postInitialize();
 
-      view.setController(controller);
-      controller.inject(this.diContainer);
-      controller.initialize(view);
-    }, ()=>{});
+        view.setController(controller);
+        controller.inject(this.diContainer);
+        controller.initialize(view);
+      },
+      () => {},
+    );
     return view;
   }
 
@@ -192,7 +200,9 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     if (!popup) return;
     const view = popup as HudViewBase;
     if (popup.onClose) {
-      popup.onClose(() => { view.destroy(); });
+      popup.onClose(() => {
+        view.destroy();
+      });
     } else {
       view.destroy();
     }
@@ -203,11 +213,12 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
       const popup = this._popupStack.pop()!;
       const view = popup as HudViewBase;
       if (popup.onClose) {
-        popup.onClose(() => { view.destroy(); });
+        popup.onClose(() => {
+          view.destroy();
+        });
       } else {
         view.destroy();
       }
     }
   }
-
 }

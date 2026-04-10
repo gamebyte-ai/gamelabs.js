@@ -16,22 +16,62 @@ export class MainScreenBinding extends ModuleBinding {
   //  FIELDS
   private _backgroundPreset = '{"bgTextureId":"MainScreen.Background"}';
   private _playButtonPreset = '{"width":400,"height":200,"radius":14,"bgTextureId":"MainScreen.PlayButtonBg"}';
-  private _settingsButtonPreset = '{"width":400,"height":100,"label":"SETTINGS","labelStyle":{"fontSize":24,"fontWeight":"800","letterSpacing":1.5},"bgTextureId":"MainScreen.SettingsButtonBg"}';
+  private _settingsButtonPreset =
+    '{"width":400,"height":100,"label":"SETTINGS","labelStyle":{"fontSize":24,"fontWeight":"800","letterSpacing":1.5},"bgTextureId":"MainScreen.SettingsButtonBg"}';
   private _buttonsColPreset = '{"width":400,"gap":18}';
 
   //  CONSTRUCTORS
-  constructor(){
+  constructor() {
     super();
 
     const isSourceModule = import.meta.url.includes("/src/modules/mainscreen/src/");
-    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, MainScreenAssetIds.Background,       new URL(isSourceModule ? "../assets/background.jpg" :         "./assets/mainscreen/background.jpg",         import.meta.url).href));
-    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, MainScreenAssetIds.Logo,             new URL(isSourceModule ? "../assets/logo.png" :               "./assets/mainscreen/logo.png",               import.meta.url).href));
-    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, MainScreenAssetIds.PlayButtonBg,     new URL(isSourceModule ? "../assets/play_button_bg.png" :     "./assets/mainscreen/play_button_bg.png",     import.meta.url).href));
-    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, MainScreenAssetIds.SettingsButtonBg, new URL(isSourceModule ? "../assets/settings_button_bg.png" : "./assets/mainscreen/settings_button_bg.png", import.meta.url).href));
-    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.Text, MainScreenAssetIds.BackgroundPreset,     "", this._backgroundPreset));
-    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.Text, MainScreenAssetIds.PlayButtonPreset,     "", this._playButtonPreset));
-    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.Text, MainScreenAssetIds.SettingsButtonPreset, "", this._settingsButtonPreset));
-    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.Text, MainScreenAssetIds.ButtonsColPreset,     "", this._buttonsColPreset));
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        MainScreenAssetIds.Background,
+        new URL(isSourceModule ? "../assets/background.jpg" : "./assets/mainscreen/background.jpg", import.meta.url)
+          .href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        MainScreenAssetIds.Logo,
+        new URL(isSourceModule ? "../assets/logo.png" : "./assets/mainscreen/logo.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        MainScreenAssetIds.PlayButtonBg,
+        new URL(
+          isSourceModule ? "../assets/play_button_bg.png" : "./assets/mainscreen/play_button_bg.png",
+          import.meta.url,
+        ).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        MainScreenAssetIds.SettingsButtonBg,
+        new URL(
+          isSourceModule ? "../assets/settings_button_bg.png" : "./assets/mainscreen/settings_button_bg.png",
+          import.meta.url,
+        ).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.Text, MainScreenAssetIds.BackgroundPreset, "", this._backgroundPreset),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.Text, MainScreenAssetIds.PlayButtonPreset, "", this._playButtonPreset),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.Text, MainScreenAssetIds.SettingsButtonPreset, "", this._settingsButtonPreset),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.Text, MainScreenAssetIds.ButtonsColPreset, "", this._buttonsColPreset),
+    );
   }
 
   //  METHODS
@@ -42,6 +82,4 @@ export class MainScreenBinding extends ModuleBinding {
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
     viewFactory.registerScreen(MainScreenUIIds.MainScreen, MainScreenView, MainScreenViewController);
   }
-
 }
-

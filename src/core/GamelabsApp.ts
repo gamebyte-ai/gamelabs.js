@@ -9,7 +9,7 @@ import { UpdateManager } from "./utilities/UpdateManager.js";
 import { StorageService } from "./services/StorageService.js";
 import { Hud } from "./hud/Hud.js";
 import { AssetManager } from "./assets/AssetManager.js";
-import { ModuleBinding } from "./ModuleBinding.js";
+import type { ModuleBinding } from "./ModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";
 import { LogTypes } from "./dev/LogTypes.js";
 import { IDevUtils } from "./dev/IDevUtils.js";
@@ -63,12 +63,10 @@ export class GamelabsApp {
     const dpr = typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1;
 
     const measureEl = this.mount ?? this.canvas;
-    const rect =
-      typeof measureEl.getBoundingClientRect === "function" ? measureEl.getBoundingClientRect() : null;
+    const rect = typeof measureEl.getBoundingClientRect === "function" ? measureEl.getBoundingClientRect() : null;
 
     const measuredWidth = rect?.width ?? measureEl.clientWidth ?? this.canvas.clientWidth ?? this.canvas.width;
-    const measuredHeight =
-      rect?.height ?? measureEl.clientHeight ?? this.canvas.clientHeight ?? this.canvas.height;
+    const measuredHeight = rect?.height ?? measureEl.clientHeight ?? this.canvas.clientHeight ?? this.canvas.height;
 
     // Important: do NOT use the last known size as an override here.
     // Otherwise the resize handler will stop tracking DOM size changes and canvases will be CSS-scaled (stretched).
@@ -88,9 +86,8 @@ export class GamelabsApp {
     this._viewFactory?.resize(width, height, dpr);
   };
 
-
   //  GETTERS
-    protected get logger(): ILogger {
+  protected get logger(): ILogger {
     return this._logger;
   }
 
@@ -126,7 +123,6 @@ export class GamelabsApp {
     return this._audioService;
   }
 
-
   //  CONSTRUCTOR
   constructor(config: GamelabsAppConfig) {
     this.canvas = config.canvas ?? document.createElement("canvas");
@@ -158,7 +154,6 @@ export class GamelabsApp {
     this.diContainer.bindInstance(ILogger, this._logger, [Logger]);
     this.viewDiContainer.bindInstance(ILogger, this._logger, [Logger]);
   }
-  
 
   //  METHODS
   public async initialize(): Promise<void> {
@@ -225,7 +220,11 @@ export class GamelabsApp {
       this._logger.log("Missing mount element", LogTypes.Error);
       throw new Error("Missing mount element");
     }
-    this.world = await World.create(this.canvas, { mount: this.mount, canvasClassName: "layer world3d", logger: this._logger });
+    this.world = await World.create(this.canvas, {
+      mount: this.mount,
+      canvasClassName: "layer world3d",
+      logger: this._logger,
+    });
   }
 
   private async createHud(): Promise<void> {
@@ -246,7 +245,7 @@ export class GamelabsApp {
         canvas: this.canvas,
         context: this.world.renderer.getContext() as WebGL2RenderingContext,
         manualRender: true,
-        logger: this._logger
+        logger: this._logger,
       });
       return;
     }
@@ -259,22 +258,16 @@ export class GamelabsApp {
     this._moduleList.push(moduleBinding);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected registerModules(): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected postInitialize(): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected configureDI(): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected configureViews(): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected loadAssets(): void {}
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   protected preDestroy(): void {}
 
   /**
@@ -288,14 +281,14 @@ export class GamelabsApp {
   /**
    * Called when the viewport is resized. Override to forward resize to custom managers (e.g. GameCameraManager).
    */
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+
   protected onResize(_width: number, _height: number, _dpr: number): void {}
 
   /**
    * Optional per-frame hook for app-specific logic.
    * Intended to be overridden by child classes.
    */
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+
   protected onStep(_timestepSeconds: number): void {}
 
   /**
@@ -381,4 +374,3 @@ export class GamelabsApp {
     this.canvas.remove();
   }
 }
-

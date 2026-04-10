@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { HudViewBase, ButtonComponent, HorizontalLayoutComponent } from "gamelabsjs";
+import { HudViewBase, ButtonComponent, HorizontalLayoutComponent } from "@gamebyte/gamelabsjs";
 import type { IDebugBarView, Unsubscribe } from "./IDebugBarView";
 
 export class DebugBarView extends HudViewBase implements IDebugBarView {

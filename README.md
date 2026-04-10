@@ -26,7 +26,7 @@ Peer dependencies: `three`, `pixi.js`, `@pixi/layout`, `@pixi/ui`
 ## Quick start
 
 ```ts
-import { GamelabsApp } from "gamelabsjs";
+import { GamelabsApp } from "@gamebyte/gamelabsjs";
 
 class MyApp extends GamelabsApp {
   constructor(stageEl: HTMLElement) {

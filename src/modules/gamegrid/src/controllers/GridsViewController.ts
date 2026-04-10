@@ -30,7 +30,7 @@ export class GridsViewController implements IViewController<IGridView> {
         rowCount: grid.rowCount,
         position: grid.position,
         rotation: grid.rotation,
-        preset: grid.preset
+        preset: grid.preset,
       });
       for (let col = 0; col < grid.columnCount; col++) {
         for (let row = 0; row < grid.rowCount; row++) {
@@ -39,33 +39,42 @@ export class GridsViewController implements IViewController<IGridView> {
         }
       }
     }
-    this._subs.add(this._events!.onGridAdded((grid) => {
-      this._view?.addGrid({
-        id: grid.gridId,
-        columnCount: grid.columnCount,
-        rowCount: grid.rowCount,
-        position: grid.position,
-        rotation: grid.rotation,
-        preset: grid.preset
-      });
-      for (let col = 0; col < grid.columnCount; col++) {
-        for (let row = 0; row < grid.rowCount; row++) {
-          const cell = grid.getCell(col, row);
-          if (cell?.item) this._view?.createItem(this.createItemObjectOption(cell.item, grid), grid.gridId, col, row);
+    this._subs.add(
+      this._events!.onGridAdded((grid) => {
+        this._view?.addGrid({
+          id: grid.gridId,
+          columnCount: grid.columnCount,
+          rowCount: grid.rowCount,
+          position: grid.position,
+          rotation: grid.rotation,
+          preset: grid.preset,
+        });
+        for (let col = 0; col < grid.columnCount; col++) {
+          for (let row = 0; row < grid.rowCount; row++) {
+            const cell = grid.getCell(col, row);
+            if (cell?.item) this._view?.createItem(this.createItemObjectOption(cell.item, grid), grid.gridId, col, row);
+          }
         }
-      }
-    }));
+      }),
+    );
     this._subs.add(this._events!.onGridRemoved((grid) => this._view?.removeGrid(grid.gridId)));
-    this._subs.add(this._events!.onPositionChanged((grid, position) => this._view?.updateGridPosition(grid.gridId, position)));
-    this._subs.add(this._events!.onRotationChanged((grid, rotation) => this._view?.updateGridRotation(grid.gridId, rotation)));
-    this._subs.add(this._events!.onItemChanged((cell, oldItem, newItem) => {
-      if (oldItem && !newItem) this._view?.destroyItem(oldItem.itemId, cell.grid.gridId, cell.col, cell.row);
-      else if (!oldItem && newItem) this._view?.createItem(this.createItemObjectOption(newItem, cell.grid), cell.grid.gridId, cell.col, cell.row);
-      else if (oldItem && newItem) {
-        this._view?.destroyItem(oldItem.itemId, cell.grid.gridId, cell.col, cell.row);
-        this._view?.createItem(this.createItemObjectOption(newItem, cell.grid), cell.grid.gridId, cell.col, cell.row);
-      }
-    }));
+    this._subs.add(
+      this._events!.onPositionChanged((grid, position) => this._view?.updateGridPosition(grid.gridId, position)),
+    );
+    this._subs.add(
+      this._events!.onRotationChanged((grid, rotation) => this._view?.updateGridRotation(grid.gridId, rotation)),
+    );
+    this._subs.add(
+      this._events!.onItemChanged((cell, oldItem, newItem) => {
+        if (oldItem && !newItem) this._view?.destroyItem(oldItem.itemId, cell.grid.gridId, cell.col, cell.row);
+        else if (!oldItem && newItem)
+          this._view?.createItem(this.createItemObjectOption(newItem, cell.grid), cell.grid.gridId, cell.col, cell.row);
+        else if (oldItem && newItem) {
+          this._view?.destroyItem(oldItem.itemId, cell.grid.gridId, cell.col, cell.row);
+          this._view?.createItem(this.createItemObjectOption(newItem, cell.grid), cell.grid.gridId, cell.col, cell.row);
+        }
+      }),
+    );
   }
 
   protected createItemObjectOption(item: GridItem, grid: Grid): GridItemObjectOptions {

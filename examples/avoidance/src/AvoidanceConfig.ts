@@ -1,4 +1,4 @@
-import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "gamelabsjs";
+import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "@gamebyte/gamelabsjs";
 
 export class AvoidanceConfig {
   // Game area

@@ -1,7 +1,7 @@
-import { GamelabsApp, MainScreenAssetIds, UnsubscribeBag, UIEvents, UIUtils } from "gamelabsjs";
+import { GamelabsApp, MainScreenAssetIds, UnsubscribeBag, UIEvents, UIUtils } from "@gamebyte/gamelabsjs";
 
-import { MainScreenBinding, MainScreenEvents, MainScreenUIIds } from "gamelabsjs";
-import { LevelProgressScreenBinding, LevelProgressScreenEvents, LevelProgressScreenUIIds } from "gamelabsjs";
+import { MainScreenBinding, MainScreenEvents, MainScreenUIIds } from "@gamebyte/gamelabsjs";
+import { LevelProgressScreenBinding, LevelProgressScreenEvents, LevelProgressScreenUIIds } from "@gamebyte/gamelabsjs";
 import { LevelProgressModel } from "./models/LevelProgressModel";
 import { ScreensConfig } from "./ScreensConfig";
 

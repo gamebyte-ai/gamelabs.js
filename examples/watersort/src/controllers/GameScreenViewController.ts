@@ -1,4 +1,4 @@
-import { UnsubscribeBag, UIEvents, type IInstanceResolver, type IViewController } from "gamelabsjs";
+import { UnsubscribeBag, UIEvents, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "../views/IGameScreenView";
 import { WaterSortConfig } from "../WaterSortConfig.js";
 import { WaterSortUIIds } from "../WaterSortUIIds.js";

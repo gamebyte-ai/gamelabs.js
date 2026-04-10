@@ -10,4 +10,3 @@ export interface IInstanceResolver {
   getInstance<T>(token: Ctor<T>): T;
   getInstance<T>(token: Token<T>): T;
 }
-

@@ -1,4 +1,4 @@
-import { GridItem } from "gamelabsjs";
+import { GridItem } from "@gamebyte/gamelabsjs";
 
 /**
  * Per-board item model for Match-3: unique `itemId` (gamegrid) + `gemType` for match/color logic.

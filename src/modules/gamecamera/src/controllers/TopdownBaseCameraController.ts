@@ -1,6 +1,6 @@
-import * as THREE from "three";
+import type * as THREE from "three";
 import type { GameCameraManager } from "../GameCameraManager.js";
-import { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraMode } from "../GameCameraMode.js";
 import { BaseCameraController } from "./BaseCameraController.js";
 
 const TOPDOWN_OFFSET = 10;

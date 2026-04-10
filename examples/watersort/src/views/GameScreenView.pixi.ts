@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import gsap from "gsap";
-import { ScreenView, ButtonComponent, type Unsubscribe } from "gamelabsjs";
+import { ScreenView, ButtonComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView";
 import type { Bottle } from "../models/Bottle.js";
 import { WaterSortConfig } from "../WaterSortConfig.js";
