@@ -27,22 +27,35 @@ export class SettingsPopupViewController implements IViewController<ISettingsPop
         view.addBooleanField(field.name, field.label, this._manager!.getBooleanValue(field.name));
       } else if (field.type === SettingsFieldType.Number) {
         const nf = field as SettingsNumberField;
-        view.addNumberField(field.name, field.label, this._manager!.getNumberValue(field.name), nf.min, nf.max, nf.step);
+        view.addNumberField(
+          field.name,
+          field.label,
+          this._manager!.getNumberValue(field.name),
+          nf.min,
+          nf.max,
+          nf.step,
+        );
       }
     }
 
     // View → Manager
-    this._subs.add(view.onBooleanChanged((name, value) => {
-      this._manager?.setBooleanValue(name, value);
-    }));
+    this._subs.add(
+      view.onBooleanChanged((name, value) => {
+        this._manager?.setBooleanValue(name, value);
+      }),
+    );
 
-    this._subs.add(view.onNumberChanged((name, value) => {
-      this._manager?.setNumberValue(name, value);
-    }));
+    this._subs.add(
+      view.onNumberChanged((name, value) => {
+        this._manager?.setNumberValue(name, value);
+      }),
+    );
 
-    this._subs.add(view.onCloseTapped(() => {
-      this._uiEvents?.removeTopPopup();
-    }));
+    this._subs.add(
+      view.onCloseTapped(() => {
+        this._uiEvents?.removeTopPopup();
+      }),
+    );
   }
 
   public destroy(): void {

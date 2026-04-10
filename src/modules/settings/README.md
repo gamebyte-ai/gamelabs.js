@@ -9,7 +9,7 @@ Typed game settings with boolean toggles and number sliders. Values are persiste
 ```ts
 import { SettingsBinding, SettingsBooleanField, SettingsNumberField } from "gamelabsjs";
 
-const settings = new SettingsBinding("MyGame");  // prefix for localStorage keys
+const settings = new SettingsBinding("MyGame"); // prefix for localStorage keys
 settings.addField(new SettingsBooleanField("music", "Music", true));
 settings.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
 settings.addField(new SettingsNumberField("volume", "Volume", 80, 0, 100, 5));
@@ -56,7 +56,7 @@ manager.resetToDefaults();
 ### SettingsBooleanField
 
 ```ts
-new SettingsBooleanField(name, label, defaultValue)
+new SettingsBooleanField(name, label, defaultValue);
 ```
 
 - `name` — unique key (used for storage and events)
@@ -66,7 +66,7 @@ new SettingsBooleanField(name, label, defaultValue)
 ### SettingsNumberField
 
 ```ts
-new SettingsNumberField(name, label, defaultValue, min, max, step)
+new SettingsNumberField(name, label, defaultValue, min, max, step);
 ```
 
 - `name`, `label`, `defaultValue` — same as boolean
@@ -75,20 +75,21 @@ new SettingsNumberField(name, label, defaultValue, min, max, step)
 
 ## SettingsManager API
 
-| Method | Description |
-|--------|-------------|
-| `addField(field)` | Register a field (loads persisted value or uses default) |
-| `getFields()` | Iterate all registered fields |
-| `getField(name)` | Get a field definition by name |
-| `getBooleanValue(name)` | Get current boolean value |
-| `getNumberValue(name)` | Get current number value |
-| `setBooleanValue(name, value)` | Set, validate, persist, emit event |
-| `setNumberValue(name, value)` | Clamp, step-round, persist, emit event |
-| `resetToDefaults()` | Reset all fields to default values |
+| Method                         | Description                                              |
+| ------------------------------ | -------------------------------------------------------- |
+| `addField(field)`              | Register a field (loads persisted value or uses default) |
+| `getFields()`                  | Iterate all registered fields                            |
+| `getField(name)`               | Get a field definition by name                           |
+| `getBooleanValue(name)`        | Get current boolean value                                |
+| `getNumberValue(name)`         | Get current number value                                 |
+| `setBooleanValue(name, value)` | Set, validate, persist, emit event                       |
+| `setNumberValue(name, value)`  | Clamp, step-round, persist, emit event                   |
+| `resetToDefaults()`            | Reset all fields to default values                       |
 
 ## Persistence
 
 Values are stored in `localStorage` with the prefix passed to `SettingsBinding`. For example, with prefix `"MyGame"`:
+
 - `music` → stored as `"MyGame.music"`
 - `volume` → stored as `"MyGame.volume"`
 
@@ -97,6 +98,7 @@ On load, if a persisted value exists and is valid for the field type, it's used.
 ## Popup
 
 `SettingsPopupView` renders:
+
 - **Boolean fields** as toggle switches (green on / grey off)
 - **Number fields** as horizontal sliders with a value label
 - A **Close** button

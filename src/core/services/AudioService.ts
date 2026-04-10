@@ -171,7 +171,7 @@ export class AudioService {
       this._musicGain!.gain.setValueAtTime(0, this._ctx.currentTime);
       this._musicGain!.gain.linearRampToValueAtTime(
         this._getEffectiveMusicVolume(),
-        this._ctx.currentTime + opts.fadeInMs / 1000
+        this._ctx.currentTime + opts.fadeInMs / 1000,
       );
     }
 
@@ -187,7 +187,11 @@ export class AudioService {
       const source = this._musicSource;
       this._musicGain!.gain.linearRampToValueAtTime(0, this._ctx.currentTime + opts.fadeOutMs / 1000);
       setTimeout(() => {
-        try { source.stop(); } catch { /* already stopped */ }
+        try {
+          source.stop();
+        } catch {
+          /* already stopped */
+        }
       }, opts.fadeOutMs);
       this._musicSource = null;
       this._musicAssetId = null;
@@ -198,7 +202,11 @@ export class AudioService {
 
   private _stopMusicImmediate(): void {
     if (this._musicSource) {
-      try { this._musicSource.stop(); } catch { /* already stopped */ }
+      try {
+        this._musicSource.stop();
+      } catch {
+        /* already stopped */
+      }
       this._musicSource = null;
       this._musicAssetId = null;
     }
@@ -221,9 +229,15 @@ export class AudioService {
     this._applyVolumes();
   }
 
-  public getMasterVolume(): number { return this._masterVolume; }
-  public getSfxVolume(): number { return this._sfxVolume; }
-  public getMusicVolume(): number { return this._musicVolume; }
+  public getMasterVolume(): number {
+    return this._masterVolume;
+  }
+  public getSfxVolume(): number {
+    return this._sfxVolume;
+  }
+  public getMusicVolume(): number {
+    return this._musicVolume;
+  }
 
   // ── Mute ──
 
@@ -242,9 +256,15 @@ export class AudioService {
     this._applyVolumes();
   }
 
-  public isMasterMuted(): boolean { return this._masterMuted; }
-  public isSfxMuted(): boolean { return this._sfxMuted; }
-  public isMusicMuted(): boolean { return this._musicMuted; }
+  public isMasterMuted(): boolean {
+    return this._masterMuted;
+  }
+  public isSfxMuted(): boolean {
+    return this._sfxMuted;
+  }
+  public isMusicMuted(): boolean {
+    return this._musicMuted;
+  }
 
   // ── Lifecycle ──
 

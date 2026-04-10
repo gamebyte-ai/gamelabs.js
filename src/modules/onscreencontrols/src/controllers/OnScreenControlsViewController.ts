@@ -22,24 +22,32 @@ export class OnScreenControlsViewController implements IViewController<IOnScreen
     }
 
     // Listen for dynamic control changes
-    this._subs.add(this._manager!.events.onControlAdded((config) => {
-      this._view?.createControl(config);
-    }));
+    this._subs.add(
+      this._manager!.events.onControlAdded((config) => {
+        this._view?.createControl(config);
+      }),
+    );
 
-    this._subs.add(this._manager!.events.onControlRemoved((id) => {
-      this._view?.removeControl(id);
-    }));
+    this._subs.add(
+      this._manager!.events.onControlRemoved((id) => {
+        this._view?.removeControl(id);
+      }),
+    );
 
     // Bridge view events to manager
-    this._subs.add(view.onButtonStateChanged((id, isDown) => {
-      if (isDown) this._manager?.setButtonDown(id);
-      else this._manager?.setButtonUp(id);
-    }));
+    this._subs.add(
+      view.onButtonStateChanged((id, isDown) => {
+        if (isDown) this._manager?.setButtonDown(id);
+        else this._manager?.setButtonUp(id);
+      }),
+    );
 
-    this._subs.add(view.onJoystickDirectionChanged((id, nx, ny) => {
-      if (nx === 0 && ny === 0) this._manager?.resetJoystick(id);
-      else this._manager?.setJoystickDirection(id, nx, ny);
-    }));
+    this._subs.add(
+      view.onJoystickDirectionChanged((id, nx, ny) => {
+        if (nx === 0 && ny === 0) this._manager?.resetJoystick(id);
+        else this._manager?.setJoystickDirection(id, nx, ny);
+      }),
+    );
   }
 
   public destroy(): void {

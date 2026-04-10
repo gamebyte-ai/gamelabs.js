@@ -63,7 +63,12 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     // Title
     const title = new PIXI.Text({
       text: "Settings",
-      style: { fill: 0x2d3748, fontSize: 22, fontWeight: "800", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }
+      style: {
+        fill: 0x2d3748,
+        fontSize: 22,
+        fontWeight: "800",
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      },
     });
     title.anchor.set(0.5, 0.5);
     (title as any).layout = {};
@@ -81,7 +86,8 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
 
     // Close button
     this._closeBtn = new ButtonComponent({
-      width: 120, height: 38,
+      width: 120,
+      height: 38,
       label: "Close",
       labelStyle: { fontSize: 14, fontWeight: "600", fill: 0x4a5568 },
       radius: 19,
@@ -113,7 +119,12 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
 
     const labelText = new PIXI.Text({
       text: label,
-      style: { fill: 0x4a5568, fontSize: 14, fontWeight: "600", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }
+      style: {
+        fill: 0x4a5568,
+        fontSize: 14,
+        fontWeight: "600",
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      },
     });
     labelText.position.set(0, SettingsPopupView.ROW_HEIGHT / 2);
     labelText.anchor.set(0, 0.5);
@@ -122,7 +133,10 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     const toggle = new PIXI.Graphics();
     toggle.eventMode = "static";
     (toggle as any).cursor = "pointer";
-    toggle.position.set(W - SettingsPopupView.TOGGLE_WIDTH, (SettingsPopupView.ROW_HEIGHT - SettingsPopupView.TOGGLE_HEIGHT) / 2);
+    toggle.position.set(
+      W - SettingsPopupView.TOGGLE_WIDTH,
+      (SettingsPopupView.ROW_HEIGHT - SettingsPopupView.TOGGLE_HEIGHT) / 2,
+    );
     row.addChild(toggle);
 
     const boolRow: BooleanRow = { name, container: row, toggle, value };
@@ -145,7 +159,12 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
 
     const labelText = new PIXI.Text({
       text: label,
-      style: { fill: 0x4a5568, fontSize: 14, fontWeight: "600", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }
+      style: {
+        fill: 0x4a5568,
+        fontSize: 14,
+        fontWeight: "600",
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      },
     });
     labelText.position.set(0, SettingsPopupView.ROW_HEIGHT / 2);
     labelText.anchor.set(0, 0.5);
@@ -153,7 +172,12 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
 
     const valueText = new PIXI.Text({
       text: this._formatNumber(value, step),
-      style: { fill: 0x718096, fontSize: 13, fontWeight: "600", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }
+      style: {
+        fill: 0x718096,
+        fontSize: 13,
+        fontWeight: "600",
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      },
     });
     valueText.anchor.set(1, 0.5);
     valueText.position.set(W, SettingsPopupView.ROW_HEIGHT / 2);
@@ -191,11 +215,22 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
       for (const cb of this._numberChangedListeners) cb(name, clamped);
     };
 
-    track.on("pointerdown", (e: PIXI.FederatedPointerEvent) => { dragging = true; updateFromX(e.global.x); });
-    thumb.on("pointerdown", () => { dragging = true; });
-    row.on("globalpointermove", (e: PIXI.FederatedPointerEvent) => { if (dragging) updateFromX(e.global.x); });
-    row.on("pointerup", () => { dragging = false; });
-    row.on("pointerupoutside", () => { dragging = false; });
+    track.on("pointerdown", (e: PIXI.FederatedPointerEvent) => {
+      dragging = true;
+      updateFromX(e.global.x);
+    });
+    thumb.on("pointerdown", () => {
+      dragging = true;
+    });
+    row.on("globalpointermove", (e: PIXI.FederatedPointerEvent) => {
+      if (dragging) updateFromX(e.global.x);
+    });
+    row.on("pointerup", () => {
+      dragging = false;
+    });
+    row.on("pointerupoutside", () => {
+      dragging = false;
+    });
     row.eventMode = "static";
 
     this._rowsContainer!.addChild(row);

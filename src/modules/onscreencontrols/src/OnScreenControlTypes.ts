@@ -2,22 +2,22 @@
  * Screen anchor point for positioning controls.
  */
 export enum ControlAnchor {
-  TopLeft       = "top-left",
-  TopCenter     = "top-center",
-  TopRight      = "top-right",
-  CenterLeft    = "center-left",
-  Center        = "center",
-  CenterRight   = "center-right",
-  BottomLeft    = "bottom-left",
-  BottomCenter  = "bottom-center",
-  BottomRight   = "bottom-right",
+  TopLeft = "top-left",
+  TopCenter = "top-center",
+  TopRight = "top-right",
+  CenterLeft = "center-left",
+  Center = "center",
+  CenterRight = "center-right",
+  BottomLeft = "bottom-left",
+  BottomCenter = "bottom-center",
+  BottomRight = "bottom-right",
 }
 
 /**
  * Control type discriminator.
  */
 export enum ControlType {
-  Button   = "button",
+  Button = "button",
   Joystick = "joystick",
 }
 
@@ -78,7 +78,7 @@ export function resolveAnchorPosition(
   offsetX: number,
   offsetY: number,
   screenWidth: number,
-  screenHeight: number
+  screenHeight: number,
 ): { x: number; y: number } {
   let x: number;
   let y: number;

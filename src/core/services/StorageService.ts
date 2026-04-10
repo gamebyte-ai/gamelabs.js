@@ -13,7 +13,9 @@ export class StorageService {
   public save<T>(key: string, value: T): void {
     try {
       localStorage.setItem(this._prefix + key, JSON.stringify(value));
-    } catch { /* quota exceeded or unavailable — silently ignore */ }
+    } catch {
+      /* quota exceeded or unavailable — silently ignore */
+    }
   }
 
   /** Load a value. Returns null if the key doesn't exist or parsing fails. */

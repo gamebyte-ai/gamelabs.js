@@ -11,12 +11,11 @@ import type { KeyboardListener } from "./KeyboardListener.js";
  * Multiple keys can map to the same action. Unsubscribe to remove individual bindings.
  */
 export class InputMapper {
-  private readonly _deviceListeners = new Map<string,IInputDeviceListener>();
+  private readonly _deviceListeners = new Map<string, IInputDeviceListener>();
   private readonly _buttonActions = new Map<string, (isPressed: boolean) => void>();
   private readonly _directionActions = new Map<string, (x: number, y: number) => void>();
 
-  constructor() {
-  }
+  constructor() {}
 
   public addDeviceListener(listener: IInputDeviceListener): void {
     this._deviceListeners.set(listener.deviceId, listener);
@@ -33,8 +32,7 @@ export class InputMapper {
   }
 
   /** Bind a keyboard key to a named button action. Returns an unsubscribe function. */
-  public mapKeyToAction(deviceId:string, code: string, actionName: string): Unsubscribe {
-
+  public mapKeyToAction(deviceId: string, code: string, actionName: string): Unsubscribe {
     const listener = this._deviceListeners.get(deviceId);
     if (!listener) throw new Error(`Device listener not found: ${deviceId}`);
 
@@ -50,12 +48,12 @@ export class InputMapper {
    * Emits on every key change. Returns an unsubscribe function.
    */
   public mapKeysToDirection(
-    deviceId:string,
+    deviceId: string,
     upCode: string,
     downCode: string,
     leftCode: string,
     rightCode: string,
-    actionName: string
+    actionName: string,
   ): Unsubscribe {
     const listener = this._deviceListeners.get(deviceId);
     if (!listener) throw new Error(`Device listener not found: ${deviceId}`);
@@ -75,6 +73,8 @@ export class InputMapper {
       listener.addKeyHandler(rightCode, emit),
     ];
 
-    return () => { for (const u of unsubs) u(); };
+    return () => {
+      for (const u of unsubs) u();
+    };
   }
 }
