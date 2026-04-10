@@ -80,8 +80,8 @@ export function resolveAnchorPosition(
   screenWidth: number,
   screenHeight: number
 ): { x: number; y: number } {
-  let x = 0;
-  let y = 0;
+  let x: number;
+  let y: number;
 
   const a = anchor as string;
   if (a.includes("left")) x = offsetX;
