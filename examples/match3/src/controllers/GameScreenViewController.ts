@@ -9,6 +9,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   private _uiEvents: UIEvents | null = null;
   private _audioService: AudioService | null = null;
   private _settingsManager: SettingsManager | null = null;
+  private _settingsEvents: SettingsEvents | null = null;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
@@ -16,6 +17,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._uiEvents = resolver.getInstance(UIEvents);
     this._audioService = resolver.getInstance(AudioService);
     this._settingsManager = resolver.getInstance(SettingsManager);
+    this._settingsEvents = resolver.getInstance(SettingsEvents);
   }
 
   public initialize(view: IGameScreenView): void {
@@ -35,12 +37,9 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     }));
 
     // React to settings changes
-    const settingsEvents = this._settingsManager?.events;
-    if (settingsEvents) {
-      this._subs.add(settingsEvents.onValueChanged((name) => {
-        this._applyAudioSetting(name);
-      }));
-    }
+    this._subs.add(this._settingsEvents?.onValueChanged((name: string) => {
+      this._applyAudioSetting(name);
+    }));
 
     // Apply initial audio settings
     this._applyAllAudioSettings();
@@ -85,5 +84,6 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._uiEvents = null;
     this._audioService = null;
     this._settingsManager = null;
+    this._settingsEvents = null;
   }
 }
