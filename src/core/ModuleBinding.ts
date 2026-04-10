@@ -14,7 +14,7 @@ export class ModuleBinding {
 
   //  METHODS
 
-  public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {}
+  public configureDI(_diContainer: DIContainer, _viewDiContainer: DIContainer): void {}
 
-  public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {}
+  public configureViews(_viewFactory: ViewFactory<IInstanceResolver>): void {}
 }

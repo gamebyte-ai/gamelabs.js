@@ -80,17 +80,17 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
     return this._gridObjects.get(gridId);
   }
 
-  public onGridPointerDown(gridId: number, event: PointerEvent): void {}
+  public onGridPointerDown(_gridId: number, _event: PointerEvent): void {}
 
-  public onGridPointerUp(gridId: number, event: PointerEvent): void {}
+  public onGridPointerUp(_gridId: number, _event: PointerEvent): void {}
 
-  public onGridCellPointerDown(gridId: number, col: number, row: number, event: PointerEvent): void {}
+  public onGridCellPointerDown(_gridId: number, _col: number, _row: number, _event: PointerEvent): void {}
 
-  public onGridCellPointerUp(gridId: number, col: number, row: number, event: PointerEvent): void {}
+  public onGridCellPointerUp(_gridId: number, _col: number, _row: number, _event: PointerEvent): void {}
 
-  public onGridItemPointerDown(itemId: number, event: PointerEvent): void {}
+  public onGridItemPointerDown(_itemId: number, _event: PointerEvent): void {}
 
-  public onGridItemPointerUp(itemId: number, event: PointerEvent): void {}
+  public onGridItemPointerUp(_itemId: number, _event: PointerEvent): void {}
 
   public preDestroy(): void {
     this._gridObjects.clear();

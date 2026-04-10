@@ -76,7 +76,7 @@ export class LevelProgressScreenBinding extends ModuleBinding {
     );
   }
 
-  public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {
+  public configureDI(diContainer: DIContainer, _viewDiContainer: DIContainer): void {
     diContainer.bindInstance(LevelProgressScreenEvents, new LevelProgressScreenEvents());
     if (this.model) diContainer.bindInstance(ILevelProgressScreenModel, this.model);
   }

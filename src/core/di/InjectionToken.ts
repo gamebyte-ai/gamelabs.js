@@ -10,7 +10,10 @@ export type Ctor<T> = abstract new (...args: any[]) => T;
  * export const IFoo = new InjectionToken<IFoo>("IFoo");
  * ```
  */
-export class InjectionToken<T> {
+// `_T` is a phantom type parameter — it associates the token with its target
+// type at the type level but never appears in the runtime body. The leading
+// underscore marks it as intentionally unused (matches eslint varsIgnorePattern).
+export class InjectionToken<_T> {
   constructor(readonly description: string) {}
 }
 

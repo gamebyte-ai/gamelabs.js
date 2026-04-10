@@ -22,7 +22,6 @@ export class GridsViewController implements IViewController<IGridView> {
   public initialize(view: IGridView): void {
     this._view = view;
     const model = this._model!;
-    const events = this._events!;
     for (const grid of model.getGrids().values()) {
       view.addGrid({
         id: grid.gridId,

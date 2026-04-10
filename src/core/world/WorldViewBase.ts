@@ -65,12 +65,12 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
     this.addEventListener("removed", this.onRemovedForManager);
   }
 
-  private onAddedForManager(event: object): void {
+  private onAddedForManager(_event: object): void {
     this._addedForFactory?.();
     this._viewFactory?.viewAdded(this);
   }
 
-  private onRemovedForManager(event: object): void {
+  private onRemovedForManager(_event: object): void {
     if (this._viewFactory) {
       this._removedForFactory?.();
       this._viewFactory?.viewRemoved(this);

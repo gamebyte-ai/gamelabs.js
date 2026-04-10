@@ -6,7 +6,6 @@ import type { GridItemObject } from "./GridItemObject.js";
 import { WorldInteractiveObject } from "../../../../core/world/WorldInteractiveObject.js";
 import type { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../core/input/IInputManager.js";
-import type { IPointerInputHandler } from "../../../../core/input/IPointerInputHandler.js";
 
 export class GridCellObjectOptions {
   public readonly gridId: number;

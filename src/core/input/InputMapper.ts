@@ -1,6 +1,5 @@
 import type { Unsubscribe } from "../events/subscriptions.js";
 import type { IInputDeviceListener } from "./IInputDeviceListener.js";
-import type { KeyboardListener } from "./KeyboardListener.js";
 
 /**
  * Maps input sources (keyboard, etc.) to named actions.

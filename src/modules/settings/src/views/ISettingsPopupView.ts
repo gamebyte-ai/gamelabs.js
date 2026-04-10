@@ -1,6 +1,5 @@
 import type { IPopupView } from "../../../../core/ui/IPopupView.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import type { SettingsField } from "../SettingsField.js";
 
 export interface ISettingsPopupView extends IPopupView {
   addBooleanField(name: string, label: string, value: boolean): void;
