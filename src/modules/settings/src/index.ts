@@ -5,5 +5,5 @@ export { SettingsEvents } from "./events/SettingsEvents.js";
 export { SettingsBinding } from "./SettingsBinding.js";
 export { SettingsUIIds } from "./SettingsUIIds.js";
 export { SettingsPopupView } from "./views/SettingsPopupView.pixi.js";
-export { SettingsPopupController } from "./controllers/SettingsPopupController.js";
+export { SettingsPopupViewController } from "./controllers/SettingsPopupViewController.js";
 export type { ISettingsPopupView } from "./views/ISettingsPopupView.js";

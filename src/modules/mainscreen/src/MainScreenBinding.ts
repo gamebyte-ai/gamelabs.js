@@ -6,7 +6,7 @@ import type { ViewFactory } from "../../../core/views/ViewFactory.js";
 import { AssetRequest } from "../../../core/assets/AssetRequest.js";
 import { AssetTypes } from "../../../core/assets/AssetTypes.js";
 
-import { MainScreenController } from "./controllers/MainScreenController.js";
+import { MainScreenViewController } from "./controllers/MainScreenViewController.js";
 import { MainScreenEvents } from "./events/MainScreenEvents.js";
 import { MainScreenView } from "./views/MainScreenView.pixi.js";
 import { MainScreenAssetIds } from "./MainScreenAssetIds.js";
@@ -80,6 +80,6 @@ export class MainScreenBinding extends ModuleBinding {
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
-    viewFactory.registerScreen(MainScreenUIIds.MainScreen, MainScreenView, MainScreenController);
+    viewFactory.registerScreen(MainScreenUIIds.MainScreen, MainScreenView, MainScreenViewController);
   }
 }

@@ -1,0 +1,39 @@
+import { UnsubscribeBag } from "../../../../core/events/subscriptions.js";
+import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
+import type { IViewController } from "../../../../core/views/IViewController.js";
+import type { ILevelProgressScreenView } from "../views/ILevelProgressScreenView.js";
+import { LevelProgressScreenEvents } from "../events/LevelProgressScreenEvents.js";
+import {
+  ILevelProgressScreenModel,
+  type ILevelProgressScreenModel as LevelProgressScreenModel,
+} from "../models/ILevelProgressScreenModel.js";
+
+/**
+ * Level progress screen view controller.
+ */
+export class LevelProgressScreenViewController implements IViewController<ILevelProgressScreenView> {
+  private view: ILevelProgressScreenView | null = null;
+  private viewModel: LevelProgressScreenModel | null = null;
+  private readonly subs = new UnsubscribeBag();
+  private events: LevelProgressScreenEvents | null = null;
+
+  inject(resolver: IInstanceResolver): void {
+    this.events = resolver.getInstance(LevelProgressScreenEvents);
+    this.viewModel = resolver.getInstance(ILevelProgressScreenModel);
+  }
+
+  initialize(view: ILevelProgressScreenView): void {
+    this.view = view;
+    this.view.setVisibleCount(this.viewModel!.visibleItemCount);
+    this.view.setCurrentLevel(this.viewModel!.currentLevel);
+    this.subs.add(this.view.onCurrentLevelClick(() => this.events?.emitCurrentLevelClick()));
+    this.subs.add(this.view.onBackClick(() => this.events?.emitBackClick()));
+  }
+
+  destroy(): void {
+    this.subs.flush();
+    this.view = null;
+    this.viewModel = null;
+    this.events = null;
+  }
+}

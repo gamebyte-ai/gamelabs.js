@@ -3,7 +3,7 @@ import type { DIContainer } from "../../../core/di/DIContainer.js";
 import type { IInstanceResolver } from "../../../core/di/IInstanceResolver.js";
 import type { ViewFactory } from "../../../core/views/ViewFactory.js";
 
-import { LevelProgressScreenController } from "./controllers/LevelProgressScreenController.js";
+import { LevelProgressScreenViewController } from "./controllers/LevelProgressScreenViewController.js";
 import { LevelProgressScreenEvents } from "./events/LevelProgressScreenEvents.js";
 import {
   ILevelProgressScreenModel,
@@ -85,7 +85,7 @@ export class LevelProgressScreenBinding extends ModuleBinding {
     viewFactory.registerScreen(
       LevelProgressScreenUIIds.LevelProgressScreen,
       LevelProgressScreenView,
-      LevelProgressScreenController,
+      LevelProgressScreenViewController,
     );
   }
 }

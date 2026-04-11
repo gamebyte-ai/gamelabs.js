@@ -2,8 +2,8 @@ import { StorageService } from "../../../../core/services/StorageService.js";
 import { SettingsFieldType } from "../SettingsField.js";
 import type { SettingsField, SettingsNumberField } from "../SettingsField.js";
 import { SettingsEvents } from "../events/SettingsEvents.js";
-import { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
-import { IInjectionTarget } from "../../../../core/di/IInjectionTarget.js";
+import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
+import type { IInjectionTarget } from "../../../../core/di/IInjectionTarget.js";
 
 /**
  * Manages typed settings fields with validation, persistence, and change events.
@@ -12,7 +12,7 @@ import { IInjectionTarget } from "../../../../core/di/IInjectionTarget.js";
  * - Values are loaded from `StorageService` on first access, falling back to the field's default.
  * - On every `setValue()`, the value is validated, persisted, and a change event is emitted.
  */
-export class SettingsManager implements IInjectionTarget{
+export class SettingsManager implements IInjectionTarget {
   //  FIELDS
   private _storage: StorageService | null = null;
   private _events: SettingsEvents | null = null;
@@ -50,13 +50,13 @@ export class SettingsManager implements IInjectionTarget{
   public getBooleanValue(name: string): boolean {
     const field = this._fields.get(name);
     if (!field || field.type !== SettingsFieldType.Boolean) return false;
-    return this._values.get(name) as boolean ?? field.defaultValue;
+    return (this._values.get(name) as boolean) ?? field.defaultValue;
   }
 
   public getNumberValue(name: string): number {
     const field = this._fields.get(name);
     if (!field || field.type !== SettingsFieldType.Number) return 0;
-    return this._values.get(name) as number ?? field.defaultValue;
+    return (this._values.get(name) as number) ?? field.defaultValue;
   }
 
   // ── Typed setters ──

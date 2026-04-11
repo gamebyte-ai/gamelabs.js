@@ -102,8 +102,8 @@ export class ImageComponent extends PIXI.Container {
     const tw = Math.max(1, this._sprite.texture.width);
     const th = Math.max(1, this._sprite.texture.height);
 
-    let scaleX = 1;
-    let scaleY = 1;
+    let scaleX: number;
+    let scaleY: number;
 
     if (this._fit === "stretch") {
       scaleX = w / tw;

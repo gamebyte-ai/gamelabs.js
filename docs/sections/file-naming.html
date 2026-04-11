@@ -3,7 +3,7 @@
   <li>Interfaces: <code>IFoo.ts</code></li>
   <li>HUD views: <code>FooView.pixi.ts</code></li>
   <li>World views: <code>FooView.three.ts</code></li>
-  <li>Controllers: <code>FooController.ts</code></li>
+  <li>View controllers: <code>FooViewController.ts</code> — every controller in this codebase implements <code>IViewController&lt;IFooView&gt;</code>; the suffix stays explicit so concrete class names match the interface and disambiguate from other "controller" types like <code>ICameraController</code></li>
   <li>Events: <code>FooEvents.ts</code></li>
   <li>Models: <code>Foo.ts</code> or <code>FooModel.ts</code></li>
   <li>Config: <code>MyGameConfig.ts</code></li>

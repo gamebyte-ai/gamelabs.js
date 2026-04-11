@@ -1,18 +1,18 @@
 <h2 id="module-audiodsp">Audio DSP</h2>
-<p>Audio effects built on the Web Audio API. Chain multiple effects in series and apply them to SFX or music channels via <code>AudioManager</code>.</p>
+<p>Audio effects built on the Web Audio API. Chain multiple effects in series and apply them to SFX or music channels via <code>AudioService</code>.</p>
 
 <h4>DspChain</h4>
 <p>A serial chain of effects. Audio flows through each effect in order.</p>
-<pre><code>const chain = new DspChain(audioManager.context!);
+<pre><code>const chain = new DspChain(audioService.context!);
 chain.addEffect(new FilterEffect({ type: "lowpass", frequency: 800 }));
 chain.addEffect(new DelayEffect({ time: 0.2, feedback: 0.3 }));
 
-// Wire into AudioManager
-chain.connectTo(audioManager.sfxGain!);
-audioManager.setSfxDestination(chain.input);
+// Wire into AudioService
+chain.connectTo(audioService.sfxGain!);
+audioService.setSfxDestination(chain.input);
 
 // Remove chain
-audioManager.setSfxDestination(null);
+audioService.setSfxDestination(null);
 chain.destroy();</code></pre>
 
 <h4>Effects</h4>

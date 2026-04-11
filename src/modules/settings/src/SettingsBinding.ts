@@ -6,7 +6,7 @@ import type { ViewFactory } from "../../../core/views/ViewFactory.js";
 import { SettingsManager } from "./utilities/SettingsManager.js";
 import { SettingsEvents } from "./events/SettingsEvents.js";
 import { SettingsPopupView } from "./views/SettingsPopupView.pixi.js";
-import { SettingsPopupController } from "./controllers/SettingsPopupController.js";
+import { SettingsPopupViewController } from "./controllers/SettingsPopupViewController.js";
 import { SettingsUIIds } from "./SettingsUIIds.js";
 import type { SettingsField } from "./SettingsField.js";
 
@@ -33,6 +33,6 @@ export class SettingsBinding extends ModuleBinding {
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
-    viewFactory.registerPopup(SettingsUIIds.SettingsPopup, SettingsPopupView, SettingsPopupController);
+    viewFactory.registerPopup(SettingsUIIds.SettingsPopup, SettingsPopupView, SettingsPopupViewController);
   }
 }

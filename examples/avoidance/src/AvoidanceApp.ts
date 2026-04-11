@@ -1,11 +1,11 @@
 import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, Topdown2dCameraController, OnScreenControlsBinding, ControlType, ControlAnchor } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
-import { GameScreenController } from "./controllers/GameScreenController";
+import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { GameAreaView } from "./views/GameAreaView.three";
-import { GameAreaController } from "./controllers/GameAreaController";
+import { GameAreaViewController } from "./controllers/GameAreaViewController";
 import { GameOverPopupView } from "./views/GameOverPopupView.pixi";
-import { GameOverPopupController } from "./controllers/GameOverPopupController";
+import { GameOverPopupViewController } from "./controllers/GameOverPopupViewController";
 
 import { GameEvents } from "./events/GameEvents";
 import { WaveManager } from "./utilities/WaveManager";
@@ -46,9 +46,9 @@ export class AvoidanceApp extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerScreen(AvoidanceUIIds.GameScreen, GameScreenView, GameScreenController);
-    this.viewFactory.registerPopup(AvoidanceUIIds.GameOverPopup, GameOverPopupView, GameOverPopupController);
-    this.viewFactory.register(GameAreaView, GameAreaController);
+    this.viewFactory.registerScreen(AvoidanceUIIds.GameScreen, GameScreenView, GameScreenViewController);
+    this.viewFactory.registerPopup(AvoidanceUIIds.GameOverPopup, GameOverPopupView, GameOverPopupViewController);
+    this.viewFactory.register(GameAreaView, GameAreaViewController);
   }
 
   protected override loadAssets(): void {

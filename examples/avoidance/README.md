@@ -12,7 +12,7 @@ A survival game where the player (a health cell) must dodge waves of virus enemi
 - `GameCameraBinding` with `Topdown2dCameraController` and dynamic ortho sizing on resize
 - `PopupView` for game-over flow with restart
 - `OnScreenControlsBinding` with a static joystick
-- Per-frame game loop via `UpdateService.register()`
+- Per-frame game loop via `UpdateManager.register()`
 - Programmatically generated PNG assets (player, enemy, background)
 
 ## Project structure
@@ -25,9 +25,9 @@ avoidance
 │   └──player.png
 └──src
     ├──controllers
-    │   ├──GameAreaController.ts
-    │   ├──GameOverPopupController.ts
-    │   └──GameScreenController.ts
+    │   ├──GameAreaViewController.ts
+    │   ├──GameOverPopupViewController.ts
+    │   └──GameScreenViewController.ts
     ├──events
     │   └──GameEvents.ts
     ├──utilities

@@ -24,8 +24,9 @@ TypeScript skeleton + reusable modules for web games. Three.js (3D world) + Pixi
 
 ## File naming
 
-- `IFoo.ts` (interfaces), `FooView.pixi.ts` (HUD), `FooView.three.ts` (world), `FooController.ts`, `FooEvents.ts`
+- `IFoo.ts` (interfaces), `FooView.pixi.ts` (HUD), `FooView.three.ts` (world), `FooViewController.ts` (every controller is a view controller — the suffix stays explicit), `FooEvents.ts`
 - Asset IDs: enum with namespaced values `"MyGame.ItemName"`
+- Every per-board gamegrid class an example defines uses role-based `GameBoard*` prefix (not game prefix): `GameBoardItem`, `IGameBoardsView`, `GameBoardsView`, `GameBoardsViewController`, `GameBoardCellObject`, `GameBoardItemObject`, `GameBoardItemObjectOptions`, `GameBoardObjectCreator`. App / Config / AssetIds / Events / Service / Binding / screen views keep the game prefix.
 
 ## Project layout
 
@@ -37,10 +38,19 @@ TypeScript skeleton + reusable modules for web games. Three.js (3D world) + Pixi
 - Controllers reference view interfaces (`IMyView`), not concrete classes.
 - Cross-feature communication through event classes only. No direct controller-to-controller calls.
 - Scene setup (fog, lights) belongs in views, not app class.
-- No `services/` folder. Use `utilities/` and `events/`.
 - Event classes use `Set<cb>` + `Unsubscribe`. Use `UnsubscribeBag` for cleanup.
 - No empty lifecycle overrides. Only override when adding behavior.
 - Modules must not depend on app-specific code.
+
+## Where logic lives
+
+Three buckets — pick before writing a class:
+
+- **Domain rules / operations** → `utilities/`, suffix `*Operations` / `*Rules` / `*Solver`. Pure in-app logic on models. No DOM, no network, no browser APIs. Unit-testable without a view. Examples: `GameOperations` (the per-game operations class in match3 and 2048), `WaterSortOperations`, match-finders, move solvers.
+- **State managers** → `utilities/`, suffix `*Manager`. Own mutable subsystem state across controller methods. Examples: `TurnManager`, `WaveManager`, `UpdateManager`, `SettingsManager`.
+- **Services** → `services/`, suffix `*Service`. Boundaries to the outside world — anything that can fail because of the environment (network, quota, permission, autoplay). Examples: `StorageService`, `AudioService`, `NotificationService`, `*ApiService`. **Do not use `*Service` for in-app logic.**
+
+Controllers stay thin: sequence async work, branch on results, dispatch events. Extract computation into `*Operations` / `*Rules` / `*Manager` classes in `utilities/` when it would be unit-testable without a view.
 
 ## Built-in modules
 

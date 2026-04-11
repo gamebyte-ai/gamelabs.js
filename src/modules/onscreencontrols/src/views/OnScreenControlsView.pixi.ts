@@ -48,14 +48,14 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
   }
 
   public removeControl(id: string): void {
-    const btnIdx = this._buttons.findIndex(b => b.config.id === id);
+    const btnIdx = this._buttons.findIndex((b) => b.config.id === id);
     if (btnIdx >= 0) {
       this._buttons[btnIdx]!.container.destroy({ children: true });
       this._buttons.splice(btnIdx, 1);
       return;
     }
 
-    const joyIdx = this._joysticks.findIndex(j => j.config.id === id);
+    const joyIdx = this._joysticks.findIndex((j) => j.config.id === id);
     if (joyIdx >= 0) {
       this._joysticks[joyIdx]!.container.destroy({ children: true });
       this._joysticks.splice(joyIdx, 1);
@@ -151,9 +151,14 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
     }
 
     const refs: JoystickRefs = {
-      config, container, base, knob, dynamicArea,
+      config,
+      container,
+      base,
+      knob,
+      dynamicArea,
       activePointerId: null,
-      originX: 0, originY: 0,
+      originX: 0,
+      originY: 0,
     };
     this._joysticks.push(refs);
 
@@ -204,7 +209,10 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
       refs.activePointerId = null;
       knob.position.set(refs.originX, refs.originY);
       for (const cb of this._joystickDirListeners) cb(config.id, 0, 0);
-      if (config.dynamic) { base.visible = false; knob.visible = false; }
+      if (config.dynamic) {
+        base.visible = false;
+        knob.visible = false;
+      }
     });
 
     hitTarget.on("pointerupoutside", (e: PIXI.FederatedPointerEvent) => {
@@ -212,7 +220,10 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
       refs.activePointerId = null;
       knob.position.set(refs.originX, refs.originY);
       for (const cb of this._joystickDirListeners) cb(config.id, 0, 0);
-      if (config.dynamic) { base.visible = false; knob.visible = false; }
+      if (config.dynamic) {
+        base.visible = false;
+        knob.visible = false;
+      }
     });
 
     if (config.dynamic) {

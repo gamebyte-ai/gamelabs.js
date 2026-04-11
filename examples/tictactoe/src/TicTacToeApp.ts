@@ -2,9 +2,9 @@ import { GamelabsApp, LogTypes, GameCameraBinding, Topdown3dCameraController, IV
 import { TicTacToeTurnManager, TicTacToeTurnManagerToken } from "./utilities/TicTacToeTurnManager";
 import { TurnEvents } from "./events/TurnEvents";
 import { GameScreenView } from "./views/GameScreenView.pixi";
-import { GameScreenController } from "./controllers/GameScreenController";
+import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { WinPopupView } from "./views/WinPopupView.pixi";
-import { WinPopupController } from "./controllers/WinPopupController";
+import { WinPopupViewController } from "./controllers/WinPopupViewController";
 import { GridOperations } from "./utilities/GridOperations";
 import { TicTacToeConfig } from "./TicTacToeConfig";
 import { TicTacToeUIIds } from "./TicTacToeUIIds";
@@ -40,8 +40,8 @@ export class TicTacToeApp extends GamelabsApp {
   }
 
   protected override configureViews(): void {
-    this.viewFactory.registerScreen(TicTacToeUIIds.GameScreen, GameScreenView, GameScreenController);
-    this.viewFactory.registerPopup(TicTacToeUIIds.WinPopup, WinPopupView, WinPopupController);
+    this.viewFactory.registerScreen(TicTacToeUIIds.GameScreen, GameScreenView, GameScreenViewController);
+    this.viewFactory.registerPopup(TicTacToeUIIds.WinPopup, WinPopupView, WinPopupViewController);
   }
 
   protected override postInitialize(): void {

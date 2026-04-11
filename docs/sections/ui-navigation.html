@@ -1,8 +1,8 @@
 <h2 id="ui-navigation">UI Navigation (UIEvents)</h2>
 <p><code>UIEvents</code> is the core event bus for screen and popup navigation. Controllers inject it from <code>diContainer</code> and use string IDs (never concrete view classes) to trigger navigation:</p>
 <pre><code>// In configureViews:
-viewFactory.registerScreen(MyUIIds.GameScreen, GameScreenView, GameScreenController);
-viewFactory.registerPopup(MyUIIds.WinPopup, WinPopupView, WinPopupController);
+viewFactory.registerScreen(MyUIIds.GameScreen, GameScreenView, GameScreenViewController);
+viewFactory.registerPopup(MyUIIds.WinPopup, WinPopupView, WinPopupViewController);
 
 // In a controller:
 uiEvents.createScreen(MyUIIds.GameScreen, transition);

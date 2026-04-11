@@ -1,5 +1,5 @@
 import type { Unsubscribe } from "../events/subscriptions.js";
-import { IInputDeviceListener } from "./IInputDeviceListener.js";
+import type { IInputDeviceListener } from "./IInputDeviceListener.js";
 
 /**
  * Tracks keyboard state and dispatches press/release callbacks.
@@ -9,8 +9,7 @@ import { IInputDeviceListener } from "./IInputDeviceListener.js";
  * - `addKeyReleasedHandler(cb)` registers a callback for key-up events.
  * - Call `startListening()` / `stopListening()` to attach/detach from the DOM.
  */
-export class KeyboardListener implements IInputDeviceListener{
-
+export class KeyboardListener implements IInputDeviceListener {
   //  FIELDS
   private readonly _keysDown = new Set<string>();
   private readonly _pressedHandlers = new Set<(code: string) => void>();
@@ -38,9 +37,9 @@ export class KeyboardListener implements IInputDeviceListener{
     }
   };
 
-    //  PROPERTIES
+  //  PROPERTIES
   public get deviceId(): string {
-      return "keyboard";
+    return "keyboard";
   }
 
   //  METHODS

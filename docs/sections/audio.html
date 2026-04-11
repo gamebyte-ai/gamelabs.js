@@ -1,5 +1,5 @@
 <h2 id="audio">Audio</h2>
-<p><code>AudioManager</code> provides game audio built on the Web Audio API. It's created automatically by <code>GamelabsApp</code> and bound to <code>diContainer</code>.</p>
+<p><code>AudioService</code> provides game audio built on the Web Audio API. It's created automatically by <code>GamelabsApp</code> and bound to <code>diContainer</code>.</p>
 
 <h4>Loading audio assets</h4>
 <pre><code>// Use AssetTypes.Audio to load audio files (decoded to AudioBuffer)
@@ -11,7 +11,7 @@ this._assetRequestList.addRequest(
 );</code></pre>
 
 <h4>Playing sounds</h4>
-<pre><code>const audio = resolver.getInstance(AudioManager);
+<pre><code>const audio = resolver.getInstance(AudioService);
 
 // Fire-and-forget SFX
 audio.playSfx("MyGame.Jump");
@@ -31,7 +31,7 @@ audio.setSfxMute(true);
 audio.setMusicMute(false);</code></pre>
 
 <h4>Browser autoplay policy</h4>
-<p>Browsers block audio playback until a user gesture. Call <code>audioManager.resume()</code> on the first user interaction (click/tap). The manager auto-pauses when the page loses visibility and resumes when it regains focus.</p>
+<p>Browsers block audio playback until a user gesture. Call <code>audioService.resume()</code> on the first user interaction (click/tap). The service auto-pauses when the page loses visibility and resumes when it regains focus.</p>
 
 <h4>DSP integration</h4>
 <p>Insert a <code>DspChain</code> (from the <code>audiodsp</code> module) between sources and the gain nodes:</p>

@@ -1,24 +1,15 @@
 import * as PIXI from "pixi.js";
-import { ScreenView } from "@gamebyte/gamelabsjs";
+import { ScreenView, ButtonComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView.js";
 
-/**
- * HUD only — score and hint. The board is {@link Match3GridsView} (Three.js + gamegrid).
- */
 export class GameScreenView extends ScreenView implements IGameScreenView {
   private _scoreText: PIXI.Text | null = null;
-  private _hintText: PIXI.Text | null = null;
+  private _settingsBtn: ButtonComponent | null = null;
+  private readonly _settingsListeners = new Set<() => void>();
+  private _screenWidth = 0;
 
   public override postInitialize(): void {
-    this._scoreText = new PIXI.Text({
-      text: "Score: 0",
-      style: { fontFamily: "system-ui, sans-serif", fontSize: 22, fill: 0xe2e8f0 }
-    });
-    this._hintText = new PIXI.Text({
-      text: "Click a gem, then an adjacent gem to swap (must form a match). Board: 3D view.",
-      style: { fontFamily: "system-ui, sans-serif", fontSize: 14, fill: 0x94a3b8 }
-    });
-    (this as unknown as { layout: unknown }).layout = {
+    (this as any).layout = {
       width: 1,
       height: 1,
       flexDirection: "column",
@@ -26,19 +17,38 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       alignItems: "flex-start",
       padding: 16
     };
-    (this as unknown as { addChild: (c: unknown) => void }).addChild(this._scoreText);
-    (this as unknown as { addChild: (c: unknown) => void }).addChild(this._hintText);
+
+    this._scoreText = new PIXI.Text({
+      text: "Score: 0",
+      style: { fontFamily: "system-ui, sans-serif", fontSize: 22, fill: 0xe2e8f0 }
+    });
+    this.addChild(this._scoreText);
+
+    // Settings button (top-right gear icon)
+    this._settingsBtn = new ButtonComponent({
+      width: 36, height: 36,
+      label: "\u2699",
+      labelStyle: { fontSize: 20 },
+      radius: 18,
+      fillColor: 0x334155,
+      fillAlpha: 0.7,
+      strokeColor: 0x475569,
+    });
+    this.addChild(this._settingsBtn);
+    this._settingsBtn.onPress(() => {
+      for (const cb of this._settingsListeners) cb();
+    });
   }
 
   public override onResize(width: number, height: number, _dpr: number): void {
-    (this as unknown as { layout: unknown }).layout = { width: Math.max(1, width), height: Math.max(1, height) };
+    this._screenWidth = Math.max(1, width);
+    (this as any).layout = { width: this._screenWidth, height: Math.max(1, height) };
     if (this._scoreText) {
       this._scoreText.x = 16;
       this._scoreText.y = 12;
     }
-    if (this._hintText) {
-      this._hintText.x = 16;
-      this._hintText.y = 44;
+    if (this._settingsBtn) {
+      this._settingsBtn.position.set(this._screenWidth - 52, 12);
     }
   }
 
@@ -46,9 +56,15 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     if (this._scoreText) this._scoreText.text = `Score: ${score}`;
   }
 
+  public onSettingsTapped(cb: () => void): Unsubscribe {
+    this._settingsListeners.add(cb);
+    return () => this._settingsListeners.delete(cb);
+  }
+
   public override preDestroy(): void {
+    this._settingsListeners.clear();
     this._scoreText = null;
-    this._hintText = null;
+    this._settingsBtn = null;
     super.preDestroy();
   }
 }

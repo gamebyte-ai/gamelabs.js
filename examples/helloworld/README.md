@@ -21,10 +21,10 @@ helloworld
 │   └──cube.glb
 └──src
     ├──controllers
-    │   ├──CubeController.ts
-    │   ├──DebugBarController.ts
-    │   ├──GameScreenController.ts
-    │   └──TopBarController.ts
+    │   ├──CubeViewController.ts
+    │   ├──DebugBarViewController.ts
+    │   ├──GameScreenViewController.ts
+    │   └──TopBarViewController.ts
     ├──views
     │   ├──ICubeView.ts
     │   ├──IDebugBarView.ts
@@ -47,17 +47,17 @@ helloworld
 
 | View | Controller | Description |
 |------|-----------|-------------|
-| `CubeView` (WorldViewBase) | `CubeController` | 3D GLTF cube with rotation animation, color changes, and orbital camera drag |
-| `GameScreenView` (ScreenView) | `GameScreenController` | Full-screen HUD composing TopBar and DebugBar |
-| `TopBarView` (HudViewBase) | `TopBarController` | Buttons for toggling cube color, rotation, and debug panel |
-| `DebugBarView` (HudViewBase) | `DebugBarController` | Buttons for toggling ground grid, stats panel, and logger |
+| `CubeView` (WorldViewBase) | `CubeViewController` | 3D GLTF cube with rotation animation, color changes, and orbital camera drag |
+| `GameScreenView` (ScreenView) | `GameScreenViewController` | Full-screen HUD composing TopBar and DebugBar |
+| `TopBarView` (HudViewBase) | `TopBarViewController` | Buttons for toggling cube color, rotation, and debug panel |
+| `DebugBarView` (HudViewBase) | `DebugBarViewController` | Buttons for toggling ground grid, stats panel, and logger |
 
 ## Events
 
 | Event class | Signals | Used by |
 |------------|---------|---------|
-| `GameEvents` | `onChangeCubeColor`, `onToggleCubeRotation` | TopBarController emits, CubeController listens |
-| `DebugEvents` | `onToggleDebugPanel` | TopBarController emits, DebugBarController listens |
+| `GameEvents` | `onChangeCubeColor`, `onToggleCubeRotation` | TopBarViewController emits, CubeViewController listens |
+| `DebugEvents` | `onToggleDebugPanel` | TopBarViewController emits, DebugBarViewController listens |
 
 ## Running
 

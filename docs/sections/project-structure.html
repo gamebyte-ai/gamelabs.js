@@ -9,7 +9,8 @@
 │   ├── events/        Unsubscribe, UnsubscribeBag
 │   ├── hud/           Hud, HudViewBase
 │   ├── input/         InputManager, KeyboardListener, InputMapper
-│   ├── services/      UpdateService, StorageService, AudioManager
+│   ├── services/      StorageService, AudioService    (external-boundary code)
+│   ├── utilities/     UpdateManager                   (in-app coordinators)
 │   ├── ui/            ScreenView, PopupView, UIEvents, UIUtils
 │   ├── views/         ViewFactory, IView, IViewController
 │   ├── world/         World, WorldViewBase
@@ -30,10 +31,11 @@
 <pre><code class="tree">MyGame/
 ├── assets/
 └── src/
-    ├── controllers/   MyScreenController.ts
+    ├── controllers/   MyScreenViewController.ts
     ├── events/        MyEvents.ts
     ├── models/        MyModel.ts
-    ├── utilities/     MyService.ts
+    ├── services/      MyApiService.ts          (external I/O only; omit if you have none)
+    ├── utilities/     MyOperations.ts, MyManager.ts   (in-app logic + stateful managers)
     ├── views/         IMyView.ts, MyView.pixi.ts, MyView.three.ts
     ├── MyGameApp.ts
     ├── MyGameAssetIds.ts

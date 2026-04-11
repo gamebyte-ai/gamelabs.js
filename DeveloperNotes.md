@@ -31,11 +31,95 @@ It depends on:
 - Interfaces: `IFoo.ts` (prefix with `I`)
 - HUD views: `FooView.pixi.ts` (suffix `.pixi.ts`)
 - World views: `FooView.three.ts` (suffix `.three.ts`)
-- Controllers: `FooController.ts`
+- View controllers: `FooViewController.ts` (every controller in this codebase implements `IViewController<IFooView>`; the suffix stays explicit so concrete class names match the interface and disambiguate from things like `ICameraController` in the gamecamera module)
 - Events: `FooEvents.ts`
 - Models: `Foo.ts` or `FooModel.ts`
 - Config: `MyGameConfig.ts`
 - Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
+
+
+### `GameBoard*` convention for gamegrid subclasses
+
+Every per-board class an example defines on top of the `gamegrid` module — the
+model, the view, the controller, the view interface, and the four view-side
+helper classes — is named after the **role** it plays in the architecture
+("a thing that lives on the game's board"), not after the gameplay (a "gem",
+"tile", "marker", ...). The eight canonical names are:
+
+| File                                | Extends / implements             | Purpose                                                |
+|-------------------------------------|----------------------------------|--------------------------------------------------------|
+| `models/GameBoardItem.ts`           | `GridItem`                       | Per-game grid item model (carries game-specific data)  |
+| `views/IGameBoardsView.ts`          | `IGridView`                      | Per-game grid view interface                           |
+| `views/GameBoardsView.three.ts`     | `GridsView`                      | Per-game world view rendering the board                |
+| `views/GameBoardCellObject.ts`      | `GridCellObject`                 | Visual / pointer behavior of one board cell            |
+| `views/GameBoardItemObject.ts`      | `GridItemObject`                 | Visual of one item placed on a cell                    |
+| `views/GameBoardItemObjectOptions.ts` | `GridItemObjectOptions`        | Constructor options carrying game-specific item data   |
+| `views/GameBoardObjectCreator.ts`   | `GridObjectCreator`              | Factory wiring the cell + item objects above           |
+| `controllers/GameBoardsViewController.ts` | `GridsViewController`      | Per-game controller driving the board view             |
+
+App-level / config / asset-id / module-binding / popup classes keep the **game**
+prefix (`Match3App`, `Match3Config`, `Match3AssetIds`, `Match3GameGridBinding`,
+`Game2048App`, `Game2048Config`, `Game2048AssetIds`, `Game2048GameGridBinding`, ...).
+Generic per-game pieces — `GameOperations` (the in-domain operations class),
+`GameEvents`, `GameBoard*` (per-board model + view + controller + helpers),
+`GameScreenViewController` — drop the game prefix because they describe the
+*role* in the architecture. Each example owns its own copies of the
+`GameOperations` / `GameEvents` / `GameBoard*` / `GameScreen*` files inside its
+own `src/` tree — they don't collide because they're scoped to the example
+folder. See `examples/match3` and `examples/2048` for the convention applied
+end-to-end.
+
+
+### Where logic lives (rules / managers / services)
+
+Pick the bucket **before** writing a class. The key question is: does it fail
+because of the *environment* (network down, quota exceeded, permission denied)?
+If yes, it's a service. If no, it's a rules class or a manager.
+
+| Bucket | Folder | Suffix | Holds state? | Talks to outside world? | Examples |
+|---|---|---|---|---|---|
+| **Domain rules / operations** | `utilities/` | `*Operations` / `*Rules` / `*Solver` / `*Calculator` / `*Finder` | Yes or no | **No** | `GameOperations` (the per-game operations class in match3 and 2048), `WaterSortOperations`, `TicTacToeTurnManager` (actually a manager), match-finders, move solvers |
+| **State managers** | `utilities/` | `*Manager` | Yes | **No** (uses rules + services as inputs) | `TurnManager`, `WaveManager`, `UpdateManager`, `GameCameraManager`, `SettingsManager` |
+| **Services** | `services/` | `*Service` | Usually minimal (cache) | **Yes** — browser APIs, network, OS, sensors, file system | `StorageService`, `AudioService`, `NotificationService`, `GeolocationService`, `ShareService`, `AnalyticsService`, `*ApiService` |
+
+Acid tests:
+
+- **Rules / operations:** *can I unit-test it with `expect(ops.findMatches(grid)).toEqual(...)` — no DOM, no THREE/PIXI, no network stub?* If yes → it's rules. If you need to stub fetch/localStorage/audio context, it's not rules, it's a service.
+- **Manager:** *does it own mutable state that outlives any single controller method?* Turn order, wave spawn state, camera rig position, settings values. Manager is the catch-all for in-app coordinators that are neither pure rules nor external boundaries.
+- **Service:** *can this fail because of the environment and not because of the inputs?* Network timeout, quota exceeded, autoplay policy, permission denied. If yes → service. Services must be mockable for tests (tests should never actually hit the network or localStorage).
+
+**Do not name a class `*Service` if it never touches the outside world.** That was a historical mistake in this repo (`Match3GridService`, `Game2048GridService`, `UpdateService`) — these have been renamed to `GameOperations` (in both match3 and 2048) and `UpdateManager`. The `*Service` suffix is now reserved for boundary code.
+
+#### Controllers
+
+Controllers stay thin: sequence async work, branch on results, dispatch events,
+handle view input, and glue rules + managers + services together. When a
+controller starts doing real computation — loops, searches, aggregations,
+anything unit-testable in isolation — extract that work into an `*Operations`
+class in `utilities/`. A good smell test: if you could write a meaningful test
+for the method without instantiating a view, the method belongs in rules.
+
+#### Worked example (2048)
+
+The 2048 example splits responsibilities like this:
+
+- `GameBoardsViewController` (thin): reads keyboard / swipe input, calls
+  `operations.planMove(direction)`, awaits slide animation, calls
+  `operations.commitPlan(plan)`, dispatches score / best / game-over events.
+  No matching/gravity/merge math in the controller.
+- `GameOperations` (in-domain logic): pure move planning, grid compaction,
+  merge detection, spawn logic, canMove / game-over checks. Holds game state
+  (score, best, grid reference). Implements `IInjectionTarget`: the constructor
+  takes no arguments, dependencies are pulled in `inject(resolver)`, and the
+  `Grid` is built and registered with `GridsModel` there. No DOM, no THREE.
+  Lives in `utilities/`.
+- `GameBoardsView` (view): tile sliding / pop / spawn animations on THREE
+  objects. No game logic.
+- `StorageService` (service, from the framework): persists best score.
+  `AudioService` (service, from the framework): plays SFX.
+
+The controller is roughly 150 lines and contains almost no math; the operations
+class holds ~260 lines of pure logic that can be unit-tested without the view.
 
 
 ## Library folder structure (`src/`)
@@ -48,7 +132,8 @@ src
 │   ├──events/            Unsubscribe, UnsubscribeBag
 │   ├──hud/               Hud, HudViewBase, IHud
 │   ├──input/             InputManager, IPointerInputHandler
-│   ├──services/          UpdateService, StorageService, AudioManager
+│   ├──services/          StorageService, AudioService   (external-boundary code)
+│   ├──utilities/         UpdateManager                  (in-app coordinators)
 │   ├──ui/                ScreenView, ScreenTransition, IScreenView
 │   ├──views/             ViewFactory, IView, IViewController, IViewFactory
 │   ├──world/             World, WorldViewBase, IWorld
@@ -57,7 +142,7 @@ src
 ├──modules
 │   ├──gamecamera/        GameCameraBinding, GameCameraManager, camera controllers
 │   ├──gamegrid/          GameGridBinding, Grid, GridsModel, GridsView, GridsViewController
-│   ├──mainscreen/        MainScreenBinding, MainScreenView, MainScreenController
+│   ├──mainscreen/        MainScreenBinding, MainScreenView, MainScreenViewController
 │   ├──levelprogressscreen/  LevelProgressScreenBinding, LevelProgressScreenView
 │   ├──onscreencontrols/  OnScreenControlManager, virtual buttons & joysticks
 │   ├──settings/          SettingsBinding, SettingsManager, SettingsPopupView
@@ -70,10 +155,11 @@ src
 MyGame
 ├──assets
 └──src
-    ├──controllers              MyScreenController.ts, MyGridController.ts
+    ├──controllers              MyScreenViewController.ts, MyGridViewController.ts
     ├──events                   MyEvents.ts
     ├──models                   MyModel.ts
-    ├──utilities                MyService.ts, MyUtilities.ts, MyOperations.ts
+    ├──services                 MyApiService.ts, MyShareService.ts      (external I/O only; skip the folder if you have none)
+    ├──utilities                MyOperations.ts, MyRules.ts, MyManager.ts   (in-app logic + stateful managers)
     ├──views                    IMyScreenView.ts, MyScreenView.pixi.ts, IMyGridView.ts, MyGridView.three.ts
     ├──MyGameApp.ts             (extends GamelabsApp)
     ├──MyGameAssetIds.ts        (unique asset ids with enums)
@@ -199,7 +285,7 @@ The following modules are shipped with the library. See each module's `README.md
 - **`mainscreen`** — ready-to-use main menu screen with a logo, play button, and settings button. Exposes `MainScreenEvents` for click wiring.
 - **`levelprogressscreen`** — vertical level-list screen showing previous/current/next levels with connector sprites and a back button. Exposes `LevelProgressScreenEvents`.
 - **`gamecamera`** — camera manager with multiple controller flavors (orbital, topdown 2D/3D, front 2D/3D, isometric 2D/3D) for common gameplay camera rigs.
-- **`gamegrid`** — grid model, grid items, and a grid view/controller pair for tile-based gameplay (used by the match3 and tictactoe examples).
+- **`gamegrid`** — grid model, grid items, and a grid view/controller pair for tile-based gameplay (used by the match3, tictactoe, and 2048 examples).
 - **`onscreencontrols`** — touch-friendly virtual buttons and joysticks rendered as a PixiJS HUD overlay. `OnScreenControlManager` implements `IInputDeviceListener` so controls integrate with `InputMapper` alongside keyboard. Supports static and dynamic joysticks, dynamic add/remove at runtime via `OnScreenControlEvents`.
 - **`settings`** — typed settings system with boolean toggles and number sliders. `SettingsManager` persists values via `StorageService` (localStorage), validates on write (clamp, step), and emits `SettingsEvents.onValueChanged`. Includes a ready-to-use `SettingsPopupView` with toggle switches and drag sliders.
 - **`audiodsp`** — audio DSP effects built on Web Audio API. `DspChain` connects effects in series; effects include `FilterEffect`, `ReverbEffect`, `DelayEffect`, `DistortionEffect`, `CompressorEffect`. `DspPresets` provides one-liner chains for common scenarios (underwater, radio, echo, lo-fi).
@@ -225,7 +311,7 @@ The following modules are shipped with the library. See each module's `README.md
 - Use `UnsubscribeBag` for event cleanup in controllers. Do not track unsubscribe functions manually.
 - Controllers must reference view interfaces (`IMyView`), not concrete view classes (`MyView`).
 - Asset IDs must be enums with namespaced string values (`"MyGame.ItemName"`), not plain objects or bare strings.
-- Do not put files in a `services/` folder. Use `utilities/` for services, managers, and tools. Use `events/` for event classes.
+- Use `services/` **only** for external-boundary code (storage, network, browser/OS APIs, audio output). Use `utilities/` for in-app domain rules (`*Operations`, `*Rules`) and stateful managers (`*Manager`). Use `events/` for event classes. See "Where logic lives" above.
 - Modules must not depend on app-specific code. They should be reusable across projects.
 - Do not override lifecycle methods without calling `super` where required (`super.inject()`, `super.destroy()`, etc.).
 - Do not create empty lifecycle overrides (empty `loadAssets()`, `onStep()` that only calls `super`). Only override when adding behavior.

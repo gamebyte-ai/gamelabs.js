@@ -1,11 +1,11 @@
-import { DspEffect } from "./effects/DspEffect.js";
+import type { DspEffect } from "./effects/DspEffect.js";
 
 /**
  * A serial chain of DspEffects.
  *
  * Audio flows: source → chain.input → [effect1 → effect2 → ...] → chain.output → destination.
  *
- * Use `connectTo(destination)` to wire the chain's output to an AudioNode (e.g. AudioManager's sfxGain).
+ * Use `connectTo(destination)` to wire the chain's output to an AudioNode (e.g. AudioService's sfxGain).
  */
 export class DspChain {
   private readonly _ctx: AudioContext;
