@@ -155,6 +155,79 @@ describe("UnsubscribeBag", () => {
     expect(thrower3).toHaveBeenCalledOnce();
   });
 
+  // ─── onError handler ───────────────────────────────────────
+
+  it("should call onError with the thrown value when a callback throws", () => {
+    const onError = vi.fn();
+    const bag = new UnsubscribeBag(onError);
+    const err = new Error("boom");
+
+    bag.add(() => {
+      throw err;
+    });
+    bag.flush();
+
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError).toHaveBeenCalledWith(err);
+  });
+
+  it("should call onError once per throwing callback in a single flush", () => {
+    const onError = vi.fn();
+    const bag = new UnsubscribeBag(onError);
+
+    bag.add(() => {
+      throw new Error("one");
+    });
+    bag.add(() => {});
+    bag.add(() => {
+      throw new Error("two");
+    });
+    bag.add(() => {
+      throw new Error("three");
+    });
+    bag.flush();
+
+    expect(onError).toHaveBeenCalledTimes(3);
+    expect(onError.mock.calls.map((c) => (c[0] as Error).message)).toEqual(["three", "two", "one"]);
+  });
+
+  it("should NOT call onError when no callback throws", () => {
+    const onError = vi.fn();
+    const bag = new UnsubscribeBag(onError);
+
+    bag.add(() => {});
+    bag.add(() => {});
+    bag.flush();
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("should keep flushing remaining callbacks if onError itself throws", () => {
+    const onError = vi.fn(() => {
+      throw new Error("handler crashed");
+    });
+    const bag = new UnsubscribeBag(onError);
+    const after = vi.fn();
+
+    bag.add(after);
+    bag.add(() => {
+      throw new Error("boom");
+    });
+
+    expect(() => bag.flush()).not.toThrow();
+    expect(onError).toHaveBeenCalledOnce();
+    expect(after).toHaveBeenCalledOnce();
+  });
+
+  it("should stay silent (no throw) when no onError is provided and a callback throws", () => {
+    // Backward-compat: parameterless constructor still swallows errors.
+    const bag = new UnsubscribeBag();
+    bag.add(() => {
+      throw new Error("boom");
+    });
+    expect(() => bag.flush()).not.toThrow();
+  });
+
   // ─── Re-entrant flush ──────────────────────────────────────
 
   it("should handle callback that adds to the bag during flush — new items not flushed in same pass", () => {
