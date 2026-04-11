@@ -270,26 +270,59 @@ describe("DIContainer", () => {
     expect(container.getInstance(token)).toBe(42);
   });
 
-  // ─── inject() throws — state corruption ────────────────────
+  // ─── inject() throws — retry on next call ─────────────────
 
-  it("should cache instance even if inject() throws — caller gets broken instance on retry", () => {
+  it("should NOT cache instance if inject() throws — next call retries factory", () => {
     const container = new DIContainer(noopLogger);
-    const token = new InjectionToken<{ inject: () => void; ready: boolean }>("BrokenInject");
+    const token = new InjectionToken<{ inject: () => void; ready: boolean }>("RetryInject");
+    let factoryCalls = 0;
+    let injectCalls = 0;
 
-    container.bindSingleton(token, () => ({
-      ready: false,
-      inject: () => {
-        throw new Error("inject failed");
-      },
-    }));
+    container.bindSingleton(token, () => {
+      factoryCalls++;
+      return {
+        ready: true,
+        inject: () => {
+          injectCalls++;
+          if (injectCalls === 1) throw new Error("inject failed");
+        },
+      };
+    });
 
-    // First call: inject() throws, but instance is already cached (hasInstance=true)
+    // First call: inject() throws → instance NOT cached
     expect(() => container.getInstance(token)).toThrow("inject failed");
+    expect(factoryCalls).toBe(1);
+    expect(injectCalls).toBe(1);
 
-    // Second call: returns the cached (partially initialized) instance
-    // This is the ACTUAL behavior — the instance IS cached despite inject() failing
+    // Second call: factory runs again, inject succeeds → fresh instance returned
     const result = container.getInstance(token);
-    expect(result.ready).toBe(false);
+    expect(factoryCalls).toBe(2);
+    expect(injectCalls).toBe(2);
+    expect(result.ready).toBe(true);
+
+    // Third call: now cached, no further factory or inject calls
+    const cached = container.getInstance(token);
+    expect(factoryCalls).toBe(2);
+    expect(injectCalls).toBe(2);
+    expect(cached).toBe(result);
+  });
+
+  it("should NOT cache instance if factory throws — next call retries factory", () => {
+    // Sanity check: factory-throws path should behave the same as inject-throws path.
+    const container = new DIContainer(noopLogger);
+    const token = new InjectionToken<{ tag: string }>("RetryFactory");
+    let calls = 0;
+
+    container.bindSingleton(token, () => {
+      calls++;
+      if (calls === 1) throw new Error("factory failed");
+      return { tag: "ok" };
+    });
+
+    expect(() => container.getInstance(token)).toThrow("factory failed");
+    const result = container.getInstance(token);
+    expect(result.tag).toBe("ok");
+    expect(calls).toBe(2);
   });
 
   // ─── Factory failure and recovery ──────────────────────────

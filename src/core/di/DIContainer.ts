@@ -102,14 +102,16 @@ export class DIContainer implements IInstanceResolver {
     provider.creating = true;
     try {
       const created = provider.factory(this);
-      provider.instance = created;
-      provider.hasInstance = true;
-      provider.creating = false;
 
       if (this._isInjectionTarget(created)) {
         created.inject(this);
       }
 
+      // Only mark cached after both factory and inject succeed. If either
+      // throws, the next getInstance() call retries cleanly from scratch
+      // instead of returning a partially initialized instance.
+      provider.instance = created;
+      provider.hasInstance = true;
       return created;
     } finally {
       provider.creating = false;
