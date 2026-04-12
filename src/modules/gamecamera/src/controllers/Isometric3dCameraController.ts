@@ -1,9 +1,8 @@
 import * as THREE from "three";
-import type { GameCameraManager } from "../GameCameraManager.js";
-import { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraManager } from "../utilities/GameCameraManager.js";
+import { GameCameraMode } from "../constants/GameCameraMode.js";
+import { ISOMETRIC_DISTANCE } from "../constants/GameCameraDefaults.js";
 import { IsometricBaseCameraController } from "./IsometricBaseCameraController.js";
-
-const ISOMETRIC_DISTANCE = 15;
 
 export class Isometric3dCameraController extends IsometricBaseCameraController {
   public constructor(manager: GameCameraManager) {

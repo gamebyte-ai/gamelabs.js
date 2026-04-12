@@ -1,9 +1,8 @@
 import type * as THREE from "three";
-import type { GameCameraManager } from "../GameCameraManager.js";
-import type { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraManager } from "../utilities/GameCameraManager.js";
+import type { GameCameraMode } from "../constants/GameCameraMode.js";
+import { FRONT_OFFSET } from "../constants/GameCameraDefaults.js";
 import { BaseCameraController } from "./BaseCameraController.js";
-
-const FRONT_OFFSET = 5;
 
 export abstract class FrontBaseCameraController extends BaseCameraController {
   protected constructor(manager: GameCameraManager, mode: GameCameraMode.Front2d | GameCameraMode.Front3d) {

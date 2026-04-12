@@ -1,5 +1,5 @@
-import type { GameCameraManager } from "../GameCameraManager.js";
-import type { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraManager } from "../utilities/GameCameraManager.js";
+import type { GameCameraMode } from "../constants/GameCameraMode.js";
 import { BaseCameraController } from "./BaseCameraController.js";
 
 export abstract class IsometricBaseCameraController extends BaseCameraController {

@@ -1,6 +1,6 @@
 import type * as THREE from "three";
-import type { GameCameraManager } from "../GameCameraManager.js";
-import type { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraManager } from "../utilities/GameCameraManager.js";
+import type { GameCameraMode } from "../constants/GameCameraMode.js";
 import type { ICameraController } from "./ICameraController.js";
 
 export abstract class BaseCameraController implements ICameraController {
@@ -10,7 +10,12 @@ export abstract class BaseCameraController implements ICameraController {
   protected constructor(manager: GameCameraManager, mode: GameCameraMode) {
     this._manager = manager;
     this._mode = mode;
-    manager.setController(this);
+  }
+
+  /** Register this controller with the manager. Call after construction. */
+  public register(): this {
+    this._manager.setController(this);
+    return this;
   }
 
   public getMode(): GameCameraMode {

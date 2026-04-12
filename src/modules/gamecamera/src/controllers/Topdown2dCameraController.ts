@@ -1,9 +1,8 @@
 import * as THREE from "three";
-import type { GameCameraManager } from "../GameCameraManager.js";
-import { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraManager } from "../utilities/GameCameraManager.js";
+import { GameCameraMode } from "../constants/GameCameraMode.js";
+import { DEFAULT_Y } from "../constants/GameCameraDefaults.js";
 import { TopdownBaseCameraController } from "./TopdownBaseCameraController.js";
-
-const DEFAULT_Y = 0;
 
 export class Topdown2dCameraController extends TopdownBaseCameraController {
   private _defaultY = DEFAULT_Y;

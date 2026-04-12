@@ -1,9 +1,8 @@
 import * as THREE from "three";
-import type { GameCameraManager } from "../GameCameraManager.js";
-import { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraManager } from "../utilities/GameCameraManager.js";
+import { GameCameraMode } from "../constants/GameCameraMode.js";
+import { TOPDOWN_OFFSET } from "../constants/GameCameraDefaults.js";
 import { TopdownBaseCameraController } from "./TopdownBaseCameraController.js";
-
-const TOPDOWN_OFFSET = 10;
 
 export class Topdown3dCameraController extends TopdownBaseCameraController {
   public constructor(manager: GameCameraManager) {

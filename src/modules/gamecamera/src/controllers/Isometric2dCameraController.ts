@@ -1,9 +1,8 @@
 import * as THREE from "three";
-import type { GameCameraManager } from "../GameCameraManager.js";
-import { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraManager } from "../utilities/GameCameraManager.js";
+import { GameCameraMode } from "../constants/GameCameraMode.js";
+import { DEFAULT_Y } from "../constants/GameCameraDefaults.js";
 import { IsometricBaseCameraController } from "./IsometricBaseCameraController.js";
-
-const DEFAULT_Y = 0;
 
 export class Isometric2dCameraController extends IsometricBaseCameraController {
   private _defaultY = DEFAULT_Y;

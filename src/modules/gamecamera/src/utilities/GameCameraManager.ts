@@ -1,10 +1,7 @@
 import * as THREE from "three";
-import type { World } from "../../../core/world/World.js";
-import type { ICameraController } from "./controllers/ICameraController.js";
-
-const DEFAULT_ORTHO_SIZE = 10;
-const DEFAULT_EASING = 8;
-const PERSPECTIVE_TO_ORTHO_OFFSET = 5;
+import type { World } from "../../../../core/world/World.js";
+import type { ICameraController } from "../controllers/ICameraController.js";
+import { DEFAULT_ORTHO_SIZE, DEFAULT_EASING, PERSPECTIVE_TO_ORTHO_OFFSET } from "../constants/GameCameraDefaults.js";
 
 export class GameCameraManager {
   private _world: World | null = null;

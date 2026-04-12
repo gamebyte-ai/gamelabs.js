@@ -1,9 +1,8 @@
 import * as THREE from "three";
-import type { GameCameraManager } from "../GameCameraManager.js";
-import { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraManager } from "../utilities/GameCameraManager.js";
+import { GameCameraMode } from "../constants/GameCameraMode.js";
+import { DEFAULT_Z } from "../constants/GameCameraDefaults.js";
 import { FrontBaseCameraController } from "./FrontBaseCameraController.js";
-
-const DEFAULT_Z = 0;
 
 export class Front2dCameraController extends FrontBaseCameraController {
   private _defaultZ = DEFAULT_Z;

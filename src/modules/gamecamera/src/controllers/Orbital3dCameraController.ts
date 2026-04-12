@@ -1,15 +1,16 @@
 import * as THREE from "three";
-import type { GameCameraManager } from "../GameCameraManager.js";
-import { GameCameraMode } from "../GameCameraMode.js";
+import type { GameCameraManager } from "../utilities/GameCameraManager.js";
+import { GameCameraMode } from "../constants/GameCameraMode.js";
+import {
+  ORBITAL_DEFAULT_DISTANCE,
+  ORBITAL_DEFAULT_AZIMUTH,
+  ORBITAL_DEFAULT_PITCH,
+  ORBITAL_DEFAULT_MIN_DISTANCE,
+  ORBITAL_DEFAULT_MAX_DISTANCE,
+  ORBITAL_DEFAULT_MIN_PITCH,
+  ORBITAL_DEFAULT_MAX_PITCH,
+} from "../constants/GameCameraDefaults.js";
 import { BaseCameraController } from "./BaseCameraController.js";
-
-const DEFAULT_DISTANCE = 10;
-const DEFAULT_AZIMUTH = 0;
-const DEFAULT_PITCH = 0.3;
-const DEFAULT_MIN_DISTANCE = 1;
-const DEFAULT_MAX_DISTANCE = 100;
-const DEFAULT_MIN_PITCH = -Math.PI / 2 + 0.01;
-const DEFAULT_MAX_PITCH = Math.PI / 2 - 0.01;
 
 export class Orbital3dCameraController extends BaseCameraController {
   private _distance: number;
@@ -22,13 +23,13 @@ export class Orbital3dCameraController extends BaseCameraController {
 
   public constructor(manager: GameCameraManager) {
     super(manager, GameCameraMode.Orbital3d);
-    this._distance = DEFAULT_DISTANCE;
-    this._azimuth = DEFAULT_AZIMUTH;
-    this._pitch = DEFAULT_PITCH;
-    this._minDistance = DEFAULT_MIN_DISTANCE;
-    this._maxDistance = DEFAULT_MAX_DISTANCE;
-    this._minPitch = DEFAULT_MIN_PITCH;
-    this._maxPitch = DEFAULT_MAX_PITCH;
+    this._distance = ORBITAL_DEFAULT_DISTANCE;
+    this._azimuth = ORBITAL_DEFAULT_AZIMUTH;
+    this._pitch = ORBITAL_DEFAULT_PITCH;
+    this._minDistance = ORBITAL_DEFAULT_MIN_DISTANCE;
+    this._maxDistance = ORBITAL_DEFAULT_MAX_DISTANCE;
+    this._minPitch = ORBITAL_DEFAULT_MIN_PITCH;
+    this._maxPitch = ORBITAL_DEFAULT_MAX_PITCH;
   }
 
   public get isOrtho(): boolean {

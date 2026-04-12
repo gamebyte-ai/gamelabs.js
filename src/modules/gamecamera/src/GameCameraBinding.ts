@@ -1,7 +1,7 @@
 import { ModuleBinding } from "../../../core/ModuleBinding.js";
 import type { DIContainer } from "../../../core/di/DIContainer.js";
 
-import { GameCameraManager } from "./GameCameraManager.js";
+import { GameCameraManager } from "./utilities/GameCameraManager.js";
 
 export class GameCameraBinding extends ModuleBinding {
   private readonly _cameraManager = new GameCameraManager();
