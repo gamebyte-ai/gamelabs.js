@@ -283,6 +283,8 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
   }
 
   public override preDestroy(): void {
+    for (const b of this._buttons) b.container.destroy({ children: true });
+    for (const j of this._joysticks) j.container.destroy({ children: true });
     this._buttonStateListeners.clear();
     this._joystickDirListeners.clear();
     this._buttons.length = 0;
