@@ -37,6 +37,8 @@ It depends on:
     - UI IDs: `MyGameUIIds.ts` (enum with namespaced values: `MyGame.GameScreen`, `MyGame.WinPopup`)
 - For small projects where a single class is sufficient for a task `Game` prefix can be used (`GameOperations`, `GameEvents`, `GameBoardModel`, `GameScreenViewController`, ...)
 
+## Constants
+- Enums and types that contain only constant values (no logic, no class behavior) must be in the `constants/` folder.
 
 ## Dependency injection
 - Minimal dependency injection with only singleton binding
@@ -116,6 +118,7 @@ If yes, it's a service. If no, it's a rules class or a manager.
 ```
 src
 ├──core
+│   ├──constants/          Enums, constant types 
 │   ├──assets/            AssetManager, AssetRequest, AssetTypes, IAssetManager
 │   ├──dev/               Logger, LogPanel, DevUtils, StatsPanel, GroundGrid
 │   ├──di/                DIContainer, InjectionToken, IInstanceResolver
@@ -139,6 +142,7 @@ src
 MyGame
 ├──assets
 └──src
+    ├──constants                MyModes.ts, MyGameConstants.ts, enums
     ├──controllers              MyScreenViewController.ts, MyGridViewController.ts
     ├──events                   MyEvents.ts
     ├──models                   MyModel.ts
