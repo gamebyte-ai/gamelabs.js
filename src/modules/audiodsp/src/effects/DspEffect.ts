@@ -24,12 +24,14 @@ export abstract class DspEffect {
 
   /** The node to connect incoming audio to. */
   public get input(): AudioNode {
-    return this._input!;
+    if (!this._input) throw new Error("DspEffect not initialized — call init() first");
+    return this._input;
   }
 
   /** The node to connect outgoing audio from. */
   public get output(): AudioNode {
-    return this._output!;
+    if (!this._output) throw new Error("DspEffect not initialized — call init() first");
+    return this._output;
   }
 
   public get bypassed(): boolean {
