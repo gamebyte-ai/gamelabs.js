@@ -30,6 +30,11 @@ export class SettingsBinding extends ModuleBinding {
   public configureDI(diContainer: DIContainer, _viewDiContainer: DIContainer): void {
     diContainer.bindInstance(SettingsManager, this._manager);
     diContainer.bindInstance(SettingsEvents, this._events);
+
+    // bindInstance skips IInjectionTarget.inject(), so call it manually
+    // to wire up _storage and _events. This also re-hydrates any fields
+    // that were added before DI was configured (see SettingsManager.inject).
+    this._manager.inject(diContainer);
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {

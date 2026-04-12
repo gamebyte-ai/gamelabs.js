@@ -22,6 +22,23 @@ export class SettingsManager implements IInjectionTarget {
   public inject(resolver: IInstanceResolver): void {
     this._storage = resolver.getInstance(StorageService);
     this._events = resolver.getInstance(SettingsEvents);
+
+    // Re-hydrate fields that were added before inject (when _storage was
+    // null). Without this, fields added via SettingsBinding.addField()
+    // before configureDI() would keep their defaults instead of loading
+    // persisted values.
+    this._rehydrateFields();
+  }
+
+  /** Load persisted values for all registered fields from storage. */
+  private _rehydrateFields(): void {
+    if (!this._storage) return;
+    for (const field of this._fields.values()) {
+      const stored = this._storage.load<unknown>(field.name);
+      if (stored !== null && this._isValidValue(field, stored)) {
+        this._values.set(field.name, stored);
+      }
+    }
   }
   // ── Field registration ──
 
