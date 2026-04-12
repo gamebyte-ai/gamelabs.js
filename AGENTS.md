@@ -4,6 +4,18 @@ This project is a **TypeScript skeleton + reusable modules** for web games (Thre
 
 Read `DeveloperNotes.md` for full architecture and implementation details.
 
+## Error handling philosophy
+
+This is a **game framework**, not a web app framework. Games are single-page, tightly coupled state machines — not collections of independent page components.
+
+- **Initialization is all-or-nothing.** If DI binding, module setup, or asset loading fails, the application is non-functional. There is no "partial run," no retry, no rollback. Let the error propagate to the top-level caller. The only useful runtime action is showing a clear error and halting.
+- **Do not design recovery paths for state corruption.** A half-wired DI container or corrupted game state will crash unpredictably later. Retry/rollback patterns add untested complexity for scenarios that cannot succeed at runtime and give a false illusion of recoverability.
+- **Web-page resilience patterns are wrong here.** In a multi-page site, a broken sidebar doesn't kill the checkout flow and the user can refresh. In a game, corrupted state means the entire application is broken — there is no independent functionality to fall back to.
+- **The real fix is: fix the bug, rebuild, redeploy.** Design error paths to help developers diagnose root causes, not to keep a broken app limping along.
+- **Resource cleanup must be thorough.** Leaked event listeners, audio nodes, or GPU resources compound over a game session. Every `destroy()`/`preDestroy()` must clean up completely.
+
+This applies to: `GamelabsApp.initialize()`, DI container, module `configureDI()`, asset loading, and any other one-time setup that establishes application state.
+
 ## Rules and constraints
 
 - Views must NOT access `diContainer`. Views receive `viewDiContainer` only.
