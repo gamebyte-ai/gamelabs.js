@@ -132,7 +132,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
 
     const toggle = new PIXI.Graphics();
     toggle.eventMode = "static";
-    (toggle as any).cursor = "pointer";
+    toggle.cursor = "pointer";
     toggle.position.set(
       W - SettingsPopupView.TOGGLE_WIDTH,
       (SettingsPopupView.ROW_HEIGHT - SettingsPopupView.TOGGLE_HEIGHT) / 2,
@@ -194,7 +194,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     // Slider thumb
     const thumb = new PIXI.Graphics();
     thumb.eventMode = "static";
-    (thumb as any).cursor = "pointer";
+    thumb.cursor = "pointer";
     row.addChild(thumb);
 
     const numRow: NumberRow = { name, container: row, track, thumb, valueText, value, min, max, step };

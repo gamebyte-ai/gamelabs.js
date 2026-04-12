@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- dev-only utility with dynamic typing */
 import type { Hud } from "../hud/Hud.js";
 import type { World } from "../world/World.js";
 import type { IStatsPanel } from "./IStatsPanel.js";

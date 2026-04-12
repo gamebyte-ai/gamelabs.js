@@ -1,4 +1,4 @@
-import type { LayoutOptions } from "@pixi/layout";
+import type { Layout, LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
 import type { Unsubscribe } from "../../../core/events/subscriptions.js";
@@ -112,7 +112,7 @@ export class ButtonComponent extends PIXI.Container {
     if (opts.height !== undefined) layout.height = opts.height;
     this.layout = layout;
 
-    this.on("layout", (l: any) => {
+    this.on("layout", (l: Layout) => {
       const w = Math.max(1, Math.floor(l.computedLayout.width));
       const h = Math.max(1, Math.floor(l.computedLayout.height));
       this._layoutWidth = w;

@@ -229,7 +229,7 @@ export class AssetManager implements IAssetManager {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Failed to fetch audio: ${response.status} ${url}`);
     const arrayBuffer = await response.arrayBuffer();
-    const audioCtx = new (globalThis.AudioContext || (globalThis as any).webkitAudioContext)();
+    const audioCtx = new (globalThis.AudioContext || globalThis.webkitAudioContext!)();
     const buffer = await audioCtx.decodeAudioData(arrayBuffer);
     audioCtx.close();
     return buffer;

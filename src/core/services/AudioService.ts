@@ -67,7 +67,7 @@ export class AudioService {
       throw new Error("AudioService already initialized");
     }
     this._assetManager = assetManager;
-    this._ctx = new (globalThis.AudioContext || (globalThis as any).webkitAudioContext)();
+    this._ctx = new (globalThis.AudioContext || globalThis.webkitAudioContext!)();
 
     this._masterGain = this._ctx.createGain();
     this._masterGain.connect(this._ctx.destination);

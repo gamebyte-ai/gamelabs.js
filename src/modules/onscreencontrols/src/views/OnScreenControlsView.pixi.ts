@@ -32,7 +32,7 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
   private readonly _joystickDirListeners = new Set<(id: string, nx: number, ny: number) => void>();
 
   public override postInitialize(): void {
-    (this as any).eventMode = "auto";
+    this.eventMode = "auto";
     this.interactiveChildren = true;
   }
 
@@ -77,7 +77,7 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
   private _createButton(config: VirtualButtonConfig): void {
     const container = new PIXI.Container();
     container.eventMode = "static";
-    (container as any).cursor = "pointer";
+    container.cursor = "pointer";
 
     const bg = new PIXI.Graphics();
     this._drawButtonBg(bg, config, false);

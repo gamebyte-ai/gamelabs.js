@@ -1,4 +1,4 @@
-import type { LayoutOptions } from "@pixi/layout";
+import type { Layout, LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import type { IAssetManager } from "../../../core/assets/IAssetManager.js";
 
@@ -72,7 +72,7 @@ export class ImageComponent extends PIXI.Container {
       ...(opts.height !== undefined ? { height: opts.height } : {}),
     };
 
-    this.on("layout", (l: any) => {
+    this.on("layout", (l: Layout) => {
       this._boxWidth = Math.max(1, Math.floor(l.computedLayout.width));
       this._boxHeight = Math.max(1, Math.floor(l.computedLayout.height));
       this.applyFit();

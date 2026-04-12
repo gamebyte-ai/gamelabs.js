@@ -221,10 +221,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       if (!it) continue;
       const levelNo = levels[i] ?? "";
       it.text.text = String(levelNo);
-      it.text.style = {
-        ...it.text.style,
-        fill: i === currentIndex ? 0xffffff : 0xdbe7ff,
-      } as any;
+      it.text.style.fill = i === currentIndex ? 0xffffff : 0xdbe7ff;
 
       it.button.alpha = i === currentIndex ? 1 : 0.85;
     }

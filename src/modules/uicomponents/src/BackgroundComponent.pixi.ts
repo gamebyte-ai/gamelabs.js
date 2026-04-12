@@ -1,4 +1,5 @@
 import "@pixi/layout";
+import type { Layout } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import type { IAssetManager } from "../../../core/assets/IAssetManager.js";
 
@@ -62,7 +63,7 @@ export class BackgroundComponent extends PIXI.Container {
 
     this.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
 
-    this.on("layout", (l: any) => {
+    this.on("layout", (l: Layout) => {
       const w = Math.max(1, Math.floor(l.computedLayout.width));
       const h = Math.max(1, Math.floor(l.computedLayout.height));
       this._width = w;

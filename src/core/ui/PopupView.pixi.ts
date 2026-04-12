@@ -29,7 +29,7 @@ export class PopupView extends HudViewBase implements IPopupView {
 
     this._blocker = new PIXI.Graphics();
     this._blocker.rect(0, 0, 1, 1).fill({ color: 0x000000, alpha: 0.5 });
-    (this._blocker as any).eventMode = "static";
+    this._blocker.eventMode = "static";
     this._blocker.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this.addChildAt(this._blocker, 0);
 
@@ -47,11 +47,11 @@ export class PopupView extends HudViewBase implements IPopupView {
   public onOpen(): void {
     this.alpha = 0;
     this._isInTransition = true;
-    (this as any).eventMode = "static";
+    this.eventMode = "static";
     this.interactiveChildren = false;
 
     this.runFade(0, 1, PopupView.FADE_DURATION_MS, () => {
-      if ((this as any).destroyed) return;
+      if (this.destroyed) return;
       this._isInTransition = false;
       this.interactiveChildren = true;
     });
@@ -62,7 +62,7 @@ export class PopupView extends HudViewBase implements IPopupView {
     this.interactiveChildren = false;
 
     this.runFade(this.alpha, 0, PopupView.FADE_DURATION_MS, () => {
-      if ((this as any).destroyed) return;
+      if (this.destroyed) return;
       this._isInTransition = false;
       done();
     });
@@ -81,7 +81,7 @@ export class PopupView extends HudViewBase implements IPopupView {
 
   private runFade(from: number, to: number, durationMs: number, onDone: () => void): void {
     this.cancelTransition();
-    const isDestroyed = (): boolean => Boolean((this as any).destroyed);
+    const isDestroyed = (): boolean => this.destroyed;
 
     if (durationMs <= 0) {
       this.alpha = to;

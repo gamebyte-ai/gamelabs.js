@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- dev-only debug panel with heavy DOM/PixiJS interop */
 import { Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
 import type { Hud } from "../hud/Hud.js";
 import { LogTypes, type LogType } from "./LogTypes.js";

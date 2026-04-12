@@ -1,4 +1,5 @@
 import "@pixi/layout";
+import type { Layout } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import type { IScreenView } from "./IScreenView.js";
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "./ScreenTransition.js";
@@ -22,7 +23,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
   private _clipMask: PIXI.Graphics | null = null;
   private _clipMaskWidth = 0;
   private _clipMaskHeight = 0;
-  private _clipMaskOnLayout: ((layout: any) => void) | null = null;
+  private _clipMaskOnLayout: ((layout: Layout) => void) | null = null;
 
   public get isInTransition(): boolean {
     return this._isInTransition;
@@ -66,7 +67,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
     if (!this._clipMask) {
       this._clipMask = new PIXI.Graphics();
       this._clipMask.alpha = 0;
-      (this._clipMask as any).eventMode = "none";
+      this._clipMask.eventMode = "none";
       this._clipMask.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
       this.addChildAt(this._clipMask, 0);
       this.mask = this._clipMask;
@@ -103,7 +104,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
   }
 
   private runTransition(durationMs: number, onTick: (t: number) => void, onDone: () => void): void {
-    const isDestroyed = (): boolean => Boolean((this as any).destroyed);
+    const isDestroyed = (): boolean => this.destroyed;
 
     if (durationMs <= 0) {
       if (!isDestroyed()) onTick(1);
@@ -168,7 +169,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
           this.position.set(baseX + enterDx * inv, baseY + enterDy * inv);
         },
         () => {
-          if ((this as any).destroyed) return;
+          if (this.destroyed) return;
           this.position.set(baseX, baseY);
           this._isInTransition = false;
         },
@@ -182,7 +183,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
         this.position.set(baseX + exitDx * t, baseY + exitDy * t);
       },
       () => {
-        if ((this as any).destroyed) return;
+        if (this.destroyed) return;
         this._isInTransition = false;
         this.destroy();
       },
@@ -194,7 +195,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
     // Enable layout by default for Pixi screens. Apps can override styles in subclasses.
     this.layout = { width: 1, height: 1 };
 
-    const onLayout = (layout: any) => {
+    const onLayout = (layout: Layout) => {
       const w = Math.max(1, Math.floor(layout.computedLayout.width));
       const h = Math.max(1, Math.floor(layout.computedLayout.height));
       this.ensureClipMask(w, h);
@@ -215,7 +216,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
         this._isInTransition = true;
         this.visible = false;
         this.setTransitionTimeout(() => {
-          if ((this as any).destroyed) return;
+          if (this.destroyed) return;
           this.visible = true;
           this._isInTransition = false;
         }, transition.durationMs);
@@ -242,7 +243,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
             this.alpha = t;
           },
           () => {
-            if ((this as any).destroyed) return;
+            if (this.destroyed) return;
             this.alpha = 1;
             this._isInTransition = false;
           },
@@ -265,7 +266,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
           transition.durationMs,
           () => {},
           () => {
-            if ((this as any).destroyed) return;
+            if (this.destroyed) return;
             this._isInTransition = false;
             this.destroy();
           },
@@ -290,7 +291,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
             this.alpha = 1 - t;
           },
           () => {
-            if ((this as any).destroyed) return;
+            if (this.destroyed) return;
             this._isInTransition = false;
             this.destroy();
           },
