@@ -1,9 +1,13 @@
 # Gamelab.js
 
+> **This file is human-authored.** Do not edit via AI agents or automated tools. Propose changes in a separate document or issue — a maintainer will incorporate them manually.
+
+
 This project is a **TypeScript skeleton + reusable modules** for web games. It is designed for:
 - **AI-generated** game projects
 - Consistent project structure for easy review, shared module development and usage
 - Strict separation between **rendering/scene** and **game logic**
+
 
 It depends on:
 - **Three.js** for 3D (world scene)
@@ -13,17 +17,9 @@ It depends on:
 
 ## Architecture/Design decisions
 - Base app class for program skeleton, users extend it and override methods to handle program flow
-- Minimal dependency injection with two containers
-    - `Gamelabs.diContainer`
-        - Common tools, Models, Events, Utilities are bound to this
-        - Given to view controllers and utilities
-    - `Gamelabs.viewDiContainer`
-        - Common tools, Scene managers are bound to this
-        - Given to views
-- Strict View - ViewController separation between **rendering/scene** and **game logic**
-    - Two types of views
-        - World and WorldViews for game scene and objects (implemented with **Three.js**)
-        - Hud and HudViews for UIs and overlays (implemented with **PixiJS**)
+- Minimal dependency injection
+- Simple MVP structure with strict View - ViewController separation between **rendering/scene** and **game logic**
+- Use events for indirect communication
 - Modules system for sharing features between projects in a consistent structure
 
 
@@ -33,45 +29,33 @@ It depends on:
 - World views: `FooView.three.ts` (suffix `.three.ts`)
 - View controllers: `FooViewController.ts` (every controller in this codebase implements `IViewController<IFooView>`; the suffix stays explicit so concrete class names match the interface and disambiguate from things like `ICameraController` in the gamecamera module)
 - Events: `FooEvents.ts`
-- Models: `Foo.ts` or `FooModel.ts`
-- Config: `MyGameConfig.ts`
-- Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
+- Models: `Foo.ts` or `FooModel.ts`, For readonly model interface `IFoo.ts` or `IFooModel.ts`
+- App-level classes keep the **game** prefix
+    - Application: `MyGameApp.ts`
+    - Config: `MyGameConfig.ts`
+    - Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `MyGame.ItemName`)
+    - UI IDs: `MyGameUIIds.ts` (enum with namespaced values: `MyGame.GameScreen`, `MyGame.WinPopup`)
+- For small projects where a single class is sufficient for a task `Game` prefix can be used (`GameOperations`, `GameEvents`, `GameBoardModel`, `GameScreenViewController`, ...)
 
 
-### `GameBoard*` convention for gamegrid subclasses
-
-Every per-board class an example defines on top of the `gamegrid` module — the
-model, the view, the controller, the view interface, and the four view-side
-helper classes — is named after the **role** it plays in the architecture
-("a thing that lives on the game's board"), not after the gameplay (a "gem",
-"tile", "marker", ...). The eight canonical names are:
-
-| File                                | Extends / implements             | Purpose                                                |
-|-------------------------------------|----------------------------------|--------------------------------------------------------|
-| `models/GameBoardItem.ts`           | `GridItem`                       | Per-game grid item model (carries game-specific data)  |
-| `views/IGameBoardsView.ts`          | `IGridView`                      | Per-game grid view interface                           |
-| `views/GameBoardsView.three.ts`     | `GridsView`                      | Per-game world view rendering the board                |
-| `views/GameBoardCellObject.ts`      | `GridCellObject`                 | Visual / pointer behavior of one board cell            |
-| `views/GameBoardItemObject.ts`      | `GridItemObject`                 | Visual of one item placed on a cell                    |
-| `views/GameBoardItemObjectOptions.ts` | `GridItemObjectOptions`        | Constructor options carrying game-specific item data   |
-| `views/GameBoardObjectCreator.ts`   | `GridObjectCreator`              | Factory wiring the cell + item objects above           |
-| `controllers/GameBoardsViewController.ts` | `GridsViewController`      | Per-game controller driving the board view             |
-
-App-level / config / asset-id / module-binding / popup classes keep the **game**
-prefix (`Match3App`, `Match3Config`, `Match3AssetIds`, `Match3GameGridBinding`,
-`Game2048App`, `Game2048Config`, `Game2048AssetIds`, `Game2048GameGridBinding`, ...).
-Generic per-game pieces — `GameOperations` (the in-domain operations class),
-`GameEvents`, `GameBoard*` (per-board model + view + controller + helpers),
-`GameScreenViewController` — drop the game prefix because they describe the
-*role* in the architecture. Each example owns its own copies of the
-`GameOperations` / `GameEvents` / `GameBoard*` / `GameScreen*` files inside its
-own `src/` tree — they don't collide because they're scoped to the example
-folder. See `examples/match3` and `examples/2048` for the convention applied
-end-to-end.
+## Dependency injection
+- Minimal dependency injection with only singleton binding
+- Interface tokens use the InjectionToken pattern: a const and a type with the same name so interfaces can be used as DI keys (`export const IFoo = new InjectionToken("IFoo")`)
+- There are two DI containers
+    - `Gamelabs.diContainer`
+        - Common tools(logger,...), Models, Events, Services, Manager, and Other utilities are bound to this
+        - Given to View controllers, Services, Managers, and Other utilities for instance resolving
+    - `Gamelabs.viewDiContainer`
+        - Common tools(logger,...), Scene managers are bound to this
+        - Given to Views for instance resolving
 
 
-### Where logic lives (rules / managers / services)
+## Events
+- Event classes must use the `Set<cb>` + `Unsubscribe` pattern. Do not use single-listener setters.
+- Use `UnsubscribeBag` for event cleanup in classes. Do not track unsubscribe functions manually.
 
+
+## Managers / Services / Rules  (Where logic lives)
 Pick the bucket **before** writing a class. The key question is: does it fail
 because of the *environment* (network down, quota exceeded, permission denied)?
 If yes, it's a service. If no, it's a rules class or a manager.
@@ -82,44 +66,50 @@ If yes, it's a service. If no, it's a rules class or a manager.
 | **State managers** | `utilities/` | `*Manager` | Yes | **No** (uses rules + services as inputs) | `TurnManager`, `WaveManager`, `UpdateManager`, `GameCameraManager`, `SettingsManager` |
 | **Services** | `services/` | `*Service` | Usually minimal (cache) | **Yes** — browser APIs, network, OS, sensors, file system | `StorageService`, `AudioService`, `NotificationService`, `GeolocationService`, `ShareService`, `AnalyticsService`, `*ApiService` |
 
-Acid tests:
+#### Acid tests:
 
 - **Rules / operations:** *can I unit-test it with `expect(ops.findMatches(grid)).toEqual(...)` — no DOM, no THREE/PIXI, no network stub?* If yes → it's rules. If you need to stub fetch/localStorage/audio context, it's not rules, it's a service.
 - **Manager:** *does it own mutable state that outlives any single controller method?* Turn order, wave spawn state, camera rig position, settings values. Manager is the catch-all for in-app coordinators that are neither pure rules nor external boundaries.
 - **Service:** *can this fail because of the environment and not because of the inputs?* Network timeout, quota exceeded, autoplay policy, permission denied. If yes → service. Services must be mockable for tests (tests should never actually hit the network or localStorage).
 
-**Do not name a class `*Service` if it never touches the outside world.** That was a historical mistake in this repo (`Match3GridService`, `Game2048GridService`, `UpdateService`) — these have been renamed to `GameOperations` (in both match3 and 2048) and `UpdateManager`. The `*Service` suffix is now reserved for boundary code.
 
-#### Controllers
+### Views
+- View classes manage scene objects, handle rendering settings, create sub views, handle pointer inputs
+- Two types of View containers and views exist
+    - World and WorldViews for game scene and objects (implemented with **Three.js**)
+    - Hud and HudViews for UIs and overlays (implemented with **PixiJS**)
+- Every view has a view interface to give restricted access to controller (`interface IMyView extends IView`)
+- View class extends base classes and implements all methods (`MyView extends WorldViewBase implements IMyView`)
+    - WorldViewBase; extend for common 3d world objects
+    - HudViewBase: extend for common 2d hud object
+- There are special view for ui
+    - ScreenView
+        - They are automatically added to a specific Hud container
+        - They cover whole canvas and only one of them is active at a time
+        - They have transition after creation and before destruction (interaction should be blocked while `isInTransition` is true)
+    - PopupView:  extend for special 2d hud objects that are centered on screen, when multiple popups shown they act as a stack and cover previous one
 
-Controllers stay thin: sequence async work, branch on results, dispatch events,
-handle view input, and glue rules + managers + services together. When a
-controller starts doing real computation — loops, searches, aggregations,
-anything unit-testable in isolation — extract that work into an `*Operations`
-class in `utilities/`. A good smell test: if you could write a meaningful test
-for the method without instantiating a view, the method belongs in rules.
 
-#### Worked example (2048)
+### View Controllers
+- They are the thin coordination layer between views, utilities, and events. They own no domain logic and no mutable state.
+- They implement IViewController (`class MyViewController implements IViewController<IMyView>`)
+- Listen and dispatch events: subscribe to state changes, emit intents. No direct controller-to-controller calls.
+- Listens view events, handle view behaviors and responses via `IView` child interfaces
+- Perform sequence of operations: "when user clicks swap → validate via Operations → if valid, animate via View → emit score change via Events"
+- Map view input to domain calls: "convert screen coordinates to grid positions, translate button presses to game actions"
+#### Rules
+1. No domain logic. No game rules, no state mutations, no computations (loops, searches, aggregations). All of that belongs in utilities/ (*Operations, *Manager, *Rules).
+2. Read-only model access. Controllers access model state through readonly interfaces (IGameState, IGridState), not mutable model references. The utility that owns the state exposes the readonly view.
+3. Indirect communication only. Controllers communicate through event classes. Never call another controller directly, never hold a reference to one.
+4. Branching and sequencing is not "logic." Translating view input into domain calls and routing results to views is the controller's job — don't extract trivial if/else routing into utility classes.
+5. View access through interfaces. Controllers reference IMyView, never the concrete MyView.pixi.ts class. This keeps controllers renderer-agnostic.
+6. Cleanup via UnsubscribeBag. All event subscriptions go through UnsubscribeBag and are flushed in destroy().
 
-The 2048 example splits responsibilities like this:
-
-- `GameBoardsViewController` (thin): reads keyboard / swipe input, calls
-  `operations.planMove(direction)`, awaits slide animation, calls
-  `operations.commitPlan(plan)`, dispatches score / best / game-over events.
-  No matching/gravity/merge math in the controller.
-- `GameOperations` (in-domain logic): pure move planning, grid compaction,
-  merge detection, spawn logic, canMove / game-over checks. Holds game state
-  (score, best, grid reference). Implements `IInjectionTarget`: the constructor
-  takes no arguments, dependencies are pulled in `inject(resolver)`, and the
-  `Grid` is built and registered with `GridsModel` there. No DOM, no THREE.
-  Lives in `utilities/`.
-- `GameBoardsView` (view): tile sliding / pop / spawn animations on THREE
-  objects. No game logic.
-- `StorageService` (service, from the framework): persists best score.
-  `AudioService` (service, from the framework): plays SFX.
-
-The controller is roughly 150 lines and contains almost no math; the operations
-class holds ~260 lines of pure logic that can be unit-tested without the view.
+### Using Views and Controllers
+- Register classes : View and viewController classes are registered in `IViewFactory` (`this.viewFactory.register<MyView, MyViewController> (MyView, MyViewController);`)
+- Create instance : `IViewFactory` create methods are used to instantiate views then they are added to a parent object or directly to World or Hud (`const myView = this.viewFactory.createView(MyView);    this.world.addView(myView);`)
+- Use `UIEvents.createScreen` to create screen views
+- Use `UIEvents.createPopup`, `UIEvents.removeTopPopup`, `UIEvents.removeAllPopups` to manage popup views
 
 
 ## Library folder structure (`src/`)
@@ -140,13 +130,7 @@ src
 │   ├──GamelabsApp.ts     Base app class
 │   └──ModuleBinding.ts   Base module binding class
 ├──modules
-│   ├──gamecamera/        GameCameraBinding, GameCameraManager, camera controllers
-│   ├──gamegrid/          GameGridBinding, Grid, GridsModel, GridsView, GridsViewController
-│   ├──mainscreen/        MainScreenBinding, MainScreenView, MainScreenViewController
-│   ├──levelprogressscreen/  LevelProgressScreenBinding, LevelProgressScreenView
-│   ├──onscreencontrols/  OnScreenControlManager, virtual buttons & joysticks
-│   ├──settings/          SettingsBinding, SettingsManager, SettingsPopupView
-│   └──audiodsp/          DspChain, DspPresets, filter/reverb/delay/distortion/compressor effects
+│   ├── ...               Various modules, they are explained in their own readme file
 └──index.ts               Barrel exports
 ```
 
@@ -163,27 +147,18 @@ MyGame
     ├──views                    IMyScreenView.ts, MyScreenView.pixi.ts, IMyGridView.ts, MyGridView.three.ts
     ├──MyGameApp.ts             (extends GamelabsApp)
     ├──MyGameAssetIds.ts        (unique asset ids with enums)
+    ├──MyGameUIIds.ts           (unique ui ids for screens and popups with enums)
     └──MyGameConfig.ts          (initial values, tweaks, timings, sizes, animation values, ...)
 ```
 
-## Implementation details
 
-
-### Asset management
+## Asset management
 
 - Apps and modules define their unique asset ids with enums (`enum MyGameAssetIds { Missile = "MyGame.Missile"}`)
 - All asset requests must be added using load methods on `IAssetManager`
 - Asset loading is guaranteed to be completed before `GamelabsApp.postInitialize()` method call. Failed items will use fallback assets.
 - Loaded asset can be requested from method `IAssetManager.getAsset<T>(id: string): T`
 - Assets that are failed to load and using fallbacks can be queried with `IAssetManager.isFallback(id: string): boolean` method
-
-
-### Dependency injection
-
-There are two DI containers
-- `diContainer`; bind common and controller/utility injections to this container
-- `viewDiContainer`; bind common and view only injections to this container
-- Interface tokens use the InjectionToken pattern: a const and a type with the same name so interfaces can be used as DI keys (`export const IFoo = new InjectionToken("IFoo")`)
 
 
 ### App
@@ -196,57 +171,10 @@ Your `MyGameApp` class extends `GamelabsApp` and implements following methods:
     - `loadAssets()`: enqueue app-specific assets in `assetManager`
     - `postInitialize()`: create initial screens/views, load levels and hook event subscriptions (called after assets are loaded)
 - Runtime methods
-    - `onStep(timestepSeconds)`: per-frame logic hook (called after `updateService.tick()`)
+    - `onStep(timestepSeconds)`: per-frame logic hook (called after `updateManager.tick()`)
 - Uninitialization
     - `preDestroy()`: unsubscribe + cleanup owned resources
 
-
-### Events
-
-Events are used for communication between controllers and utilities.
-
-
-### Utilities
-
-Utilities (services, manager, tools, ...) are used by view controllers and utilities. They can listen and dispatch events.
-
-
-### Views
-
-- View interface is defined with methods to access from controller (`interface IMyView extends IView`)
-- View class extends either WorldViewBase, HudViewBase or ScreenView and implements all methods (`MyView extends WorldViewBase implements IMyView`)
-- View classes manage scene objects, handle rendering settings, create sub views, handle pointer inputs
-
-### View controllers
-
- - View controller implements IViewController (`class MyViewController implements IViewController<IMyView>`)
- - View controller listens view and other events, handle view behaviors and responses via `IView` child interfaces
-
-### Using views
-
-- Register classes : View and viewController classes are registered in `IViewFactory` (`this.viewFactory.register<MyView, MyViewController> (MyView, MyViewController);`)
-- Create instance : `IViewFactory` create methods are used to instantiate views then they are added to a parent object or directly to World or Hud (`const myView = this.viewFactory.createView(MyView);    this.world.addView(myView);`)
-
-### Screen views
-
-- Screens are special hud views
-- They are automatically added to a specific Hud container
-- They cover whole canvas and only one of them is active at a time
-- They have transition after creation and before destruction (interaction should be blocked while `isInTransition` is true)
-
-
-### DevUtils
-
-`IDevUtils` provides built-in development tools. 
-It is accessible via `this.devUtils` in your app class.
-Also `IDevUtils` is available via both DI containers (`diContainer.getInstance(IDevUtils)`).
-- `devUtils.logger` is an integrated logger
-    - Use `logger.log(message, type?)` to log messages with `LogTypes.Info`, `LogTypes.Warning`, or `LogTypes.Error`.
-    - Use `logger.show(true/false)` to toggle the on-screen log panel visibility.
-- `devUtils.statsPanel` is an on screen panel for FPS/render stats
-    - Use `statsPanel.show(true/false)` to toggle.
-- `devUtils.groundGrid` — 3D ground grid helper for the World scene.
-    - Use `groundGrid.show(true/false)` to toggle visibility.
 
 ### Modules
 
@@ -277,19 +205,18 @@ Before registration it can be modified
 - Di and view configuration items can be altered
 
 
-### Existing modules
+### DevUtils
 
-The following modules are shipped with the library. See each module's `README.md` for detailed usage, configuration, and asset/preset options.
-
-- **`uicomponents`** — reusable Pixi UI components: `ButtonComponent`, `BackgroundComponent`, `ImageComponent`, `VerticalLayoutComponent`, `HorizontalLayoutComponent`. Each accepts a plain preset object (JSON-serializable) so configuration can be stored as `Text` assets and overridden per app.
-- **`mainscreen`** — ready-to-use main menu screen with a logo, play button, and settings button. Exposes `MainScreenEvents` for click wiring.
-- **`levelprogressscreen`** — vertical level-list screen showing previous/current/next levels with connector sprites and a back button. Exposes `LevelProgressScreenEvents`.
-- **`gamecamera`** — camera manager with multiple controller flavors (orbital, topdown 2D/3D, front 2D/3D, isometric 2D/3D) for common gameplay camera rigs.
-- **`gamegrid`** — grid model, grid items, and a grid view/controller pair for tile-based gameplay (used by the match3, tictactoe, and 2048 examples).
-- **`onscreencontrols`** — touch-friendly virtual buttons and joysticks rendered as a PixiJS HUD overlay. `OnScreenControlManager` implements `IInputDeviceListener` so controls integrate with `InputMapper` alongside keyboard. Supports static and dynamic joysticks, dynamic add/remove at runtime via `OnScreenControlEvents`.
-- **`settings`** — typed settings system with boolean toggles and number sliders. `SettingsManager` persists values via `StorageService` (localStorage), validates on write (clamp, step), and emits `SettingsEvents.onValueChanged`. Includes a ready-to-use `SettingsPopupView` with toggle switches and drag sliders.
-- **`audiodsp`** — audio DSP effects built on Web Audio API. `DspChain` connects effects in series; effects include `FilterEffect`, `ReverbEffect`, `DelayEffect`, `DistortionEffect`, `CompressorEffect`. `DspPresets` provides one-liner chains for common scenarios (underwater, radio, echo, lo-fi).
-
+`IDevUtils` provides built-in development tools. 
+It is accessible via `this.devUtils` in your app class.
+Also `IDevUtils` is available via both DI containers (`diContainer.getInstance(IDevUtils)`).
+- `devUtils.logger` is an integrated logger
+    - Use `logger.log(message, type?)` to log messages with `LogTypes.Info`, `LogTypes.Warning`, or `LogTypes.Error`.
+    - Use `logger.show(true/false)` to toggle the on-screen log panel visibility.
+- `devUtils.statsPanel` is an on screen panel for FPS/render stats
+    - Use `statsPanel.show(true/false)` to toggle.
+- `devUtils.groundGrid` — 3D ground grid helper for the World scene.
+    - Use `groundGrid.show(true/false)` to toggle visibility.
 
 
 ### Commands
@@ -299,19 +226,10 @@ The following modules are shipped with the library. See each module's `README.md
 
 
 ## Rules and constraints
-
-- Views must NOT access `diContainer`. Views receive `viewDiContainer` only.
-- Controllers must NOT import or manipulate rendering objects (Three.js meshes, PixiJS containers, etc.). Controllers talk to views only through `IView` interfaces.
-- Basic logic can be in controllers, complicated operations can be moved to utility classes
-- Cross-feature communication must go through event classes, not direct references between controllers.
-- Do not call other controllers directly. Use events to decouple.
 - Scene setup (fog, lights, post-processing) belongs in views, not in the app class.
 - Views must not contain game logic or state mutations. Views render and report input; controllers decide what happens.
-- Event classes must use the `Set<cb>` + `Unsubscribe` pattern. Do not use single-listener setters.
-- Use `UnsubscribeBag` for event cleanup in controllers. Do not track unsubscribe functions manually.
 - Controllers must reference view interfaces (`IMyView`), not concrete view classes (`MyView`).
 - Asset IDs must be enums with namespaced string values (`"MyGame.ItemName"`), not plain objects or bare strings.
-- Use `services/` **only** for external-boundary code (storage, network, browser/OS APIs, audio output). Use `utilities/` for in-app domain rules (`*Operations`, `*Rules`) and stateful managers (`*Manager`). Use `events/` for event classes. See "Where logic lives" above.
 - Modules must not depend on app-specific code. They should be reusable across projects.
 - Do not override lifecycle methods without calling `super` where required (`super.inject()`, `super.destroy()`, etc.).
 - Do not create empty lifecycle overrides (empty `loadAssets()`, `onStep()` that only calls `super`). Only override when adding behavior.

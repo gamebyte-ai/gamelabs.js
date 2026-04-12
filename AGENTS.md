@@ -2,7 +2,7 @@
 
 This project is a **TypeScript skeleton + reusable modules** for web games (Three.js + PixiJS). It targets **AI-generated projects** where humans review every change. Follow these policies when modifying code.
 
-Read `DeveloperNotes.md` for full architecture and implementation details.
+Read `DeveloperNotes.md` for full architecture and implementation details. **Do not edit `DeveloperNotes.md`** — it is human-authored. If you find information that needs updating, note it in your response and let the maintainer update the file.
 
 ## Error handling philosophy
 
@@ -20,18 +20,22 @@ This applies to: `GamelabsApp.initialize()`, DI container, module `configureDI()
 
 - Views must NOT access `diContainer`. Views receive `viewDiContainer` only.
 - Controllers must NOT import or manipulate rendering objects (Three.js meshes, PixiJS containers, etc.). Controllers talk to views only through `IView` interfaces.
+- Controllers must NOT contain domain logic — no game rules, no state mutations, no computations (loops, searches, aggregations). Use utilities/managers/services for all operations.
+- Controllers must access model state through readonly interfaces (`IGameState`, `IGridState`), not mutable model references. The utility that owns the state exposes the readonly view.
 - Cross-feature communication must go through event classes, not direct references between controllers.
 - Do not call other controllers directly. Use events to decouple.
+- Branching and sequencing is not "logic" — translating view input into domain calls and routing results to views is the controller's job. Do not extract trivial if/else routing into utility classes.
 - Scene setup (fog, lights, post-processing) belongs in views, not in the app class.
 - Views must not contain game logic or state mutations. Views render and report input; controllers decide what happens.
 - Event classes must use the `Set<cb>` + `Unsubscribe` pattern. Do not use single-listener setters.
-- Use `UnsubscribeBag` for event cleanup in controllers. Do not track unsubscribe functions manually.
+- Use `UnsubscribeBag` for event cleanup in classes. Do not track unsubscribe functions manually.
 - Controllers must reference view interfaces (`IMyView`), not concrete view classes (`MyView`).
 - Asset IDs must be enums with namespaced string values (`"MyGame.ItemName"`), not plain objects or bare strings.
 - Put in-app logic (domain rules, operations, stateful managers) in `utilities/`. Put boundaries to the outside world (storage, network, browser/OS APIs, audio output) in `services/`. Put event classes in `events/`. See "Where logic lives" below.
 - Modules must not depend on app-specific code. They should be reusable across projects.
 - Do not override lifecycle methods without calling `super` where required (`super.inject()`, `super.destroy()`, etc.).
 - Do not create empty lifecycle overrides (empty `loadAssets()`, `onStep()` that only calls `super`). Only override when adding behavior.
+- Game-related objects should be in World, even if it is a 2D game.
 
 ## Where logic lives
 
@@ -39,7 +43,7 @@ Three buckets with strict definitions. Decide which one a new class belongs to
 **before** writing it, not after.
 
 - **Domain rules / operations** — `utilities/`, suffix `*Rules` / `*Operations` /
-  `*Solver` / `*Calculator`. Pure in-app logic that computes results from
+  `*Solver` / `*Calculator` / `*Finder`. Pure in-app logic that computes results from
   models. Examples: match-finding, swap validation, move planning, win
   detection, gravity. No DOM, no THREE/PIXI, no I/O. Must be unit-testable
   without a view present. Holding game state is fine (`_score`, grid
@@ -60,10 +64,13 @@ Three buckets with strict definitions. Decide which one a new class belongs to
   rules or coordinates state but never talks to a browser/OS/network API, it
   is an `*Operations` / `*Manager`, not a service.
 
-Controllers stay thin. They sequence async work, branch on results, dispatch
-events, and handle view input. When a controller starts doing real computation
-(loops, searches, aggregations, anything unit-testable in isolation), extract
-that work into an `*Operations` / `*Manager` / `*Rules` class in `utilities/`.
+Controllers are the thin coordination layer between views, utilities, and events.
+They own no domain logic and no mutable state. They sequence operations, branch
+on results, map view input to domain calls, and listen/dispatch events. When a
+controller starts doing real computation (loops, searches, aggregations, anything
+unit-testable in isolation), extract that work into an `*Operations` / `*Manager`
+/ `*Rules` class in `utilities/`. Branching and sequencing is their job — don't
+over-extract trivial routing into unnecessary helper classes.
 
 ## File naming conventions
 
@@ -72,9 +79,10 @@ that work into an `*Operations` / `*Manager` / `*Rules` class in `utilities/`.
 - World views: `FooView.three.ts` (suffix `.three.ts`)
 - View controllers: `FooViewController.ts` (every controller in this codebase is a view controller — even though there's only one kind, the suffix stays explicit so it matches the `IViewController<IFooView>` interface and disambiguates from things like `ICameraController` in the gamecamera module)
 - Events: `FooEvents.ts`
-- Models: `Foo.ts` or `FooModel.ts`
+- Models: `Foo.ts` or `FooModel.ts`. For readonly model interfaces: `IFoo.ts` or `IFooModel.ts`
 - Config: `MyGameConfig.ts`
-- Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
+- Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `MyGame.ItemName`)
+- UI IDs: `MyGameUIIds.ts` (enum with namespaced values: `MyGame.GameScreen`, `MyGame.WinPopup`)
 - In-domain logic: `FooOperations.ts` / `FooRules.ts` / `FooSolver.ts` (in `utilities/`)
 - State managers: `FooManager.ts` (in `utilities/`)
 - External-boundary services: `FooService.ts` (in `services/`)
@@ -90,7 +98,7 @@ that work into an `*Operations` / `*Manager` / `*Rules` class in `utilities/`.
   `Game2048AssetIds`, `Game2048GameGridBinding`, ...). Each example owns its own
   copies of the `GameOperations` / `GameEvents` / `GameBoard*` / `GameScreen*`
   files inside its own `src/` tree — they don't collide because they're scoped
-  to the example folder. See `DeveloperNotes.md` for the canonical table.
+  to the example folder.
 
 ## Project structure
 
@@ -105,6 +113,7 @@ MyGame/src
 ├── views/             IMyView.ts, MyView.pixi.ts, MyView.three.ts
 ├── MyGameApp.ts       (extends GamelabsApp)
 ├── MyGameAssetIds.ts  (unique asset ids with enums)
+├── MyGameUIIds.ts     (unique ui ids for screens and popups with enums)
 └── MyGameConfig.ts    (initial values, tweaks, timings, sizes, animation values)
 ```
 
@@ -125,8 +134,8 @@ Modules follow the same layout under `src/modules/<name>/src/` with a `ModuleBin
 
 ## DI containers
 
-- `diContainer` — bind controllers, utilities, events, models. Given to controllers and utilities via `inject(resolver)`.
-- `viewDiContainer` — bind view-layer tools (AssetManager, ViewFactory, InputManager). Given to views via `inject(resolver)`.
+- `diContainer` — bind common tools (logger, ...), models, events, services, managers, and other utilities. Given to controllers, services, managers, and other utilities via `inject(resolver)`.
+- `viewDiContainer` — bind common tools (logger, ...), scene managers (AssetManager, ViewFactory, InputManager). Given to views via `inject(resolver)`.
 - Interface tokens use the InjectionToken pattern: `export const IFoo = new InjectionToken<IFoo>("IFoo")`
 
 ## View/Controller pattern
@@ -135,17 +144,42 @@ Modules follow the same layout under `src/modules/<name>/src/` with a `ModuleBin
 - Extend `WorldViewBase` (3D), `HudViewBase` (2D), or `ScreenView` (full-screen 2D)
 - Controller implements `IViewController<IMyView>`
 - Register: `viewFactory.register<MyView, MyViewController>(MyView, MyViewController)`
-- Create: `viewFactory.createView(MyView)` or `viewFactory.createScreenView(MyScreenView, transition)`
+- Create views: `viewFactory.createView(MyView)`
+- Create screens: `UIEvents.createScreen(id, transition)`
+- Manage popups: `UIEvents.createPopup(id)`, `UIEvents.removeTopPopup()`, `UIEvents.removeAllPopups()`
 
 ## Coding conventions
 
-- Access modifiers on all class members
-- `_` prefix for private/protected fields
+- Always use explicit access modifiers (`public`, `protected`, `private`) on all class members — fields, methods, getters, setters, constructors. Never rely on TypeScript's implicit `public`.
+- Private and protected field names must have an underscore prefix: `private _count`, `protected _logger`. Public fields do not use the prefix.
+- When using the bound handler pattern (e.g. `this.on("event", handler)`), if the handler body is longer than one line, extract it into a named method. Inline arrow functions are fine for single-expression handlers.
+  ```ts
+  // Good — single line
+  this.on("pointerdown", (e) => e.stopPropagation());
+
+  // Good — multi-line extracted to method
+  this.on("pointerdown", this.onPointerDown);
+  private onPointerDown(e: PointerEvent): void {
+    e.stopPropagation();
+    this._handleInput(e);
+  }
+
+  // Bad — multi-line inline
+  this.on("pointerdown", (e) => {
+    e.stopPropagation();
+    this._handleInput(e);
+  });
+  ```
 - Keep method parameters and import statements on a single line
 
 ## Commands
 
 ```bash
-npm run build       # Build library (tsup)
-npm run typecheck   # Type check (tsc --noEmit)
+npm run build          # Build library (tsup)
+npm run typecheck      # Type check (tsc --noEmit)
+npm run lint           # ESLint
+npm run format:check   # Prettier check
+npm test               # Vitest
 ```
+
+Examples: `cd examples/<name> && npm install && npm run dev`
