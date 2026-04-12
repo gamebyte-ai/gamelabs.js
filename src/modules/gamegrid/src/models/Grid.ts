@@ -3,11 +3,12 @@ import type { GridCell } from "./GridCell.js";
 import type { GridItem } from "./GridItem.js";
 import { GridPreset } from "./GridPreset.js";
 import type { GridEvents } from "../events/GridEvents.js";
-import type { Vector3 } from "../types/Vector3.js";
+import type { Vector3 } from "../constants/Vector3.js";
 import type { IGridAllocator } from "../utilities/IGridAllocator.js";
 import { DefaultGridAllocator } from "../utilities/DefaultGridAllocator.js";
+import type { IGrid } from "./IGrid.js";
 
-export class Grid {
+export class Grid implements IGrid {
   public readonly gridId: number;
   public readonly columnCount: number;
   public readonly rowCount: number;
@@ -37,7 +38,7 @@ export class Grid {
     this.gridId = gridId;
     this.columnCount = columnCount;
     this.rowCount = rowCount;
-    this.preset = preset ?? GridPreset.DEFAULT;
+    this.preset = preset ?? new GridPreset();
     this._allocator = allocator ?? new DefaultGridAllocator();
     this._position = vector(0, 0, 0);
     this._rotation = vector(0, 0, 0);

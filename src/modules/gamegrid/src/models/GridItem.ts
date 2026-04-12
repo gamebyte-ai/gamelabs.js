@@ -1,6 +1,7 @@
-import type { GridCell } from "./GridCell";
+import type { GridCell } from "./GridCell.js";
+import type { IGridItem } from "./IGridItem.js";
 
-export class GridItem {
+export class GridItem implements IGridItem {
   //  FIELDS
   public readonly itemId: number;
   private _cell: GridCell | null;

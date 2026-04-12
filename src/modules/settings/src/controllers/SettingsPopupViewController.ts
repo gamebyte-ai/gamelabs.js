@@ -27,14 +27,7 @@ export class SettingsPopupViewController implements IViewController<ISettingsPop
         view.addBooleanField(field.name, field.label, this._manager!.getBooleanValue(field.name));
       } else if (field.type === SettingsFieldType.Number) {
         const nf = field as SettingsNumberField;
-        view.addNumberField(
-          field.name,
-          field.label,
-          this._manager!.getNumberValue(field.name),
-          nf.min,
-          nf.max,
-          nf.step,
-        );
+        view.addNumberField(field.name, field.label, this._manager!.getNumberValue(field.name), nf.min, nf.max, nf.step);
       }
     }
 

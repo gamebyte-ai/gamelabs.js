@@ -49,8 +49,7 @@ export class DevUtils implements IDevUtils {
 
   public resize(width: number, height: number, dpr?: number): void {
     const r = (this._hud.app.renderer as any).resolution;
-    const effectiveDpr =
-      typeof dpr === "number" && Number.isFinite(dpr) ? dpr : typeof r === "number" && Number.isFinite(r) ? r : 1;
+    const effectiveDpr = typeof dpr === "number" && Number.isFinite(dpr) ? dpr : typeof r === "number" && Number.isFinite(r) ? r : 1;
     this._statsPanel.resize(width, height, effectiveDpr);
 
     this._logger.resize(width, height);

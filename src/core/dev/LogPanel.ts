@@ -68,8 +68,7 @@ export class LogPanel {
       text: this._title,
       style: new TextStyle({
         fill: 0xffffff,
-        fontFamily:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         fontSize: 13,
         fontWeight: "600",
       }),
@@ -84,8 +83,7 @@ export class LogPanel {
       text: "✕",
       style: new TextStyle({
         fill: 0xffffff,
-        fontFamily:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         fontSize: 13,
         fontWeight: "600",
       }),

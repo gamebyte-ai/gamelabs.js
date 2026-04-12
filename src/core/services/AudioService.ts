@@ -173,10 +173,7 @@ export class AudioService {
 
     if (opts.fadeInMs && opts.fadeInMs > 0) {
       this._musicGain!.gain.setValueAtTime(0, this._ctx.currentTime);
-      this._musicGain!.gain.linearRampToValueAtTime(
-        this._getEffectiveMusicVolume(),
-        this._ctx.currentTime + opts.fadeInMs / 1000,
-      );
+      this._musicGain!.gain.linearRampToValueAtTime(this._getEffectiveMusicVolume(), this._ctx.currentTime + opts.fadeInMs / 1000);
     }
 
     source.start();

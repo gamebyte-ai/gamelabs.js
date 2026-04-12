@@ -51,15 +51,7 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
     gridObj.addItem(itemObj, col, row);
   }
 
-  public moveItem(
-    itemId: number,
-    gridId: number,
-    col: number,
-    row: number,
-    toGridId: number,
-    toCol: number,
-    toRow: number,
-  ): void {
+  public moveItem(itemId: number, gridId: number, col: number, row: number, toGridId: number, toCol: number, toRow: number): void {
     const gridObj = this._gridObjects.get(gridId);
     const toGridObj = this._gridObjects.get(toGridId);
     if (!gridObj || !toGridObj) return;

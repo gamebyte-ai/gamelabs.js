@@ -29,9 +29,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
     return this._isInTransition;
   }
 
-  private static readonly slideDeltas: Partial<
-    Record<string, { enter: { x: number; y: number }; exit: { x: number; y: number } }>
-  > = {
+  private static readonly slideDeltas: Partial<Record<string, { enter: { x: number; y: number }; exit: { x: number; y: number } }>> = {
     [SCREEN_TRANSITION_TYPES.SLIDE_IN_LEFT]: { enter: { x: -1, y: 0 }, exit: { x: 1, y: 0 } },
     [SCREEN_TRANSITION_TYPES.SLIDE_IN_RIGHT]: { enter: { x: 1, y: 0 }, exit: { x: -1, y: 0 } },
     [SCREEN_TRANSITION_TYPES.SLIDE_IN_DOWN]: { enter: { x: 0, y: 1 }, exit: { x: 0, y: -1 } },
@@ -92,11 +90,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
     const ph = typeof parentStyle?.height === "number" ? parentStyle.height : undefined;
     if (pw && ph) return { width: Math.max(1, pw), height: Math.max(1, ph) };
 
-    if (
-      typeof window !== "undefined" &&
-      typeof window.innerWidth === "number" &&
-      typeof window.innerHeight === "number"
-    ) {
+    if (typeof window !== "undefined" && typeof window.innerWidth === "number" && typeof window.innerHeight === "number") {
       return { width: Math.max(1, window.innerWidth), height: Math.max(1, window.innerHeight) };
     }
 
@@ -113,8 +107,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
     }
 
     if (typeof requestAnimationFrame === "function" && typeof cancelAnimationFrame === "function") {
-      const startMs =
-        typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+      const startMs = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
       const step = (nowMs: number): void => {
         if (isDestroyed()) return;
         const t = Math.min(1, Math.max(0, (nowMs - startMs) / durationMs));

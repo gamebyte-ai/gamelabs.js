@@ -1,11 +1,15 @@
 export { GridItem } from "./models/GridItem.js";
+export type { IGridItem } from "./models/IGridItem.js";
 export { GridCell } from "./models/GridCell.js";
+export type { IGridCell } from "./models/IGridCell.js";
 export type { IGridAllocator } from "./utilities/IGridAllocator.js";
 export { DefaultGridAllocator } from "./utilities/DefaultGridAllocator.js";
 export { Grid } from "./models/Grid.js";
-export type { Vector3 } from "./types/Vector3.js";
+export type { IGrid } from "./models/IGrid.js";
+export type { Vector3 } from "./constants/Vector3.js";
 export { GridPreset } from "./models/GridPreset.js";
 export { GridsModel } from "./models/GridsModel.js";
+export { IGridsModel } from "./models/IGridsModel.js";
 export { GridEvents } from "./events/GridEvents.js";
 export { GameGridBinding } from "./GameGridBinding.js";
 export { GridsViewController } from "./controllers/GridsViewController.js";

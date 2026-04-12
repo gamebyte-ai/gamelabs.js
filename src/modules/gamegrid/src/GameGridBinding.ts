@@ -3,6 +3,7 @@ import type { DIContainer } from "../../../core/di/DIContainer.js";
 import type { IInstanceResolver } from "../../../core/di/IInstanceResolver.js";
 import type { ViewFactory } from "../../../core/views/ViewFactory.js";
 import { GridsModel } from "./models/GridsModel.js";
+import { IGridsModel } from "./models/IGridsModel.js";
 import { GridEvents } from "./events/GridEvents.js";
 import { GridsViewController } from "./controllers/GridsViewController.js";
 import { GridsView } from "./views/GridsView.three.js";
@@ -28,7 +29,7 @@ export class GameGridBinding extends ModuleBinding {
 
   public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {
     diContainer.bindInstance(GridEvents, this._events);
-    diContainer.bindInstance(GridsModel, this._model);
+    diContainer.bindInstance(GridsModel, this._model, [IGridsModel]);
     viewDiContainer.bindInstance(GridObjectCreator, this._objectCreator);
   }
 

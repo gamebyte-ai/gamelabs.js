@@ -33,36 +33,28 @@ export class LevelProgressScreenBinding extends ModuleBinding {
       new AssetRequest(
         AssetTypes.HudTexture,
         LevelProgressScreenAssetIds.Background,
-        new URL(isSourceModule ? "../assets/background.jpg" : "./assets/levelprogress/background.jpg", import.meta.url)
-          .href,
+        new URL(isSourceModule ? "../assets/background.jpg" : "./assets/levelprogress/background.jpg", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         LevelProgressScreenAssetIds.BackButtonBg,
-        new URL(
-          isSourceModule ? "../assets/back_button_bg.png" : "./assets/levelprogress/back_button_bg.png",
-          import.meta.url,
-        ).href,
+        new URL(isSourceModule ? "../assets/back_button_bg.png" : "./assets/levelprogress/back_button_bg.png", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         LevelProgressScreenAssetIds.LevelItemBg,
-        new URL(
-          isSourceModule ? "../assets/level_item_bg.png" : "./assets/levelprogress/level_item_bg.png",
-          import.meta.url,
-        ).href,
+        new URL(isSourceModule ? "../assets/level_item_bg.png" : "./assets/levelprogress/level_item_bg.png", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         LevelProgressScreenAssetIds.Connector,
-        new URL(isSourceModule ? "../assets/connector.png" : "./assets/levelprogress/connector.png", import.meta.url)
-          .href,
+        new URL(isSourceModule ? "../assets/connector.png" : "./assets/levelprogress/connector.png", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
@@ -82,10 +74,6 @@ export class LevelProgressScreenBinding extends ModuleBinding {
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
-    viewFactory.registerScreen(
-      LevelProgressScreenUIIds.LevelProgressScreen,
-      LevelProgressScreenView,
-      LevelProgressScreenViewController,
-    );
+    viewFactory.registerScreen(LevelProgressScreenUIIds.LevelProgressScreen, LevelProgressScreenView, LevelProgressScreenViewController);
   }
 }

@@ -133,10 +133,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     const toggle = new PIXI.Graphics();
     toggle.eventMode = "static";
     toggle.cursor = "pointer";
-    toggle.position.set(
-      W - SettingsPopupView.TOGGLE_WIDTH,
-      (SettingsPopupView.ROW_HEIGHT - SettingsPopupView.TOGGLE_HEIGHT) / 2,
-    );
+    toggle.position.set(W - SettingsPopupView.TOGGLE_WIDTH, (SettingsPopupView.ROW_HEIGHT - SettingsPopupView.TOGGLE_HEIGHT) / 2);
     row.addChild(toggle);
 
     const boolRow: BooleanRow = { name, container: row, toggle, value };

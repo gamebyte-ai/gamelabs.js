@@ -29,8 +29,7 @@ export class MainScreenBinding extends ModuleBinding {
       new AssetRequest(
         AssetTypes.HudTexture,
         MainScreenAssetIds.Background,
-        new URL(isSourceModule ? "../assets/background.jpg" : "./assets/mainscreen/background.jpg", import.meta.url)
-          .href,
+        new URL(isSourceModule ? "../assets/background.jpg" : "./assets/mainscreen/background.jpg", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
@@ -44,34 +43,22 @@ export class MainScreenBinding extends ModuleBinding {
       new AssetRequest(
         AssetTypes.HudTexture,
         MainScreenAssetIds.PlayButtonBg,
-        new URL(
-          isSourceModule ? "../assets/play_button_bg.png" : "./assets/mainscreen/play_button_bg.png",
-          import.meta.url,
-        ).href,
+        new URL(isSourceModule ? "../assets/play_button_bg.png" : "./assets/mainscreen/play_button_bg.png", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         MainScreenAssetIds.SettingsButtonBg,
-        new URL(
-          isSourceModule ? "../assets/settings_button_bg.png" : "./assets/mainscreen/settings_button_bg.png",
-          import.meta.url,
-        ).href,
+        new URL(isSourceModule ? "../assets/settings_button_bg.png" : "./assets/mainscreen/settings_button_bg.png", import.meta.url).href,
       ),
     );
-    this._assetRequestList.addRequest(
-      new AssetRequest(AssetTypes.Text, MainScreenAssetIds.BackgroundPreset, "", this._backgroundPreset),
-    );
-    this._assetRequestList.addRequest(
-      new AssetRequest(AssetTypes.Text, MainScreenAssetIds.PlayButtonPreset, "", this._playButtonPreset),
-    );
+    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.Text, MainScreenAssetIds.BackgroundPreset, "", this._backgroundPreset));
+    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.Text, MainScreenAssetIds.PlayButtonPreset, "", this._playButtonPreset));
     this._assetRequestList.addRequest(
       new AssetRequest(AssetTypes.Text, MainScreenAssetIds.SettingsButtonPreset, "", this._settingsButtonPreset),
     );
-    this._assetRequestList.addRequest(
-      new AssetRequest(AssetTypes.Text, MainScreenAssetIds.ButtonsColPreset, "", this._buttonsColPreset),
-    );
+    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.Text, MainScreenAssetIds.ButtonsColPreset, "", this._buttonsColPreset));
   }
 
   //  METHODS

@@ -126,18 +126,11 @@ export class GameCameraManager {
       this._camera = this._orthoCamera;
       if (this._perspectiveCamera && this._world) {
         this._perspectiveCamera.getWorldDirection(this._tempDirection);
-        this._currentPosition
-          .copy(this._perspectiveCamera.position)
-          .addScaledVector(this._tempDirection, PERSPECTIVE_TO_ORTHO_OFFSET);
+        this._currentPosition.copy(this._perspectiveCamera.position).addScaledVector(this._tempDirection, PERSPECTIVE_TO_ORTHO_OFFSET);
       }
     } else {
       if (!this._perspectiveCamera) {
-        this._perspectiveCamera = new THREE.PerspectiveCamera(
-          60,
-          this._viewportWidth / this._viewportHeight,
-          0.1,
-          1000,
-        );
+        this._perspectiveCamera = new THREE.PerspectiveCamera(60, this._viewportWidth / this._viewportHeight, 0.1, 1000);
       }
       this._camera = this._perspectiveCamera;
       if (this._orthoCamera && this._world) {

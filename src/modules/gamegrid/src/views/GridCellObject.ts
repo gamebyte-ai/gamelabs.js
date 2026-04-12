@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Vector3 } from "../types/Vector3.js";
+import type { Vector3 } from "../constants/Vector3.js";
 import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 import type { GridPreset } from "../models/GridPreset.js";
 import type { GridItemObject } from "./GridItemObject.js";
@@ -82,11 +82,7 @@ export class GridCellObject extends WorldInteractiveObject {
 
   protected createVisual(): void {
     const material = new THREE.MeshStandardMaterial({ color: 0x334155 });
-    const geom = new THREE.BoxGeometry(
-      this.preset.columnSize * 0.4,
-      GridCellObject.DEFAULT_THICKNESS,
-      this.preset.rowSize * 0.4,
-    );
+    const geom = new THREE.BoxGeometry(this.preset.columnSize * 0.4, GridCellObject.DEFAULT_THICKNESS, this.preset.rowSize * 0.4);
     const mesh = new THREE.Mesh(geom, material!);
     mesh.position.set(0, -GridCellObject.DEFAULT_THICKNESS * 0.5, 0);
     this.add(mesh);

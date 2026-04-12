@@ -1,7 +1,8 @@
 import type { Grid } from "./Grid.js";
 import type { GridEvents } from "../events/GridEvents.js";
+import type { IGridsModel } from "./IGridsModel.js";
 
-export class GridsModel {
+export class GridsModel implements IGridsModel {
   private readonly _grids = new Map<number, Grid>();
   private readonly _events: GridEvents | null;
 

@@ -30,8 +30,7 @@ export class StatsPanel implements IStatsPanel {
       text: "",
       style: new TextStyle({
         fill: 0xffffff,
-        fontFamily:
-          'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         fontSize: 12,
       }),
     });

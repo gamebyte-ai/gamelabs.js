@@ -2,14 +2,12 @@ import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
 import type { GridCell } from "../models/GridCell.js";
 import type { GridItem } from "../models/GridItem.js";
 import type { Grid } from "../models/Grid.js";
-import type { Vector3 } from "../types/Vector3.js";
+import type { Vector3 } from "../constants/Vector3.js";
 
 export class GridEvents {
   private readonly _gridAddedListeners = new Set<(grid: Grid) => void>();
   private readonly _gridRemovedListeners = new Set<(grid: Grid) => void>();
-  private readonly _itemChangedListeners = new Set<
-    (cell: GridCell, oldItem: GridItem | null, newItem: GridItem | null) => void
-  >();
+  private readonly _itemChangedListeners = new Set<(cell: GridCell, oldItem: GridItem | null, newItem: GridItem | null) => void>();
   private readonly _positionChangedListeners = new Set<(grid: Grid, position: Vector3) => void>();
   private readonly _rotationChangedListeners = new Set<(grid: Grid, rotation: Vector3) => void>();
 

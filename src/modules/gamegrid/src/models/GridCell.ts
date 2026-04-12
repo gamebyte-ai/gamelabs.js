@@ -1,7 +1,8 @@
 import type { Grid } from "./Grid.js";
 import type { GridItem } from "./GridItem.js";
+import type { IGridCell } from "./IGridCell.js";
 
-export class GridCell {
+export class GridCell implements IGridCell {
   //  FIELDS
   public readonly grid: Grid;
   public readonly col: number;

@@ -1,13 +1,7 @@
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/ButtonComponent.pixi.js";
-import {
-  BackgroundComponent,
-  parseBackgroundComponentPreset,
-} from "../../../uicomponents/src/BackgroundComponent.pixi.js";
-import {
-  VerticalLayoutComponent,
-  parseVerticalLayoutComponentPreset,
-} from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
+import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/BackgroundComponent.pixi.js";
+import { VerticalLayoutComponent, parseVerticalLayoutComponentPreset } from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
 import { HorizontalLayoutComponent } from "../../../uicomponents/src/HorizontalLayoutComponent.pixi.js";
 import { ImageComponent } from "../../../uicomponents/src/ImageComponent.pixi.js";
 import type { IMainScreenView } from "./IMainScreenView.js";

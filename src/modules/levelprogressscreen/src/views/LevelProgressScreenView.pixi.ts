@@ -1,14 +1,8 @@
 import * as PIXI from "pixi.js";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/ButtonComponent.pixi.js";
-import {
-  BackgroundComponent,
-  parseBackgroundComponentPreset,
-} from "../../../uicomponents/src/BackgroundComponent.pixi.js";
-import {
-  VerticalLayoutComponent,
-  parseVerticalLayoutComponentPreset,
-} from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
+import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/BackgroundComponent.pixi.js";
+import { VerticalLayoutComponent, parseVerticalLayoutComponentPreset } from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
 import type { ILevelProgressScreenView } from "./ILevelProgressScreenView.js";
 import { LevelProgressScreenAssetIds } from "../LevelProgressScreenAssetIds.js";
 
@@ -80,8 +74,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     this.addChild(this.background);
 
     // Top-right back button.
-    const backButtonPresetJson =
-      this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackButtonPreset) ?? "{}";
+    const backButtonPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackButtonPreset) ?? "{}";
     this.backButton = new ButtonComponent(parseButtonComponentPreset(backButtonPresetJson));
     this.backButton.resolveAssets(this.assetLoader);
     const initialWidth = this.layout?.style?.width;
