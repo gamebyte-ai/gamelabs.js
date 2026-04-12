@@ -24,8 +24,11 @@ export type ControllerCtor<TView extends IView, TController extends IViewControl
  * - Create views with `createView(View, parent)`; controller deps are derived from `resolver`.
  */
 export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFactory {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type erasure: heterogeneous view/controller registry
   private readonly _registry = new Map<ViewCtor<any>, ControllerCtor<any, any>>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type erasure: heterogeneous view/controller registry
   private readonly _screenRegistry = new Map<string, { View: ViewCtor<any>; Controller: ControllerCtor<any, any> }>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type erasure: heterogeneous view/controller registry
   private readonly _popupRegistry = new Map<string, { View: ViewCtor<any>; Controller: ControllerCtor<any, any> }>();
   private readonly _defaultScreenTransition: ScreenTransition = {
     type: SCREEN_TRANSITION_TYPES.INSTANT,
@@ -70,6 +73,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     View: ViewCtor<TView>,
     Controller: ControllerCtor<TView, TController>,
   ): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- downcast to store in heterogeneous registry
     this._registry.set(View, Controller as ControllerCtor<any, any>);
   }
 
@@ -83,6 +87,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
       this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- downcast to store in heterogeneous registry
     this._screenRegistry.set(id, { View, Controller: Controller as ControllerCtor<any, any> });
   }
 
@@ -96,6 +101,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
       this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- downcast to store in heterogeneous registry
     this._popupRegistry.set(id, { View, Controller: Controller as ControllerCtor<any, any> });
   }
 
@@ -123,6 +129,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
 
   private createWithController<TView extends IView>(
     View: ViewCtor<TView>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- retrieved from heterogeneous registry
     Controller: ControllerCtor<any, any>,
   ): TView {
     const view = new View() as TView;

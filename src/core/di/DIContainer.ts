@@ -17,10 +17,11 @@ type Provider<T> =
       creating: boolean;
     };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts heterogeneous tokens
 function describeToken(token: Token<any>): string {
   if (token instanceof InjectionToken) return token.description || "(anonymous token)";
   // constructor
-  return (token as any).name || "(anonymous ctor)";
+  return (token as { name?: string }).name || "(anonymous ctor)";
 }
 
 /**
@@ -32,13 +33,16 @@ function describeToken(token: Token<any>): string {
  */
 export class DIContainer implements IInstanceResolver {
   private readonly _logger: ILogger;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type erasure: heterogeneous container
   private readonly providers = new Map<Token<any>, Provider<any>>();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type erasure: heterogeneous container
   private readonly aliasToPrimary = new Map<Token<any>, Token<any>>();
 
   public constructor(logger: ILogger) {
     this._logger = logger;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- aliases accept heterogeneous tokens
   bindSingleton<T>(primary: Token<T>, factory: SingletonFactory<T>, aliases: readonly Token<any>[] = []): void {
     if (this.providers.has(primary)) {
       const msg = `Token is already bound: ${describeToken(primary)}`;
@@ -50,6 +54,7 @@ export class DIContainer implements IInstanceResolver {
     this.bindAliases(primary, aliases);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- aliases accept heterogeneous tokens
   bindInstance<T>(primary: Token<T>, instance: T, aliases: readonly Token<any>[] = []): void {
     if (this.providers.has(primary)) {
       const msg = `Token is already bound: ${describeToken(primary)}`;
@@ -65,6 +70,7 @@ export class DIContainer implements IInstanceResolver {
     return typeof value === "object" && value !== null && typeof (value as IInjectionTarget).inject === "function";
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type erasure: heterogeneous tokens
   private bindAliases(primary: Token<any>, aliases: readonly Token<any>[]): void {
     for (const alias of aliases) {
       const existing = this.aliasToPrimary.get(alias);
@@ -79,6 +85,7 @@ export class DIContainer implements IInstanceResolver {
 
   getInstance<T>(token: Token<T>): T;
   getInstance<T>(token: Token<T>): T {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- upcast to look up in heterogeneous map
     const primary = (this.aliasToPrimary.get(token as Token<any>) ?? token) as Token<T>;
     const provider = this.providers.get(primary) as Provider<T> | undefined;
 

@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- constructor spread requires any[] for subclass assignability
 export type Ctor<T> = abstract new (...args: any[]) => T;
 
 /**
