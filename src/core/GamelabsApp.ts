@@ -42,6 +42,7 @@ export class GamelabsApp {
   private _audioService: AudioService | null = null;
 
   private _isInitialized = false;
+  private _initFailed = false;
   private _moduleList: ModuleBinding[] = [];
 
   /**
@@ -158,61 +159,69 @@ export class GamelabsApp {
   //  METHODS
   public async initialize(): Promise<void> {
     if (this._isInitialized) return;
-
-    await this.createWorld();
-    await this.createHud();
-
-    this._devUtils = new DevUtils(this.world!, this.hud!, this._logger);
-    this.diContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
-    this.viewDiContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
-
-    this._assetManager = new AssetManager(this._logger);
-    this.viewDiContainer.bindInstance(AssetManager, this._assetManager);
-
-    const uiEvents = new UIEvents();
-    this.diContainer.bindInstance(UIEvents, uiEvents);
-
-    this._viewFactory = new ViewFactory<IInstanceResolver>(this._logger, this.diContainer, this.viewDiContainer);
-    this._viewFactory.setViewContainers(this.world, this.hud);
-    this._viewFactory.setUIEvents(uiEvents);
-    this.viewDiContainer.bindInstance(IViewFactory, this._viewFactory);
-
-    this._inputManager = new InputManager(this.canvas, this.hud, this.world);
-    this.viewDiContainer.bindInstance(IInputManager, this._inputManager);
-
-    this._keyboardListener = new KeyboardListener();
-    this.diContainer.bindInstance(KeyboardListener, this._keyboardListener);
-    this.viewDiContainer.bindInstance(KeyboardListener, this._keyboardListener);
-
-    this._audioService = new AudioService();
-    this._audioService.initialize(this._assetManager);
-    this.diContainer.bindInstance(AudioService, this._audioService);
-
-    this.registerModules();
-
-    for (const moduleBinding of this._moduleList) {
-      moduleBinding.configureDI(this.diContainer, this.viewDiContainer);
+    if (this._initFailed) {
+      throw new Error("App initialization previously failed. Create a new instance to retry.");
     }
-    this.configureDI();
 
-    for (const moduleBinding of this._moduleList) {
-      moduleBinding.configureViews(this.viewFactory);
+    try {
+      await this.createWorld();
+      await this.createHud();
+
+      this._devUtils = new DevUtils(this.world!, this.hud!, this._logger);
+      this.diContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
+      this.viewDiContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
+
+      this._assetManager = new AssetManager(this._logger);
+      this.viewDiContainer.bindInstance(AssetManager, this._assetManager);
+
+      const uiEvents = new UIEvents();
+      this.diContainer.bindInstance(UIEvents, uiEvents);
+
+      this._viewFactory = new ViewFactory<IInstanceResolver>(this._logger, this.diContainer, this.viewDiContainer);
+      this._viewFactory.setViewContainers(this.world, this.hud);
+      this._viewFactory.setUIEvents(uiEvents);
+      this.viewDiContainer.bindInstance(IViewFactory, this._viewFactory);
+
+      this._inputManager = new InputManager(this.canvas, this.hud, this.world);
+      this.viewDiContainer.bindInstance(IInputManager, this._inputManager);
+
+      this._keyboardListener = new KeyboardListener();
+      this.diContainer.bindInstance(KeyboardListener, this._keyboardListener);
+      this.viewDiContainer.bindInstance(KeyboardListener, this._keyboardListener);
+
+      this._audioService = new AudioService();
+      this._audioService.initialize(this._assetManager);
+      this.diContainer.bindInstance(AudioService, this._audioService);
+
+      this.registerModules();
+
+      for (const moduleBinding of this._moduleList) {
+        moduleBinding.configureDI(this.diContainer, this.viewDiContainer);
+      }
+      this.configureDI();
+
+      for (const moduleBinding of this._moduleList) {
+        moduleBinding.configureViews(this.viewFactory);
+      }
+      this.configureViews();
+
+      for (const moduleBinding of this._moduleList) {
+        this.assetManager.loadAll(moduleBinding.assetRequestList.getRequests());
+      }
+      this.loadAssets();
+      await this._assetManager.waitForAll();
+
+      this.postInitialize();
+      this.requestResize();
+
+      this._inputManager.startListening();
+      this._keyboardListener!.startListening();
+
+      this._isInitialized = true;
+    } catch (err) {
+      this._initFailed = true;
+      throw err;
     }
-    this.configureViews();
-
-    for (const moduleBinding of this._moduleList) {
-      this.assetManager.loadAll(moduleBinding.assetRequestList.getRequests());
-    }
-    this.loadAssets();
-    await this._assetManager.waitForAll();
-
-    this.postInitialize();
-    this.requestResize();
-
-    this._inputManager.startListening();
-    this._keyboardListener!.startListening();
-
-    this._isInitialized = true;
   }
 
   private async createWorld(): Promise<void> {

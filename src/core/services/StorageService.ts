@@ -31,21 +31,33 @@ export class StorageService {
 
   /** Remove a single key. */
   public remove(key: string): void {
-    localStorage.removeItem(this._prefix + key);
+    try {
+      localStorage.removeItem(this._prefix + key);
+    } catch {
+      /* unavailable — silently ignore */
+    }
   }
 
   /** Remove all keys with this service's prefix. */
   public clear(): void {
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith(this._prefix)) keys.push(k);
+    try {
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(this._prefix)) keys.push(k);
+      }
+      for (const k of keys) localStorage.removeItem(k);
+    } catch {
+      /* unavailable — silently ignore */
     }
-    for (const k of keys) localStorage.removeItem(k);
   }
 
   /** Check if a key exists. */
   public has(key: string): boolean {
-    return localStorage.getItem(this._prefix + key) !== null;
+    try {
+      return localStorage.getItem(this._prefix + key) !== null;
+    } catch {
+      return false;
+    }
   }
 }

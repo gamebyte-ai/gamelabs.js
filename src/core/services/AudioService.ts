@@ -63,6 +63,9 @@ export class AudioService {
   };
 
   public initialize(assetManager: IAssetManager): void {
+    if (this._ctx) {
+      throw new Error("AudioService already initialized");
+    }
     this._assetManager = assetManager;
     this._ctx = new (globalThis.AudioContext || (globalThis as any).webkitAudioContext)();
 
