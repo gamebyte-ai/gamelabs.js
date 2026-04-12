@@ -8,6 +8,15 @@ export class WorldInteractiveObject extends THREE.Group {
   private _inputManager: IInputManager | null = null;
   private _isPointerListener: boolean = false;
 
+  // Optional pointer handler methods. Subclasses that define all four
+  // are automatically registered with the input manager when added to
+  // the scene graph. Declared here so the duck-type check below is
+  // type-safe (no `as any` needed).
+  onPointerDown?(event: PointerEvent, onThisObject: boolean): void;
+  onPointerMove?(event: PointerEvent, onThisObject: boolean): void;
+  onPointerUp?(event: PointerEvent, onThisObject: boolean): void;
+  onPointerCancel?(event: PointerEvent): void;
+
   //  CONSTRUCTOR
   public constructor() {
     super();
@@ -23,10 +32,10 @@ export class WorldInteractiveObject extends THREE.Group {
   public get isPointerInputHandler(): boolean {
     if (this._isPointerInputHandlerCached === null) {
       this._isPointerInputHandlerCached =
-        typeof (this as any).onPointerDown === "function" &&
-        typeof (this as any).onPointerMove === "function" &&
-        typeof (this as any).onPointerUp === "function" &&
-        typeof (this as any).onPointerCancel === "function";
+        typeof this.onPointerDown === "function" &&
+        typeof this.onPointerMove === "function" &&
+        typeof this.onPointerUp === "function" &&
+        typeof this.onPointerCancel === "function";
     }
     return this._isPointerInputHandlerCached;
   }

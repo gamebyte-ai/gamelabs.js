@@ -17,12 +17,4 @@ export type GamelabsAppConfig = WithCanvas & {
    */
   width?: number;
   height?: number;
-
-  /**
-   * If true, Three.js and PixiJS will render into the SAME WebGL context/canvas.
-   * This enables perfectly synchronized 3D + 2D compositing in one render pass order (Three → Pixi).
-   *
-   * Defaults to false to preserve the legacy "two canvas layers" setup.
-   */
-  sharedContext?: boolean;
 };

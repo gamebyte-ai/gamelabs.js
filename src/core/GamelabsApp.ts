@@ -24,8 +24,6 @@ export class GamelabsApp {
   //  MEMBERS
   readonly canvas: HTMLCanvasElement;
   readonly mount: HTMLElement | undefined;
-  readonly sharedContext: boolean;
-
   protected world: World | null = null;
   protected hud: Hud | null = null;
   private _devUtils: DevUtils | null = null;
@@ -80,7 +78,7 @@ export class GamelabsApp {
     this.canvas.height = height;
 
     this.world?.resize(width, height, dpr);
-    this.hud?.resize(width, height, dpr);
+    this.hud?.resize(width, height);
 
     this.onResize(width, height, dpr);
     this._devUtils?.resize(width, height, dpr);
@@ -128,7 +126,6 @@ export class GamelabsApp {
   constructor(config: GamelabsAppConfig) {
     this.canvas = config.canvas ?? document.createElement("canvas");
     this.mount = config.mount;
-    this.sharedContext = config.sharedContext ?? false;
     this._fixedWidth = config.width;
     this._fixedHeight = config.height;
     this._width = config.width;
@@ -242,24 +239,6 @@ export class GamelabsApp {
       throw new Error("Missing mount element");
     }
 
-    if (this.sharedContext) {
-      if (!this.world) {
-        this._logger.log("World is not initialized", LogTypes.Error);
-        throw new Error("World is not initialized");
-      }
-
-      // Reuse the SAME canvas + WebGL context created/owned by Three.js.
-      // Rendering is driven manually in `mainLoop()` so we can do Three → Pixi ordering.
-      this.hud = await Hud.create(this.mount, {
-        canvas: this.canvas,
-        context: this.world.renderer.getContext() as WebGL2RenderingContext,
-        manualRender: true,
-        logger: this._logger,
-      });
-      return;
-    }
-
-    // Legacy: separate Pixi canvas layer (auto-rendered by Pixi).
     this.hud = await Hud.create(this.mount, { logger: this._logger });
   }
 
@@ -316,7 +295,6 @@ export class GamelabsApp {
       this.updateManager.tick(dtSeconds);
       this.onStep(dtSeconds);
       this.world?.render();
-      if (this.hud?.manualRender) this.hud.render();
       this._rafId = requestAnimationFrame(tick);
     };
 

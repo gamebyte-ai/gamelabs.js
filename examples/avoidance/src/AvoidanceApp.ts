@@ -25,7 +25,7 @@ export class AvoidanceApp extends GamelabsApp {
   private _cameraController: Topdown2dCameraController | null = null;
 
   constructor(stageEl: HTMLElement) {
-    super({ mount: stageEl, sharedContext: true });
+    super({ mount: stageEl });
   }
 
   protected override registerModules(): void {

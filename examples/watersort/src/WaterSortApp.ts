@@ -17,7 +17,7 @@ export class WaterSortApp extends GamelabsApp {
   private readonly _assetRequestList = new AssetRequestList();
 
   constructor(stageEl: HTMLElement) {
-    super({ mount: stageEl, sharedContext: true });
+    super({ mount: stageEl });
   }
 
   protected override configureDI(): void {

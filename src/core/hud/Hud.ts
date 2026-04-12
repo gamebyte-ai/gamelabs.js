@@ -6,18 +6,6 @@ import type { HudViewBase } from "./HudViewBase.js";
 
 export type HudCreateOptions = {
   /**
-   * If provided, Pixi will render into this canvas instead of creating its own.
-   * Useful for sharing a single WebGL context with another renderer (e.g. Three.js).
-   */
-  canvas?: HTMLCanvasElement;
-
-  /**
-   * If provided, Pixi will use this existing WebGL context.
-   * Note: a WebGL context is bound to a specific canvas; if you pass `context`, you should also pass `canvas`.
-   */
-  context?: WebGL2RenderingContext;
-
-  /**
    * CSS className(s) applied to the Pixi canvas.
    * If omitted, defaults to `"layer hud2d"`.
    */
@@ -40,12 +28,6 @@ export type HudCreateOptions = {
   preference?: ApplicationOptions["preference"];
 
   /**
-   * If true, Pixi will NOT start its internal ticker/render loop.
-   * In shared-context mode you typically render manually after Three.js each frame.
-   */
-  manualRender?: boolean;
-
-  /**
    * Optional logger for error logging.
    */
   logger?: ILogger;
@@ -54,7 +36,6 @@ export type HudCreateOptions = {
 export class Hud implements IHud {
   public readonly app: Application;
   public readonly mount: HTMLElement;
-  public readonly manualRender: boolean;
   private readonly _logger: ILogger | null = null;
   /**
    * Root container for normal HUD views.
@@ -66,10 +47,9 @@ export class Hud implements IHud {
    */
   public readonly overlayLayer: Container;
 
-  private constructor(app: Application, mount: HTMLElement, manualRender: boolean, logger: ILogger | null) {
+  private constructor(app: Application, mount: HTMLElement, logger: ILogger | null) {
     this.app = app;
     this.mount = mount;
-    this.manualRender = manualRender;
     this._logger = logger;
 
     // Stage layers: keep overlay always on top, regardless of future HUD view attachments.
@@ -90,24 +70,15 @@ export class Hud implements IHud {
     const app = new Application();
 
     const resolution = Math.min(options.resolution ?? (globalThis.devicePixelRatio || 1), 2);
-    const manualRender = options.manualRender ?? false;
 
-    // Build init options without passing `undefined` properties.
-    // (This repo uses `exactOptionalPropertyTypes`, so `canvas: undefined` is a type error.)
-    const initOptions: any = {
+    const initOptions: Partial<ApplicationOptions> = {
       width: 1,
       height: 1,
       antialias: options.antialias ?? true,
       backgroundAlpha: options.backgroundAlpha ?? 0,
       resolution,
-      // In shared-canvas mode, another renderer (e.g. Three.js) controls the drawing buffer sizing.
-      // Keep Pixi from applying its own density logic to the shared canvas.
-      autoDensity: options.canvas ? false : true,
+      autoDensity: true,
       preference: options.preference ?? "webgl",
-      // In shared-context mode, Pixi must not clear the 3D pass.
-      clearBeforeRender: options.context ? false : true,
-      // If we're manually rendering, don't auto-start Pixi's rAF loop.
-      autoStart: manualRender ? false : true,
       layout: {
         layout: {
           autoUpdate: true,
@@ -117,9 +88,6 @@ export class Hud implements IHud {
         },
       },
     };
-
-    if (options.canvas) initOptions.canvas = options.canvas;
-    if (options.context) initOptions.context = options.context;
 
     await app.init(initOptions);
 
@@ -140,16 +108,9 @@ export class Hud implements IHud {
     const className = (options.canvasClassName ?? "layer hud2d").trim();
     if (className) canvas.classList.add(...className.split(/\s+/g));
 
-    // Only attach if Pixi created the canvas (or if the provided canvas isn't already connected).
     if (!canvas.isConnected) mount.appendChild(canvas);
 
-    // Ensure Pixi isn't rendering behind our back in manual-render mode.
-    if (manualRender) {
-      // Stop any internal ticker if it was created.
-      app.ticker?.stop();
-    }
-
-    return new Hud(app, mount, manualRender, options.logger ?? null);
+    return new Hud(app, mount, options.logger ?? null);
   }
 
   addView(view: HudViewBase): void {
@@ -160,26 +121,8 @@ export class Hud implements IHud {
     this.contentLayer.removeChild(view);
   }
 
-  public resize(width: number, height: number, dpr?: number): void {
-    // Keep Pixi resolution in sync with the WebGL drawing buffer scaling.
-    if (typeof dpr === "number" && Number.isFinite(dpr)) {
-      // Pixi's renderer exposes `resolution` across backends.
-      (this.app.renderer as any).resolution = dpr;
-    }
-
+  public resize(width: number, height: number): void {
     this.app.renderer.resize(Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)));
-  }
-
-  /**
-   * Manual render hook for shared-context mode.
-   * Call this after rendering your 3D scene.
-   */
-  public render(): void {
-    // Reset state before switching renderers (important when sharing a WebGL context).
-    (this.app.renderer as any).resetState?.();
-
-    // Do NOT clear; 3D pass is already in the color buffer.
-    (this.app.renderer as any).render?.({ container: this.app.stage, clear: false });
   }
 
   public destroy(): void {

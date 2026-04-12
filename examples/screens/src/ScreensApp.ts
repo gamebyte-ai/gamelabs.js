@@ -12,7 +12,7 @@ export class ScreensApp extends GamelabsApp {
   private readonly subs = new UnsubscribeBag();
 
   constructor(stageEl: HTMLElement) {
-    super({ mount: stageEl, sharedContext: true });
+    super({ mount: stageEl });
   }
 
   protected override registerModules(): void {

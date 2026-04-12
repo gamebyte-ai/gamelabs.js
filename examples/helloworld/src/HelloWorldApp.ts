@@ -31,7 +31,7 @@ export class HelloWorldApp extends GamelabsApp {
   private _orbitalController: Orbital3dCameraController | null = null;
 
   constructor(stageEl: HTMLElement) {
-    super({ mount: stageEl, sharedContext: true });
+    super({ mount: stageEl });
   }
 
   protected override registerModules(): void {
