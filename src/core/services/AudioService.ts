@@ -50,6 +50,7 @@ export class AudioService {
   // Music state
   private _musicSource: AudioBufferSourceNode | null = null;
   private _musicAssetId: string | null = null;
+  private _fadeOutTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // External DSP chain connection points
   private _sfxDestination: AudioNode | null = null;
@@ -184,23 +185,37 @@ export class AudioService {
     if (!this._ctx || !this._musicSource) return;
 
     if (opts.fadeOutMs && opts.fadeOutMs > 0) {
-      const source = this._musicSource;
-      this._musicGain!.gain.linearRampToValueAtTime(0, this._ctx.currentTime + opts.fadeOutMs / 1000);
-      setTimeout(() => {
-        try {
-          source.stop();
-        } catch {
-          /* already stopped */
-        }
+      // Clear any prior fade before scheduling a new one.
+      this._clearFadeOut();
+
+      const gain = this._musicGain!;
+      const t = this._ctx.currentTime;
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(gain.gain.value, t);
+      gain.gain.linearRampToValueAtTime(0, t + opts.fadeOutMs / 1000);
+
+      // Keep _musicSource alive so _stopMusicImmediate() can stop it
+      // if playMusic() is called during the fade window.
+      this._fadeOutTimeout = setTimeout(() => {
+        this._fadeOutTimeout = null;
+        this._stopMusicImmediate();
       }, opts.fadeOutMs);
-      this._musicSource = null;
-      this._musicAssetId = null;
     } else {
       this._stopMusicImmediate();
     }
   }
 
   private _stopMusicImmediate(): void {
+    this._clearFadeOut();
+
+    // Cancel any active gain ramp and reset to effective volume so the
+    // next playMusic() starts at the correct level.
+    if (this._musicGain && this._ctx) {
+      const t = this._ctx.currentTime;
+      this._musicGain.gain.cancelScheduledValues(t);
+      this._musicGain.gain.setValueAtTime(this._getEffectiveMusicVolume(), t);
+    }
+
     if (this._musicSource) {
       try {
         this._musicSource.stop();
@@ -209,6 +224,13 @@ export class AudioService {
       }
       this._musicSource = null;
       this._musicAssetId = null;
+    }
+  }
+
+  private _clearFadeOut(): void {
+    if (this._fadeOutTimeout !== null) {
+      clearTimeout(this._fadeOutTimeout);
+      this._fadeOutTimeout = null;
     }
   }
 
