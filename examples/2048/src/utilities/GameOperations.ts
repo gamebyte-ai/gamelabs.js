@@ -1,7 +1,8 @@
 import { vector } from "@js-basics/vector";
 import { Grid, GridEvents, GridPreset, GridsModel, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { Game2048Config } from "../Game2048Config.js";
-import { GameBoardItem } from "../models/GameBoardItem.js";
+import { GameBoardItem } from "../modules/gamegrid/models/GameBoardItem.js";
+import { GameModel } from "../models/GameModel.js";
 
 export type MoveDirection = "left" | "right" | "up" | "down";
 
@@ -59,18 +60,17 @@ export type MovePlan = {
 export class GameOperations implements IInjectionTarget {
   private _grid!: Grid;
   private _config!: Game2048Config;
+  private _gameModel!: GameModel;
   private _nextItemId = 1;
-  private _score = 0;
-  private _best = 0;
-  private _highestValue = 0;
 
   public inject(resolver: IInstanceResolver): void {
     this._config = resolver.getInstance(Game2048Config);
-    const model = resolver.getInstance(GridsModel);
+    this._gameModel = resolver.getInstance(GameModel);
+    const gridsModel = resolver.getInstance(GridsModel);
     const gridEvents = resolver.getInstance(GridEvents);
     const preset = new GridPreset(this._config.gridColumnSize, this._config.gridRowSize, vector(1, 0, 0), vector(0, 0, 1));
     this._grid = new Grid(Game2048Config.GRID_ID, this._config.cols, this._config.rows, gridEvents, preset);
-    model.addGrid(this._grid);
+    gridsModel.addGrid(this._grid);
     this._spawnInitialTiles();
   }
 
@@ -78,20 +78,8 @@ export class GameOperations implements IInjectionTarget {
     return this._grid;
   }
 
-  public get score(): number {
-    return this._score;
-  }
-
-  public get best(): number {
-    return this._best;
-  }
-
-  public get highestValue(): number {
-    return this._highestValue;
-  }
-
   public setBest(best: number): void {
-    this._best = Math.max(0, best);
+    this._gameModel.setBest(best);
   }
 
   public planMove(direction: MoveDirection): MovePlan {
@@ -184,11 +172,10 @@ export class GameOperations implements IInjectionTarget {
     for (const mg of plan.merges) {
       const merged = new GameBoardItem(this._nextItemId++, mg.newValue);
       this._grid.setCellItem(mg.col, mg.row, merged);
-      if (mg.newValue > this._highestValue) this._highestValue = mg.newValue;
+      this._gameModel.setHighestValue(mg.newValue);
     }
 
-    this._score += plan.scoreDelta;
-    if (this._score > this._best) this._best = this._score;
+    this._gameModel.addScore(plan.scoreDelta);
 
     return this._spawnRandom();
   }
@@ -218,8 +205,7 @@ export class GameOperations implements IInjectionTarget {
         this._grid.setCellItem(c, r, null);
       }
     }
-    this._score = 0;
-    this._highestValue = 0;
+    this._gameModel.reset();
     this._spawnInitialTiles();
   }
 
@@ -239,7 +225,7 @@ export class GameOperations implements IInjectionTarget {
     const value = Math.random() < this._config.fourSpawnChance ? 4 : 2;
     const item = new GameBoardItem(this._nextItemId++, value);
     this._grid.setCellItem(pick.col, pick.row, item);
-    if (value > this._highestValue) this._highestValue = value;
+    this._gameModel.setHighestValue(value);
     return { row: pick.row, col: pick.col, value, itemId: item.itemId };
   }
 

@@ -1,10 +1,12 @@
 import type { Grid, GridItem, IGridView, IInstanceResolver, Unsubscribe } from "@gamebyte/gamelabsjs";
 import { GridsViewController, KeyboardListener, UnsubscribeBag } from "@gamebyte/gamelabsjs";
-import { Game2048Config } from "../Game2048Config.js";
-import { Game2048AssetIds } from "../Game2048AssetIds.js";
+import { Game2048Config } from "../../../Game2048Config.js";
+import { Game2048AssetIds } from "../../../Game2048AssetIds.js";
+import { IGameModel } from "../../../models/IGameModel.js";
+import type { IGameModel as IGameModelType } from "../../../models/IGameModel.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";
-import { GameOperations, type MoveDirection } from "../utilities/GameOperations.js";
-import { GameEvents } from "../events/GameEvents.js";
+import { GameOperations, type MoveDirection } from "../../../utilities/GameOperations.js";
+import { GameEvents } from "../../../events/GameEvents.js";
 import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions.js";
 import type { IGameBoardsView } from "../views/IGameBoardsView.js";
 
@@ -28,6 +30,7 @@ const SWIPE_MIN_DISTANCE_PX = 24;
 export class GameBoardsViewController extends GridsViewController {
   // Note: base `GridsViewController` already declares private `_view`, `_subs`, `_model`, `_events`.
   // We must use distinct names here so we don't shadow the base instance fields.
+  private _gameModel: IGameModelType | null = null;
   private _operations: GameOperations | null = null;
   private _gameEvents: GameEvents | null = null;
   private _keyboard: KeyboardListener | null = null;
@@ -43,6 +46,7 @@ export class GameBoardsViewController extends GridsViewController {
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
+    this._gameModel = resolver.getInstance(IGameModel);
     this._operations = resolver.getInstance(GameOperations);
     this._gameEvents = resolver.getInstance(GameEvents);
     this._keyboard = resolver.getInstance(KeyboardListener);
@@ -60,8 +64,8 @@ export class GameBoardsViewController extends GridsViewController {
     window.addEventListener("pointerup", this._onPointerUp, { passive: true });
 
     // Initial score / best are zero, but emit so HUD reflects current state.
-    this._gameEvents?.emitScoreChanged(this._operations?.score ?? 0);
-    this._gameEvents?.emitBestChanged(this._operations?.best ?? 0);
+    this._gameEvents?.emitScoreChanged(this._gameModel?.score ?? 0);
+    this._gameEvents?.emitBestChanged(this._gameModel?.best ?? 0);
   }
 
   protected override createItemObjectOption(item: GridItem, grid: Grid): GameBoardItemObjectOptions {
@@ -109,8 +113,8 @@ export class GameBoardsViewController extends GridsViewController {
       events.emitPlaySfx(plan.merges.length > 0 ? Game2048AssetIds.SfxMerge : Game2048AssetIds.SfxMove);
       await view.animateMove(gridId, plan);
       const spawn = svc.commitPlan(plan);
-      events.emitScoreChanged(svc.score);
-      events.emitBestChanged(svc.best);
+      events.emitScoreChanged(this._gameModel!.score);
+      events.emitBestChanged(this._gameModel!.best);
       if (plan.merges.length > 0) await view.animateMergePops(gridId, plan);
       if (spawn) {
         events.emitPlaySfx(Game2048AssetIds.SfxSpawn);
@@ -126,14 +130,12 @@ export class GameBoardsViewController extends GridsViewController {
   }
 
   private _restart(): void {
-    const svc = this._operations;
-    const events = this._gameEvents;
-    if (!svc || !events) return;
-    svc.reset();
+    if (!this._operations || !this._gameEvents || !this._gameModel) return;
+    this._operations.reset();
     this._gameOver = false;
     this._inputLocked = false;
-    events.emitScoreChanged(svc.score);
-    events.emitBestChanged(svc.best);
+    this._gameEvents.emitScoreChanged(this._gameModel.score);
+    this._gameEvents.emitBestChanged(this._gameModel.best);
   }
 
   public override destroy(): void {
@@ -143,6 +145,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._keyUnsub = null;
     this._ownSubs.flush();
     this._gridsView = null;
+    this._gameModel = null;
     this._operations = null;
     this._gameEvents = null;
     this._keyboard = null;

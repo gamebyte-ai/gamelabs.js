@@ -1,5 +1,5 @@
 import type { IGridView } from "@gamebyte/gamelabsjs";
-import type { MovePlan, SpawnResult } from "../utilities/GameOperations.js";
+import type { MovePlan, SpawnResult } from "../../../utilities/GameOperations.js";
 
 export interface IGameBoardsView extends IGridView {
   animateMove(gridId: number, plan: MovePlan): Promise<void>;

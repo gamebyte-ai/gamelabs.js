@@ -2,8 +2,8 @@ import * as THREE from "three";
 import gsap from "gsap";
 import type { GridObject, IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { GridsView, type GridCellObject } from "@gamebyte/gamelabsjs";
-import { Game2048Config } from "../Game2048Config.js";
-import type { MovePlan, SpawnResult } from "../utilities/GameOperations.js";
+import { Game2048Config } from "../../../Game2048Config.js";
+import type { MovePlan, SpawnResult } from "../../../utilities/GameOperations.js";
 import { GameBoardItemObject } from "./GameBoardItemObject.js";
 import type { IGameBoardsView } from "./IGameBoardsView.js";
 

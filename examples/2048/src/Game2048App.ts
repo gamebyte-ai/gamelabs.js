@@ -1,13 +1,15 @@
 import { vector } from "@js-basics/vector";
 import { AssetTypes, GamelabsApp, GameCameraBinding, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "@gamebyte/gamelabsjs";
+import { GameModel } from "./models/GameModel.js";
+import { IGameModel } from "./models/IGameModel.js";
 import { Game2048AssetIds } from "./Game2048AssetIds.js";
 import { Game2048Config } from "./Game2048Config.js";
-import { Game2048GameGridBinding } from "./Game2048GameGridBinding.js";
+import { Game2048GameGridBinding } from "./modules/gamegrid/Game2048GameGridBinding.js";
 import { GameScreenViewController } from "./controllers/GameScreenViewController.js";
 import { GameOperations } from "./utilities/GameOperations.js";
 import { GameEvents } from "./events/GameEvents.js";
 import { GameScreenView } from "./views/GameScreenView.pixi.js";
-import { GameBoardsView } from "./views/GameBoardsView.three.js";
+import { GameBoardsView } from "./modules/gamegrid/views/GameBoardsView.three.js";
 import { Game2048UIIds } from "./Game2048UIIds.js";
 
 export class Game2048App extends GamelabsApp {
@@ -35,9 +37,7 @@ export class Game2048App extends GamelabsApp {
     this.diContainer.bindInstance(Game2048Config, this._config);
     this.viewDiContainer.bindInstance(Game2048Config, this._config);
     this.diContainer.bindInstance(GameEvents, this._gameEvents);
-    // GameOperations is an IInjectionTarget; the container calls inject(resolver)
-    // automatically after the no-arg constructor returns. The grid is built and
-    // registered with GridsModel inside GameOperations.inject().
+    this.diContainer.bindInstance(GameModel, new GameModel(), [IGameModel]);
     this.diContainer.bindSingleton(GameOperations, () => new GameOperations());
   }
 
@@ -67,7 +67,7 @@ export class Game2048App extends GamelabsApp {
       grid.setPosition(vector(-midX, 0, -midZ));
     }
     this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._cameraController = new Topdown2dCameraController(this._gameCameraBinding.cameraManager);
+    this._cameraController = new Topdown2dCameraController(this._gameCameraBinding.cameraManager).register();
     this._cameraController.followPosition(0, 0, 0);
     this._fitOrthoToBoard(this.width, this.height);
   }
