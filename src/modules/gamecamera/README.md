@@ -14,26 +14,30 @@ Controls the 3D scene camera in Three.js. Supports multiple projection modes, ob
 ### Basic setup
 
 ```ts
-import { GamelabsApp, GameCameraManager, Front2dCameraController } from "@gamebyte/gamelabsjs";
+import { GamelabsApp, GameCameraBinding, Front2dCameraController } from "@gamebyte/gamelabsjs";
 
 class MyApp extends GamelabsApp {
-  private readonly _cameraManager = new GameCameraManager();
+  private readonly _cameraBinding = new GameCameraBinding();
+
+  protected override registerModules(): void {
+    this.addModule(this._cameraBinding);
+  }
 
   protected override postInitialize(): void {
     if (this.world) {
-      this._cameraManager.initialize(this.world);
-      new Front2dCameraController(this._cameraManager);
+      this._cameraBinding.cameraManager.initialize(this.world);
+      new Front2dCameraController(this._cameraBinding.cameraManager).register();
     }
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._cameraManager.resize(width, height);
+    this._cameraBinding.cameraManager.resize(width, height);
   }
 
   protected override onStep(dtSeconds: number): void {
     super.onStep(dtSeconds);
-    this._cameraManager.update(dtSeconds);
+    this._cameraBinding.cameraManager.update(dtSeconds);
   }
 }
 ```
@@ -60,7 +64,7 @@ this._cameraManager.setPosition(0, 5, 0);
 
 ```ts
 import { Topdown2dCameraController } from "@gamebyte/gamelabsjs";
-new Topdown2dCameraController(this._cameraManager); // constructor calls setController
+new Topdown2dCameraController(cameraManager).register();
 ```
 
 ### Orthographic size (ortho modes)

@@ -7,6 +7,8 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`ButtonComponent`](#buttoncomponent) — pressable button with optional texture background and centered label
 - [`BackgroundComponent`](#backgroundcomponent) — full-screen cover-fit background with overlay and fallback color
 - [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch)
+- [`ToggleComponent`](#togglecomponent) — on/off switch with configurable colors
+- [`SliderComponent`](#slidercomponent) — horizontal slider with min/max/step constraints
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
 - [`HorizontalLayoutComponent`](#horizontallayoutcomponent) — horizontal flex container
 
@@ -116,6 +118,81 @@ logo.resolveAssets(assetManager);
 
 - `setTexture(texture)` — set the texture directly.
 - `resolveAssets(assetManager)` — look up `textureId` in the asset manager and apply it.
+
+---
+
+## ToggleComponent
+
+On/off switch with a pill-shaped track and sliding circle thumb. Tap to toggle.
+
+```ts
+const toggle = new ToggleComponent({ value: true });
+toggle.onChange((value) => {
+  console.log("toggled:", value);
+});
+```
+
+### `ToggleComponentPreset`
+
+| Field        | Type      | Default    | Description                    |
+| ------------ | --------- | ---------- | ------------------------------ |
+| `width`      | `number`  | `44`       | Toggle width.                  |
+| `height`     | `number`  | `24`       | Toggle height.                 |
+| `onColor`    | `number`  | `0x48bb78` | Background color when on.      |
+| `offColor`   | `number`  | `0xcbd5e0` | Background color when off.     |
+| `thumbColor` | `number`  | `0xffffff` | Thumb color.                   |
+| `thumbInset` | `number`  | `3`        | Thumb inset from edge.         |
+| `value`      | `boolean` | `false`    | Initial value.                 |
+
+### Methods
+
+- `value` — current boolean value (getter).
+- `setValue(value)` — set the value programmatically (does not fire `onChange`).
+- `toggle()` — flip the value and fire `onChange`.
+- `onChange(cb): Unsubscribe` — subscribe to value changes.
+
+---
+
+## SliderComponent
+
+Horizontal slider with a track, filled portion, and draggable thumb. Supports min/max/step value constraints. Tap on track or drag thumb to change value.
+
+```ts
+const slider = new SliderComponent({
+  min: 0,
+  max: 100,
+  step: 1,
+  value: 50,
+  trackWidth: 200,
+});
+slider.onChange((value) => {
+  console.log("value:", value);
+});
+```
+
+### `SliderComponentPreset`
+
+| Field             | Type     | Default    | Description                        |
+| ----------------- | -------- | ---------- | ---------------------------------- |
+| `trackWidth`      | `number` | `140`      | Track width.                       |
+| `trackHeight`     | `number` | `6`        | Track height.                      |
+| `thumbRadius`     | `number` | `10`       | Thumb radius.                      |
+| `trackColor`      | `number` | `0xcbd5e0` | Track background color.            |
+| `fillColor`       | `number` | `0x4299e1` | Filled portion color.              |
+| `thumbColor`      | `number` | `0x4299e1` | Thumb outer ring color.            |
+| `thumbInnerColor` | `number` | `0xffffff` | Thumb inner circle color.          |
+| `thumbInset`      | `number` | `3`        | Thumb inner inset.                 |
+| `min`             | `number` | `0`        | Minimum value.                     |
+| `max`             | `number` | `1`        | Maximum value.                     |
+| `step`            | `number` | `0`        | Step size. 0 for continuous.       |
+| `value`           | `number` | `0`        | Initial value.                     |
+
+### Methods
+
+- `value` — current numeric value (getter).
+- `min`, `max`, `step` — constraint values (getters).
+- `setValue(value)` — set the value programmatically (does not fire `onChange`).
+- `onChange(cb): Unsubscribe` — subscribe to value changes.
 
 ---
 
