@@ -1,4 +1,5 @@
 import "@pixi/layout";
+import type { Layout } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import type { IPopupView } from "./IPopupView.js";
 import { HudViewBase } from "../hud/HudViewBase.js";
@@ -28,20 +29,14 @@ export class PopupView extends HudViewBase implements IPopupView {
     this.layout = { width: "100%", height: "100%" };
 
     this._blocker = new PIXI.Graphics();
-    this._blocker.rect(0, 0, 1, 1).fill({ color: 0x000000, alpha: 0.5 });
     this._blocker.eventMode = "static";
     this._blocker.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this.addChildAt(this._blocker, 0);
 
-    this._blocker.on("pointerdown", (e: PIXI.FederatedPointerEvent) => {
-      e.stopPropagation();
-    });
-    this._blocker.on("pointerup", (e: PIXI.FederatedPointerEvent) => {
-      e.stopPropagation();
-    });
-    this._blocker.on("pointermove", (e: PIXI.FederatedPointerEvent) => {
-      e.stopPropagation();
-    });
+    this._blocker.on("layout", (l: Layout) => this._redrawBlocker(l));
+    this._blocker.on("pointerdown", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
+    this._blocker.on("pointerup", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
+    this._blocker.on("pointermove", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
   }
 
   public onOpen(): void {
@@ -70,6 +65,14 @@ export class PopupView extends HudViewBase implements IPopupView {
 
   public onResize(width: number, height: number, _dpr: number): void {
     this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
+  }
+
+  private _redrawBlocker(l: Layout): void {
+    if (!this._blocker) return;
+    const w = Math.max(1, Math.floor(l.computedLayout.width));
+    const h = Math.max(1, Math.floor(l.computedLayout.height));
+    this._blocker.clear();
+    this._blocker.rect(0, 0, w, h).fill({ color: 0x000000, alpha: 0.5 });
   }
 
   private cancelTransition(): void {

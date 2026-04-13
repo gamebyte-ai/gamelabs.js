@@ -1,4 +1,5 @@
 import * as PIXI from "pixi.js";
+import type { Layout } from "@pixi/layout";
 import { PopupView } from "../../../../core/ui/PopupView.pixi.js";
 import { ButtonComponent } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
 import { ToggleComponent } from "../../../uicomponents/src/views/ToggleComponent.pixi.js";
@@ -106,7 +107,12 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     this.addChild(wrapper);
 
     this._panel = panel;
-    this._redrawPanelBg();
+
+    // Redraw panel background whenever the panel's layout recomputes
+    // (fields added, resize, etc.). Listen on panel, not panelBg, because
+    // the panel's height is computed from its children and panelBg is just
+    // 100%x100% of that.
+    panel.on("layout", (l: Layout) => this._handlePanelLayout(l));
   }
 
   // ── Field creation ──
@@ -145,7 +151,6 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     });
 
     this._rowsContainer!.addChild(row);
-    this._redrawPanelBg();
   }
 
   public addNumberField(name: string, label: string, value: number, min: number, max: number, step: number): void {
@@ -199,7 +204,6 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     });
 
     this._rowsContainer!.addChild(row);
-    this._redrawPanelBg();
   }
 
   public updateFieldValue(name: string, value: unknown): void {
@@ -244,19 +248,14 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     return row;
   }
 
-  private _redrawPanelBg(): void {
-    if (!this._panelBg || !this._panel) return;
-    // Defer to next frame so layout has computed height
-    requestAnimationFrame(() => {
-      if (!this._panelBg || !this._panel) return;
-      const computed = this._panel.layout?.computedLayout;
-      const w = computed?.width ?? SettingsPopupView.PANEL_WIDTH;
-      const h = computed?.height ?? 300;
-      this._panelBg.clear();
-      this._panelBg.roundRect(0, 0, w, h, 16);
-      this._panelBg.fill({ color: 0xffffff, alpha: 0.95 });
-      this._panelBg.stroke({ color: 0xe2e8f0, width: 2 });
-    });
+  private _handlePanelLayout(l: Layout): void {
+    if (!this._panelBg) return;
+    const w = Math.max(1, Math.floor(l.computedLayout.width));
+    const h = Math.max(1, Math.floor(l.computedLayout.height));
+    this._panelBg.clear();
+    this._panelBg.roundRect(0, 0, w, h, 16);
+    this._panelBg.fill({ color: 0xffffff, alpha: 0.95 });
+    this._panelBg.stroke({ color: 0xe2e8f0, width: 2 });
   }
 
   private _formatNumber(value: number, step: number): string {
