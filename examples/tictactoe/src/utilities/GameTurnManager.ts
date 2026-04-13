@@ -1,6 +1,6 @@
 import { InjectionToken, GridsModel, type IInstanceResolver } from "@gamebyte/gamelabsjs";
-import { GameGridAllocator } from "./GameGridAllocator.js";
-import { GameItem } from "../models/GameItem.js";
+import { GameGridAllocator } from "../modules/gamegrid/utilities/GameGridAllocator.js";
+import { GameItem } from "../modules/gamegrid/models/GameItem.js";
 import { Team } from "../constants/Team.js";
 import type { GameModel } from "../models/GameModel.js";
 import { TicTacToeConfig } from "../TicTacToeConfig.js";

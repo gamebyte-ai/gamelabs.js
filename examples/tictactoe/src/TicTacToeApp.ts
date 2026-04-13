@@ -10,8 +10,8 @@ import { WinPopupViewController } from "./controllers/WinPopupViewController";
 import { GridOperations } from "./utilities/GridOperations";
 import { TicTacToeConfig } from "./TicTacToeConfig";
 import { TicTacToeUIIds } from "./TicTacToeUIIds";
-import { TicTacToeGameGridBinding } from "./TicTacToeGameGridBinding";
-import { GameGridsView } from "./views/GameGridsView.three";
+import { TicTacToeGameGridBinding } from "./modules/gamegrid/TicTacToeGameGridBinding";
+import { GameGridsView } from "./modules/gamegrid/views/GameGridsView.three";
 
 export class TicTacToeApp extends GamelabsApp {
   private readonly _config = new TicTacToeConfig();

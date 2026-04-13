@@ -122,6 +122,30 @@ MyGame/src
 
 Modules follow the same layout under `src/modules/<name>/src/` with a `ModuleBinding` and `index.ts`.
 
+### Module extension files
+
+When a project extends a bound module (custom binding, controllers, views, models, utilities), place all related files in a subfolder under `src/modules/<module-name>/` that mirrors the module's internal structure. This keeps module overrides grouped and separated from app-level code.
+
+```
+MyGame/src
+├── modules/
+│   └── gamegrid/                            ← all gamegrid overrides
+│       ├── MyGameGridBinding.ts
+│       ├── controllers/
+│       │   └── GameGridsViewController.ts
+│       ├── models/
+│       │   └── GameBoardItem.ts
+│       ├── utilities/
+│       │   └── GameGridAllocator.ts
+│       └── views/
+│           ├── GameBoardCellObject.ts
+│           ├── GameBoardItemObject.ts
+│           ├── GameBoardObjectCreator.ts
+│           └── GameBoardsView.three.ts
+├── controllers/                             ← app-level controllers only
+├── views/                                   ← app-level views only
+```
+
 ## App lifecycle (called in this order)
 
 1. `registerModules()` — register `ModuleBinding` instances with `addModule()`

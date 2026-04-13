@@ -208,6 +208,27 @@ Before registration it can be modified
 - Asset urls can be overridden in `assetRequestList`
 - Di and view configuration items can be altered
 
+### Customizing Modules
+When a project extends a bound module (custom binding, controllers, views, models, utilities), place all related files in a subfolder under `src/modules/<module-name>/` that mirrors the module's internal structure. This keeps module overrides grouped and separated from app-level code.
+```
+MyGame/src
+├── modules/
+│   └── gamegrid/                            ← all gamegrid overrides
+│       ├── MyGameGridBinding.ts
+│       ├── controllers/
+│       │   └── GameGridsViewController.ts
+│       ├── models/
+│       │   └── GameBoardItem.ts
+│       ├── utilities/
+│       │   └── GameGridAllocator.ts
+│       └── views/
+│           ├── GameBoardCellObject.ts
+│           ├── GameBoardItemObject.ts
+│           ├── GameBoardObjectCreator.ts
+│           └── GameBoardsView.three.ts
+├── controllers/                             ← app-level controllers only
+└── views/                                   ← app-level views only
+```
 
 ### DevUtils
 

@@ -1,5 +1,5 @@
 import { GridItemObjectOptions, type GridPreset } from "@gamebyte/gamelabsjs";
-import { Team } from "../constants/Team.js";
+import { Team } from "../../../constants/Team.js";
 
 export class GameItemObjectOptions extends GridItemObjectOptions {
   public readonly team: Team;

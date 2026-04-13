@@ -1,6 +1,6 @@
 import { Grid, GridsModel, GridEvents, type IInstanceResolver, type IInjectionTarget } from "@gamebyte/gamelabsjs";
 import { TicTacToeConfig } from "../TicTacToeConfig";
-import { GameGridAllocator } from "./GameGridAllocator.js";
+import { GameGridAllocator } from "../modules/gamegrid/utilities/GameGridAllocator.js";
 
 export class GridOperations implements IInjectionTarget {
   private _model: GridsModel | null = null;

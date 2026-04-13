@@ -5,8 +5,8 @@ import { GridsViewController } from "@gamebyte/gamelabsjs";
 import { GameItem } from "../models/GameItem.js";
 import { GameItemObjectOptions } from "../views/GameItemObjectOptions.js";
 import { GameGridsView } from "../views/GameGridsView.three.js";
-import { GameTurnManagerToken, type GameTurnManager } from "../utilities/GameTurnManager.js";
-import { TicTacToeConfig } from "../TicTacToeConfig.js";
+import { GameTurnManagerToken, type GameTurnManager } from "../../../utilities/GameTurnManager.js";
+import { TicTacToeConfig } from "../../../TicTacToeConfig.js";
 
 export class GameGridsViewController extends GridsViewController {
   private _turnManager: GameTurnManager | null = null;

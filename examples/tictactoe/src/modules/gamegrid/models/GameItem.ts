@@ -1,5 +1,5 @@
 import { GridItem } from "@gamebyte/gamelabsjs";
-import { Team } from "../constants/Team.js";
+import { Team } from "../../../constants/Team.js";
 
 export { Team };
 
