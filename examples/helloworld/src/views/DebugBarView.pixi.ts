@@ -1,6 +1,7 @@
 import * as PIXI from "pixi.js";
-import { HudViewBase, ButtonComponent, HorizontalLayoutComponent } from "@gamebyte/gamelabsjs";
-import type { IDebugBarView, Unsubscribe } from "./IDebugBarView";
+import type { Layout } from "@pixi/layout";
+import { HudViewBase, ButtonComponent, HorizontalLayoutComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import type { IDebugBarView } from "./IDebugBarView";
 
 export class DebugBarView extends HudViewBase implements IDebugBarView {
   private static readonly gap = 10;
@@ -45,22 +46,14 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
   });
 
   public postInitialize(): void {
-    (this as any).layout = { width: "100%", padding: 16 };
+    this.layout = { width: "100%", padding: 16 };
 
     this.bar.addChild(this.barBg);
     this.bar.addChild(this.gridButton);
     this.bar.addChild(this.statsButton);
     this.bar.addChild(this.logButton);
 
-    this.bar.on("layout", (layout: any) => {
-      const w = Math.max(1, Math.floor(layout.computedLayout.width));
-      const h = Math.max(1, Math.floor(layout.computedLayout.height));
-      this.barBg.clear();
-      this.barBg
-        .roundRect(0, 0, w, h, DebugBarView.barRadius)
-        .fill({ color: 0x0b1220, alpha: 0.9 })
-        .stroke({ color: 0x334155, width: 1 });
-    });
+    this.bar.on("layout", (l: Layout) => this._handleBarLayout(l));
 
     this.addChild(this.bar);
     this.setBarVisible(false);
@@ -78,23 +71,33 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     this.logButton.setLabel(text);
   }
 
-  onToggleGroundGrid(cb: () => void): Unsubscribe {
+  private _handleBarLayout(l: Layout): void {
+    const w = Math.max(1, Math.floor(l.computedLayout.width));
+    const h = Math.max(1, Math.floor(l.computedLayout.height));
+    this.barBg.clear();
+    this.barBg
+      .roundRect(0, 0, w, h, DebugBarView.barRadius)
+      .fill({ color: 0x0b1220, alpha: 0.9 })
+      .stroke({ color: 0x334155, width: 1 });
+  }
+
+  public onToggleGroundGrid(cb: () => void): Unsubscribe {
     return this.gridButton.onPress(cb);
   }
 
-  onToggleStats(cb: () => void): Unsubscribe {
+  public onToggleStats(cb: () => void): Unsubscribe {
     return this.statsButton.onPress(cb);
   }
 
-  onToggleLog(cb: () => void): Unsubscribe {
+  public onToggleLog(cb: () => void): Unsubscribe {
     return this.logButton.onPress(cb);
   }
 
-  setBarVisible(visible: boolean): void {
+  public setBarVisible(visible: boolean): void {
     this.bar.visible = visible;
   }
 
-  resize(_width: number, _height: number): void {
+  public resize(_width: number, _height: number): void {
     // Layout handles sizing/positioning.
   }
 }

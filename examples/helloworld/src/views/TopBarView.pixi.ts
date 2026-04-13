@@ -1,6 +1,7 @@
 import * as PIXI from "pixi.js";
-import { HudViewBase, ButtonComponent, VerticalLayoutComponent, HorizontalLayoutComponent } from "@gamebyte/gamelabsjs";
-import type { ITopBarView, Unsubscribe } from "./ITopBarView";
+import type { Layout } from "@pixi/layout";
+import { HudViewBase, ButtonComponent, VerticalLayoutComponent, HorizontalLayoutComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import type { ITopBarView } from "./ITopBarView";
 
 export class TopBarView extends HudViewBase implements ITopBarView {
   private static readonly gap = 10;
@@ -63,11 +64,11 @@ export class TopBarView extends HudViewBase implements ITopBarView {
   });
 
   public postInitialize(): void {
-    (this as any).layout = { width: "100%", padding: 16 };
+    this.layout = { width: "100%", padding: 16 };
 
     this.bar.addChild(this.barBg);
 
-    (this.title as any).layout = { alignSelf: "center" };
+    this.title.layout = { alignSelf: "center" };
     this.bar.addChild(this.title);
 
     this.buttonsRow.addChild(this.toggleColorButton);
@@ -75,32 +76,34 @@ export class TopBarView extends HudViewBase implements ITopBarView {
     this.buttonsRow.addChild(this.debugButton);
     this.bar.addChild(this.buttonsRow);
 
-    this.bar.on("layout", (layout: any) => {
-      const w = Math.max(1, Math.floor(layout.computedLayout.width));
-      const h = Math.max(1, Math.floor(layout.computedLayout.height));
-      this.barBg.clear();
-      this.barBg
-        .roundRect(0, 0, w, h, TopBarView.barRadius)
-        .fill({ color: 0x0b1220, alpha: 0.9 })
-        .stroke({ color: 0x334155, width: 1 });
-    });
+    this.bar.on("layout", (l: Layout) => this._handleBarLayout(l));
 
     this.addChild(this.bar);
   }
 
-  onToggleColor(cb: () => void): Unsubscribe {
+  private _handleBarLayout(l: Layout): void {
+    const w = Math.max(1, Math.floor(l.computedLayout.width));
+    const h = Math.max(1, Math.floor(l.computedLayout.height));
+    this.barBg.clear();
+    this.barBg
+      .roundRect(0, 0, w, h, TopBarView.barRadius)
+      .fill({ color: 0x0b1220, alpha: 0.9 })
+      .stroke({ color: 0x334155, width: 1 });
+  }
+
+  public onToggleColor(cb: () => void): Unsubscribe {
     return this.toggleColorButton.onPress(cb);
   }
 
-  onToggleRotation(cb: () => void): Unsubscribe {
+  public onToggleRotation(cb: () => void): Unsubscribe {
     return this.toggleRotationButton.onPress(cb);
   }
 
-  onToggleDebug(cb: () => void): Unsubscribe {
+  public onToggleDebug(cb: () => void): Unsubscribe {
     return this.debugButton.onPress(cb);
   }
 
-  resize(_width: number, _height: number): void {
+  public resize(_width: number, _height: number): void {
     // Layout handles sizing/positioning.
   }
 }

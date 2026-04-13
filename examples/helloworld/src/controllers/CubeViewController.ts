@@ -1,51 +1,44 @@
-import { UnsubscribeBag, type IInstanceResolver, type IViewController, UpdateManager, Orbital3dCameraController } from "@gamebyte/gamelabsjs";
+import { UnsubscribeBag, type IInstanceResolver, type IViewController, UpdateManager, GameCameraManager, Orbital3dCameraController } from "@gamebyte/gamelabsjs";
 import type { ICubeView } from "../views/ICubeView";
 import { GameEvents } from "../events/GameEvents";
 import { HelloWorldConfig } from "../HelloWorldConfig";
 
 export class CubeViewController implements IViewController<ICubeView> {
-  private view: ICubeView | null = null;
-  private update: UpdateManager | null = null;
-  private gameEvents: GameEvents | null = null;
-  private orbitalController: Orbital3dCameraController | null = null;
-  private config: HelloWorldConfig | null = null;
-  private readonly subs = new UnsubscribeBag();
-  private rotationEnabled = true;
+  private _view: ICubeView | null = null;
+  private _update: UpdateManager | null = null;
+  private _gameEvents: GameEvents | null = null;
+  private _cameraManager: GameCameraManager | null = null;
+  private _config: HelloWorldConfig | null = null;
+  private readonly _subs = new UnsubscribeBag();
+  private _rotationEnabled = true;
 
-  inject(resolver: IInstanceResolver): void {
-    this.update = resolver.getInstance(UpdateManager);
-    this.gameEvents = resolver.getInstance(GameEvents);
-    this.orbitalController = resolver.getInstance(Orbital3dCameraController);
-    this.config = resolver.getInstance(HelloWorldConfig);
+  public inject(resolver: IInstanceResolver): void {
+    this._update = resolver.getInstance(UpdateManager);
+    this._gameEvents = resolver.getInstance(GameEvents);
+    this._cameraManager = resolver.getInstance(GameCameraManager);
+    this._config = resolver.getInstance(HelloWorldConfig);
   }
 
-  initialize(view: ICubeView): void {
-    this.view = view;
-    this.subs.add(this.update!.register((dt: number) => this.onUpdate(dt), 0));
-    this.subs.add(this.gameEvents!.onChangeCubeColor((hex: number) => {
-      this.view?.setColor(hex);
-    }));
-    this.subs.add(this.gameEvents!.onToggleCubeRotation(() => {
-      this.rotationEnabled = !this.rotationEnabled;
-    }));
-
-    this.subs.add(this.view.onDrag((dx, dy) => {
-      this.orbitalController?.addAzimuth(-dx);
-      this.orbitalController?.addPitch(dy);
+  public initialize(view: ICubeView): void {
+    this._view = view;
+    this._subs.add(this._update!.register((dt: number) => this._onUpdate(dt), 0));
+    this._subs.add(this._gameEvents!.onChangeCubeColor((hex: number) => this._view?.setColor(hex)));
+    this._subs.add(this._gameEvents!.onToggleCubeRotation(() => {
+      this._rotationEnabled = !this._rotationEnabled;
     }));
   }
 
-  private onUpdate(dt: number): void {
-    if (!this.rotationEnabled) return;
-    this.view?.rotate(dt * 0.6, dt * 0.9);
+  private _onUpdate(dt: number): void {
+    if (!this._rotationEnabled) return;
+    this._view?.rotate(dt * 0.6, dt * 0.9);
   }
 
-  destroy(): void {
-    this.subs.flush();
-    this.view = null;
-    this.update = null;
-    this.gameEvents = null;
-    this.orbitalController = null;
-    this.config = null;
+  public destroy(): void {
+    this._subs.flush();
+    this._view = null;
+    this._update = null;
+    this._gameEvents = null;
+    this._cameraManager = null;
+    this._config = null;
   }
 }

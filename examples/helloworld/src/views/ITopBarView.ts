@@ -1,6 +1,4 @@
-import type { IView } from "@gamebyte/gamelabsjs";
-
-export type Unsubscribe = () => void;
+import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
 
 export interface ITopBarView extends IView {
   onToggleColor(cb: () => void): Unsubscribe;

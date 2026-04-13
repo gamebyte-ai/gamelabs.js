@@ -1,29 +1,24 @@
 import type { Unsubscribe } from "@gamebyte/gamelabsjs";
 
 export class GameEvents {
-  private readonly changeCubeColorListeners = new Set<(hex: number) => void>();
-  private readonly toggleCubeRotationListeners = new Set<() => void>();
+  private readonly _changeCubeColorListeners = new Set<(hex: number) => void>();
+  private readonly _toggleCubeRotationListeners = new Set<() => void>();
 
-  onChangeCubeColor(cb: (hex: number) => void): Unsubscribe {
-    this.changeCubeColorListeners.add(cb);
-    return () => {
-      this.changeCubeColorListeners.delete(cb);
-    };
+  public onChangeCubeColor(cb: (hex: number) => void): Unsubscribe {
+    this._changeCubeColorListeners.add(cb);
+    return () => this._changeCubeColorListeners.delete(cb);
   }
 
-  emitChangeCubeColor(hex: number): void {
-    for (const cb of this.changeCubeColorListeners) cb(hex);
+  public emitChangeCubeColor(hex: number): void {
+    for (const cb of this._changeCubeColorListeners) cb(hex);
   }
 
-  onToggleCubeRotation(cb: () => void): Unsubscribe {
-    this.toggleCubeRotationListeners.add(cb);
-    return () => {
-      this.toggleCubeRotationListeners.delete(cb);
-    };
+  public onToggleCubeRotation(cb: () => void): Unsubscribe {
+    this._toggleCubeRotationListeners.add(cb);
+    return () => this._toggleCubeRotationListeners.delete(cb);
   }
 
-  emitToggleCubeRotation(): void {
-    for (const cb of this.toggleCubeRotationListeners) cb();
+  public emitToggleCubeRotation(): void {
+    for (const cb of this._toggleCubeRotationListeners) cb();
   }
 }
-

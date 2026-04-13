@@ -2,18 +2,17 @@ import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "@g
 import type { IGameScreenView } from "../views/IGameScreenView";
 
 export class GameScreenViewController implements IViewController<IGameScreenView> {
-  private view: IGameScreenView | null = null;
-  private readonly subs = new UnsubscribeBag();
+  private _view: IGameScreenView | null = null;
+  private readonly _subs = new UnsubscribeBag();
 
-  inject(_resolver: IInstanceResolver): void {}
+  public inject(_resolver: IInstanceResolver): void {}
 
-  initialize(view: IGameScreenView): void {
-    this.view = view;
+  public initialize(view: IGameScreenView): void {
+    this._view = view;
   }
 
-  destroy(): void {
-    this.subs.flush();
-    this.view = null;
+  public destroy(): void {
+    this._subs.flush();
+    this._view = null;
   }
 }
-

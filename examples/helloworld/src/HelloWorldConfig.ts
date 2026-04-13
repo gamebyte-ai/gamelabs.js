@@ -5,15 +5,14 @@ import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "@gamebyte/gamela
  * Keep things here that are expected to change per project (transitions, tuning, etc.).
  */
 export class HelloWorldConfig {
-  readonly minCameraDistance = 3;
-  readonly maxCameraDistance = 10;
-  readonly transitions: {
+  public readonly minCameraDistance = 3;
+  public readonly maxCameraDistance = 10;
+  public readonly transitions: {
     gameScreenEnter: ScreenTransition;
   } = {
     gameScreenEnter: {
       type: SCREEN_TRANSITION_TYPES.INSTANT,
-      durationMs: 0
-    }
+      durationMs: 0,
+    },
   };
 }
-

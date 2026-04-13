@@ -20,17 +20,16 @@ import { HelloWorldAssetIds } from "./HelloWorldAssetIds";
 import { HelloWorldUIIds } from "./HelloWorldUIIds";
 
 export class HelloWorldApp extends GamelabsApp {
-
-  private readonly assetRequestList = new AssetRequestList();
-  private readonly config = new HelloWorldConfig();
-  private readonly gameEvents = new GameEvents();
-  private readonly debugEvents = new DebugEvents();
+  private readonly _assetRequestList = new AssetRequestList();
+  private readonly _config = new HelloWorldConfig();
+  private readonly _gameEvents = new GameEvents();
+  private readonly _debugEvents = new DebugEvents();
   private readonly _gameCameraBinding = new GameCameraBinding();
 
   private _cubeView: CubeView | null = null;
   private _orbitalController: Orbital3dCameraController | null = null;
 
-  constructor(stageEl: HTMLElement) {
+  public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
   }
 
@@ -39,22 +38,21 @@ export class HelloWorldApp extends GamelabsApp {
   }
 
   protected override configureDI(): void {
-    this.diContainer.bindInstance(HelloWorldConfig, this.config);
-    this.diContainer.bindInstance(GameEvents, this.gameEvents);
-    this.diContainer.bindInstance(DebugEvents, this.debugEvents);
+    this.diContainer.bindInstance(HelloWorldConfig, this._config);
+    this.diContainer.bindInstance(GameEvents, this._gameEvents);
+    this.diContainer.bindInstance(DebugEvents, this._debugEvents);
   }
 
   protected override configureViews(): void {
     this.viewFactory.registerScreen(HelloWorldUIIds.GameScreen, GameScreenView, GameScreenViewController);
-    this.viewFactory.register<TopBarView,     TopBarViewController>     (TopBarView,     TopBarViewController);
-    this.viewFactory.register<DebugBarView,   DebugBarViewController>   (DebugBarView,   DebugBarViewController);
-
+    this.viewFactory.register<TopBarView, TopBarViewController>(TopBarView, TopBarViewController);
+    this.viewFactory.register<DebugBarView, DebugBarViewController>(DebugBarView, DebugBarViewController);
     this.viewFactory.register<CubeView, CubeViewController>(CubeView, CubeViewController);
   }
 
   protected override loadAssets(): void {
-    this.assetRequestList.addRequest(new AssetRequest(AssetTypes.GLTF, HelloWorldAssetIds.Cube, new URL("../assets/cube.glb", import.meta.url).href));
-    this.assetManager.loadAll(this.assetRequestList.getRequests());
+    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.GLTF, HelloWorldAssetIds.Cube, new URL("../assets/cube.glb", import.meta.url).href));
+    this.assetManager.loadAll(this._assetRequestList.getRequests());
   }
 
   protected override postInitialize(): void {
@@ -65,13 +63,12 @@ export class HelloWorldApp extends GamelabsApp {
 
     // Camera setup
     this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._orbitalController = new Orbital3dCameraController(this._gameCameraBinding.cameraManager);
-    this._orbitalController.minDistance = this.config.minCameraDistance;
-    this._orbitalController.maxDistance = this.config.maxCameraDistance;
-    this.diContainer.bindInstance(Orbital3dCameraController, this._orbitalController);
+    this._orbitalController = new Orbital3dCameraController(this._gameCameraBinding.cameraManager).register();
+    this._orbitalController.minDistance = this._config.minCameraDistance;
+    this._orbitalController.maxDistance = this._config.maxCameraDistance;
 
     // Screen
-    this.diContainer.getInstance(UIEvents).createScreen(HelloWorldUIIds.GameScreen, this.config.transitions.gameScreenEnter);
+    this.diContainer.getInstance(UIEvents).createScreen(HelloWorldUIIds.GameScreen, this._config.transitions.gameScreenEnter);
 
     // Cube
     this._cubeView = this.viewFactory.createView(CubeView);

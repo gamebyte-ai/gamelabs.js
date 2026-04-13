@@ -4,41 +4,41 @@ import { GameEvents } from "../events/GameEvents";
 import { DebugEvents } from "../events/DebugEvents";
 
 export class TopBarViewController implements IViewController<ITopBarView> {
-  private view: ITopBarView | null = null;
-  private devUtils: IDevUtils | null = null;
-  private gameEvents: GameEvents | null = null;
-  private debugEvents: DebugEvents | null = null;
+  private _view: ITopBarView | null = null;
+  private _devUtils: IDevUtils | null = null;
+  private _gameEvents: GameEvents | null = null;
+  private _debugEvents: DebugEvents | null = null;
+  private readonly _subs = new UnsubscribeBag();
+  private _toggled = false;
 
-  private readonly subs = new UnsubscribeBag();
-  private toggled = false;
-
-  inject(resolver: IInstanceResolver): void {
-    this.devUtils = resolver.getInstance(IDevUtils);
-    this.gameEvents = resolver.getInstance(GameEvents);
-    this.debugEvents = resolver.getInstance(DebugEvents);
+  public inject(resolver: IInstanceResolver): void {
+    this._devUtils = resolver.getInstance(IDevUtils);
+    this._gameEvents = resolver.getInstance(GameEvents);
+    this._debugEvents = resolver.getInstance(DebugEvents);
   }
 
-  initialize(view: ITopBarView): void {
-    this.view = view;
-    this.subs.add(this.view.onToggleColor(() => {
-      this.toggled = !this.toggled;
-      this.gameEvents?.emitChangeCubeColor(this.toggled ? 0xf97316 : 0x3b82f6);
-      this.devUtils?.logger.log("Cube color chenged");
-    }));
-    this.subs.add(this.view.onToggleRotation(() => {
-      this.gameEvents?.emitToggleCubeRotation();
-      this.devUtils?.logger.log("Cube rotation toggled");
-    }));
-    this.subs.add(this.view.onToggleDebug(() => {
-      this.debugEvents?.emitToggleDebugPanel();
-    }));
+  public initialize(view: ITopBarView): void {
+    this._view = view;
+    this._subs.add(this._view.onToggleColor(() => this._onToggleColor()));
+    this._subs.add(this._view.onToggleRotation(() => this._onToggleRotation()));
+    this._subs.add(this._view.onToggleDebug(() => this._debugEvents?.emitToggleDebugPanel()));
   }
 
-  destroy(): void {
-    this.subs.flush();
-    this.view = null;
-    this.gameEvents = null;
-    this.debugEvents = null;
+  private _onToggleColor(): void {
+    this._toggled = !this._toggled;
+    this._gameEvents?.emitChangeCubeColor(this._toggled ? 0xf97316 : 0x3b82f6);
+    this._devUtils?.logger.log("Cube color changed");
+  }
+
+  private _onToggleRotation(): void {
+    this._gameEvents?.emitToggleCubeRotation();
+    this._devUtils?.logger.log("Cube rotation toggled");
+  }
+
+  public destroy(): void {
+    this._subs.flush();
+    this._view = null;
+    this._gameEvents = null;
+    this._debugEvents = null;
   }
 }
-
