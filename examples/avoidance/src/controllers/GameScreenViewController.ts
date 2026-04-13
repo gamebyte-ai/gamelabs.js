@@ -17,19 +17,19 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   public initialize(view: IGameScreenView): void {
     this._view = view;
 
-    this._subs.add(this._gameEvents!.onWaveStarted((wave) => {
-      this._view?.showWaveText(wave);
-      this._view?.setWave(wave);
-    }));
+    this._subs.add(this._gameEvents!.onWaveStarted((wave) => this._onWaveStarted(wave)));
+    this._subs.add(this._gameEvents!.onWaveAnnounceEnded(() => this._view?.hideWaveText()));
+    this._subs.add(this._gameEvents!.onGameOver(() => this._onGameOver()));
+  }
 
-    this._subs.add(this._gameEvents!.onWaveAnnounceEnded(() => {
-      this._view?.hideWaveText();
-    }));
+  private _onWaveStarted(wave: number): void {
+    this._view?.showWaveText(wave);
+    this._view?.setWave(wave);
+  }
 
-    this._subs.add(this._gameEvents!.onGameOver(() => {
-      this._view?.hideWaveText();
-      this._uiEvents?.createPopup(AvoidanceUIIds.GameOverPopup);
-    }));
+  private _onGameOver(): void {
+    this._view?.hideWaveText();
+    this._uiEvents?.createPopup(AvoidanceUIIds.GameOverPopup);
   }
 
   public destroy(): void {

@@ -1,4 +1,4 @@
-import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, Topdown2dCameraController, OnScreenControlsBinding, ControlType, ControlAnchor } from "@gamebyte/gamelabsjs";
+import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, Topdown2dCameraController, OnScreenControlsBinding } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
@@ -8,7 +8,10 @@ import { GameOverPopupView } from "./views/GameOverPopupView.pixi";
 import { GameOverPopupViewController } from "./controllers/GameOverPopupViewController";
 
 import { GameEvents } from "./events/GameEvents";
+import { GameModel } from "./models/GameModel";
+import { IGameModel } from "./models/IGameModel";
 import { WaveManager } from "./utilities/WaveManager";
+import { GameOperations } from "./utilities/GameOperations";
 import { PlayerInputManager } from "./utilities/PlayerInputManager";
 import { AvoidanceConfig } from "./AvoidanceConfig";
 import { AvoidanceAssetIds } from "./AvoidanceAssetIds";
@@ -24,7 +27,7 @@ export class AvoidanceApp extends GamelabsApp {
   private _gameAreaView: GameAreaView | null = null;
   private _cameraController: Topdown2dCameraController | null = null;
 
-  constructor(stageEl: HTMLElement) {
+  public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
   }
 
@@ -37,9 +40,9 @@ export class AvoidanceApp extends GamelabsApp {
     this.diContainer.bindInstance(AvoidanceConfig, this._config);
     this.viewDiContainer.bindInstance(AvoidanceConfig, this._config);
     this.diContainer.bindInstance(GameEvents, this._gameEvents);
-
-    const waveManager = new WaveManager(this._config, this._gameEvents);
-    this.diContainer.bindInstance(WaveManager, waveManager);
+    this.diContainer.bindInstance(GameModel, new GameModel(), [IGameModel]);
+    this.diContainer.bindSingleton(WaveManager, () => new WaveManager());
+    this.diContainer.bindSingleton(GameOperations, () => new GameOperations());
 
     const playerInput = new PlayerInputManager();
     playerInput.inject(this.diContainer);
@@ -61,28 +64,25 @@ export class AvoidanceApp extends GamelabsApp {
   protected override postInitialize(): void {
     if (!this.world || !this.hud) throw new Error("World or HUD is not initialized");
 
-    // Camera: top-down orthographic, centered on game area
     this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._cameraController = new Topdown2dCameraController(this._gameCameraBinding.cameraManager);
+    this._cameraController = new Topdown2dCameraController(this._gameCameraBinding.cameraManager).register();
     const half = this._config.gameAreaSize / 2;
     this._cameraController.followPosition(half, 0, half);
-    this.fitCamera(this.width, this.height);
+    this._fitCamera(this.width, this.height);
 
-    // World view: game area with player and enemies
     this._gameAreaView = this.viewFactory.createView(GameAreaView);
     this.world.addView(this._gameAreaView);
 
-    // HUD screen (creates on-screen controls as a sub-view)
     this.diContainer.getInstance(UIEvents).createScreen(AvoidanceUIIds.GameScreen, this._config.transitions.gameScreenEnter);
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
     this._gameCameraBinding.cameraManager.resize(width, height);
-    this.fitCamera(width, height);
+    this._fitCamera(width, height);
   }
 
-  private fitCamera(screenWidth: number, screenHeight: number): void {
+  private _fitCamera(screenWidth: number, screenHeight: number): void {
     const margin = 1.2;
     const areaSize = this._config.gameAreaSize * margin;
     const aspect = Math.max(0.01, screenWidth) / Math.max(0.01, screenHeight);
