@@ -1,25 +1,9 @@
-/**
- * Screen anchor point for positioning controls.
- */
-export enum ControlAnchor {
-  TopLeft = "top-left",
-  TopCenter = "top-center",
-  TopRight = "top-right",
-  CenterLeft = "center-left",
-  Center = "center",
-  CenterRight = "center-right",
-  BottomLeft = "bottom-left",
-  BottomCenter = "bottom-center",
-  BottomRight = "bottom-right",
-}
+export { ControlAnchor } from "./constants/ControlAnchor.js";
+export { ControlType } from "./constants/ControlType.js";
+export { resolveAnchorPosition } from "./utilities/resolveAnchorPosition.js";
 
-/**
- * Control type discriminator.
- */
-export enum ControlType {
-  Button = "button",
-  Joystick = "joystick",
-}
+import type { ControlType } from "./constants/ControlType.js";
+import type { ControlAnchor } from "./constants/ControlAnchor.js";
 
 /**
  * Base configuration shared by all virtual controls.
@@ -60,7 +44,7 @@ export type VirtualJoystickConfig = VirtualControlConfig & {
   dynamicAreaWidth?: number;
   /** Height of the dynamic touch area. Only used when dynamic=true. */
   dynamicAreaHeight?: number;
-  /** Threshold (0–1) for the knob distance to trigger a virtual key. @default 0.3 */
+  /** Threshold (0-1) for the knob distance to trigger a virtual key. @default 0.3 */
   threshold?: number;
   baseColor?: number;
   baseAlpha?: number;
@@ -69,28 +53,3 @@ export type VirtualJoystickConfig = VirtualControlConfig & {
 };
 
 export type ControlConfig = VirtualButtonConfig | VirtualJoystickConfig;
-
-/**
- * Compute pixel position from anchor + offset given screen dimensions.
- */
-export function resolveAnchorPosition(
-  anchor: ControlAnchor,
-  offsetX: number,
-  offsetY: number,
-  screenWidth: number,
-  screenHeight: number,
-): { x: number; y: number } {
-  let x: number;
-  let y: number;
-
-  const a = anchor as string;
-  if (a.includes("left")) x = offsetX;
-  else if (a.includes("right")) x = screenWidth - offsetX;
-  else x = screenWidth / 2 + offsetX;
-
-  if (a.startsWith("top")) y = offsetY;
-  else if (a.startsWith("bottom")) y = screenHeight - offsetY;
-  else y = screenHeight / 2 + offsetY;
-
-  return { x, y };
-}

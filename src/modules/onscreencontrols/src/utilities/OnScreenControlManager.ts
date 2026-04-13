@@ -18,7 +18,11 @@ export class OnScreenControlManager implements IInputDeviceListener {
   private readonly _pressedHandlers = new Set<(code: string) => void>();
   private readonly _releasedHandlers = new Set<(code: string) => void>();
   private readonly _keyHandlers = new Map<string, Set<(isPressed: boolean) => void>>();
-  public readonly events = new OnScreenControlEvents();
+  private readonly _events = new OnScreenControlEvents();
+
+  public get events(): OnScreenControlEvents {
+    return this._events;
+  }
 
   //  PROPERTIES
   public get deviceId(): string {
@@ -28,13 +32,13 @@ export class OnScreenControlManager implements IInputDeviceListener {
   //  CONTROL MANAGEMENT
   public addControl(config: ControlConfig): void {
     this._controls.set(config.id, config);
-    this.events.emitControlAdded(config);
+    this._events.emitControlAdded(config);
   }
 
   public removeControl(id: string): void {
     if (!this._controls.has(id)) return;
     this._controls.delete(id);
-    this.events.emitControlRemoved(id);
+    this._events.emitControlRemoved(id);
   }
 
   public getControl(id: string): ControlConfig | undefined {

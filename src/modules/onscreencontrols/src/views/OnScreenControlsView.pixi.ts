@@ -96,21 +96,12 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
       }
     }
 
-    this._buttons.push({ config, container, bg, icon });
+    const refs: ButtonRefs = { config, container, bg, icon };
+    this._buttons.push(refs);
 
-    container.on("pointerdown", (e: PIXI.FederatedPointerEvent) => {
-      e.stopPropagation();
-      this._drawButtonBg(bg, config, true);
-      for (const cb of this._buttonStateListeners) cb(config.id, true);
-    });
-    container.on("pointerup", () => {
-      this._drawButtonBg(bg, config, false);
-      for (const cb of this._buttonStateListeners) cb(config.id, false);
-    });
-    container.on("pointerupoutside", () => {
-      this._drawButtonBg(bg, config, false);
-      for (const cb of this._buttonStateListeners) cb(config.id, false);
-    });
+    container.on("pointerdown", (e: PIXI.FederatedPointerEvent) => this._onButtonDown(refs, e));
+    container.on("pointerup", () => this._onButtonUp(refs));
+    container.on("pointerupoutside", () => this._onButtonUp(refs));
 
     this.addChild(container);
     this._repositionAll();
@@ -122,6 +113,17 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
     const alpha = isDown ? (config.downAlpha ?? 0.8) : (config.upAlpha ?? 0.5);
     bg.clear();
     bg.circle(s / 2, s / 2, s / 2).fill({ color, alpha });
+  }
+
+  private _onButtonDown(refs: ButtonRefs, e: PIXI.FederatedPointerEvent): void {
+    e.stopPropagation();
+    this._drawButtonBg(refs.bg, refs.config, true);
+    for (const cb of this._buttonStateListeners) cb(refs.config.id, true);
+  }
+
+  private _onButtonUp(refs: ButtonRefs): void {
+    this._drawButtonBg(refs.bg, refs.config, false);
+    for (const cb of this._buttonStateListeners) cb(refs.config.id, false);
   }
 
   // ── JOYSTICKS ──
@@ -164,67 +166,10 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
 
     const hitTarget = config.dynamic ? dynamicArea! : base;
 
-    hitTarget.on("pointerdown", (e: PIXI.FederatedPointerEvent) => {
-      e.stopPropagation();
-      refs.activePointerId = e.pointerId;
-
-      if (config.dynamic) {
-        const local = container.toLocal(e.global);
-        refs.originX = local.x;
-        refs.originY = local.y;
-        base.position.set(local.x - config.baseSize, local.y - config.baseSize);
-        knob.position.set(local.x, local.y);
-        base.visible = true;
-        knob.visible = true;
-      } else {
-        refs.originX = base.x + config.baseSize;
-        refs.originY = base.y + config.baseSize;
-      }
-    });
-
-    hitTarget.on("globalpointermove", (e: PIXI.FederatedPointerEvent) => {
-      if (refs.activePointerId !== e.pointerId) return;
-      const local = container.toLocal(e.global);
-      const dx = local.x - refs.originX;
-      const dy = local.y - refs.originY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const maxDist = config.baseSize;
-
-      let clampedX = dx;
-      let clampedY = dy;
-      if (dist > maxDist) {
-        clampedX = (dx / dist) * maxDist;
-        clampedY = (dy / dist) * maxDist;
-      }
-
-      knob.position.set(refs.originX + clampedX, refs.originY + clampedY);
-
-      const nx = clampedX / maxDist;
-      const ny = clampedY / maxDist;
-      for (const cb of this._joystickDirListeners) cb(config.id, nx, ny);
-    });
-
-    hitTarget.on("pointerup", (e: PIXI.FederatedPointerEvent) => {
-      if (refs.activePointerId !== e.pointerId) return;
-      refs.activePointerId = null;
-      knob.position.set(refs.originX, refs.originY);
-      for (const cb of this._joystickDirListeners) cb(config.id, 0, 0);
-      if (config.dynamic) {
-        base.visible = false;
-        knob.visible = false;
-      }
-    });
-
-    hitTarget.on("pointerupoutside", (e: PIXI.FederatedPointerEvent) => {
-      if (refs.activePointerId !== e.pointerId) return;
-      refs.activePointerId = null;
-      knob.position.set(refs.originX, refs.originY);
-      for (const cb of this._joystickDirListeners) cb(config.id, 0, 0);
-      if (config.dynamic) {
-        base.visible = false;
-        knob.visible = false;
-      }
-    });
+    hitTarget.on("pointerdown", (e: PIXI.FederatedPointerEvent) => this._onJoystickDown(refs, e));
+    hitTarget.on("globalpointermove", (e: PIXI.FederatedPointerEvent) => this._onJoystickMove(refs, e));
+    hitTarget.on("pointerup", (e: PIXI.FederatedPointerEvent) => this._onJoystickUp(refs, e));
+    hitTarget.on("pointerupoutside", (e: PIXI.FederatedPointerEvent) => this._onJoystickUp(refs, e));
 
     if (config.dynamic) {
       base.visible = false;
@@ -247,6 +192,59 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
     const color = config.knobColor ?? 0x888888;
     const alpha = config.knobAlpha ?? 0.6;
     knob.circle(0, 0, r).fill({ color, alpha });
+  }
+
+  private _onJoystickDown(refs: JoystickRefs, e: PIXI.FederatedPointerEvent): void {
+    e.stopPropagation();
+    refs.activePointerId = e.pointerId;
+    const config = refs.config;
+
+    if (config.dynamic) {
+      const local = refs.container.toLocal(e.global);
+      refs.originX = local.x;
+      refs.originY = local.y;
+      refs.base.position.set(local.x - config.baseSize, local.y - config.baseSize);
+      refs.knob.position.set(local.x, local.y);
+      refs.base.visible = true;
+      refs.knob.visible = true;
+    } else {
+      refs.originX = refs.base.x + config.baseSize;
+      refs.originY = refs.base.y + config.baseSize;
+    }
+  }
+
+  private _onJoystickMove(refs: JoystickRefs, e: PIXI.FederatedPointerEvent): void {
+    if (refs.activePointerId !== e.pointerId) return;
+    const config = refs.config;
+    const local = refs.container.toLocal(e.global);
+    const dx = local.x - refs.originX;
+    const dy = local.y - refs.originY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const maxDist = config.baseSize;
+
+    let clampedX = dx;
+    let clampedY = dy;
+    if (dist > maxDist) {
+      clampedX = (dx / dist) * maxDist;
+      clampedY = (dy / dist) * maxDist;
+    }
+
+    refs.knob.position.set(refs.originX + clampedX, refs.originY + clampedY);
+
+    const nx = clampedX / maxDist;
+    const ny = clampedY / maxDist;
+    for (const cb of this._joystickDirListeners) cb(config.id, nx, ny);
+  }
+
+  private _onJoystickUp(refs: JoystickRefs, e: PIXI.FederatedPointerEvent): void {
+    if (refs.activePointerId !== e.pointerId) return;
+    refs.activePointerId = null;
+    refs.knob.position.set(refs.originX, refs.originY);
+    for (const cb of this._joystickDirListeners) cb(refs.config.id, 0, 0);
+    if (refs.config.dynamic) {
+      refs.base.visible = false;
+      refs.knob.visible = false;
+    }
   }
 
   // ── REPOSITIONING ──

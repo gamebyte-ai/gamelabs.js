@@ -7,7 +7,7 @@ Touch-friendly virtual controls (buttons and joysticks) rendered as a PixiJS HUD
 ### 1. Configure controls in the app
 
 ```ts
-import { OnScreenControlsBinding, ControlType, ControlAnchor } from "gamelabsjs";
+import { OnScreenControlsBinding, ControlType, ControlAnchor } from "@gamebyte/gamelabsjs";
 
 const onScreenControls = new OnScreenControlsBinding();
 
