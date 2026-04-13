@@ -134,15 +134,15 @@ toggle.onChange((value) => {
 
 ### `ToggleComponentPreset`
 
-| Field        | Type      | Default    | Description                    |
-| ------------ | --------- | ---------- | ------------------------------ |
-| `width`      | `number`  | `44`       | Toggle width.                  |
-| `height`     | `number`  | `24`       | Toggle height.                 |
-| `onColor`    | `number`  | `0x48bb78` | Background color when on.      |
-| `offColor`   | `number`  | `0xcbd5e0` | Background color when off.     |
-| `thumbColor` | `number`  | `0xffffff` | Thumb color.                   |
-| `thumbInset` | `number`  | `3`        | Thumb inset from edge.         |
-| `value`      | `boolean` | `false`    | Initial value.                 |
+| Field        | Type      | Default    | Description                |
+| ------------ | --------- | ---------- | -------------------------- |
+| `width`      | `number`  | `44`       | Toggle width.              |
+| `height`     | `number`  | `24`       | Toggle height.             |
+| `onColor`    | `number`  | `0x48bb78` | Background color when on.  |
+| `offColor`   | `number`  | `0xcbd5e0` | Background color when off. |
+| `thumbColor` | `number`  | `0xffffff` | Thumb color.               |
+| `thumbInset` | `number`  | `3`        | Thumb inset from edge.     |
+| `value`      | `boolean` | `false`    | Initial value.             |
 
 ### Methods
 
@@ -172,20 +172,20 @@ slider.onChange((value) => {
 
 ### `SliderComponentPreset`
 
-| Field             | Type     | Default    | Description                        |
-| ----------------- | -------- | ---------- | ---------------------------------- |
-| `trackWidth`      | `number` | `140`      | Track width.                       |
-| `trackHeight`     | `number` | `6`        | Track height.                      |
-| `thumbRadius`     | `number` | `10`       | Thumb radius.                      |
-| `trackColor`      | `number` | `0xcbd5e0` | Track background color.            |
-| `fillColor`       | `number` | `0x4299e1` | Filled portion color.              |
-| `thumbColor`      | `number` | `0x4299e1` | Thumb outer ring color.            |
-| `thumbInnerColor` | `number` | `0xffffff` | Thumb inner circle color.          |
-| `thumbInset`      | `number` | `3`        | Thumb inner inset.                 |
-| `min`             | `number` | `0`        | Minimum value.                     |
-| `max`             | `number` | `1`        | Maximum value.                     |
-| `step`            | `number` | `0`        | Step size. 0 for continuous.       |
-| `value`           | `number` | `0`        | Initial value.                     |
+| Field             | Type     | Default    | Description                  |
+| ----------------- | -------- | ---------- | ---------------------------- |
+| `trackWidth`      | `number` | `140`      | Track width.                 |
+| `trackHeight`     | `number` | `6`        | Track height.                |
+| `thumbRadius`     | `number` | `10`       | Thumb radius.                |
+| `trackColor`      | `number` | `0xcbd5e0` | Track background color.      |
+| `fillColor`       | `number` | `0x4299e1` | Filled portion color.        |
+| `thumbColor`      | `number` | `0x4299e1` | Thumb outer ring color.      |
+| `thumbInnerColor` | `number` | `0xffffff` | Thumb inner circle color.    |
+| `thumbInset`      | `number` | `3`        | Thumb inner inset.           |
+| `min`             | `number` | `0`        | Minimum value.               |
+| `max`             | `number` | `1`        | Maximum value.               |
+| `step`            | `number` | `0`        | Step size. 0 for continuous. |
+| `value`           | `number` | `0`        | Initial value.               |
 
 ### Methods
 

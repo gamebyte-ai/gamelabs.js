@@ -59,12 +59,12 @@ const preset = new GridPreset(2, 2);
 const preset = new GridPreset(1, 1, vector(1, 0, 0), vector(0, 1, 0));
 ```
 
-| Field        | Type      | Default          | Description                            |
-| ------------ | --------- | ---------------- | -------------------------------------- |
-| `columnSize` | `number`  | `1`              | Width of one cell.                     |
-| `rowSize`    | `number`  | `1`              | Depth of one cell.                     |
-| `columnAxis` | `Vector3` | `vector(1,0,0)`  | Direction axis for column progression. |
-| `rowAxis`    | `Vector3` | `vector(0,0,1)`  | Direction axis for row progression.    |
+| Field        | Type      | Default         | Description                            |
+| ------------ | --------- | --------------- | -------------------------------------- |
+| `columnSize` | `number`  | `1`             | Width of one cell.                     |
+| `rowSize`    | `number`  | `1`             | Depth of one cell.                     |
+| `columnAxis` | `Vector3` | `vector(1,0,0)` | Direction axis for column progression. |
+| `rowAxis`    | `Vector3` | `vector(0,0,1)` | Direction axis for row progression.    |
 
 ## Items
 
@@ -138,23 +138,29 @@ Available events: `onGridPointerDown`, `onGridPointerUp`, `onGridCellPointerDown
 ## Exports
 
 ### Models
+
 - `Grid`, `GridCell`, `GridItem`, `GridPreset`, `GridsModel`
 - `IGrid`, `IGridCell`, `IGridItem`, `IGridsModel` (readonly interfaces)
 
 ### Events
+
 - `GridEvents`
 
 ### Utilities
+
 - `IGridAllocator`, `DefaultGridAllocator`
 
 ### Controllers
+
 - `GridsViewController`
 
 ### Views
+
 - `GridsView`, `GridObject`, `GridCellObject`, `GridItemObject`
 - `GridCellObjectOptions`, `GridItemObjectOptions`
 - `GridObjectCreator`, `IGridObjectListener`
 - `IGridView`, `AddGridData`
 
 ### Types
+
 - `Vector3`

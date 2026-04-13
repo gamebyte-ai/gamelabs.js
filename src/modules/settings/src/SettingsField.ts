@@ -1,17 +1,16 @@
-export enum SettingsFieldType {
-  Boolean = "boolean",
-  Number = "number",
-}
+import { SettingsFieldType } from "./constants/SettingsFieldType.js";
+
+export { SettingsFieldType };
 
 export type SettingsField = SettingsBooleanField | SettingsNumberField;
 
 export class SettingsBooleanField {
-  readonly type = SettingsFieldType.Boolean;
-  readonly name: string;
-  readonly label: string;
-  readonly defaultValue: boolean;
+  public readonly type = SettingsFieldType.Boolean;
+  public readonly name: string;
+  public readonly label: string;
+  public readonly defaultValue: boolean;
 
-  constructor(name: string, label: string, defaultValue: boolean) {
+  public constructor(name: string, label: string, defaultValue: boolean) {
     this.name = name;
     this.label = label;
     this.defaultValue = defaultValue;
@@ -19,15 +18,15 @@ export class SettingsBooleanField {
 }
 
 export class SettingsNumberField {
-  readonly type = SettingsFieldType.Number;
-  readonly name: string;
-  readonly label: string;
-  readonly defaultValue: number;
-  readonly min: number;
-  readonly max: number;
-  readonly step: number;
+  public readonly type = SettingsFieldType.Number;
+  public readonly name: string;
+  public readonly label: string;
+  public readonly defaultValue: number;
+  public readonly min: number;
+  public readonly max: number;
+  public readonly step: number;
 
-  constructor(name: string, label: string, defaultValue: number, min: number, max: number, step: number = 1) {
+  public constructor(name: string, label: string, defaultValue: number, min: number, max: number, step: number = 1) {
     this.name = name;
     this.label = label;
     this.defaultValue = defaultValue;

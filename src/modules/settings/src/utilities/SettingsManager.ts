@@ -1,121 +1,76 @@
 import { StorageService } from "../../../../core/services/StorageService.js";
-import { SettingsFieldType } from "../SettingsField.js";
+import { SettingsFieldType } from "../constants/SettingsFieldType.js";
 import type { SettingsField, SettingsNumberField } from "../SettingsField.js";
 import { SettingsEvents } from "../events/SettingsEvents.js";
+import type { SettingsModel } from "../models/SettingsModel.js";
 import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
 import type { IInjectionTarget } from "../../../../core/di/IInjectionTarget.js";
 
 /**
- * Manages typed settings fields with validation, persistence, and change events.
+ * Coordinates settings mutations: validation, persistence, and event emission.
  *
- * - Fields are registered via `addField()` (before or after init).
- * - Values are loaded from `StorageService` on first access, falling back to the field's default.
- * - On every `setValue()`, the value is validated, persisted, and a change event is emitted.
+ * Read access goes through {@link ISettingsModel} (readonly interface).
+ * This manager handles writes via typed setters that validate, update the
+ * model, persist to storage, and emit change events.
  */
 export class SettingsManager implements IInjectionTarget {
-  //  FIELDS
   private _storage: StorageService | null = null;
   private _events: SettingsEvents | null = null;
-  private readonly _fields = new Map<string, SettingsField>();
-  private readonly _values = new Map<string, unknown>();
+  private readonly _model: SettingsModel;
+
+  public constructor(model: SettingsModel) {
+    this._model = model;
+  }
 
   public inject(resolver: IInstanceResolver): void {
     this._storage = resolver.getInstance(StorageService);
     this._events = resolver.getInstance(SettingsEvents);
-
-    // Re-hydrate fields that were added before inject (when _storage was
-    // null). Without this, fields added via SettingsBinding.addField()
-    // before configureDI() would keep their defaults instead of loading
-    // persisted values.
     this._rehydrateFields();
   }
 
-  /** Load persisted values for all registered fields from storage. */
-  private _rehydrateFields(): void {
-    if (!this._storage) return;
-    for (const field of this._fields.values()) {
-      const stored = this._storage.load<unknown>(field.name);
-      if (stored !== null && this._isValidValue(field, stored)) {
-        this._values.set(field.name, stored);
-      }
-    }
-  }
-  // ── Field registration ──
-
   public addField(field: SettingsField): void {
-    this._fields.set(field.name, field);
+    this._model.addField(field);
 
-    // Load persisted value or use default
+    // Load persisted value if storage is available
     const stored = this._storage?.load<unknown>(field.name);
-    if (stored !== null && this._isValidValue(field, stored)) {
-      this._values.set(field.name, stored);
-    } else {
-      this._values.set(field.name, field.defaultValue);
+    if (stored !== null && this._model.isValidValue(field, stored)) {
+      this._model.setValue(field.name, stored);
     }
   }
-
-  public getFields(): Iterable<SettingsField> {
-    return this._fields.values();
-  }
-
-  public getField(name: string): SettingsField | undefined {
-    return this._fields.get(name);
-  }
-
-  // ── Typed getters ──
-
-  public getBooleanValue(name: string): boolean {
-    const field = this._fields.get(name);
-    if (!field || field.type !== SettingsFieldType.Boolean) return false;
-    return (this._values.get(name) as boolean) ?? field.defaultValue;
-  }
-
-  public getNumberValue(name: string): number {
-    const field = this._fields.get(name);
-    if (!field || field.type !== SettingsFieldType.Number) return 0;
-    return (this._values.get(name) as number) ?? field.defaultValue;
-  }
-
-  // ── Typed setters ──
 
   public setBooleanValue(name: string, value: boolean): void {
-    const field = this._fields.get(name);
+    const field = this._model.getField(name);
     if (!field || field.type !== SettingsFieldType.Boolean) return;
-    this._values.set(name, value);
+    this._model.setValue(name, value);
     this._storage?.save(name, value);
     this._events?.emitValueChanged(name);
   }
 
   public setNumberValue(name: string, value: number): void {
-    const field = this._fields.get(name);
+    const field = this._model.getField(name);
     if (!field || field.type !== SettingsFieldType.Number) return;
-    const nf = field as SettingsNumberField;
-    const clamped = Math.max(nf.min, Math.min(nf.max, value));
-    const stepped = nf.step > 0 ? Math.round(clamped / nf.step) * nf.step : clamped;
-    this._values.set(name, stepped);
+    const stepped = this._model.clampNumberValue(field as SettingsNumberField, value);
+    this._model.setValue(name, stepped);
     this._storage?.save(name, stepped);
     this._events?.emitValueChanged(name);
   }
 
-  // ── Reset ──
-
   public resetToDefaults(): void {
-    for (const field of this._fields.values()) {
-      this._values.set(field.name, field.defaultValue);
+    for (const field of this._model.getFields()) {
+      this._model.setValue(field.name, field.defaultValue);
       this._storage?.save(field.name, field.defaultValue);
       this._events?.emitValueChanged(field.name);
     }
   }
 
-  // ── Validation ──
-
-  private _isValidValue(field: SettingsField, value: unknown): boolean {
-    if (field.type === SettingsFieldType.Boolean) {
-      return typeof value === "boolean";
+  /** Load persisted values for all registered fields from storage. */
+  private _rehydrateFields(): void {
+    if (!this._storage) return;
+    for (const field of this._model.getFields()) {
+      const stored = this._storage.load<unknown>(field.name);
+      if (stored !== null && this._model.isValidValue(field, stored)) {
+        this._model.setValue(field.name, stored);
+      }
     }
-    if (field.type === SettingsFieldType.Number) {
-      return typeof value === "number" && Number.isFinite(value);
-    }
-    return false;
   }
 }
