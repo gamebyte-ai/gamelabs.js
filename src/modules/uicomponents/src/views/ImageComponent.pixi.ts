@@ -1,6 +1,6 @@
 import type { Layout, LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
-import type { IAssetManager } from "../../../core/assets/IAssetManager.js";
+import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 
 export type ImageComponentPreset = {
   /** X position. */
@@ -52,7 +52,7 @@ export class ImageComponent extends PIXI.Container {
   private _boxWidth = 0;
   private _boxHeight = 0;
 
-  constructor(opts: ImageComponentPreset = {}) {
+  public constructor(opts: ImageComponentPreset = {}) {
     super();
 
     this._textureId = opts.textureId;
@@ -72,11 +72,7 @@ export class ImageComponent extends PIXI.Container {
       ...(opts.height !== undefined ? { height: opts.height } : {}),
     };
 
-    this.on("layout", (l: Layout) => {
-      this._boxWidth = Math.max(1, Math.floor(l.computedLayout.width));
-      this._boxHeight = Math.max(1, Math.floor(l.computedLayout.height));
-      this.applyFit();
-    });
+    this.on("layout", (l: Layout) => this.handleLayout(l));
   }
 
   /** Resolve the texture from the asset manager. */
@@ -90,6 +86,12 @@ export class ImageComponent extends PIXI.Container {
   public setTexture(texture: PIXI.Texture): void {
     this._sprite.texture = texture;
     this._sprite.visible = texture !== PIXI.Texture.EMPTY;
+    this.applyFit();
+  }
+
+  private handleLayout(l: Layout): void {
+    this._boxWidth = Math.max(1, Math.floor(l.computedLayout.width));
+    this._boxHeight = Math.max(1, Math.floor(l.computedLayout.height));
     this.applyFit();
   }
 

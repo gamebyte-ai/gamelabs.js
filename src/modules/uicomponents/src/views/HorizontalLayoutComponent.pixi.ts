@@ -45,7 +45,7 @@ export function parseHorizontalLayoutComponentPreset(json: string): HorizontalLa
  * Supports absolute positioning for use as a top/bottom bar or overlay.
  */
 export class HorizontalLayoutComponent extends PIXI.Container {
-  constructor(opts: HorizontalLayoutComponentPreset = {}) {
+  public constructor(opts: HorizontalLayoutComponentPreset = {}) {
     super();
 
     if (opts.x !== undefined) this.x = opts.x;

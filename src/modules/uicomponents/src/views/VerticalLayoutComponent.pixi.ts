@@ -34,7 +34,7 @@ export function parseVerticalLayoutComponentPreset(json: string): VerticalLayout
  * common flex options (gap, padding, alignItems, justifyContent) preconfigured.
  */
 export class VerticalLayoutComponent extends PIXI.Container {
-  constructor(opts: VerticalLayoutComponentPreset = {}) {
+  public constructor(opts: VerticalLayoutComponentPreset = {}) {
     super();
 
     if (opts.x !== undefined) this.x = opts.x;

@@ -1,9 +1,12 @@
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
-import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/ButtonComponent.pixi.js";
-import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/BackgroundComponent.pixi.js";
-import { VerticalLayoutComponent, parseVerticalLayoutComponentPreset } from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
-import { HorizontalLayoutComponent } from "../../../uicomponents/src/HorizontalLayoutComponent.pixi.js";
-import { ImageComponent } from "../../../uicomponents/src/ImageComponent.pixi.js";
+import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
+import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/views/BackgroundComponent.pixi.js";
+import {
+  VerticalLayoutComponent,
+  parseVerticalLayoutComponentPreset,
+} from "../../../uicomponents/src/views/VerticalLayoutComponent.pixi.js";
+import { HorizontalLayoutComponent } from "../../../uicomponents/src/views/HorizontalLayoutComponent.pixi.js";
+import { ImageComponent } from "../../../uicomponents/src/views/ImageComponent.pixi.js";
 import type { IMainScreenView } from "./IMainScreenView.js";
 import { MainScreenAssetIds } from "../MainScreenAssetIds.js";
 

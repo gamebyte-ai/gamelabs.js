@@ -1,6 +1,8 @@
 import * as PIXI from "pixi.js";
 import { PopupView } from "../../../../core/ui/PopupView.pixi.js";
-import { ButtonComponent } from "../../../uicomponents/src/ButtonComponent.pixi.js";
+import { ButtonComponent } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
+import { ToggleComponent } from "../../../uicomponents/src/views/ToggleComponent.pixi.js";
+import { SliderComponent } from "../../../uicomponents/src/views/SliderComponent.pixi.js";
 import type { ISettingsPopupView } from "./ISettingsPopupView.js";
 
 type FieldRow = {
@@ -9,17 +11,13 @@ type FieldRow = {
 };
 
 type BooleanRow = FieldRow & {
-  toggle: PIXI.Graphics;
+  toggle: ToggleComponent;
   value: boolean;
 };
 
 type NumberRow = FieldRow & {
-  track: PIXI.Graphics;
-  thumb: PIXI.Graphics;
+  slider: SliderComponent;
   valueText: PIXI.Text;
-  value: number;
-  min: number;
-  max: number;
   step: number;
 };
 
@@ -130,20 +128,20 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     labelText.anchor.set(0, 0.5);
     row.addChild(labelText);
 
-    const toggle = new PIXI.Graphics();
-    toggle.eventMode = "static";
-    toggle.cursor = "pointer";
+    const toggle = new ToggleComponent({
+      width: SettingsPopupView.TOGGLE_WIDTH,
+      height: SettingsPopupView.TOGGLE_HEIGHT,
+      value,
+    });
     toggle.position.set(W - SettingsPopupView.TOGGLE_WIDTH, (SettingsPopupView.ROW_HEIGHT - SettingsPopupView.TOGGLE_HEIGHT) / 2);
     row.addChild(toggle);
 
     const boolRow: BooleanRow = { name, container: row, toggle, value };
     this._booleanRows.push(boolRow);
-    this._drawToggle(toggle, value);
 
-    toggle.on("pointertap", () => {
-      boolRow.value = !boolRow.value;
-      this._drawToggle(toggle, boolRow.value);
-      for (const cb of this._booleanChangedListeners) cb(name, boolRow.value);
+    toggle.onChange((v) => {
+      boolRow.value = v;
+      for (const cb of this._booleanChangedListeners) cb(name, v);
     });
 
     this._rowsContainer!.addChild(row);
@@ -180,55 +178,25 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     valueText.position.set(W, SettingsPopupView.ROW_HEIGHT / 2);
     row.addChild(valueText);
 
-    // Slider track
-    const trackX = W - SettingsPopupView.TRACK_WIDTH - 45;
-    const trackY = SettingsPopupView.ROW_HEIGHT / 2;
-    const track = new PIXI.Graphics();
-    track.eventMode = "static";
-    track.position.set(trackX, trackY);
-    row.addChild(track);
+    const slider = new SliderComponent({
+      trackWidth: SettingsPopupView.TRACK_WIDTH,
+      trackHeight: SettingsPopupView.TRACK_HEIGHT,
+      thumbRadius: SettingsPopupView.THUMB_RADIUS,
+      min,
+      max,
+      step,
+      value,
+    });
+    slider.position.set(W - SettingsPopupView.TRACK_WIDTH - 45, SettingsPopupView.ROW_HEIGHT / 2);
+    row.addChild(slider);
 
-    // Slider thumb
-    const thumb = new PIXI.Graphics();
-    thumb.eventMode = "static";
-    thumb.cursor = "pointer";
-    row.addChild(thumb);
-
-    const numRow: NumberRow = { name, container: row, track, thumb, valueText, value, min, max, step };
+    const numRow: NumberRow = { name, container: row, slider, valueText, step };
     this._numberRows.push(numRow);
-    this._drawSlider(numRow);
 
-    // Drag handling
-    let dragging = false;
-    const updateFromX = (globalX: number): void => {
-      const localX = globalX - track.getGlobalPosition().x;
-      const ratio = Math.max(0, Math.min(1, localX / SettingsPopupView.TRACK_WIDTH));
-      const raw = min + ratio * (max - min);
-      const stepped = step > 0 ? Math.round(raw / step) * step : raw;
-      const clamped = Math.max(min, Math.min(max, stepped));
-      numRow.value = clamped;
-      this._drawSlider(numRow);
-      valueText.text = this._formatNumber(clamped, step);
-      for (const cb of this._numberChangedListeners) cb(name, clamped);
-    };
-
-    track.on("pointerdown", (e: PIXI.FederatedPointerEvent) => {
-      dragging = true;
-      updateFromX(e.global.x);
+    slider.onChange((v) => {
+      valueText.text = this._formatNumber(v, step);
+      for (const cb of this._numberChangedListeners) cb(name, v);
     });
-    thumb.on("pointerdown", () => {
-      dragging = true;
-    });
-    row.on("globalpointermove", (e: PIXI.FederatedPointerEvent) => {
-      if (dragging) updateFromX(e.global.x);
-    });
-    row.on("pointerup", () => {
-      dragging = false;
-    });
-    row.on("pointerupoutside", () => {
-      dragging = false;
-    });
-    row.eventMode = "static";
 
     this._rowsContainer!.addChild(row);
     this._redrawPanelBg();
@@ -238,14 +206,13 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     for (const br of this._booleanRows) {
       if (br.name === name && typeof value === "boolean") {
         br.value = value;
-        this._drawToggle(br.toggle, value);
+        br.toggle.setValue(value);
         return;
       }
     }
     for (const nr of this._numberRows) {
       if (nr.name === name && typeof value === "number") {
-        nr.value = value;
-        this._drawSlider(nr);
+        nr.slider.setValue(value);
         nr.valueText.text = this._formatNumber(value, nr.step);
         return;
       }
@@ -275,46 +242,6 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     const row = new PIXI.Container();
     row.layout = { width: "100%", height: SettingsPopupView.ROW_HEIGHT };
     return row;
-  }
-
-  private _drawToggle(gfx: PIXI.Graphics, on: boolean): void {
-    const w = SettingsPopupView.TOGGLE_WIDTH;
-    const h = SettingsPopupView.TOGGLE_HEIGHT;
-    const r = h / 2;
-    gfx.clear();
-    gfx.roundRect(0, 0, w, h, r);
-    gfx.fill({ color: on ? 0x48bb78 : 0xcbd5e0, alpha: 1 });
-    // Thumb circle
-    const thumbX = on ? w - r : r;
-    gfx.circle(thumbX, r, r - 3);
-    gfx.fill({ color: 0xffffff });
-  }
-
-  private _drawSlider(nr: NumberRow): void {
-    const tw = SettingsPopupView.TRACK_WIDTH;
-    const th = SettingsPopupView.TRACK_HEIGHT;
-    const tr = SettingsPopupView.THUMB_RADIUS;
-
-    // Track
-    nr.track.clear();
-    nr.track.roundRect(0, -th / 2, tw, th, th / 2);
-    nr.track.fill({ color: 0xcbd5e0 });
-
-    // Filled portion
-    const ratio = nr.max > nr.min ? (nr.value - nr.min) / (nr.max - nr.min) : 0;
-    const filledW = ratio * tw;
-    nr.track.roundRect(0, -th / 2, filledW, th, th / 2);
-    nr.track.fill({ color: 0x4299e1 });
-
-    // Thumb
-    const thumbX = nr.track.x + filledW;
-    const thumbY = nr.track.y;
-    nr.thumb.clear();
-    nr.thumb.circle(0, 0, tr);
-    nr.thumb.fill({ color: 0x4299e1 });
-    nr.thumb.circle(0, 0, tr - 3);
-    nr.thumb.fill({ color: 0xffffff });
-    nr.thumb.position.set(thumbX, thumbY);
   }
 
   private _redrawPanelBg(): void {

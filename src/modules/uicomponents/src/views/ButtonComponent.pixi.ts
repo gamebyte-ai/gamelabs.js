@@ -1,8 +1,8 @@
 import type { Layout, LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
-import type { Unsubscribe } from "../../../core/events/subscriptions.js";
-import type { IAssetManager } from "../../../core/assets/IAssetManager.js";
+import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
+import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 
 export type ButtonComponentPreset = {
   /** X position. */
@@ -66,7 +66,7 @@ export class ButtonComponent extends PIXI.Container {
   private _layoutWidth = 0;
   private _layoutHeight = 0;
 
-  constructor(opts: ButtonComponentPreset = {}) {
+  public constructor(opts: ButtonComponentPreset = {}) {
     super();
 
     this._opts = {
@@ -110,14 +110,7 @@ export class ButtonComponent extends PIXI.Container {
     if (opts.height !== undefined) layout.height = opts.height;
     this.layout = layout;
 
-    this.on("layout", (l: Layout) => {
-      const w = Math.max(1, Math.floor(l.computedLayout.width));
-      const h = Math.max(1, Math.floor(l.computedLayout.height));
-      this._layoutWidth = w;
-      this._layoutHeight = h;
-      this.redrawPlaceholder(w, h);
-      this.applySpriteSize(w, h);
-    });
+    this.on("layout", (l: Layout) => this.handleLayout(l));
 
     // @pixi/ui Button wrapper
     this._button = new Button(this);
@@ -150,6 +143,15 @@ export class ButtonComponent extends PIXI.Container {
       const texture = assetManager.getAsset<PIXI.Texture>(this._bgTextureId);
       if (texture) this.setTexture(texture);
     }
+  }
+
+  private handleLayout(l: Layout): void {
+    const w = Math.max(1, Math.floor(l.computedLayout.width));
+    const h = Math.max(1, Math.floor(l.computedLayout.height));
+    this._layoutWidth = w;
+    this._layoutHeight = h;
+    this.redrawPlaceholder(w, h);
+    this.applySpriteSize(w, h);
   }
 
   private redrawPlaceholder(w: number, h: number): void {

@@ -1,7 +1,7 @@
 import "@pixi/layout";
 import type { Layout } from "@pixi/layout";
 import * as PIXI from "pixi.js";
-import type { IAssetManager } from "../../../core/assets/IAssetManager.js";
+import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 
 export type BackgroundComponentPreset = {
   /** Asset ID for the background texture. Resolved via `resolveAssets()`. */
@@ -40,7 +40,7 @@ export class BackgroundComponent extends PIXI.Container {
   private _width = 0;
   private _height = 0;
 
-  constructor(opts: BackgroundComponentPreset = {}) {
+  public constructor(opts: BackgroundComponentPreset = {}) {
     super();
 
     this._opts = {
@@ -63,13 +63,7 @@ export class BackgroundComponent extends PIXI.Container {
 
     this.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
 
-    this.on("layout", (l: Layout) => {
-      const w = Math.max(1, Math.floor(l.computedLayout.width));
-      const h = Math.max(1, Math.floor(l.computedLayout.height));
-      this._width = w;
-      this._height = h;
-      this.redraw();
-    });
+    this.on("layout", (l: Layout) => this.handleLayout(l));
   }
 
   /** Resolve preset asset references (bgTextureId) from the asset manager. */
@@ -80,6 +74,14 @@ export class BackgroundComponent extends PIXI.Container {
       this._bgImage.texture = texture;
       this.redraw();
     }
+  }
+
+  private handleLayout(l: Layout): void {
+    const w = Math.max(1, Math.floor(l.computedLayout.width));
+    const h = Math.max(1, Math.floor(l.computedLayout.height));
+    this._width = w;
+    this._height = h;
+    this.redraw();
   }
 
   private redraw(): void {

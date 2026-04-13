@@ -1,8 +1,11 @@
 import * as PIXI from "pixi.js";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
-import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/ButtonComponent.pixi.js";
-import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/BackgroundComponent.pixi.js";
-import { VerticalLayoutComponent, parseVerticalLayoutComponentPreset } from "../../../uicomponents/src/VerticalLayoutComponent.pixi.js";
+import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
+import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/views/BackgroundComponent.pixi.js";
+import {
+  VerticalLayoutComponent,
+  parseVerticalLayoutComponentPreset,
+} from "../../../uicomponents/src/views/VerticalLayoutComponent.pixi.js";
 import type { ILevelProgressScreenView } from "./ILevelProgressScreenView.js";
 import { LevelProgressScreenAssetIds } from "../LevelProgressScreenAssetIds.js";
 
