@@ -6,17 +6,19 @@ import { WinPopupView } from "./views/WinPopupView.pixi";
 import { WinPopupViewController } from "./controllers/WinPopupViewController";
 
 import { GameEvents } from "./events/GameEvents";
+import { GameModel } from "./models/GameModel";
+import { IGameModel } from "./models/IGameModel";
 import { WaterSortConfig } from "./WaterSortConfig";
 import { WaterSortUIIds } from "./WaterSortUIIds";
 import { WaterSortAssetIds } from "./WaterSortAssetIds";
-import { WaterSortOperations } from "./utilities/WaterSortOperations";
+import { GameOperations } from "./utilities/GameOperations";
 
 export class WaterSortApp extends GamelabsApp {
   private readonly _config = new WaterSortConfig();
   private readonly _gameEvents = new GameEvents();
   private readonly _assetRequestList = new AssetRequestList();
 
-  constructor(stageEl: HTMLElement) {
+  public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
   }
 
@@ -24,9 +26,8 @@ export class WaterSortApp extends GamelabsApp {
     this.diContainer.bindInstance(WaterSortConfig, this._config);
     this.viewDiContainer.bindInstance(WaterSortConfig, this._config);
     this.diContainer.bindInstance(GameEvents, this._gameEvents);
-
-    const ops = new WaterSortOperations(this._config);
-    this.diContainer.bindInstance(WaterSortOperations, ops);
+    this.diContainer.bindInstance(GameModel, new GameModel(), [IGameModel]);
+    this.diContainer.bindSingleton(GameOperations, () => new GameOperations());
   }
 
   protected override configureViews(): void {

@@ -3,31 +3,31 @@
  * Each segment is a color index into the config's liquidColors array.
  */
 export class Bottle {
-  readonly capacity: number;
+  public readonly capacity: number;
   private readonly _segments: number[] = [];
 
-  constructor(capacity: number) {
+  public constructor(capacity: number) {
     this.capacity = capacity;
   }
 
-  get segments(): readonly number[] {
+  public get segments(): readonly number[] {
     return this._segments;
   }
 
-  get isEmpty(): boolean {
+  public get isEmpty(): boolean {
     return this._segments.length === 0;
   }
 
-  get isFull(): boolean {
+  public get isFull(): boolean {
     return this._segments.length >= this.capacity;
   }
 
-  get topColor(): number | null {
+  public get topColor(): number | null {
     return this._segments.length > 0 ? this._segments[this._segments.length - 1]! : null;
   }
 
   /** Count of consecutive same-color segments from the top. */
-  get topGroupCount(): number {
+  public get topGroupCount(): number {
     if (this._segments.length === 0) return 0;
     const top = this.topColor!;
     let count = 0;
@@ -38,24 +38,24 @@ export class Bottle {
     return count;
   }
 
-  get isSorted(): boolean {
+  public get isSorted(): boolean {
     if (this._segments.length === 0) return true;
     if (this._segments.length !== this.capacity) return false;
     const c = this._segments[0]!;
     return this._segments.every(s => s === c);
   }
 
-  push(colorIndex: number): void {
+  public push(colorIndex: number): void {
     if (this.isFull) throw new Error("Bottle is full");
     this._segments.push(colorIndex);
   }
 
-  pop(): number {
+  public pop(): number {
     if (this.isEmpty) throw new Error("Bottle is empty");
     return this._segments.pop()!;
   }
 
-  get freeSpace(): number {
+  public get freeSpace(): number {
     return this.capacity - this._segments.length;
   }
 }
