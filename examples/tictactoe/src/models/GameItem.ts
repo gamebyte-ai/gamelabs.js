@@ -1,9 +1,7 @@
 import { GridItem } from "@gamebyte/gamelabsjs";
+import { Team } from "../constants/Team.js";
 
-export enum Team {
-  X = "X",
-  O = "O"
-}
+export { Team };
 
 export class GameItem extends GridItem {
   public readonly team: Team;

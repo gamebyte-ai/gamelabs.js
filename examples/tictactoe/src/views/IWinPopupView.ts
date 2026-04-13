@@ -1,5 +1,5 @@
 import type { IPopupView, Unsubscribe } from "@gamebyte/gamelabsjs";
-import type { Team } from "../models/GameItem.js";
+import type { Team } from "../constants/Team.js";
 
 export interface IWinPopupView extends IPopupView {
   setResult(winner: Team | null): void;

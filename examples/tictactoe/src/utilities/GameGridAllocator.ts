@@ -1,5 +1,6 @@
 import { DefaultGridAllocator, type IGridAllocator, type Grid, type GridCell, type GridItem } from "@gamebyte/gamelabsjs";
-import { GameItem, Team } from "../models/GameItem.js";
+import { GameItem } from "../models/GameItem.js";
+import { Team } from "../constants/Team.js";
 
 export class GameGridAllocator extends DefaultGridAllocator implements IGridAllocator {
   public override createItem(options: { id?: number; team?: Team }): GridItem {

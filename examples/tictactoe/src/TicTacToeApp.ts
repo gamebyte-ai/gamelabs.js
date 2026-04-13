@@ -1,6 +1,8 @@
-import { GamelabsApp, LogTypes, GameCameraBinding, Topdown3dCameraController, IViewFactory, UIEvents } from "@gamebyte/gamelabsjs";
-import { TicTacToeTurnManager, TicTacToeTurnManagerToken } from "./utilities/TicTacToeTurnManager";
+import { GamelabsApp, LogTypes, GameCameraBinding, Topdown3dCameraController, UIEvents } from "@gamebyte/gamelabsjs";
+import { GameTurnManager, GameTurnManagerToken } from "./utilities/GameTurnManager";
 import { TurnEvents } from "./events/TurnEvents";
+import { GameModel } from "./models/GameModel";
+import { IGameModel } from "./models/IGameModel";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { WinPopupView } from "./views/WinPopupView.pixi";
@@ -28,13 +30,14 @@ export class TicTacToeApp extends GamelabsApp {
   }
 
   protected override configureDI(): void {
+    const gameModel = new GameModel();
     this.diContainer.bindInstance(TicTacToeConfig, this._config);
-    this.diContainer.bindInstance(IViewFactory, this.viewFactory);
+    this.diContainer.bindInstance(GameModel, gameModel, [IGameModel]);
     this.diContainer.bindInstance(TurnEvents, new TurnEvents());
-    this.diContainer.bindSingleton(GridOperations, (resolver) => new GridOperations());
-    this.diContainer.bindSingleton(TicTacToeTurnManagerToken, (resolver) => {
-      const tm = new TicTacToeTurnManager();
-      tm.inject(resolver);
+    this.diContainer.bindSingleton(GridOperations, () => new GridOperations());
+    this.diContainer.bindSingleton(GameTurnManagerToken, (resolver) => {
+      const tm = new GameTurnManager();
+      tm.inject(resolver, gameModel);
       return tm;
     });
   }

@@ -1,7 +1,7 @@
 import * as PIXI from "pixi.js";
 import { PopupView, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IWinPopupView } from "./IWinPopupView";
-import { Team } from "../models/GameItem.js";
+import { Team } from "../constants/Team.js";
 
 export class WinPopupView extends PopupView implements IWinPopupView {
   private _panel: PIXI.Container | null = null;

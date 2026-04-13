@@ -1,7 +1,7 @@
 import * as PIXI from "pixi.js";
 import { ScreenView } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView";
-import { Team } from "../models/GameItem.js";
+import { Team } from "../constants/Team.js";
 
 export class GameScreenView extends ScreenView implements IGameScreenView {
   private static readonly TEXT_BASE = { fill: 0xe8eef6, fontSize: 18, fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" };
@@ -12,7 +12,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private readonly _playerO = new PIXI.Text({ text: "Player O", style: { ...GameScreenView.TEXT_BASE } });
   private _activeTeam: Team = Team.X;
 
-  public postInitialize(): void {
+  public override postInitialize(): void {
     (this as any).layout = {
       width: 1,
       height: 1,

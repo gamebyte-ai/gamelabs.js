@@ -2,7 +2,7 @@ import * as THREE from "three";
 import gsap from "gsap";
 import type { IGridObjectListener, IInputManager } from "@gamebyte/gamelabsjs";
 import { GridItemObject } from "@gamebyte/gamelabsjs";
-import { Team } from "../models/GameItem.js";
+import { Team } from "../constants/Team.js";
 import { TicTacToeAssetIds } from "../TicTacToeAssetIds.js";
 import type { GameItemObjectOptions } from "./GameItemObjectOptions.js";
 

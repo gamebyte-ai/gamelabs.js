@@ -1,5 +1,5 @@
 import type { Unsubscribe } from "@gamebyte/gamelabsjs";
-import type { Team } from "../models/GameItem.js";
+import type { Team } from "../constants/Team.js";
 
 export class TurnEvents {
   private readonly _turnChangedListeners = new Set<(team: Team) => void>();
