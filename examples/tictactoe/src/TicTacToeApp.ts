@@ -30,16 +30,11 @@ export class TicTacToeApp extends GamelabsApp {
   }
 
   protected override configureDI(): void {
-    const gameModel = new GameModel();
     this.diContainer.bindInstance(TicTacToeConfig, this._config);
-    this.diContainer.bindInstance(GameModel, gameModel, [IGameModel]);
+    this.diContainer.bindInstance(GameModel, new GameModel(), [IGameModel]);
     this.diContainer.bindInstance(TurnEvents, new TurnEvents());
     this.diContainer.bindSingleton(GridOperations, () => new GridOperations());
-    this.diContainer.bindSingleton(GameTurnManagerToken, (resolver) => {
-      const tm = new GameTurnManager();
-      tm.inject(resolver, gameModel);
-      return tm;
-    });
+    this.diContainer.bindSingleton(GameTurnManagerToken, () => new GameTurnManager());
   }
 
   protected override configureViews(): void {
@@ -68,7 +63,7 @@ export class TicTacToeApp extends GamelabsApp {
     this._gameGridBinding.model.getGrid(this._config.boardId);
 
     this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._cameraController = new Topdown3dCameraController(this._gameCameraBinding.cameraManager);
+    this._cameraController = new Topdown3dCameraController(this._gameCameraBinding.cameraManager).register();
     const centerX = (this._config.boardColumnCount - 1) / 2;
     const centerZ = (this._config.boardRowCount - 1) / 2;
     this._cameraController.followPosition(centerX, 0.5, centerZ);

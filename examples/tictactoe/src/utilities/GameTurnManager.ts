@@ -1,14 +1,14 @@
-import { InjectionToken, GridsModel, type IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { InjectionToken, GridsModel, type IInstanceResolver, type IInjectionTarget } from "@gamebyte/gamelabsjs";
 import { GameGridAllocator } from "../modules/gamegrid/utilities/GameGridAllocator.js";
 import { GameItem } from "../modules/gamegrid/models/GameItem.js";
 import { Team } from "../constants/Team.js";
-import type { GameModel } from "../models/GameModel.js";
+import { GameModel } from "../models/GameModel.js";
 import { TicTacToeConfig } from "../TicTacToeConfig.js";
 import { TurnEvents } from "../events/TurnEvents.js";
 
 export const GameTurnManagerToken = new InjectionToken<GameTurnManager>("GameTurnManager");
 
-export class GameTurnManager {
+export class GameTurnManager implements IInjectionTarget {
   private _gridsModel: GridsModel | null = null;
   private _config: TicTacToeConfig | null = null;
   private _turnEvents: TurnEvents | null = null;
@@ -16,11 +16,11 @@ export class GameTurnManager {
   private readonly _allocator = new GameGridAllocator();
   private _nextItemId = 1;
 
-  public inject(resolver: IInstanceResolver, gameModel: GameModel): void {
+  public inject(resolver: IInstanceResolver): void {
     this._gridsModel = resolver.getInstance(GridsModel);
     this._config = resolver.getInstance(TicTacToeConfig);
     this._turnEvents = resolver.getInstance(TurnEvents);
-    this._gameModel = gameModel;
+    this._gameModel = resolver.getInstance(GameModel);
   }
 
   public placeMark(gridId: number, col: number, row: number): boolean {

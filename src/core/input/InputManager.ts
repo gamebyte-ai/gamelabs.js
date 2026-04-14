@@ -8,6 +8,7 @@ import { WorldInteractiveObject } from "../world/WorldInteractiveObject.js";
 
 export class InputManager implements IInputManager {
   private readonly _canvas: HTMLCanvasElement;
+  private readonly _eventTarget: HTMLElement;
   private readonly _hud: Hud | null;
   private readonly _world: World | null;
   private readonly _handlers = new Set<IPointerInputHandler>();
@@ -15,8 +16,9 @@ export class InputManager implements IInputManager {
   private readonly _raycaster = new THREE.Raycaster();
   private readonly _pointerNdc = new THREE.Vector2();
 
-  public constructor(canvas: HTMLCanvasElement, hud: Hud | null, world: World | null) {
+  public constructor(canvas: HTMLCanvasElement, hud: Hud | null, world: World | null, eventTarget?: HTMLElement) {
     this._canvas = canvas;
+    this._eventTarget = eventTarget ?? canvas;
     this._hud = hud;
     this._world = world;
     this._raycaster.layers.set(POINTER_INPUT_LAYER);
@@ -71,19 +73,19 @@ export class InputManager implements IInputManager {
 
   public startListening(): void {
     if (this._listening) return;
-    this._canvas.addEventListener("pointerdown", this._onPointerDown);
-    this._canvas.addEventListener("pointermove", this._onPointerMove);
-    this._canvas.addEventListener("pointerup", this._onPointerUp);
-    this._canvas.addEventListener("pointercancel", this._onPointerCancel);
+    this._eventTarget.addEventListener("pointerdown", this._onPointerDown);
+    this._eventTarget.addEventListener("pointermove", this._onPointerMove);
+    this._eventTarget.addEventListener("pointerup", this._onPointerUp);
+    this._eventTarget.addEventListener("pointercancel", this._onPointerCancel);
     this._listening = true;
   }
 
   public stopListening(): void {
     if (!this._listening) return;
-    this._canvas.removeEventListener("pointerdown", this._onPointerDown);
-    this._canvas.removeEventListener("pointermove", this._onPointerMove);
-    this._canvas.removeEventListener("pointerup", this._onPointerUp);
-    this._canvas.removeEventListener("pointercancel", this._onPointerCancel);
+    this._eventTarget.removeEventListener("pointerdown", this._onPointerDown);
+    this._eventTarget.removeEventListener("pointermove", this._onPointerMove);
+    this._eventTarget.removeEventListener("pointerup", this._onPointerUp);
+    this._eventTarget.removeEventListener("pointercancel", this._onPointerCancel);
     this._listening = false;
   }
 }

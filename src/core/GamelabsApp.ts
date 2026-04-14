@@ -179,7 +179,7 @@ export class GamelabsApp {
       this._viewFactory.setUIEvents(uiEvents);
       this.viewDiContainer.bindInstance(IViewFactory, this._viewFactory);
 
-      this._inputManager = new InputManager(this.canvas, this.hud, this.world);
+      this._inputManager = new InputManager(this.canvas, this.hud, this.world, this.mount);
       this.viewDiContainer.bindInstance(IInputManager, this._inputManager);
 
       this._keyboardListener = new KeyboardListener();
