@@ -1,14 +1,17 @@
 import type { Grid, GridItem, IGridView, IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { GridsViewController } from "@gamebyte/gamelabsjs";
-import { Match3Config } from "../Match3Config.js";
-import { Match3AssetIds } from "../Match3AssetIds.js";
+import { Match3Config } from "../../../Match3Config.js";
+import { Match3AssetIds } from "../../../Match3AssetIds.js";
+import { IGameModel } from "../../../models/IGameModel.js";
+import type { IGameModel as IGameModelType } from "../../../models/IGameModel.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";
-import { GameOperations } from "../utilities/GameOperations.js";
-import { GameEvents } from "../events/GameEvents.js";
+import { GameOperations } from "../../../utilities/GameOperations.js";
+import { GameEvents } from "../../../events/GameEvents.js";
 import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions.js";
 import type { IGameBoardsView } from "../views/IGameBoardsView.js";
 
 export class GameBoardsViewController extends GridsViewController {
+  private _gameModel: IGameModelType | null = null;
   private _operations: GameOperations | null = null;
   private _config: Match3Config | null = null;
   private _gameEvents: GameEvents | null = null;
@@ -18,6 +21,7 @@ export class GameBoardsViewController extends GridsViewController {
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
+    this._gameModel = resolver.getInstance(IGameModel);
     this._operations = resolver.getInstance(GameOperations);
     this._config = resolver.getInstance(Match3Config);
     this._gameEvents = resolver.getInstance(GameEvents);
@@ -92,18 +96,19 @@ export class GameBoardsViewController extends GridsViewController {
       events.emitPlaySfx(Match3AssetIds.SfxPop);
       await view.animateClearMatches(gridId, matches);
       svc.clearMatchedCells(matches);
-      events.emitScoreChanged(svc.score);
+      events.emitScoreChanged(this._gameModel!.score);
       const moves = svc.applyGravity();
       await view.animateGravityMoves(gridId, moves);
       const spawns = svc.refillEmpty();
       await view.animateRefillSpawns(gridId, spawns);
-      events.emitScoreChanged(svc.score);
+      events.emitScoreChanged(this._gameModel!.score);
     }
   }
 
   public override destroy(): void {
     this._gridsView?.setCellPointerDownHandler(null);
     this._gridsView = null;
+    this._gameModel = null;
     this._operations = null;
     this._config = null;
     this._gameEvents = null;

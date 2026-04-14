@@ -1,5 +1,5 @@
 import type { IGridView } from "@gamebyte/gamelabsjs";
-import type { GravityMove, RefillSpawn } from "../utilities/GameOperations.js";
+import type { GravityMove, RefillSpawn } from "../../../utilities/GameOperations.js";
 
 export interface IGameBoardsView extends IGridView {
   setCellPointerDownHandler(handler: ((gridId: number, col: number, row: number) => void) | null): void;

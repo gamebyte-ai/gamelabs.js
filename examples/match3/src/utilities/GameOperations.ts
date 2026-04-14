@@ -1,7 +1,8 @@
 import { vector } from "@js-basics/vector";
 import { Grid, GridEvents, GridPreset, GridsModel, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { Match3Config } from "../Match3Config.js";
-import { GameBoardItem } from "../models/GameBoardItem.js";
+import { GameBoardItem } from "../modules/gamegrid/models/GameBoardItem.js";
+import { GameModel } from "../models/GameModel.js";
 
 export type GravityMove = { fromRow: number; fromCol: number; toRow: number; toCol: number; gemType: number };
 
@@ -25,25 +26,22 @@ export type RefillSpawn = { row: number; col: number; gemType: number };
 export class GameOperations implements IInjectionTarget {
   private _grid!: Grid;
   private _config!: Match3Config;
+  private _gameModel!: GameModel;
   private _nextItemId = 1;
-  private _score = 0;
 
   public inject(resolver: IInstanceResolver): void {
     this._config = resolver.getInstance(Match3Config);
-    const model = resolver.getInstance(GridsModel);
+    this._gameModel = resolver.getInstance(GameModel);
+    const gridsModel = resolver.getInstance(GridsModel);
     const gridEvents = resolver.getInstance(GridEvents);
     const preset = new GridPreset(this._config.gridColumnSize, this._config.gridRowSize, vector(1, 0, 0), vector(0, 0, 1));
     this._grid = new Grid(Match3Config.GRID_ID, this._config.cols, this._config.rows, gridEvents, preset);
-    model.addGrid(this._grid);
+    gridsModel.addGrid(this._grid);
     this._fillInitialNoMatches();
   }
 
   public get grid(): Grid {
     return this._grid;
-  }
-
-  public get score(): number {
-    return this._score;
   }
 
   public get rows(): number {
@@ -84,7 +82,7 @@ export class GameOperations implements IInjectionTarget {
 
   public clearMatchedCells(matches: { row: number; col: number }[]): void {
     if (matches.length === 0) return;
-    this._score += matches.length * this._config.scorePerGem;
+    this._gameModel.addScore(matches.length * this._config.scorePerGem);
     for (const { row, col } of matches) {
       this._grid.setCellItem(col, row, null);
     }
@@ -157,14 +155,14 @@ export class GameOperations implements IInjectionTarget {
     while (this._findMatchCells().length > 0) {
       this._resolveAllMatchesSync();
     }
-    this._score = 0;
+    this._gameModel.resetScore();
   }
 
   private _resolveAllMatchesSync(): void {
     while (true) {
       const matches = this._findMatchCells();
       if (matches.length === 0) break;
-      this._score += matches.length * this._config.scorePerGem;
+      this._gameModel.addScore(matches.length * this._config.scorePerGem);
       for (const { row, col } of matches) {
         this._grid.setCellItem(col, row, null);
       }
