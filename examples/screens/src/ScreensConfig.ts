@@ -5,7 +5,7 @@ import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "@gamebyte/gamela
  * Keep things here that are expected to change per project (transitions, tuning, etc.).
  */
 export class ScreensConfig {
-  readonly transitions: {
+  public readonly transitions: {
     mainScreenIntro: ScreenTransition;
     mainScreenEnter: ScreenTransition;
     levelProgressScreenEnter: ScreenTransition;

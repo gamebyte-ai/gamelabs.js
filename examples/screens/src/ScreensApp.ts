@@ -2,58 +2,53 @@ import { GamelabsApp, MainScreenAssetIds, UnsubscribeBag, UIEvents, UIUtils } fr
 
 import { MainScreenBinding, MainScreenEvents, MainScreenUIIds } from "@gamebyte/gamelabsjs";
 import { LevelProgressScreenBinding, LevelProgressScreenEvents, LevelProgressScreenUIIds } from "@gamebyte/gamelabsjs";
-import { LevelProgressModel } from "./models/LevelProgressModel";
+import { LevelProgressModel } from "./modules/levelprogressscreen/models/LevelProgressModel";
 import { ScreensConfig } from "./ScreensConfig";
 
 export class ScreensApp extends GamelabsApp {
-  private readonly mainScreenBinding = new MainScreenBinding();
-  private readonly levelProgressScreenBinding = new LevelProgressScreenBinding(new LevelProgressModel());
-  private readonly config = new ScreensConfig();
-  private readonly subs = new UnsubscribeBag();
+  private readonly _mainScreenBinding = new MainScreenBinding();
+  private readonly _levelProgressScreenBinding = new LevelProgressScreenBinding(new LevelProgressModel());
+  private readonly _config = new ScreensConfig();
+  private readonly _subs = new UnsubscribeBag();
 
-  constructor(stageEl: HTMLElement) {
+  public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
   }
 
   protected override registerModules(): void {
-    this.mainScreenBinding.assetRequestList.overrideRequest(MainScreenAssetIds.Logo, new URL("../assets/example_logo.png", import.meta.url).href);
+    this._mainScreenBinding.assetRequestList.overrideRequest(MainScreenAssetIds.Logo, new URL("../assets/example_logo.png", import.meta.url).href);
 
-    const playPresetReq = this.mainScreenBinding.assetRequestList.getRequest(MainScreenAssetIds.PlayButtonPreset);
+    const playPresetReq = this._mainScreenBinding.assetRequestList.getRequest(MainScreenAssetIds.PlayButtonPreset);
     if (playPresetReq) {
       const base = playPresetReq.content as string;
       const parsed = JSON.parse(base);
       const updated = UIUtils.updateFields(base, JSON.stringify({ width: parsed.width + 50 }));
-      this.mainScreenBinding.assetRequestList.overrideRequest(MainScreenAssetIds.PlayButtonPreset, "", updated);
+      this._mainScreenBinding.assetRequestList.overrideRequest(MainScreenAssetIds.PlayButtonPreset, "", updated);
     }
 
-    this.addModule(this.mainScreenBinding);
-    this.addModule(this.levelProgressScreenBinding);
+    this.addModule(this._mainScreenBinding);
+    this.addModule(this._levelProgressScreenBinding);
   }
 
   protected override postInitialize(): void {
     const mainEvents = this.diContainer.getInstance(MainScreenEvents);
-    this.subs.add(mainEvents.onPlayClick(() => {
-      this.showLevelProgressScreen();
-    }));
+    this._subs.add(mainEvents.onPlayClick(() => this._showLevelProgressScreen()));
 
     const levelProgressEvents = this.diContainer.getInstance(LevelProgressScreenEvents);
-    this.subs.add(levelProgressEvents.onBackClick(() => {
-      this.showMainScreen();
-    }));
+    this._subs.add(levelProgressEvents.onBackClick(() => this._showMainScreen()));
 
-    this.diContainer.getInstance(UIEvents).createScreen(MainScreenUIIds.MainScreen, this.config.transitions.mainScreenIntro);
+    this.diContainer.getInstance(UIEvents).createScreen(MainScreenUIIds.MainScreen, this._config.transitions.mainScreenIntro);
   }
 
   protected override preDestroy(): void {
-    this.subs.flush();
+    this._subs.flush();
   }
 
-  private showLevelProgressScreen(): void {
-    this.diContainer.getInstance(UIEvents).createScreen(LevelProgressScreenUIIds.LevelProgressScreen, this.config.transitions.levelProgressScreenEnter);
+  private _showLevelProgressScreen(): void {
+    this.diContainer.getInstance(UIEvents).createScreen(LevelProgressScreenUIIds.LevelProgressScreen, this._config.transitions.levelProgressScreenEnter);
   }
 
-  private showMainScreen(): void {
-    this.diContainer.getInstance(UIEvents).createScreen(MainScreenUIIds.MainScreen, this.config.transitions.mainScreenEnter);
+  private _showMainScreen(): void {
+    this.diContainer.getInstance(UIEvents).createScreen(MainScreenUIIds.MainScreen, this._config.transitions.mainScreenEnter);
   }
-
 }
