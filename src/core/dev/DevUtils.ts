@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- dev-only utility with dynamic typing */
 import type { Hud } from "../hud/Hud.js";
 import type { World } from "../world/World.js";
 import type { IStatsPanel } from "./IStatsPanel.js";
@@ -29,7 +28,7 @@ export class DevUtils implements IDevUtils {
     this._logger.attachPanel(this._logPanel);
 
     this._statsPanel = StatsPanel.createPanel(hud.overlayLayer);
-    const r = (hud.app.renderer as any).resolution;
+    const r = hud.resolution;
     if (typeof r === "number" && Number.isFinite(r)) this._statsPanel.resize(1, 1, r);
 
     this._groundGrid = new GroundGrid(this.world);
@@ -48,7 +47,7 @@ export class DevUtils implements IDevUtils {
   }
 
   public resize(width: number, height: number, dpr?: number): void {
-    const r = (this._hud.app.renderer as any).resolution;
+    const r = this._hud.resolution;
     const effectiveDpr = typeof dpr === "number" && Number.isFinite(dpr) ? dpr : typeof r === "number" && Number.isFinite(r) ? r : 1;
     this._statsPanel.resize(width, height, effectiveDpr);
 

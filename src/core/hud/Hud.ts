@@ -34,8 +34,8 @@ export type HudCreateOptions = {
 };
 
 export class Hud implements IHud {
-  public readonly app: Application;
-  public readonly mount: HTMLElement;
+  private readonly _app: Application;
+  private readonly _mount: HTMLElement;
   private readonly _logger: ILogger | null = null;
   /**
    * Root container for normal HUD views.
@@ -48,13 +48,13 @@ export class Hud implements IHud {
   public readonly overlayLayer: Container;
 
   private constructor(app: Application, mount: HTMLElement, logger: ILogger | null) {
-    this.app = app;
-    this.mount = mount;
+    this._app = app;
+    this._mount = mount;
     this._logger = logger;
 
     // Stage layers: keep overlay always on top, regardless of future HUD view attachments.
     // Use zIndex sorting so add order doesn't matter.
-    this.app.stage.sortableChildren = true;
+    this._app.stage.sortableChildren = true;
 
     this.contentLayer = new Container();
     this.contentLayer.zIndex = 0;
@@ -62,8 +62,8 @@ export class Hud implements IHud {
     this.overlayLayer = new Container();
     this.overlayLayer.zIndex = 1000;
 
-    this.app.stage.addChild(this.contentLayer);
-    this.app.stage.addChild(this.overlayLayer);
+    this._app.stage.addChild(this.contentLayer);
+    this._app.stage.addChild(this.overlayLayer);
   }
 
   public static async create(mount: HTMLElement, options: HudCreateOptions = {}): Promise<Hud> {
@@ -113,7 +113,28 @@ export class Hud implements IHud {
     return new Hud(app, mount, options.logger ?? null);
   }
 
-  addView(view: HudViewBase): void {
+  /** The canvas element used by the Pixi renderer. */
+  public get canvas(): HTMLElement {
+    return this._app.canvas as unknown as HTMLElement;
+  }
+
+  /** Current renderer resolution (device pixel ratio). */
+  public get resolution(): number {
+    return this._app.renderer.resolution;
+  }
+
+  /**
+   * Hit-test the HUD display tree at the given Pixi global coordinates.
+   * Returns the topmost interactive element, or null if nothing was hit
+   * (empty area or stage only).
+   */
+  public hitTest(x: number, y: number): Container | null {
+    const hit = this._app.renderer.events.rootBoundary.hitTest(x, y);
+    if (hit === null || hit === this._app.stage) return null;
+    return hit;
+  }
+
+  public addView(view: HudViewBase): void {
     this.contentLayer.addChild(view);
   }
 
@@ -122,11 +143,11 @@ export class Hud implements IHud {
   }
 
   public resize(width: number, height: number): void {
-    this.app.renderer.resize(Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)));
+    this._app.renderer.resize(Math.max(1, Math.floor(width)), Math.max(1, Math.floor(height)));
   }
 
   public destroy(): void {
     // Remove canvas + destroy children/textures for a clean teardown.
-    this.app.destroy({ removeView: true }, { children: true, texture: true, textureSource: true });
+    this._app.destroy({ removeView: true }, { children: true, texture: true, textureSource: true });
   }
 }

@@ -50,13 +50,10 @@ export class InputManager implements IInputManager {
    */
   private _isHudEvent(event: PointerEvent): boolean {
     if (!this._hud) return false;
-    const canvas = this._hud.app.canvas as unknown as HTMLElement;
-    const rect = canvas.getBoundingClientRect();
-    // Convert client coordinates to Pixi global coordinates (CSS-relative)
+    const rect = this._hud.canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    const hit = this._hud.app.renderer.events.rootBoundary.hitTest(x, y);
-    return hit !== null && hit !== this._hud.app.stage;
+    return this._hud.hitTest(x, y) !== null;
   }
 
   private readonly _onPointerDown = (event: PointerEvent): void => {
