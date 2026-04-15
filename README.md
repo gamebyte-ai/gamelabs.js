@@ -30,7 +30,7 @@ import { GamelabsApp } from "@gamebyte/gamelabsjs";
 
 class MyApp extends GamelabsApp {
   constructor(stageEl: HTMLElement) {
-    super({ mount: stageEl, sharedContext: true });
+    super({ mount: stageEl });
   }
 }
 

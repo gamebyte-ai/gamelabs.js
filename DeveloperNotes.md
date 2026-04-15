@@ -10,8 +10,8 @@ This project is a **TypeScript skeleton + reusable modules** for web games. It i
 
 
 It depends on:
-- **Three.js** for 3D (world scene)
-- **PixiJS** for 2D (HUD and UI)
+- **Three.js** for World (3D scene)
+- **PixiJS** for HUD (2D scene and UI)
 - **GSAP** for animations
 
 
@@ -21,6 +21,23 @@ It depends on:
 - Simple MVP structure with strict View - ViewController separation between **rendering/scene** and **game logic**
 - Use events for indirect communication
 - Modules system for sharing features between projects in a consistent structure
+
+## World
+World contains a threejs scene. All childs that are directly in communication with app extend WorldViewBase. Every view can add child objects as they need.
+
+## HUD
+World contains a pixijs app. All childs that are directly in communication with app extend HudViewBase. Every view can add child objects as they need.
+The HUD has 5 ordered layers (back to front), managed by the HudLayer enum. All access goes through IHud.addChild(layer, child) and IHud.removeChild(child) — layer containers are not exposed directly.
+
+| Layer | Enum | Purpose |
+|---|---|---| 
+| Content | HudLayer.Content | Game HUD views (health bars, minimaps, custom overlays) |
+| Screen | HudLayer.Screen | Full-screen ScreenView instances (managed by ViewFactory) |
+| Popup | HudLayer.Popup | PopupView instances with blocker (managed by ViewFactory) |
+| Overlay | HudLayer.Overlay | System UIs like context menus, on-screen keyboards, notifications |
+| DevOverlay | HudLayer.DevOverlay | Developer tools like Logger and stats panels |
+
+Important: Any visible UI element that should block world pointer input must have eventMode: "static" set on its background Graphics. Without this, clicks pass through to the Three.js world behind the HUD.
 
 
 ### File naming conventions
@@ -258,4 +275,3 @@ Also `IDevUtils` is available via both DI containers (`diContainer.getInstance(I
 - Modules must not depend on app-specific code. They should be reusable across projects.
 - Do not override lifecycle methods without calling `super` where required (`super.inject()`, `super.destroy()`, etc.).
 - Do not create empty lifecycle overrides (empty `loadAssets()`, `onStep()` that only calls `super`). Only override when adding behavior.
-- Game related object should be in world, even if it is a 2d game.
