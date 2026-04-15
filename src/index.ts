@@ -8,6 +8,7 @@ export * from "./core/views/IViewFactory.js";
 export * from "./core/views/IView.js";
 export * from "./core/views/IViewController.js";
 export * from "./core/hud/Hud.js";
+export * from "./core/hud/HudLayer.js";
 export * from "./core/hud/HudViewBase.js";
 export * from "./core/world/World.js";
 export * from "./core/world/WorldInteractiveObject.js";

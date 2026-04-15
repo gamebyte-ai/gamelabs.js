@@ -2,7 +2,7 @@ import "@pixi/layout";
 import { Application, Container, type ApplicationOptions } from "pixi.js";
 import type { ILogger } from "../dev/ILogger.js";
 import type { IHud } from "./IHud.js";
-import type { HudViewBase } from "./HudViewBase.js";
+import { HudLayer } from "./HudLayer.js";
 
 export type HudCreateOptions = {
   /**
@@ -37,33 +37,21 @@ export class Hud implements IHud {
   private readonly _app: Application;
   private readonly _mount: HTMLElement;
   private readonly _logger: ILogger | null = null;
-  /**
-   * Root container for normal HUD views.
-   * Everything attached here will render below `overlayLayer`.
-   */
-  public readonly contentLayer: Container;
-  /**
-   * Top-most HUD overlay container (always on top of `contentLayer`).
-   */
-  public readonly overlayLayer: Container;
+  private readonly _layers = new Map<HudLayer, Container>();
 
   private constructor(app: Application, mount: HTMLElement, logger: ILogger | null) {
     this._app = app;
     this._mount = mount;
     this._logger = logger;
 
-    // Stage layers: keep overlay always on top, regardless of future HUD view attachments.
-    // Use zIndex sorting so add order doesn't matter.
     this._app.stage.sortableChildren = true;
 
-    this.contentLayer = new Container();
-    this.contentLayer.zIndex = 0;
-
-    this.overlayLayer = new Container();
-    this.overlayLayer.zIndex = 1000;
-
-    this._app.stage.addChild(this.contentLayer);
-    this._app.stage.addChild(this.overlayLayer);
+    for (const layer of [HudLayer.Content, HudLayer.Screen, HudLayer.Popup, HudLayer.Overlay, HudLayer.DevOverlay]) {
+      const container = new Container();
+      container.zIndex = layer;
+      this._app.stage.addChild(container);
+      this._layers.set(layer, container);
+    }
   }
 
   public static async create(mount: HTMLElement, options: HudCreateOptions = {}): Promise<Hud> {
@@ -134,12 +122,12 @@ export class Hud implements IHud {
     return hit;
   }
 
-  public addView(view: HudViewBase): void {
-    this.contentLayer.addChild(view);
+  public addChild(layer: HudLayer, child: Container): void {
+    this._layers.get(layer)?.addChild(child);
   }
 
-  removeView(view: HudViewBase): void {
-    this.contentLayer.removeChild(view);
+  public removeChild(child: Container): void {
+    child.removeFromParent();
   }
 
   public resize(width: number, height: number): void {

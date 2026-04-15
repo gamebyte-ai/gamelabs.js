@@ -11,6 +11,7 @@ import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "../ui/ScreenTran
 import type { UIEvents } from "../ui/UIEvents.js";
 import type { IWorld } from "../world/IWorld.js";
 import type { IHud } from "../hud/IHud.js";
+import { HudLayer } from "../hud/HudLayer.js";
 import { HudViewBase } from "../hud/HudViewBase.js";
 
 export type ViewCtor<TView extends IView> = new () => TView;
@@ -171,7 +172,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
       this.logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }
-    this.hud?.addView(screen);
+    this.hud?.addChild(HudLayer.Screen, screen);
     this._activeScreen = screen;
     if (this._lastResize) {
       this._activeScreen.onResize?.(this._lastResize.width, this._lastResize.height, this._lastResize.dpr);
@@ -194,7 +195,7 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
       throw new Error(msg);
     }
     const popup = popupView as unknown as IPopupView;
-    this.hud?.addView(popupView);
+    this.hud?.addChild(HudLayer.Popup, popupView);
     this._popupStack.push(popup);
     if (this._lastResize) {
       popup.onResize?.(this._lastResize.width, this._lastResize.height, this._lastResize.dpr);

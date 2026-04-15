@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- dev-only debug panel with heavy DOM/PixiJS interop */
 import { Container, Graphics, Rectangle, Text, TextStyle } from "pixi.js";
-import type { Hud } from "../hud/Hud.js";
+import type { IHud } from "../hud/IHud.js";
+import { HudLayer } from "../hud/HudLayer.js";
 import { LogTypes, type LogType } from "./LogTypes.js";
 
 export type LogPanelOptions = {
@@ -15,7 +16,7 @@ export type LogPanelOptions = {
 };
 
 export class LogPanel {
-  private readonly _overlayLayer: Container;
+  private readonly _hud: IHud;
   private readonly _title: string;
   private readonly _panelHeight: number;
   private readonly _headerHeight: number;
@@ -42,12 +43,12 @@ export class LogPanel {
   private _lastLogicalWidth = 1;
   private _lastLogicalHeight = 1;
 
-  public static createPanel(hud: Hud, options: LogPanelOptions = {}): LogPanel {
-    return new LogPanel(hud.overlayLayer, options);
+  public static createPanel(hud: IHud, options: LogPanelOptions = {}): LogPanel {
+    return new LogPanel(hud, options);
   }
 
-  private constructor(overlayLayer: Container, options: LogPanelOptions = {}) {
-    this._overlayLayer = overlayLayer;
+  private constructor(hud: IHud, options: LogPanelOptions = {}) {
+    this._hud = hud;
     this._title = options.title ?? "Logger";
     this._panelHeight = options.panelHeight ?? 200;
     this._headerHeight = options.headerHeight ?? 28;
@@ -110,7 +111,7 @@ export class LogPanel {
     root.addChild(contentViewport);
     root.addChild(contentMask);
 
-    this._overlayLayer.addChild(root);
+    this._hud.addChild(HudLayer.DevOverlay, root);
 
     this._root = root;
     this._panelBg = panelBg;
@@ -246,7 +247,7 @@ export class LogPanel {
   public destroy(): void {
     this._root.removeAllListeners();
     this._closeRoot.removeAllListeners();
-    this._overlayLayer.removeChild(this._root);
+    this._hud.removeChild(this._root);
     this._root.destroy({ children: true });
   }
 

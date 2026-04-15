@@ -27,7 +27,7 @@ export class DevUtils implements IDevUtils {
     this._logPanel = LogPanel.createPanel(this._hud, { maxItems: this._logger.maxItems });
     this._logger.attachPanel(this._logPanel);
 
-    this._statsPanel = StatsPanel.createPanel(hud.overlayLayer);
+    this._statsPanel = StatsPanel.createPanel(hud);
     const r = hud.resolution;
     if (typeof r === "number" && Number.isFinite(r)) this._statsPanel.resize(1, 1, r);
 

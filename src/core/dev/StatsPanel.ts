@@ -1,9 +1,10 @@
 import { Container, Graphics, Text, TextStyle } from "pixi.js";
-
+import type { IHud } from "../hud/IHud.js";
+import { HudLayer } from "../hud/HudLayer.js";
 import type { IStatsPanel } from "./IStatsPanel.js";
 
 export class StatsPanel implements IStatsPanel {
-  private readonly _overlayLayer: Container;
+  private readonly _hud: IHud;
   private readonly _root: Container;
   private readonly _bg: Graphics;
   private readonly _text: Text;
@@ -13,12 +14,12 @@ export class StatsPanel implements IStatsPanel {
   private _lastLogicalHeight = 1;
   private _lastDpr = 1;
 
-  public static createPanel(overlayLayer: Container): StatsPanel {
-    return new StatsPanel(overlayLayer);
+  public static createPanel(hud: IHud): StatsPanel {
+    return new StatsPanel(hud);
   }
 
-  private constructor(overlayLayer: Container) {
-    this._overlayLayer = overlayLayer;
+  private constructor(hud: IHud) {
+    this._hud = hud;
 
     const root = new Container();
     root.visible = false;
@@ -41,7 +42,7 @@ export class StatsPanel implements IStatsPanel {
     root.addChild(bg);
     root.addChild(text);
 
-    this._overlayLayer.addChild(root);
+    this._hud.addChild(HudLayer.DevOverlay, root);
 
     this._root = root;
     this._bg = bg;
@@ -66,7 +67,7 @@ export class StatsPanel implements IStatsPanel {
   }
 
   public destroy(): void {
-    this._overlayLayer.removeChild(this._root);
+    this._hud.removeChild(this._root);
     this._root.destroy({ children: true });
   }
 
