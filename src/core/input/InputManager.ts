@@ -43,23 +43,42 @@ export class InputManager implements IInputManager {
     return null;
   }
 
+  /**
+   * Check if the pointer event should be handled by the HUD instead of the world.
+   * Returns true when the pointer hits an interactive HUD element (button,
+   * popup blocker, panel background, etc.).
+   */
+  private _isHudEvent(event: PointerEvent): boolean {
+    if (!this._hud) return false;
+    const canvas = this._hud.app.canvas as unknown as HTMLElement;
+    const rect = canvas.getBoundingClientRect();
+    // Convert client coordinates to Pixi global coordinates (CSS-relative)
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    const hit = this._hud.app.renderer.events.rootBoundary.hitTest(x, y);
+    return hit !== null && hit !== this._hud.app.stage;
+  }
+
   private readonly _onPointerDown = (event: PointerEvent): void => {
+    if (this._isHudEvent(event)) return;
     const raycastView = this._getRaycastHandler(event);
-    //    if (raycastView) console.log("InputManager raycast nearest view:", raycastView);
     for (const h of this._handlers) h.onPointerDown(event, h === raycastView);
   };
 
   private readonly _onPointerMove = (event: PointerEvent): void => {
+    if (this._isHudEvent(event)) return;
     const raycastView = this._getRaycastHandler(event);
     for (const h of this._handlers) h.onPointerMove(event, h === raycastView);
   };
 
   private readonly _onPointerUp = (event: PointerEvent): void => {
+    if (this._isHudEvent(event)) return;
     const raycastView = this._getRaycastHandler(event);
     for (const h of this._handlers) h.onPointerUp(event, h === raycastView);
   };
 
   private readonly _onPointerCancel = (event: PointerEvent): void => {
+    if (this._isHudEvent(event)) return;
     for (const h of this._handlers) h.onPointerCancel(event);
   };
 

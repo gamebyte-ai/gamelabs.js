@@ -73,6 +73,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._gameOverGroup = new PIXI.Container();
     this._gameOverGroup.visible = false;
     const gameOverBg = new PIXI.Graphics();
+    gameOverBg.eventMode = "static";
     gameOverBg.rect(0, 0, 320, 120).fill({ color: 0x0f172a, alpha: 0.92 }).stroke({ color: 0xf9f6f2, width: 2 });
     this._gameOverGroup.addChild(gameOverBg);
     const gameOverText = new PIXI.Text({

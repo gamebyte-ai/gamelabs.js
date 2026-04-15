@@ -55,6 +55,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     };
 
     const panelBg = new PIXI.Graphics();
+    panelBg.eventMode = "static";
     panelBg.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     panel.addChild(panelBg);
     this._panelBg = panelBg;

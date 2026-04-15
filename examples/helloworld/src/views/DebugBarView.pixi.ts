@@ -18,7 +18,8 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
   });
 
   private readonly barBg = new PIXI.Graphics({
-    layout: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }
+    eventMode: "static",
+    layout: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" },
   });
 
   private readonly gridButton = new ButtonComponent({

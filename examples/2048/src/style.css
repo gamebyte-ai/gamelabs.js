@@ -32,6 +32,6 @@ canvas.layer.world3d {
   z-index: 0;
 }
 
-canvas.layer.ui2d {
+canvas.layer.hud2d {
   z-index: 1;
 }

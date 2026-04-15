@@ -17,7 +17,8 @@ export class TopBarView extends HudViewBase implements ITopBarView {
   });
 
   private readonly barBg = new PIXI.Graphics({
-    layout: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }
+    eventMode: "static",
+    layout: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" },
   });
 
   private readonly title = new PIXI.Text({

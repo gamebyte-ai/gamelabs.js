@@ -66,6 +66,7 @@ export class HelloWorldApp extends GamelabsApp {
     this._orbitalController = new Orbital3dCameraController(this._gameCameraBinding.cameraManager).register();
     this._orbitalController.minDistance = this._config.minCameraDistance;
     this._orbitalController.maxDistance = this._config.maxCameraDistance;
+    this.diContainer.bindInstance(Orbital3dCameraController, this._orbitalController);
 
     // Screen
     this.diContainer.getInstance(UIEvents).createScreen(HelloWorldUIIds.GameScreen, this._config.transitions.gameScreenEnter);

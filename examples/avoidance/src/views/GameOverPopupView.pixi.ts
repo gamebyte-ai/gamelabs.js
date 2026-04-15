@@ -16,6 +16,7 @@ export class GameOverPopupView extends PopupView implements IGameOverPopupView {
     (panel as any).layout = { width: 320, height: 220, flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 16 };
 
     const panelBg = new PIXI.Graphics();
+    panelBg.eventMode = "static";
     panelBg.roundRect(0, 0, 320, 220, 14);
     panelBg.fill({ color: 0x0a1a10, alpha: 0.95 });
     panelBg.stroke({ color: 0x2a5a3a, width: 2 });

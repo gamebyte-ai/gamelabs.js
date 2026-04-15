@@ -314,6 +314,13 @@ export class ScreenView extends HudViewBase implements IScreenView {
    * If you don't use layouts, you can ignore this.
    */
   public onResize(width: number, height: number, _dpr: number): void {
-    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
+    const w = Math.max(1, width);
+    const h = Math.max(1, height);
+    this.layout = { width: w, height: h };
+    // Update clip mask immediately — don't wait for the next layout tick.
+    // Without this, the mask stays at its previous size (possibly 1x1 from
+    // the initial layout) and blocks all pointer events until the layout
+    // system recomputes, which can be delayed by the throttle setting.
+    this.ensureClipMask(w, h);
   }
 }

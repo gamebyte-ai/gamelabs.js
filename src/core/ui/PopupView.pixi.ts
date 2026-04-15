@@ -30,10 +30,14 @@ export class PopupView extends HudViewBase implements IPopupView {
 
     this._blocker = new PIXI.Graphics();
     this._blocker.eventMode = "static";
-    this._blocker.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    // The blocker is NOT managed by @pixi/layout — layout constrains
+    // children to computed bounds, which clips the blocker and breaks
+    // hit testing. Instead, we draw a large rect and resize it manually
+    // via the popup's own layout event.
+    this._blocker.rect(0, 0, 16384, 16384).fill({ color: 0x000000, alpha: 0.5 });
     this.addChildAt(this._blocker, 0);
 
-    this._blocker.on("layout", (l: Layout) => this._redrawBlocker(l));
+    this.on("layout", (l: Layout) => this._redrawBlocker(l));
     this._blocker.on("pointerdown", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
     this._blocker.on("pointerup", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
     this._blocker.on("pointermove", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());

@@ -18,6 +18,7 @@ export class WinPopupView extends PopupView implements IWinPopupView {
     (panel as any).layout = { width: 280, height: 160, flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 20 };
 
     const panelBg = new PIXI.Graphics();
+    panelBg.eventMode = "static";
     panelBg.roundRect(0, 0, 280, 160, 12);
     panelBg.fill({ color: 0x111827, alpha: 0.95 });
     panelBg.stroke({ color: 0x334155, width: 1 });
