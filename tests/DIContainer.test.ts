@@ -78,14 +78,10 @@ describe("DIContainer", () => {
     const alias = new InjectionToken<{ count: number }>("Alias");
     let created = 0;
 
-    container.bindSingleton(
-      primary,
-      () => {
-        created++;
-        return { count: created };
-      },
-      [alias],
-    );
+    container.bindSingleton(primary, () => {
+      created++;
+      return { count: created };
+    }, [alias]);
 
     const fromAlias = container.getInstance(alias);
     const fromPrimary = container.getInstance(primary);
@@ -111,6 +107,35 @@ describe("DIContainer", () => {
 
     container.bindInstance(primary1, "one", [alias]);
     expect(() => container.bindInstance(primary2, "two", [alias])).toThrow("already mapped");
+  });
+
+  it("should throw when an alias token is already bound as a primary (bindInstance)", () => {
+    const container = new DIContainer(noopLogger);
+    const tokenA = new InjectionToken<string>("A");
+    const tokenB = new InjectionToken<string>("B");
+
+    container.bindInstance(tokenA, "a");
+    expect(() => container.bindInstance(tokenB, "b", [tokenA])).toThrow("already bound as a primary");
+    expect(container.getInstance(tokenA)).toBe("a");
+  });
+
+  it("should throw when an alias token is already bound as a primary (bindSingleton)", () => {
+    const container = new DIContainer(noopLogger);
+    const tokenA = new InjectionToken<string>("A");
+    const tokenB = new InjectionToken<string>("B");
+
+    container.bindSingleton(tokenA, () => "a");
+    expect(() => container.bindSingleton(tokenB, () => "b", [tokenA])).toThrow("already bound as a primary");
+  });
+
+  it("should throw when a primary token is already registered as an alias", () => {
+    const container = new DIContainer(noopLogger);
+    const primary = new InjectionToken<string>("Primary");
+    const alias = new InjectionToken<string>("Alias");
+
+    container.bindInstance(primary, "value", [alias]);
+    expect(() => container.bindInstance(alias, "other")).toThrow("already registered as an alias");
+    expect(() => container.bindSingleton(alias, () => "other")).toThrow("already registered as an alias");
   });
 
   // ─── Duplicate bindings ─────────────────────────────────────

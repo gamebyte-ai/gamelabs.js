@@ -44,26 +44,31 @@ export class DIContainer implements IInstanceResolver {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- aliases accept heterogeneous tokens
   bindSingleton<T>(primary: Token<T>, factory: SingletonFactory<T>, aliases: readonly Token<any>[] = []): void {
-    if (this.providers.has(primary)) {
-      const msg = `Token is already bound: ${describeToken(primary)}`;
-      this._logger.log(msg, LogTypes.Error);
-      throw new Error(msg);
-    }
-
+    this.assertPrimaryAvailable(primary);
     this.providers.set(primary, { kind: "factory", factory, hasInstance: false, instance: undefined, creating: false });
     this.bindAliases(primary, aliases);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- aliases accept heterogeneous tokens
   bindInstance<T>(primary: Token<T>, instance: T, aliases: readonly Token<any>[] = []): void {
+    this.assertPrimaryAvailable(primary);
+    this.providers.set(primary, { kind: "instance", value: instance });
+    this.bindAliases(primary, aliases);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type erasure: heterogeneous tokens
+  private assertPrimaryAvailable(primary: Token<any>): void {
     if (this.providers.has(primary)) {
       const msg = `Token is already bound: ${describeToken(primary)}`;
       this._logger.log(msg, LogTypes.Error);
       throw new Error(msg);
     }
-
-    this.providers.set(primary, { kind: "instance", value: instance });
-    this.bindAliases(primary, aliases);
+    const aliasTarget = this.aliasToPrimary.get(primary);
+    if (aliasTarget) {
+      const msg = `Token is already registered as an alias of ${describeToken(aliasTarget)}: ${describeToken(primary)}`;
+      this._logger.log(msg, LogTypes.Error);
+      throw new Error(msg);
+    }
   }
 
   private _isInjectionTarget(value: unknown): value is IInjectionTarget {
@@ -73,6 +78,11 @@ export class DIContainer implements IInstanceResolver {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- type erasure: heterogeneous tokens
   private bindAliases(primary: Token<any>, aliases: readonly Token<any>[]): void {
     for (const alias of aliases) {
+      if (this.providers.has(alias)) {
+        const msg = `Alias token is already bound as a primary: ${describeToken(alias)}`;
+        this._logger.log(msg, LogTypes.Error);
+        throw new Error(msg);
+      }
       const existing = this.aliasToPrimary.get(alias);
       if (existing && existing !== primary) {
         const msg = `Alias token is already mapped: ${describeToken(alias)} -> ${describeToken(existing)}`;
