@@ -58,6 +58,12 @@ export class InputManager implements IInputManager {
 
   private readonly _onPointerDown = (event: PointerEvent): void => {
     if (this._isHudEvent(event)) return;
+    try {
+      this._eventTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // capture can throw if the target is detached; fall through — the
+      // handler still runs and releases will arrive on the normal path.
+    }
     const raycastView = this._getRaycastHandler(event);
     for (const h of this._handlers) h.onPointerDown(event, h === raycastView);
   };

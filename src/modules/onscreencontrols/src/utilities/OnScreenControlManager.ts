@@ -36,7 +36,18 @@ export class OnScreenControlManager implements IInputDeviceListener {
   }
 
   public removeControl(id: string): void {
-    if (!this._controls.has(id)) return;
+    const config = this._controls.get(id);
+    if (!config) return;
+
+    if (config.type === ControlType.Joystick) {
+      this._updateVirtualKey(`${id}.up`, false);
+      this._updateVirtualKey(`${id}.down`, false);
+      this._updateVirtualKey(`${id}.left`, false);
+      this._updateVirtualKey(`${id}.right`, false);
+    } else {
+      this.setButtonUp(id);
+    }
+
     this._controls.delete(id);
     this._events.emitControlRemoved(id);
   }

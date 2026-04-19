@@ -115,6 +115,7 @@ export class GameCameraManager {
   private _ensureCameraForController(existing: THREE.Camera | null): void {
     if (!this._activeController) return;
     const needsOrtho = this._activeController.isOrtho;
+    let transitioned = false;
 
     if (needsOrtho) {
       if (!this._orthoCamera) {
@@ -127,6 +128,7 @@ export class GameCameraManager {
       if (this._perspectiveCamera && this._world) {
         this._perspectiveCamera.getWorldDirection(this._tempDirection);
         this._currentPosition.copy(this._perspectiveCamera.position).addScaledVector(this._tempDirection, PERSPECTIVE_TO_ORTHO_OFFSET);
+        transitioned = true;
       }
     } else {
       if (!this._perspectiveCamera) {
@@ -136,10 +138,11 @@ export class GameCameraManager {
       if (this._orthoCamera && this._world) {
         const focus = this._activeController.getFocusFromOrthoPosition(this._orthoCamera.position, this._orthoSize);
         this._currentPosition.copy(focus);
+        transitioned = true;
       }
     }
 
-    if (existing && this._camera !== existing) {
+    if (!transitioned && existing && this._camera !== existing) {
       this._currentPosition.copy(existing.position);
     }
 
