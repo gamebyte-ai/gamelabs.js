@@ -19,6 +19,9 @@ export class GridsModel implements IGridsModel {
   }
 
   public addGrid(grid: Grid): void {
+    if (this._grids.has(grid.gridId)) {
+      throw new Error(`Grid id already exists: ${grid.gridId}. Call removeGrid() before re-adding.`);
+    }
     this._grids.set(grid.gridId, grid);
     this._events?.emitGridAdded(grid);
   }

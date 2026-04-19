@@ -2,7 +2,7 @@
 
 Last updated: April 2026 (re-evaluated after full refactor session).
 
-Total: **13 active issues** (0 Critical, 4 High, 5 Medium, 2 Low, 2 Architectural).
+Total: **10 active issues** (0 Critical, 3 High, 3 Medium, 2 Low, 2 Architectural).
 
 ---
 
@@ -28,17 +28,7 @@ Total: **13 active issues** (0 Critical, 4 High, 5 Medium, 2 Low, 2 Architectura
 
 ---
 
-### 3. Duplicate grid IDs corrupt view/model
-
-**Location:** `src/modules/gamegrid/src/models/GridsModel.ts:21-24`
-
-**Problem:** `addGrid()` overwrites the map entry without removing the old grid. Old `GridObject` remains in the scene, unreachable, never disposed.
-
-**Fix:** Reject duplicate IDs (throw) or call `removeGrid(id)` first.
-
----
-
-### 4. Camera mode switching discards computed position
+### 3. Camera mode switching discards computed position
 
 **Location:** `src/modules/gamecamera/src/utilities/GameCameraManager.ts:142-144`
 
@@ -50,27 +40,7 @@ Total: **13 active issues** (0 Critical, 4 High, 5 Medium, 2 Low, 2 Architectura
 
 ## Medium — Correctness, Robustness, Lifecycle Gaps
 
-### 5. Grid.setCellItem() doesn't maintain item-cell back-references
-
-**Location:** `src/modules/gamegrid/src/models/Grid.ts:78-83`
-
-**Problem:** `setCellItem(col, row, item)` does not call `item.setCell(cell)`, does not clear the old item's back-reference, does not detach a moved item from its previous cell. `GridItem.cell` is stale or null.
-
-**Fix:** Maintain both sides of the relationship in `setCellItem`.
-
----
-
-### 6. Grid teardown leaks Three.js GPU resources
-
-**Location:** `src/modules/gamegrid/src/views/GridsView.three.ts:29-35`
-
-**Problem:** `removeGrid()` calls `removeFromParent()` but no `geometry.dispose()` or `material.dispose()`. Repeated board create/remove leaks GPU memory.
-
-**Fix:** Recursively traverse removed objects and call `dispose()` on geometries, materials, and textures.
-
----
-
-### 7. Settings popup never reflects manager-driven changes
+### 4. Settings popup never reflects manager-driven changes
 
 **Location:** `src/modules/settings/src/controllers/SettingsPopupViewController.ts`
 
@@ -80,7 +50,7 @@ Total: **13 active issues** (0 Critical, 4 High, 5 Medium, 2 Low, 2 Architectura
 
 ---
 
-### 8. KeyboardListener: keys stuck after focus loss
+### 5. KeyboardListener: keys stuck after focus loss
 
 **Location:** `src/core/input/KeyboardListener.ts`
 
@@ -90,7 +60,7 @@ Total: **13 active issues** (0 Critical, 4 High, 5 Medium, 2 Low, 2 Architectura
 
 ---
 
-### 9. Generic views have no resize lifecycle
+### 6. Generic views have no resize lifecycle
 
 **Location:** `src/core/views/ViewFactory.ts:108-114`
 
@@ -102,7 +72,7 @@ Total: **13 active issues** (0 Critical, 4 High, 5 Medium, 2 Low, 2 Architectura
 
 ## Low — Missing Coverage
 
-### 10. No tests for AssetManager, ViewFactory, InputManager, or modules
+### 7. No tests for AssetManager, ViewFactory, InputManager, or modules
 
 **Problem:** Core framework classes have zero test coverage. Most depend on Three.js, PixiJS, or browser APIs.
 
@@ -110,7 +80,7 @@ Total: **13 active issues** (0 Critical, 4 High, 5 Medium, 2 Low, 2 Architectura
 
 ---
 
-### 11. No integration test for module registration collisions
+### 8. No integration test for module registration collisions
 
 **Problem:** No smoke test verifying DI tokens don't collide across modules.
 
@@ -140,14 +110,11 @@ Total: **13 active issues** (0 Critical, 4 High, 5 Medium, 2 Low, 2 Architectura
 |---|----------|-------|----------|
 | 1 | High | InputManager loses pointer release outside canvas | InputManager.ts:74-89 |
 | 2 | High | OnScreenControlManager.removeControl leaves keys latched | OnScreenControlManager.ts:38-42 |
-| 3 | High | Duplicate grid IDs corrupt view/model | GridsModel.ts:21-24 |
-| 4 | High | Camera mode switching discards computed position | GameCameraManager.ts:142-144 |
-| 5 | Medium | Grid.setCellItem doesn't maintain back-references | Grid.ts:78-83 |
-| 6 | Medium | Grid teardown leaks GPU resources | GridsView.three.ts:29-35 |
-| 7 | Medium | Settings popup ignores manager-driven changes | SettingsPopupViewController.ts |
-| 8 | Medium | KeyboardListener keys stuck after focus loss | KeyboardListener.ts |
-| 9 | Medium | Generic views have no resize lifecycle | ViewFactory.ts:108-114 |
-| 10 | Low | No tests for core/modules | — |
-| 11 | Low | No module collision smoke test | — |
+| 3 | High | Camera mode switching discards computed position | GameCameraManager.ts:142-144 |
+| 4 | Medium | Settings popup ignores manager-driven changes | SettingsPopupViewController.ts |
+| 5 | Medium | KeyboardListener keys stuck after focus loss | KeyboardListener.ts |
+| 6 | Medium | Generic views have no resize lifecycle | ViewFactory.ts:108-114 |
+| 7 | Low | No tests for core/modules | — |
+| 8 | Low | No module collision smoke test | — |
 | A1 | Arch | Module API not lifecycle-aware | GameCameraBinding + app hooks |
 | A2 | Arch | bindInstance vs bindSingleton inject asymmetry | DIContainer.ts |

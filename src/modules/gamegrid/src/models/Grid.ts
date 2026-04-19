@@ -78,7 +78,16 @@ export class Grid implements IGrid {
   public setCellItem(col: number, row: number, item: GridItem | null): void {
     const cell = this._cells[col]![row]!;
     const oldItem = cell.item;
+    if (oldItem === item) return;
+
+    if (item && item.cell && item.cell !== cell) {
+      throw new Error(`GridItem ${item.itemId} is already attached to a cell. Detach it first with setCellItem(prevCol, prevRow, null).`);
+    }
+
+    if (oldItem) oldItem.setCell(null);
     cell.setItem(item);
+    if (item) item.setCell(cell);
+
     this._events?.emitItemChanged(cell, oldItem, item);
   }
 }

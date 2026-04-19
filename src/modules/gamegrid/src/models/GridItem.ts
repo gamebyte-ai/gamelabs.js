@@ -18,7 +18,8 @@ export class GridItem implements IGridItem {
   }
 
   //  METHODS
-  public setCell(cell: GridCell): void {
+  /** @internal Use {@link Grid.setCellItem} — direct use skips back-reference bookkeeping. */
+  public setCell(cell: GridCell | null): void {
     this._cell = cell;
   }
 }

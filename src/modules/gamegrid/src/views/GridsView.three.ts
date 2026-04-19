@@ -1,3 +1,4 @@
+import type * as THREE from "three";
 import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
 import { WorldViewBase } from "../../../../core/world/WorldViewBase.js";
 import type { IGridView, AddGridData } from "./IGridView.js";
@@ -32,6 +33,17 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
     this._gridObjects.delete(gridId);
     gridObj.unregisterFromInputManager();
     gridObj.removeFromParent();
+    this._disposeSubtree(gridObj);
+  }
+
+  private _disposeSubtree(root: THREE.Object3D): void {
+    root.traverse((node) => {
+      const mesh = node as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.geometry?.dispose();
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const m of mats) m?.dispose();
+    });
   }
 
   public updateGridPosition(gridId: number, position: { x: number; y: number; z: number }): void {
@@ -85,6 +97,6 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
   public onGridItemPointerUp(_itemId: number, _event: PointerEvent): void {}
 
   public preDestroy(): void {
-    this._gridObjects.clear();
+    for (const id of Array.from(this._gridObjects.keys())) this.removeGrid(id);
   }
 }
