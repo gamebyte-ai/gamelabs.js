@@ -37,6 +37,24 @@ export class KeyboardListener implements IInputDeviceListener {
     }
   };
 
+  private readonly _onBlur = (): void => this._clearAllKeys();
+
+  private readonly _onVisibilityChange = (): void => {
+    if (document.hidden) this._clearAllKeys();
+  };
+
+  private _clearAllKeys(): void {
+    if (this._keysDown.size === 0) return;
+    // Snapshot before firing — release handlers may mutate _keysDown.
+    const codes = Array.from(this._keysDown);
+    this._keysDown.clear();
+    for (const code of codes) {
+      for (const cb of this._releasedHandlers) cb(code);
+      const handlers = this._keyHandlers.get(code);
+      if (handlers) for (const cb of handlers) cb(false);
+    }
+  }
+
   //  PROPERTIES
   public get deviceId(): string {
     return "keyboard";
@@ -80,6 +98,8 @@ export class KeyboardListener implements IInputDeviceListener {
     this._listening = true;
     window.addEventListener("keydown", this._onKeyDown);
     window.addEventListener("keyup", this._onKeyUp);
+    window.addEventListener("blur", this._onBlur);
+    document.addEventListener("visibilitychange", this._onVisibilityChange);
   }
 
   /** Stop listening and clear all held-key state. */
@@ -88,6 +108,8 @@ export class KeyboardListener implements IInputDeviceListener {
     this._listening = false;
     window.removeEventListener("keydown", this._onKeyDown);
     window.removeEventListener("keyup", this._onKeyUp);
+    window.removeEventListener("blur", this._onBlur);
+    document.removeEventListener("visibilitychange", this._onVisibilityChange);
     this._keysDown.clear();
   }
 }

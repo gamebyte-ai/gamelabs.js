@@ -135,6 +135,8 @@ export class GameOperations implements IInjectionTarget {
     const cell2 = this._grid.getCell(col2, row2)!;
     const a = cell1.item;
     const b = cell2.item;
+    this._grid.setCellItem(col1, row1, null);
+    this._grid.setCellItem(col2, row2, null);
     this._grid.setCellItem(col1, row1, b);
     this._grid.setCellItem(col2, row2, a);
   }

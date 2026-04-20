@@ -6,6 +6,7 @@ import type { ISettingsPopupView } from "../views/ISettingsPopupView.js";
 import type { ISettingsModel } from "../models/ISettingsModel.js";
 import { ISettingsModel as ISettingsModelToken } from "../models/ISettingsModel.js";
 import { SettingsManager } from "../utilities/SettingsManager.js";
+import { SettingsEvents } from "../events/SettingsEvents.js";
 import { SettingsFieldType } from "../constants/SettingsFieldType.js";
 import type { SettingsNumberField } from "../SettingsField.js";
 
@@ -13,12 +14,14 @@ export class SettingsPopupViewController implements IViewController<ISettingsPop
   private _view: ISettingsPopupView | null = null;
   private _model: ISettingsModel | null = null;
   private _manager: SettingsManager | null = null;
+  private _events: SettingsEvents | null = null;
   private _uiEvents: UIEvents | null = null;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
     this._model = resolver.getInstance(ISettingsModelToken);
     this._manager = resolver.getInstance(SettingsManager);
+    this._events = resolver.getInstance(SettingsEvents);
     this._uiEvents = resolver.getInstance(UIEvents);
   }
 
@@ -39,6 +42,17 @@ export class SettingsPopupViewController implements IViewController<ISettingsPop
     this._subs.add(this._view.onBooleanChanged((name, value) => this._manager?.setBooleanValue(name, value)));
     this._subs.add(this._view.onNumberChanged((name, value) => this._manager?.setNumberValue(name, value)));
     this._subs.add(this._view.onCloseTapped(() => this._uiEvents?.removeTopPopup()));
+
+    // Manager → View (reads) — keep UI in sync with external mutations
+    // (resetToDefaults, stepped-value clamping, other modules writing settings).
+    this._subs.add(
+      this._events!.onValueChanged((name) => {
+        const field = this._model?.getField(name);
+        if (!field) return;
+        const value = field.type === SettingsFieldType.Boolean ? this._model!.getBooleanValue(name) : this._model!.getNumberValue(name);
+        this._view?.updateFieldValue(name, value);
+      }),
+    );
   }
 
   public destroy(): void {
@@ -46,6 +60,7 @@ export class SettingsPopupViewController implements IViewController<ISettingsPop
     this._view = null;
     this._model = null;
     this._manager = null;
+    this._events = null;
     this._uiEvents = null;
   }
 }
