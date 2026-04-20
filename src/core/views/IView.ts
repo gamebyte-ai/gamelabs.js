@@ -25,4 +25,10 @@ export interface IView extends IInjectionTarget {
   preDestroy(): void;
 
   destroy(): void;
+
+  /**
+   * Optional resize hook. Invoked by the view base class with the current
+   * viewport size on first attach and whenever the app emits a resize event.
+   */
+  onResize?(width: number, height: number, dpr: number): void;
 }

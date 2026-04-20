@@ -6,12 +6,18 @@ import type { IViewFactory } from "../views/IViewFactory.js";
 import { AssetManager } from "../assets/AssetManager.js";
 import { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
+import { IApp } from "../app/IApp.js";
+import { AppEvents } from "../app/AppEvents.js";
+import { UnsubscribeBag } from "../events/subscriptions.js";
 
 /**
  * Base class for HUD (2D) views.
  *
  * - Extends `PIXI.Container` so it can be attached to the Pixi display tree.
  * - Implements the `IView` lifecycle used by `ViewFactory`.
+ * - Subscribes to `AppEvents.onResize` in `postInitialize()` and dispatches
+ *   to `onResize(w, h, dpr)` with the current app size so subclasses only
+ *   need to override `onResize`.
  */
 export class HudViewBase extends PIXI.Container implements IView {
   //  MEMBERS
@@ -21,6 +27,9 @@ export class HudViewBase extends PIXI.Container implements IView {
   private _assetLoader: AssetManager | null = null;
   private _logger: ILogger | null = null;
   private _controller: IViewController | null = null;
+  private _app: IApp | null = null;
+  private _appEvents: AppEvents | null = null;
+  protected readonly _subs = new UnsubscribeBag();
 
   //  PROPERTIES
   protected get viewFactory(): IViewFactory {
@@ -50,6 +59,8 @@ export class HudViewBase extends PIXI.Container implements IView {
   public inject(resolver: IInstanceResolver): void {
     this._assetLoader = resolver.getInstance(AssetManager);
     this._logger = resolver.getInstance(ILogger);
+    this._app = resolver.getInstance(IApp);
+    this._appEvents = resolver.getInstance(AppEvents);
   }
 
   public setViewFactory(viewFactory: IViewFactory, addedForFactory: () => void, removedForFactory: () => void): void {
@@ -83,7 +94,14 @@ export class HudViewBase extends PIXI.Container implements IView {
 
   public initialize(): void {}
 
-  public postInitialize(): void {}
+  public postInitialize(): void {
+    if (this._app) this.onResize(this._app.width, this._app.height, this._app.dpr);
+    if (this._appEvents) {
+      this._subs.add(this._appEvents.onResize((w, h, dpr) => this.onResize(w, h, dpr)));
+    }
+  }
+
+  public onResize(_width: number, _height: number, _dpr: number): void {}
 
   public setController(controller: IViewController | null): void {
     this._controller = controller;
@@ -92,6 +110,7 @@ export class HudViewBase extends PIXI.Container implements IView {
   public preDestroy(): void {}
 
   public destroy(): void {
+    this._subs.flush();
     this.preDestroy();
 
     this._controller?.destroy();
@@ -100,6 +119,8 @@ export class HudViewBase extends PIXI.Container implements IView {
     this._viewFactory = null;
     this._assetLoader = null;
     this._logger = null;
+    this._app = null;
+    this._appEvents = null;
 
     this.removeAllListeners();
     this.removeFromParent();

@@ -7,12 +7,18 @@ import { WorldInteractiveObject } from "./WorldInteractiveObject.js";
 import { ILogger } from "../dev/ILogger.js";
 import { IInputManager as IInputManagerToken } from "../input/IInputManager.js";
 import { LogTypes } from "../dev/LogTypes.js";
+import { IApp } from "../app/IApp.js";
+import { AppEvents } from "../app/AppEvents.js";
+import { UnsubscribeBag } from "../events/subscriptions.js";
 
 /**
  * Base class for world (3D) views.
  *
  * - Extends `THREE.Group` so it can be attached to a scene graph.
  * - Implements `IView` controller lifecycle.
+ * - Subscribes to `AppEvents.onResize` in `postInitialize()` and dispatches
+ *   to `onResize(w, h, dpr)` with the current app size so subclasses only
+ *   need to override `onResize`.
  */
 export class WorldViewBase extends WorldInteractiveObject implements IView {
   //  MEMBERS
@@ -22,6 +28,9 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
   private _assetLoader: AssetManager | null = null;
   private _logger: ILogger | null = null;
   private _controller: IViewController | null = null;
+  private _app: IApp | null = null;
+  private _appEvents: AppEvents | null = null;
+  protected readonly _subs = new UnsubscribeBag();
 
   //  PROPERTIES
   protected get viewFactory(): IViewFactory {
@@ -52,6 +61,8 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
     this.setInputManager(resolver.getInstance(IInputManagerToken));
     this._assetLoader = resolver.getInstance(AssetManager);
     this._logger = resolver.getInstance(ILogger);
+    this._app = resolver.getInstance(IApp);
+    this._appEvents = resolver.getInstance(AppEvents);
   }
 
   public setViewFactory(viewFactory: IViewFactory, addedForFactory: () => void, removedForFactory: () => void): void {
@@ -85,7 +96,14 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
 
   public initialize(): void {}
 
-  public postInitialize(): void {}
+  public postInitialize(): void {
+    if (this._app) this.onResize(this._app.width, this._app.height, this._app.dpr);
+    if (this._appEvents) {
+      this._subs.add(this._appEvents.onResize((w, h, dpr) => this.onResize(w, h, dpr)));
+    }
+  }
+
+  public onResize(_width: number, _height: number, _dpr: number): void {}
 
   public setController(controller: IViewController | null): void {
     this._controller = controller;
@@ -94,6 +112,7 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
   public preDestroy(): void {}
 
   public destroy(): void {
+    this._subs.flush();
     this.preDestroy();
 
     this._controller?.destroy();
@@ -102,6 +121,8 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
     this._viewFactory = null;
     this._assetLoader = null;
     this._logger = null;
+    this._app = null;
+    this._appEvents = null;
 
     // Detach from scene graph. Subclasses should dispose their resources.
     this.removeFromParent();

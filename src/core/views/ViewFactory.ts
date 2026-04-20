@@ -37,7 +37,6 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
   };
   private _activeScreen: IScreenView | null = null;
   private readonly _popupStack: IPopupView[] = [];
-  private _lastResize: { width: number; height: number; dpr: number } | null = null;
 
   private _uiEvents: UIEvents | null = null;
   public world: IWorld | null = null;
@@ -106,14 +105,6 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     this._popupRegistry.set(id, { View, Controller: Controller as ControllerCtor<any, any> });
   }
 
-  public resize(width: number, height: number, dpr: number): void {
-    this._lastResize = { width, height, dpr };
-    this._activeScreen?.onResize?.(width, height, dpr);
-    for (const popup of this._popupStack) {
-      popup.onResize?.(width, height, dpr);
-    }
-  }
-
   public createView<TView extends IView>(View: ViewCtor<TView>): TView {
     const Controller = this._registry.get(View);
     if (!Controller) {
@@ -174,9 +165,6 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     }
     this.hud?.addChild(HudLayer.Screen, screen);
     this._activeScreen = screen;
-    if (this._lastResize) {
-      this._activeScreen.onResize?.(this._lastResize.width, this._lastResize.height, this._lastResize.dpr);
-    }
     this._activeScreen.onEnter?.(resolvedTransition);
   }
 
@@ -197,9 +185,6 @@ export class ViewFactory<TResolver extends IInstanceResolver> implements IViewFa
     const popup = popupView as unknown as IPopupView;
     this.hud?.addChild(HudLayer.Popup, popupView);
     this._popupStack.push(popup);
-    if (this._lastResize) {
-      popup.onResize?.(this._lastResize.width, this._lastResize.height, this._lastResize.dpr);
-    }
     popup.onOpen?.();
   }
 

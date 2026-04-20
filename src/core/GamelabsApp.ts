@@ -19,8 +19,10 @@ import { IInputManager } from "./input/IInputManager.js";
 import { UIEvents } from "./ui/UIEvents.js";
 import { KeyboardListener } from "./input/KeyboardListener.js";
 import { AudioService } from "./services/AudioService.js";
+import { IApp } from "./app/IApp.js";
+import { AppEvents } from "./app/AppEvents.js";
 
-export class GamelabsApp {
+export class GamelabsApp implements IApp {
   //  MEMBERS
   readonly canvas: HTMLCanvasElement;
   readonly mount: HTMLElement | undefined;
@@ -55,6 +57,8 @@ export class GamelabsApp {
    */
   private _width: number | undefined;
   private _height: number | undefined;
+  private _dpr: number = typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1;
+  private readonly _appEvents = new AppEvents();
   private _rafId: number | null = null;
   private _lastFrameTimeMs: number | null = null;
   private _resizeObserver: ResizeObserver | null = null;
@@ -74,6 +78,7 @@ export class GamelabsApp {
 
     this._width = width;
     this._height = height;
+    this._dpr = dpr;
     this.canvas.width = width;
     this.canvas.height = height;
 
@@ -82,7 +87,7 @@ export class GamelabsApp {
 
     this.onResize(width, height, dpr);
     this._devUtils?.resize(width, height, dpr);
-    this._viewFactory?.resize(width, height, dpr);
+    this._appEvents.emitResize(width, height, dpr);
   };
 
   //  GETTERS
@@ -148,7 +153,10 @@ export class GamelabsApp {
     // Base DI bindings (always available).
     this.diContainer.bindInstance(UpdateManager, this.updateManager);
     this.diContainer.bindInstance(StorageService, this.storageService);
-    this.diContainer.bindInstance(GamelabsApp, this);
+    this.diContainer.bindInstance(GamelabsApp, this, [IApp]);
+    this.viewDiContainer.bindInstance(IApp, this);
+    this.diContainer.bindInstance(AppEvents, this._appEvents);
+    this.viewDiContainer.bindInstance(AppEvents, this._appEvents);
     this.diContainer.bindInstance(ILogger, this._logger, [Logger]);
     this.viewDiContainer.bindInstance(ILogger, this._logger, [Logger]);
   }
@@ -324,6 +332,13 @@ export class GamelabsApp {
    */
   get height(): number {
     return this._height ?? this.canvas.clientHeight ?? this.canvas.height;
+  }
+
+  /**
+   * Current device pixel ratio.
+   */
+  get dpr(): number {
+    return this._dpr;
   }
 
   /**
