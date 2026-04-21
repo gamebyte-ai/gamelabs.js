@@ -1,5 +1,3 @@
-import "@pixi/layout";
-import type { Layout } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import type { IScreenView } from "./IScreenView.js";
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "./ScreenTransition.js";
@@ -14,6 +12,10 @@ import { HudViewBase } from "../hud/HudViewBase.js";
  * - provides safe default lifecycle hooks
  * - provides a `destroy()` that detaches from parent and removes listeners
  *
+ * Does not itself use `@pixi/layout`. Subclasses that need layout for
+ * their content can set `this.layout = { ... }` themselves (typically
+ * in an `onResize` override for pixel-sized layouts).
+ *
  * Concrete screens can extend this and add their own children and logic.
  */
 export class ScreenView extends HudViewBase implements IScreenView {
@@ -23,7 +25,8 @@ export class ScreenView extends HudViewBase implements IScreenView {
   private _clipMask: PIXI.Graphics | null = null;
   private _clipMaskWidth = 0;
   private _clipMaskHeight = 0;
-  private _clipMaskOnLayout: ((layout: Layout) => void) | null = null;
+  private _viewportWidth = 1;
+  private _viewportHeight = 1;
 
   public get isInTransition(): boolean {
     return this._isInTransition;
@@ -66,7 +69,6 @@ export class ScreenView extends HudViewBase implements IScreenView {
       this._clipMask = new PIXI.Graphics();
       this._clipMask.alpha = 0;
       this._clipMask.eventMode = "none";
-      this._clipMask.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
       this.addChildAt(this._clipMask, 0);
       this.mask = this._clipMask;
     }
@@ -77,24 +79,6 @@ export class ScreenView extends HudViewBase implements IScreenView {
 
     this._clipMask.clear();
     this._clipMask.rect(0, 0, w, h).fill({ color: 0xffffff });
-  }
-
-  private getTransitionViewportSize(): { width: number; height: number } {
-    const style = this.layout?.style;
-    const w = typeof style?.width === "number" ? style.width : undefined;
-    const h = typeof style?.height === "number" ? style.height : undefined;
-    if (w && h) return { width: Math.max(1, w), height: Math.max(1, h) };
-
-    const parentStyle = this.parent?.layout?.style;
-    const pw = typeof parentStyle?.width === "number" ? parentStyle.width : undefined;
-    const ph = typeof parentStyle?.height === "number" ? parentStyle.height : undefined;
-    if (pw && ph) return { width: Math.max(1, pw), height: Math.max(1, ph) };
-
-    if (typeof window !== "undefined" && typeof window.innerWidth === "number" && typeof window.innerHeight === "number") {
-      return { width: Math.max(1, window.innerWidth), height: Math.max(1, window.innerHeight) };
-    }
-
-    return { width: 1, height: 1 };
   }
 
   private runTransition(durationMs: number, onTick: (t: number) => void, onDone: () => void): void {
@@ -141,7 +125,8 @@ export class ScreenView extends HudViewBase implements IScreenView {
     const deltas = ScreenView.slideDeltas[transition.type];
     if (!deltas) return;
 
-    const { width, height } = this.getTransitionViewportSize();
+    const width = this._viewportWidth;
+    const height = this._viewportHeight;
     this.ensureClipMask(width, height);
     const baseX = this.x;
     const baseY = this.y;
@@ -181,20 +166,6 @@ export class ScreenView extends HudViewBase implements IScreenView {
         this.destroy();
       },
     );
-  }
-
-  public override postInitialize(): void {
-    super.postInitialize();
-    // Enable layout by default for Pixi screens. Apps can override styles in subclasses.
-    this.layout = { width: 1, height: 1 };
-
-    const onLayout = (layout: Layout) => {
-      const w = Math.max(1, Math.floor(layout.computedLayout.width));
-      const h = Math.max(1, Math.floor(layout.computedLayout.height));
-      this.ensureClipMask(w, h);
-    };
-    this._clipMaskOnLayout = onLayout;
-    this.on("layout", onLayout);
   }
 
   public onEnter(transition: ScreenTransition): void {
@@ -300,27 +271,14 @@ export class ScreenView extends HudViewBase implements IScreenView {
   public override destroy(): void {
     this.cancelTransitionTimers();
     this._isInTransition = false;
-
-    if (this._clipMaskOnLayout) {
-      this.off("layout", this._clipMaskOnLayout);
-      this._clipMaskOnLayout = null;
-    }
-
     super.destroy();
   }
 
-  /**
-   * Optional convenience for layout-enabled screens.
-   * If you don't use layouts, you can ignore this.
-   */
-  public onResize(width: number, height: number, _dpr: number): void {
+  public override onResize(width: number, height: number, _dpr: number): void {
     const w = Math.max(1, width);
     const h = Math.max(1, height);
-    this.layout = { width: w, height: h };
-    // Update clip mask immediately — don't wait for the next layout tick.
-    // Without this, the mask stays at its previous size (possibly 1x1 from
-    // the initial layout) and blocks all pointer events until the layout
-    // system recomputes, which can be delayed by the throttle setting.
+    this._viewportWidth = w;
+    this._viewportHeight = h;
     this.ensureClipMask(w, h);
   }
 }

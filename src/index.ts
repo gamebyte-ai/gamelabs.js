@@ -34,6 +34,7 @@ export * from "./core/ui/IPopupView.js";
 export * from "./core/ui/ScreenTransition.js";
 export * from "./core/ui/ScreenView.pixi.js";
 export * from "./core/ui/PopupView.pixi.js";
+export * from "./core/ui/FullscreenLayoutContainer.js";
 export * from "./core/ui/UIEvents.js";
 export * from "./core/ui/UIUtils.js";
 export type { Unsubscribe } from "./core/events/subscriptions.js";

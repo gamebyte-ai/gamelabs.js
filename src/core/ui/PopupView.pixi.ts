@@ -1,5 +1,3 @@
-import "@pixi/layout";
-import type { Layout } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import type { IPopupView } from "./IPopupView.js";
 import { HudViewBase } from "../hud/HudViewBase.js";
@@ -12,6 +10,10 @@ import { HudViewBase } from "../hud/HudViewBase.js";
  * - provides a full-screen blocker that prevents interaction with content below
  * - fades in on open, fades out on close
  * - `isInTransition` is true during animations; input on children is blocked
+ *
+ * Does not itself use `@pixi/layout`. Subclasses that need layout for their
+ * content can set `this.layout = { ... }` themselves (typically in an
+ * `onResize` override for pixel-sized layouts).
  */
 export class PopupView extends HudViewBase implements IPopupView {
   private static readonly FADE_DURATION_MS = 200;
@@ -24,23 +26,8 @@ export class PopupView extends HudViewBase implements IPopupView {
     return this._isInTransition;
   }
 
-  public override postInitialize(): void {
-    super.postInitialize();
-    this.layout = { width: "100%", height: "100%" };
-
-    this._blocker = new PIXI.Graphics();
-    this._blocker.eventMode = "static";
-    // The blocker is NOT managed by @pixi/layout — layout constrains
-    // children to computed bounds, which clips the blocker and breaks
-    // hit testing. Instead, we draw a large rect and resize it manually
-    // via the popup's own layout event.
-    this._blocker.rect(0, 0, 16384, 16384).fill({ color: 0x000000, alpha: 0.5 });
-    this.addChildAt(this._blocker, 0);
-
-    this.on("layout", (l: Layout) => this._redrawBlocker(l));
-    this._blocker.on("pointerdown", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
-    this._blocker.on("pointerup", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
-    this._blocker.on("pointermove", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
+  public override onResize(width: number, height: number, _dpr: number): void {
+    this._redrawBlocker(Math.max(1, width), Math.max(1, height));
   }
 
   public onOpen(): void {
@@ -67,14 +54,17 @@ export class PopupView extends HudViewBase implements IPopupView {
     });
   }
 
-  public onResize(width: number, height: number, _dpr: number): void {
-    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
-  }
-
-  private _redrawBlocker(l: Layout): void {
-    if (!this._blocker) return;
-    const w = Math.max(1, Math.floor(l.computedLayout.width));
-    const h = Math.max(1, Math.floor(l.computedLayout.height));
+  private _redrawBlocker(width: number, height: number): void {
+    if (!this._blocker) {
+      this._blocker = new PIXI.Graphics();
+      this._blocker.eventMode = "static";
+      this.addChildAt(this._blocker, 0);
+      this._blocker.on("pointerdown", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
+      this._blocker.on("pointerup", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
+      this._blocker.on("pointermove", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
+    }
+    const w = Math.max(1, Math.floor(width));
+    const h = Math.max(1, Math.floor(height));
     this._blocker.clear();
     this._blocker.rect(0, 0, w, h).fill({ color: 0x000000, alpha: 0.5 });
   }
