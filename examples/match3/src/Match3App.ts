@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { AssetTypes, GamelabsApp, GameCameraBinding, GameCameraManager, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "@gamebyte/gamelabsjs";
+import { AssetTypes, GamelabsApp, GameCameraBinding, GameCameraManager, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField, SettingsManager } from "@gamebyte/gamelabsjs";
 import { Match3AssetIds } from "./Match3AssetIds.js";
 import { Match3Config } from "./Match3Config.js";
 import { Match3GameGridBinding } from "./modules/gamegrid/Match3GameGridBinding.js";
@@ -28,11 +28,6 @@ export class Match3App extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._gameGridBinding);
-
-    this._settingsBinding.addField(new SettingsBooleanField("music", "Music", true));
-    this._settingsBinding.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
-    this._settingsBinding.addField(new SettingsNumberField("musicVolume", "Music Volume", 70, 0, 100, 5));
-    this._settingsBinding.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 100, 0, 100, 5));
     this.addModule(this._settingsBinding);
   }
 
@@ -68,6 +63,13 @@ export class Match3App extends GamelabsApp {
       this.logger.log("HUD or world is not initialized", LogTypes.Error);
       throw new Error("HUD or world is not initialized");
     }
+
+    const settings = this.diContainer.getInstance(SettingsManager);
+    settings.addField(new SettingsBooleanField("music", "Music", true));
+    settings.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
+    settings.addField(new SettingsNumberField("musicVolume", "Music Volume", 70, 0, 100, 5));
+    settings.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 100, 0, 100, 5));
+
     this.diContainer.getInstance(UIEvents).createScreen(Match3UIIds.GameScreen, this._config.transitions.gameScreenEnter);
     this.world.addView(this.viewFactory.createView(GameBoardsView));
 

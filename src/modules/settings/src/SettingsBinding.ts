@@ -10,34 +10,15 @@ import { SettingsEvents } from "./events/SettingsEvents.js";
 import { SettingsPopupView } from "./views/SettingsPopupView.pixi.js";
 import { SettingsPopupViewController } from "./controllers/SettingsPopupViewController.js";
 import { SettingsUIIds } from "./constants/SettingsUIIds.js";
-import type { SettingsField } from "./SettingsField.js";
 
 export class SettingsBinding extends ModuleBinding {
-  private readonly _model: SettingsModel;
-  private readonly _manager: SettingsManager;
-  private readonly _events: SettingsEvents;
-
-  public constructor() {
-    super();
-    this._model = new SettingsModel();
-    this._manager = new SettingsManager(this._model);
-    this._events = new SettingsEvents();
-  }
-
-  /** Add a settings field. Can be called before or after initialization. */
-  public addField(field: SettingsField): void {
-    this._manager.addField(field);
-  }
-
   public configureDI(diContainer: DIContainer, _viewDiContainer: DIContainer): void {
-    diContainer.bindInstance(SettingsModel, this._model, [ISettingsModel]);
-    diContainer.bindInstance(SettingsManager, this._manager);
-    diContainer.bindInstance(SettingsEvents, this._events);
-
-    // bindInstance skips IInjectionTarget.inject(), so call it manually
-    // to wire up _storage and _events. This also re-hydrates any fields
-    // that were added before DI was configured (see SettingsManager.inject).
-    this._manager.inject(diContainer);
+    diContainer.bindInstance(SettingsModel, new SettingsModel(), [ISettingsModel]);
+    diContainer.bindInstance(SettingsEvents, new SettingsEvents());
+    // SettingsManager has a dependency (SettingsModel) and is an IInjectionTarget
+    // (resolves StorageService + SettingsEvents via inject()). Factory binding
+    // lets the container auto-fire inject() on first resolution.
+    diContainer.bindSingleton(SettingsManager, (r) => new SettingsManager(r.getInstance(SettingsModel)));
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {

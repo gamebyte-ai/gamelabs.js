@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { AssetTypes, GamelabsApp, GameCameraBinding, GameCameraManager, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "@gamebyte/gamelabsjs";
+import { AssetTypes, GamelabsApp, GameCameraBinding, GameCameraManager, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField, SettingsManager } from "@gamebyte/gamelabsjs";
 import { GameModel } from "./models/GameModel.js";
 import { IGameModel } from "./models/IGameModel.js";
 import { Game2048AssetIds } from "./Game2048AssetIds.js";
@@ -28,9 +28,6 @@ export class Game2048App extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._gameGridBinding);
-
-    this._settingsBinding.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
-    this._settingsBinding.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 100, 0, 100, 5));
     this.addModule(this._settingsBinding);
   }
 
@@ -58,6 +55,11 @@ export class Game2048App extends GamelabsApp {
       this.logger.log("HUD or world is not initialized", LogTypes.Error);
       throw new Error("HUD or world is not initialized");
     }
+
+    const settings = this.diContainer.getInstance(SettingsManager);
+    settings.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
+    settings.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 100, 0, 100, 5));
+
     this.diContainer.getInstance(UIEvents).createScreen(Game2048UIIds.GameScreen, this._config.transitions.gameScreenEnter);
     this.world.addView(this.viewFactory.createView(GameBoardsView));
 
