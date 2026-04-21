@@ -8,7 +8,7 @@ import {
   type IInputManager,
 } from "@gamebyte/gamelabsjs";
 import { TowerDefenseConfig } from "../../../TowerDefenseConfig.js";
-import type { LevelManager } from "../../../utilities/LevelManager.js";
+import type { ILevelState } from "../../../utilities/ILevelState.js";
 import { GameBoardCellObject } from "./GameBoardCellObject.js";
 import { GameBoardItemObject } from "./GameBoardItemObject.js";
 import { GameBoardItemObjectOptions } from "./GameBoardItemObjectOptions.js";
@@ -20,9 +20,9 @@ import { GameBoardItemObjectOptions } from "./GameBoardItemObjectOptions.js";
  */
 export class GameBoardObjectCreator extends GridObjectCreator {
   private readonly _config: TowerDefenseConfig;
-  private readonly _level: LevelManager;
+  private readonly _level: ILevelState;
 
-  public constructor(config: TowerDefenseConfig, level: LevelManager) {
+  public constructor(config: TowerDefenseConfig, level: ILevelState) {
     super();
     this._config = config;
     this._level = level;

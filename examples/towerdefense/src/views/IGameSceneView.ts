@@ -14,4 +14,7 @@ export interface IGameSceneView extends IView {
 
   /** Show a floating "+Xg" gold indicator at the given container-local position. */
   showGoldPopup(localX: number, localZ: number, amount: number): void;
+
+  /** Advance view-owned animations (gold popups, etc.). Call from UpdateManager. */
+  tickAnimations(dt: number): void;
 }

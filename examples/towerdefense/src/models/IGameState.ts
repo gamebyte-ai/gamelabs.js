@@ -12,6 +12,8 @@ export interface IGameState {
   readonly gold: number;
   readonly baseHp: number;
   readonly maxBaseHp: number;
+  readonly kills: number;
+  readonly waveNumber: number;
 }
 
 export const IGameState = new InjectionToken<IGameState>("IGameState");

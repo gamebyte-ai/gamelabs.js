@@ -11,6 +11,8 @@ export class GameState implements IGameState {
   private _gold: number;
   private _baseHp: number;
   private readonly _maxBaseHp: number;
+  private _kills = 0;
+  private _waveNumber = 1;
 
   public constructor(gold: number, baseHp: number) {
     this._gold = gold;
@@ -30,6 +32,14 @@ export class GameState implements IGameState {
     return this._maxBaseHp;
   }
 
+  public get kills(): number {
+    return this._kills;
+  }
+
+  public get waveNumber(): number {
+    return this._waveNumber;
+  }
+
   public addGold(amount: number): void {
     this._gold += amount;
   }
@@ -44,8 +54,14 @@ export class GameState implements IGameState {
     this._baseHp = Math.max(0, this._baseHp - amount);
   }
 
+  public recordKill(): void {
+    this._kills += 1;
+  }
+
   public reset(gold: number, baseHp: number): void {
     this._gold = gold;
     this._baseHp = baseHp;
+    this._kills = 0;
+    this._waveNumber = 1;
   }
 }

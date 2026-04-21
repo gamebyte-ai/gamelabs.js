@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { TowerDefenseConfig } from "../TowerDefenseConfig.js";
 import type { GameEvents } from "../events/GameEvents.js";
-import type { LevelManager } from "./LevelManager.js";
+import type { ILevelState } from "./ILevelState.js";
 import { BillboardHealthBar } from "../views/BillboardHealthBar.js";
 import { EnemyTypeId, ENEMY_TYPES, type EnemyTypeDef } from "../constants/EnemyTypeDef.js";
 import { CellType } from "../constants/CellType.js";
@@ -43,7 +43,7 @@ export class EnemyManager {
 
   private readonly _config: TowerDefenseConfig;
   private readonly _events: GameEvents;
-  private readonly _level: LevelManager;
+  private readonly _level: ILevelState;
   private readonly _container: THREE.Group;
   private readonly _enemies: EnemyInstance[] = [];
 
@@ -54,7 +54,7 @@ export class EnemyManager {
   private _spawning = true;
   private _nextId = 1;
 
-  public constructor(config: TowerDefenseConfig, events: GameEvents, level: LevelManager, container: THREE.Group) {
+  public constructor(config: TowerDefenseConfig, events: GameEvents, level: ILevelState, container: THREE.Group) {
     this._config = config;
     this._events = events;
     this._level = level;

@@ -19,6 +19,8 @@ export class GameBoardsView extends GridsView implements IGameBoardsView {
   private _ghostMesh: THREE.Group | null = null;
   private _ghostMaterial: THREE.MeshStandardMaterial | null = null;
   private _rangeRing: THREE.Mesh | null = null;
+  /** Every barrel we've ever tweened — kill all pending tweens on teardown. */
+  private readonly _animatedBarrels = new Set<THREE.Object3D>();
 
   public setCellPointerDownHandler(handler: CellPointerDownHandler | null): void {
     this._cellPointerDownHandler = handler;
@@ -160,10 +162,21 @@ export class GameBoardsView extends GridsView implements IGameBoardsView {
     const restZ = (barrel.userData as { restZ: number }).restZ;
     const recoilZ = restZ - 0.1;
 
+    // Kill any in-flight recoil on this barrel so firing again mid-recoil
+    // doesn't stack conflicting tweens.
+    gsap.killTweensOf(barrel.position);
+    this._animatedBarrels.add(barrel);
+
     // Kick back → return to rest
     gsap.to(barrel.position, { z: recoilZ, duration: 0.06, ease: "power2.out", onComplete: () => {
       gsap.to(barrel.position, { z: restZ, duration: 0.2, ease: "power2.inOut" });
     }});
+  }
+
+  /** Stop all cannon tweens. Called on level teardown + view destroy. */
+  public killCannonTweens(): void {
+    for (const barrel of this._animatedBarrels) gsap.killTweensOf(barrel.position);
+    this._animatedBarrels.clear();
   }
 
   // ── Pointer events ────────────────────────────────────────────────────
@@ -173,6 +186,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView {
   }
 
   public override preDestroy(): void {
+    this.killCannonTweens();
     this.removeGhost();
     this.hideRangeIndicator();
     this._cellPointerDownHandler = null;

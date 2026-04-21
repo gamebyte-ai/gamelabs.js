@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { World, WorldViewBase, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { TowerDefenseConfig } from "../TowerDefenseConfig.js";
-import { LevelManager } from "../utilities/LevelManager.js";
+import { ILevelState } from "../utilities/ILevelState.js";
+import type { ILevelState as ILevelStateType } from "../utilities/ILevelState.js";
 import { BillboardHealthBar } from "./BillboardHealthBar.js";
 import type { IGameSceneView } from "./IGameSceneView.js";
 
@@ -42,7 +43,7 @@ export class GameSceneView extends WorldViewBase implements IGameSceneView {
   private readonly _combatContainer = new THREE.Group();
   private _baseHpBar: BillboardHealthBar | null = null;
   private _config: TowerDefenseConfig | null = null;
-  private _level: LevelManager | null = null;
+  private _level: ILevelStateType | null = null;
   private _world: World | null = null;
 
   public get enemyContainer(): THREE.Group {
@@ -56,7 +57,7 @@ export class GameSceneView extends WorldViewBase implements IGameSceneView {
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
     this._config = resolver.getInstance(TowerDefenseConfig);
-    this._level = resolver.getInstance(LevelManager);
+    this._level = resolver.getInstance(ILevelState);
     this._world = resolver.getInstance(World);
   }
 
@@ -179,37 +180,49 @@ export class GameSceneView extends WorldViewBase implements IGameSceneView {
   // ── Gold popup ─────────────────────────────────────────────────────
 
   private static readonly POPUP_SIZE = 64;
+  private static readonly POPUP_START_Y = 0.5;
   private static readonly POPUP_RISE = 0.8;
   private static readonly POPUP_DURATION = 0.8;
 
+  private readonly _goldPopups: { sprite: THREE.Sprite; elapsed: number }[] = [];
+
   /**
    * Show a small floating "+Xg" sprite at the enemy container's local
-   * coordinates. The sprite rises and fades out over ~0.8s, then
-   * self-destructs.
+   * coordinates. The sprite rises and fades out over ~0.8s. Advancement
+   * is driven from outside via {@link tickAnimations} so the popup is
+   * bound to the app's update loop (and gets cleaned up on destroy).
    */
   public showGoldPopup(localX: number, localZ: number, amount: number): void {
     const sprite = GameSceneView._createGoldSprite(amount);
-    sprite.position.set(localX, 0.5, localZ);
+    sprite.position.set(localX, GameSceneView.POPUP_START_Y, localZ);
     this._enemyContainer.add(sprite);
+    this._goldPopups.push({ sprite, elapsed: 0 });
+  }
 
-    const startY = 0.5;
-    const endY = startY + GameSceneView.POPUP_RISE;
-    const dur = GameSceneView.POPUP_DURATION;
-    const startMs = typeof performance !== "undefined" ? performance.now() : Date.now();
-
-    const step = (): void => {
-      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-      const t = Math.min(1, (now - startMs) / (dur * 1000));
-      sprite.position.y = startY + (endY - startY) * t;
-      (sprite.material as THREE.SpriteMaterial).opacity = 1 - t;
-      if (t < 1) {
-        requestAnimationFrame(step);
-      } else {
-        (sprite.material as THREE.SpriteMaterial).dispose();
-        sprite.removeFromParent();
+  /**
+   * Per-frame update for view-owned animations (gold popups today).
+   * Must be invoked from the app's {@link UpdateManager} so teardown
+   * cleanly disposes any in-flight sprites.
+   */
+  public tickAnimations(dt: number): void {
+    for (let i = this._goldPopups.length - 1; i >= 0; i--) {
+      const p = this._goldPopups[i];
+      p.elapsed += dt;
+      const t = Math.min(1, p.elapsed / GameSceneView.POPUP_DURATION);
+      p.sprite.position.y = GameSceneView.POPUP_START_Y + GameSceneView.POPUP_RISE * t;
+      (p.sprite.material as THREE.SpriteMaterial).opacity = 1 - t;
+      if (t >= 1) {
+        GameSceneView._disposeGoldSprite(p.sprite);
+        this._goldPopups.splice(i, 1);
       }
-    };
-    requestAnimationFrame(step);
+    }
+  }
+
+  private static _disposeGoldSprite(sprite: THREE.Sprite): void {
+    const mat = sprite.material as THREE.SpriteMaterial;
+    mat.map?.dispose();
+    mat.dispose();
+    sprite.removeFromParent();
   }
 
   private static _createGoldSprite(amount: number): THREE.Sprite {
@@ -239,6 +252,8 @@ export class GameSceneView extends WorldViewBase implements IGameSceneView {
 
   public override preDestroy(): void {
     this.hideBaseHpBar();
+    for (const p of this._goldPopups) GameSceneView._disposeGoldSprite(p.sprite);
+    this._goldPopups.length = 0;
     this._enemyContainer.removeFromParent();
     this._combatContainer.removeFromParent();
     super.preDestroy();

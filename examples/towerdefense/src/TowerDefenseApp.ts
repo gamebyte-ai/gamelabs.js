@@ -24,6 +24,7 @@ import { EnemyManager } from "./utilities/EnemyManager.js";
 import { CombatManager } from "./utilities/CombatManager.js";
 import { GameOperations } from "./utilities/GameOperations.js";
 import { LevelManager } from "./utilities/LevelManager.js";
+import { ILevelState } from "./utilities/ILevelState.js";
 import { GameState } from "./models/GameState.js";
 import { IGameState } from "./models/IGameState.js";
 import { GameBoardsView } from "./modules/gamegrid/views/GameBoardsView.three.js";
@@ -66,10 +67,11 @@ export class TowerDefenseApp extends GamelabsApp {
    * state. Set back to `true` only after the new level is fully built.
    */
   private _levelActive = true;
-  /** True while any popup (settings, generating…) is open. Gates the
+  /** Number of popups currently open (settings, generating…). Gates the
    *  raw DOM pointer/wheel handlers so they don't interact with the
-   *  world scene behind the popup. */
-  private _popupOpen = false;
+   *  world scene behind the popup. Counter rather than boolean so nested
+   *  popups don't drop the gate early when the top one closes. */
+  private _popupCount = 0;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -103,12 +105,15 @@ export class TowerDefenseApp extends GamelabsApp {
     this.diContainer.bindInstance(GameState, this._gameState, [IGameState]);
     this.viewDiContainer.bindInstance(IGameState, this._gameState);
 
-    // LevelManager is shared across world-thread (App, EnemyManager) and
-    // view-thread (GameBoardCellObject via creator constructor) callers.
+    // LevelManager is the mutable owner of path state — resolved only by
+    // GameOperations. Everybody else (controllers, views) resolves the
+    // readonly `ILevelState` token bound to the same instance. The
+    // app + EnemyManager happen to hold a direct ref for construction
+    // convenience, but they only read through `ILevelState` methods.
     // bindInstance does not call inject() automatically, so we drive it
     // manually below once TowerDefenseConfig is bound.
-    this.diContainer.bindInstance(LevelManager, this._level);
-    this.viewDiContainer.bindInstance(LevelManager, this._level);
+    this.diContainer.bindInstance(LevelManager, this._level, [ILevelState]);
+    this.viewDiContainer.bindInstance(ILevelState, this._level);
     this._level.inject(this.diContainer);
 
     // GameOperations is the only mutation surface for GameState + the
@@ -141,8 +146,8 @@ export class TowerDefenseApp extends GamelabsApp {
 
     // Track popup open/close to gate raw DOM input handlers.
     const uiEvents = this.diContainer.getInstance(UIEvents);
-    this._systemUnsubs.add(uiEvents.onCreatePopup(() => { this._popupOpen = true; }));
-    this._systemUnsubs.add(uiEvents.onRemoveTopPopup(() => { this._popupOpen = false; }));
+    this._systemUnsubs.add(uiEvents.onCreatePopup(() => { this._popupCount++; }));
+    this._systemUnsubs.add(uiEvents.onRemoveTopPopup(() => { this._popupCount = Math.max(0, this._popupCount - 1); }));
 
     // HUD screen
     uiEvents.createScreen(
@@ -203,13 +208,17 @@ export class TowerDefenseApp extends GamelabsApp {
     this._systemUnsubs.add(this.updateManager.register((dt) => { if (this._levelActive) this._enemyManager!.update(dt); }));
     this._systemUnsubs.add(this.updateManager.register((dt) => { if (this._levelActive) this._combatManager!.update(dt); }));
     this._systemUnsubs.add(this.updateManager.register((dt) => { if (this._levelActive) ops.tickPassiveIncome(dt); }));
+    // Scene-view animations (gold popups) tick every frame regardless of
+    // level state so an in-flight popup at teardown still finishes its
+    // fade instead of leaking.
+    this._systemUnsubs.add(this.updateManager.register((dt) => this._sceneView?.tickAnimations(dt)));
 
     // Cross-system event wiring.
     this._systemUnsubs.add(this._events.onTowerPlaced((col, row, towerType) => this._combatManager!.addTower(col, row, towerType)));
     this._systemUnsubs.add(this._events.onTeardownLevel(() => this._onTeardownLevel()));
     this._systemUnsubs.add(this._events.onLevelGenerated(() => this._onLevelReady()));
     this._systemUnsubs.add(this._events.onEnemyReachedBase((damage) => this._onEnemyReachedBase(damage)));
-    this._systemUnsubs.add(this._events.onEnemyKilled((reward) => ops.addGold(reward)));
+    this._systemUnsubs.add(this._events.onEnemyKilled((reward) => ops.rewardKill(reward)));
   }
 
   /**
@@ -240,7 +249,7 @@ export class TowerDefenseApp extends GamelabsApp {
   //  Wheel      → zoom toward cursor
 
   private readonly _onPointerDown = (e: PointerEvent): void => {
-    if (this._popupOpen) return;
+    if (this._popupCount > 0) return;
     if (e.button === 0) {
       this._dragState.isOrbiting = true;
     } else if (e.button === 2) {
@@ -251,7 +260,7 @@ export class TowerDefenseApp extends GamelabsApp {
   };
 
   private readonly _onPointerMove = (e: PointerEvent): void => {
-    if (this._popupOpen || !this._orbitalController) return;
+    if (this._popupCount > 0 || !this._orbitalController) return;
     const dx = e.clientX - this._dragState.lastX;
     const dy = e.clientY - this._dragState.lastY;
     this._dragState.lastX = e.clientX;
@@ -279,7 +288,7 @@ export class TowerDefenseApp extends GamelabsApp {
   };
 
   private readonly _onWheel = (e: WheelEvent): void => {
-    if (this._popupOpen || !this._orbitalController || !this.world) return;
+    if (this._popupCount > 0 || !this._orbitalController || !this.world) return;
     const zoomDelta = e.deltaY * 0.02;
     this._orbitalController.addDistance(zoomDelta);
 

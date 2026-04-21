@@ -5,9 +5,11 @@ import {
   SettingsUIIds,
   UIEvents,
   UnsubscribeBag,
+  UpdateManager,
   type IInstanceResolver,
   type ISettingsModel as ISettingsModelType,
   type IViewController,
+  type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
 import { TowerDefenseUIIds } from "../TowerDefenseUIIds.js";
 import { GameEvents } from "../events/GameEvents.js";
@@ -27,9 +29,9 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   private _audioService: AudioService | null = null;
   private _settingsModel: ISettingsModelType | null = null;
   private _settingsEvents: SettingsEvents | null = null;
+  private _updateManager: UpdateManager | null = null;
+  private _rebuildTimerUnsub: Unsubscribe | null = null;
   private _generating = false;
-  private _killCount = 0;
-  private _waveNumber = 1;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
@@ -41,6 +43,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._audioService = resolver.getInstance(AudioService);
     this._settingsModel = resolver.getInstance(ISettingsModel);
     this._settingsEvents = resolver.getInstance(SettingsEvents);
+    this._updateManager = resolver.getInstance(UpdateManager);
   }
 
   public initialize(view: IGameScreenView): void {
@@ -48,6 +51,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
 
     view.updateGold(this._state!.gold);
     view.updateTowerAffordability(this._state!.gold);
+    view.updateStats(this._state!.kills, this._state!.waveNumber);
 
     view.setGenerateLevelHandler(() => this._onGenerateLevel());
 
@@ -68,21 +72,8 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     // Gold changes (kills, passive income, purchases, level resets)
     this._subs.add(this._events!.onGoldChanged((total) => this._onGoldChanged(total)));
 
-    // Kill counter
-    this._subs.add(this._events!.onEnemyKilled(() => {
-      this._killCount++;
-      this._view?.updateStats(this._killCount, this._waveNumber);
-    }));
-
-    // Level generated → reset stats
-    this._subs.add(this._events!.onLevelGenerated(() => {
-      this._killCount = 0;
-      this._waveNumber = 1;
-      this._view?.updateStats(this._killCount, this._waveNumber);
-    }));
-
-    // Initial display
-    view.updateStats(this._killCount, this._waveNumber);
+    // Stats (kills / wave) — state lives in GameState, updated via event
+    this._subs.add(this._events!.onStatsChanged((kills, waveNumber) => this._view?.updateStats(kills, waveNumber)));
 
     // Settings changes → audio volume
     if (this._settingsEvents) {
@@ -128,7 +119,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
 
   private _onGenerateLevel(): void {
     if (this._generating) return;
-    if (!this._ops || !this._events || !this._uiEvents) return;
+    if (!this._ops || !this._events || !this._uiEvents || !this._updateManager) return;
 
     this._generating = true;
 
@@ -137,13 +128,19 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._events.emitTeardownLevel();
     this._uiEvents.createPopup(TowerDefenseUIIds.GeneratingPopup);
 
-    // Phase 2: deferred rebuild (3-frame safety gap)
-    let frame = 0;
-    const tick = (): void => {
-      frame++;
-      if (frame < 3) { requestAnimationFrame(tick); } else { this._runRebuild(); }
-    };
-    requestAnimationFrame(tick);
+    // Phase 2: deferred rebuild (~50ms safety gap, routed through the
+    // UpdateManager so it gets cancelled cleanly if the controller is
+    // destroyed mid-generation).
+    let elapsed = 0;
+    const GAP_SECONDS = 0.05;
+    this._rebuildTimerUnsub = this._updateManager.register((dt) => {
+      elapsed += dt;
+      if (elapsed < GAP_SECONDS) return;
+      const done = this._rebuildTimerUnsub;
+      this._rebuildTimerUnsub = null;
+      done?.();
+      this._runRebuild();
+    });
   }
 
   private _runRebuild(): void {
@@ -157,6 +154,8 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   }
 
   public destroy(): void {
+    this._rebuildTimerUnsub?.();
+    this._rebuildTimerUnsub = null;
     this._view?.setGenerateLevelHandler(null);
     this._view?.setBuyTowerHandler(null);
     this._subs.flush();
@@ -169,6 +168,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._audioService = null;
     this._settingsModel = null;
     this._settingsEvents = null;
+    this._updateManager = null;
     this._generating = false;
   }
 }

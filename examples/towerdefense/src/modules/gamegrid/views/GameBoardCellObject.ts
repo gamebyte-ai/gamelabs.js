@@ -10,14 +10,14 @@ import {
 } from "@gamebyte/gamelabsjs";
 import { CellType } from "../../../constants/CellType.js";
 import { TowerDefenseConfig } from "../../../TowerDefenseConfig.js";
-import type { LevelManager } from "../../../utilities/LevelManager.js";
+import type { ILevelState } from "../../../utilities/ILevelState.js";
 import { TerrainTextureFactory } from "../../../utilities/TerrainTextureFactory.js";
 
 type HoverCallback = (col: number, row: number, hovered: boolean) => void;
 
 interface CellEnvironment {
   readonly config: TowerDefenseConfig;
-  readonly level: LevelManager;
+  readonly level: ILevelState;
 }
 
 /**

@@ -13,7 +13,8 @@ import { CellType } from "../../../constants/CellType.js";
 import { TOWER_TYPES, TowerTypeId } from "../../../constants/TowerTypeDef.js";
 import { TowerDefenseConfig } from "../../../TowerDefenseConfig.js";
 import { GameEvents } from "../../../events/GameEvents.js";
-import { LevelManager } from "../../../utilities/LevelManager.js";
+import { ILevelState } from "../../../utilities/ILevelState.js";
+import type { ILevelState as ILevelStateType } from "../../../utilities/ILevelState.js";
 import { GameOperations } from "../../../utilities/GameOperations.js";
 import { GameBoardItem } from "../models/GameBoardItem.js";
 import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions.js";
@@ -24,17 +25,16 @@ import type { IGameBoardsView } from "../views/IGameBoardsView.js";
  * Handles cell click, tower placement validation, and placement mode.
  *
  * Holds models only through readonly tokens ({@link IGridsModel},
- * {@link LevelManager}'s read API) and routes every grid mutation
- * through {@link GameOperations}, per the rule "Controllers must
- * access model state through readonly interfaces, not mutable model
- * references" (DeveloperNotes.md).
+ * {@link ILevelState}) and routes every grid mutation through
+ * {@link GameOperations}, per the rule "Controllers must access model
+ * state through readonly interfaces, not mutable model references"
+ * (DeveloperNotes.md).
  */
 export class GameBoardsViewController extends GridsViewController {
-  private _config: TowerDefenseConfig | null = null;
   private _gameEvents: GameEvents | null = null;
   private _gridsView: IGameBoardsView | null = null;
   private _gridModel: IGridsModelType | null = null;
-  private _level: LevelManager | null = null;
+  private _level: ILevelStateType | null = null;
   private _ops: GameOperations | null = null;
   private readonly _tdSubs = new UnsubscribeBag();
 
@@ -45,10 +45,9 @@ export class GameBoardsViewController extends GridsViewController {
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
-    this._config = resolver.getInstance(TowerDefenseConfig);
     this._gameEvents = resolver.getInstance(GameEvents);
     this._gridModel = resolver.getInstance(IGridsModel);
-    this._level = resolver.getInstance(LevelManager);
+    this._level = resolver.getInstance(ILevelState);
     this._ops = resolver.getInstance(GameOperations);
   }
 
@@ -80,7 +79,7 @@ export class GameBoardsViewController extends GridsViewController {
 
     // Placement mode: try to place the tower
     if (this._placingTowerType !== null) {
-      if (this._isValidPlacement(col, row)) {
+      if (this._ops?.canPlaceTower(col, row)) {
         this._placeTower(col, row, this._placingTowerType);
         this._exitPlacementMode();
       }
@@ -101,7 +100,7 @@ export class GameBoardsViewController extends GridsViewController {
     // ghost off whenever the leave event arrives after the enter event.
     if (this._placingTowerType !== null) {
       if (hovered) {
-        this._gridsView?.updateGhostPosition(col, row, this._isValidPlacement(col, row));
+        this._gridsView?.updateGhostPosition(col, row, this._ops?.canPlaceTower(col, row) ?? false);
       }
       return;
     }
@@ -142,18 +141,6 @@ export class GameBoardsViewController extends GridsViewController {
     this._gridsView?.removeGhost();
   }
 
-  private _isValidPlacement(col: number, row: number): boolean {
-    if (!this._level) return false;
-    // Only Tower cells are placeable. Ground, Path, Spawn, Base, and any cell
-    // bordering Spawn/Base (which getCellType returns as Ground) are excluded.
-    if (this._level.getCellType(col, row) !== CellType.Tower) return false;
-    // Check that no tower already occupies this cell
-    const grid = this._gridModel?.getGrid(TowerDefenseConfig.GRID_ID);
-    if (!grid) return false;
-    const cell = grid.getCell(col, row);
-    return cell?.item === null;
-  }
-
   private _placeTower(col: number, row: number, towerType: TowerTypeId): void {
     if (!this._ops || !this._gameEvents) return;
     this._ops.placeTower(col, row, towerType);
@@ -166,6 +153,7 @@ export class GameBoardsViewController extends GridsViewController {
   private _onTeardownLevel(): void {
     this._exitPlacementMode();
     this._gridsView?.hideRangeIndicator();
+    this._gridsView?.killCannonTweens();
     this._rangeCell = null;
   }
 
@@ -183,7 +171,6 @@ export class GameBoardsViewController extends GridsViewController {
     this._gridsView?.removeGhost();
     this._gridsView?.hideRangeIndicator();
     this._gridsView = null;
-    this._config = null;
     this._gameEvents = null;
     this._gridModel = null;
     this._level = null;

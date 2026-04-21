@@ -1,15 +1,9 @@
 import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { CellType } from "../constants/CellType.js";
 import { TowerDefenseConfig } from "../TowerDefenseConfig.js";
+import type { ILevelState, PathCellInfo } from "./ILevelState.js";
 
-export interface PathCellInfo {
-  /** true when the path changes direction at this cell. */
-  readonly isTurn: boolean;
-  /** true for right-hand turns, false for left or straight. */
-  readonly isRightTurn: boolean;
-  /** Mesh rotation.y to align the directional texture with the path. */
-  readonly rotation: number;
-}
+export type { PathCellInfo } from "./ILevelState.js";
 
 /**
  * Owns the mutable level state for tower defense — the path waypoints
@@ -21,8 +15,12 @@ export interface PathCellInfo {
  * controllers"). Previously this state lived on
  * {@link TowerDefenseConfig}, which violated the rule that a config
  * should hold only initial values / tweaks / constants.
+ *
+ * Exposes the readonly query surface via {@link ILevelState}. Only
+ * {@link import("./GameOperations.js").GameOperations} holds the
+ * concrete reference and triggers `generateLevel()`.
  */
-export class LevelManager implements IInjectionTarget {
+export class LevelManager implements IInjectionTarget, ILevelState {
   private _config!: TowerDefenseConfig;
   private _pathWaypoints: [number, number][] = LevelManager._buildDefaultPath();
   private _pathSet: Set<string> = new Set(this._pathWaypoints.map(([c, r]) => `${c},${r}`));

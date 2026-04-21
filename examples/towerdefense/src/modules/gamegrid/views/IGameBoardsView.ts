@@ -13,4 +13,6 @@ export interface IGameBoardsView extends IGridView {
   hideRangeIndicator(): void;
   /** Rotate cannon turret to face target + barrel recoil kick. */
   animateCannonFire(col: number, row: number, targetX: number, targetZ: number): void;
+  /** Stop every pending barrel-recoil tween (called on level teardown). */
+  killCannonTweens(): void;
 }

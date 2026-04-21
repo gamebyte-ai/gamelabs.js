@@ -25,6 +25,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private readonly _settingsListeners = new Set<() => void>();
 
   public override postInitialize(): void {
+    super.postInitialize();
     (this as any).layout = {
       width: 1,
       height: 1,
@@ -66,8 +67,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     }
   }
 
-  public override onResize(width: number, height: number, _dpr: number): void {
-    (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
     this.overlay.clear();
     this.overlay.rect(0, 0, Math.max(1, width), Math.max(1, height)).fill({ color: 0x000000, alpha: 0 });
   }
@@ -77,6 +78,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._buyHandler = null;
     this._towerCards.length = 0;
     this._settingsListeners.clear();
+    super.preDestroy();
   }
 
   // ── Top bar ───────────────────────────────────────────────────────────

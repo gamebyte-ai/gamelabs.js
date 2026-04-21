@@ -125,27 +125,27 @@ export class GameEvents {
     for (const cb of this._enemyReachedBaseListeners) cb(damage);
   }
 
-  // --- Wave started ---
-  private readonly _waveStartedListeners = new Set<(wave: number) => void>();
+  // --- Stats changed (kill count / wave number) ---
+  private readonly _statsChangedListeners = new Set<(kills: number, waveNumber: number) => void>();
 
-  public onWaveStarted(cb: (wave: number) => void): Unsubscribe {
-    this._waveStartedListeners.add(cb);
-    return () => { this._waveStartedListeners.delete(cb); };
+  public onStatsChanged(cb: (kills: number, waveNumber: number) => void): Unsubscribe {
+    this._statsChangedListeners.add(cb);
+    return () => { this._statsChangedListeners.delete(cb); };
   }
 
-  public emitWaveStarted(wave: number): void {
-    for (const cb of this._waveStartedListeners) cb(wave);
+  public emitStatsChanged(kills: number, waveNumber: number): void {
+    for (const cb of this._statsChangedListeners) cb(kills, waveNumber);
   }
 
-  // --- Wave completed ---
-  private readonly _waveCompletedListeners = new Set<(wave: number) => void>();
+  // --- Base HP changed (after any damage/reset) ---
+  private readonly _baseHpChangedListeners = new Set<(hp: number, maxHp: number) => void>();
 
-  public onWaveCompleted(cb: (wave: number) => void): Unsubscribe {
-    this._waveCompletedListeners.add(cb);
-    return () => { this._waveCompletedListeners.delete(cb); };
+  public onBaseHpChanged(cb: (hp: number, maxHp: number) => void): Unsubscribe {
+    this._baseHpChangedListeners.add(cb);
+    return () => { this._baseHpChangedListeners.delete(cb); };
   }
 
-  public emitWaveCompleted(wave: number): void {
-    for (const cb of this._waveCompletedListeners) cb(wave);
+  public emitBaseHpChanged(hp: number, maxHp: number): void {
+    for (const cb of this._baseHpChangedListeners) cb(hp, maxHp);
   }
 }
