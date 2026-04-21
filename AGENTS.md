@@ -31,6 +31,22 @@ Modules are **static, boot-time bundles**. They are created once at app construc
 
 This is deliberate: modules are decorators on the DI container + view factory, not parallel runtime entities. Keeping the module surface static avoids implicit per-frame dispatch, hidden ordering rules, and ambiguous teardown responsibilities.
 
+### Binding shape
+
+A `ModuleBinding` holds no runtime state. Bind classes through the DI container, not through binding-class fields or forwarding methods.
+
+- **Zero-arg class** → construct and bind eagerly inside `configureDI`: `diContainer.bindInstance(Class, new Class())`. Do not store the instance in a binding field.
+- **Class with dependencies** → bind as a factory that resolves from DI: `diContainer.bindSingleton(Class, (r) => new Class(r.getInstance(Dep)))`.
+- **Do not expose bound instances via getters** on the binding. Callers resolve them through DI (typically in `GamelabsApp.postInitialize`) and call methods directly.
+- **Do not add forwarding methods** (e.g. `addControl`, `addField`) that proxy to bound instances.
+
+Legitimate fields / constructor args on a binding:
+- Asset request data (presets, config strings) used to populate `_assetRequestList`.
+- Class or factory overrides passed via the binding's constructor for customization.
+- Optional pre-built dependencies the app supplies to the binding (e.g. an app-provided model implementation).
+
+This keeps the binding's job narrow (bind + register + declare assets) and prevents the module from drifting into being a stateful intermediary between the app and the objects it binds.
+
 ## Rules and constraints
 
 - Views must NOT access `diContainer`. Views receive `viewDiContainer` only.
