@@ -2,7 +2,7 @@ import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { HexGrid } from "../models/HexGrid.js";
 import { StacksTray } from "../models/StacksTray.js";
 import type { BlockStack } from "../models/BlockStack.js";
-import { BlockStackFactory } from "./BlockStackFactory.js";
+import { BlockStackOperations } from "./BlockStackOperations.js";
 
 /**
  * In-domain operations that mutate game state.
@@ -21,12 +21,20 @@ import { BlockStackFactory } from "./BlockStackFactory.js";
 export class GameOperations implements IInjectionTarget {
   private _grid!: HexGrid;
   private _tray!: StacksTray;
-  private _factory!: BlockStackFactory;
+  private _factory!: BlockStackOperations;
 
   public inject(resolver: IInstanceResolver): void {
     this._grid = resolver.getInstance(HexGrid);
     this._tray = resolver.getInstance(StacksTray);
-    this._factory = resolver.getInstance(BlockStackFactory);
+    this._factory = resolver.getInstance(BlockStackOperations);
+  }
+
+  /**
+   * Placement rule: a stack may be dropped on a valid, empty cell. The
+   * cell must exist in the grid and hold no blocks.
+   */
+  public canPlaceStack(col: number, row: number): boolean {
+    return this._grid.isValidCell(col, row) && this._grid.isEmpty(col, row);
   }
 
   /** Write a fresh block stack onto the hex grid at the given cell. */

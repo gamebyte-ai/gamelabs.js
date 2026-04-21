@@ -55,8 +55,6 @@ export class HexaSortConfig {
     0x22c55e, // green
     0x3b82f6, // blue
     0xeab308, // yellow
-    //0xa855f7, // purple
-    // 0xf97316, // orange
   ];
 
   /** Height of a single placed block prism (world units). */

@@ -5,6 +5,7 @@ import { HexaSortConfig } from "../HexaSortConfig.js";
 import { GameEvents } from "../events/GameEvents.js";
 import { SortingManager } from "../utilities/SortingManager.js";
 import { GameOperations } from "../utilities/GameOperations.js";
+import { SfxService } from "../services/SfxService.js";
 import type { HexCellCoord, IHexGridView } from "../views/IHexGridView.js";
 
 /**
@@ -17,14 +18,18 @@ import type { HexCellCoord, IHexGridView } from "../views/IHexGridView.js";
  * - on stack release, delegates the placement mutation to
  *   {@link GameOperations}, updates the view, emits `onStackPlaced`
  *   (or `onStackDropCancelled`) and enqueues a sort sequence through
- *   {@link SortingManager}.
+ *   {@link SortingManager},
+ * - listens for {@link GameEvents.onSortMoveStarted} /
+ *   {@link GameEvents.onBlockDestroyStarted} and drives the view's
+ *   animation methods. The `SortingManager` owns no view reference —
+ *   this controller is the single bridge between the manager's model
+ *   mutations and the grid view's tweens, keeping the renderer-facing
+ *   code in one place.
  *
  * Controller-layer rule compliance:
  * - Only holds the readonly {@link IHexGrid} — all mutations go through
  *   `GameOperations.placeStackOnGrid`.
- * - {@link SortingManager} is a DI singleton; the controller attaches
- *   its view via `setView()` rather than constructing the manager, so
- *   the controller never touches the concrete mutable `HexGrid`.
+ * - References the view only through {@link IHexGridView}.
  */
 export class HexGridViewController implements IViewController<IHexGridView> {
   private _grid: IHexGrid | null = null;
@@ -32,6 +37,7 @@ export class HexGridViewController implements IViewController<IHexGridView> {
   private _events: GameEvents | null = null;
   private _scheduler: SortingManager | null = null;
   private _ops: GameOperations | null = null;
+  private _sfx: SfxService | null = null;
   private _view: IHexGridView | null = null;
 
   private _rotationY = 0;
@@ -45,6 +51,7 @@ export class HexGridViewController implements IViewController<IHexGridView> {
     this._events = resolver.getInstance(GameEvents);
     this._scheduler = resolver.getInstance(SortingManager);
     this._ops = resolver.getInstance(GameOperations);
+    this._sfx = resolver.getInstance(SfxService);
   }
 
   public initialize(view: IHexGridView): void {
@@ -55,19 +62,22 @@ export class HexGridViewController implements IViewController<IHexGridView> {
 
     view.buildGrid(this._grid);
     view.setRotationY(this._rotationY);
-    this._scheduler.setView(view);
 
     this._subs.add(view.onHorizontalDrag((dx) => this._applyDragDelta(dx)));
     this._subs.add(view.onCellHoverChanged((cell) => this._handleHoverChanged(cell)));
     this._subs.add(this._events.onStackPickedUp((stack) => this._handleStackPickedUp(stack)));
     this._subs.add(this._events.onStackReleased(() => this._handleStackReleased()));
+    this._subs.add(
+      this._events.onSortMoveStarted((sc, sr, tc, tr, color) => this._onSortMoveStarted(sc, sr, tc, tr, color)),
+    );
+    this._subs.add(this._events.onBlockDestroyStarted((col, row) => this._onBlockDestroyStarted(col, row)));
   }
 
   public destroy(): void {
     this._subs.flush();
-    this._scheduler?.setView(null);
     this._scheduler = null;
     this._ops = null;
+    this._sfx = null;
     this._view = null;
     this._grid = null;
     this._config = null;
@@ -98,14 +108,14 @@ export class HexGridViewController implements IViewController<IHexGridView> {
   private _handleStackReleased(): void {
     const stack = this._draggedStack;
     this._draggedStack = null;
-    if (!stack || !this._grid || !this._view || !this._events || !this._ops) {
+    if (!stack || !this._view || !this._events || !this._ops) {
       this._view?.clearHighlight();
       return;
     }
     const target = this._hoveredCell;
     this._view.clearHighlight();
 
-    if (target && this._grid.isEmpty(target.col, target.row)) {
+    if (target && this._ops.canPlaceStack(target.col, target.row)) {
       // Mutation routed through GameOperations so the controller stays
       // on the readonly IHexGrid interface.
       this._ops.placeStackOnGrid(target.col, target.row, stack);
@@ -121,12 +131,30 @@ export class HexGridViewController implements IViewController<IHexGridView> {
   }
 
   private _refreshHighlightForDragHover(): void {
-    if (!this._view || !this._grid) return;
+    if (!this._view || !this._ops) return;
     const cell = this._hoveredCell;
-    if (cell && this._grid.isEmpty(cell.col, cell.row)) {
+    if (cell && this._ops.canPlaceStack(cell.col, cell.row)) {
       this._view.setHighlightedCell(cell.col, cell.row);
     } else {
       this._view.clearHighlight();
     }
+  }
+
+  // --- Manager → view animation bridge ------------------------------------
+
+  private _onSortMoveStarted(
+    srcCol: number,
+    srcRow: number,
+    tgtCol: number,
+    tgtRow: number,
+    colorIndex: number,
+  ): void {
+    this._view?.animateBlockMove(srcCol, srcRow, tgtCol, tgtRow, colorIndex, () => this._sfx?.playTileLand());
+  }
+
+  private _onBlockDestroyStarted(col: number, row: number): void {
+    this._view?.animateBlockDestroy(col, row, () => {
+      /* manager advances on its own time-based cadence */
+    });
   }
 }

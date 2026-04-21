@@ -1,5 +1,6 @@
 import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
 import { IStacksTray } from "../models/IStacksTray.js";
+import type { BlockStack } from "../models/BlockStack.js";
 import { GameEvents } from "../events/GameEvents.js";
 import { GameOperations } from "../utilities/GameOperations.js";
 import type { IStacksTrayView } from "../views/IStacksTrayView.js";
@@ -16,6 +17,10 @@ import type { IStacksTrayView } from "../views/IStacksTrayView.js";
  *   asks `GameOperations` to mint a fresh stack into the same slot,
  * - on a cancelled drop, resets the stack visual to its home.
  *
+ * Slot identity is recovered via {@link IStacksTray.findSlotByStackId}
+ * at event time, rather than latched in controller state — so there is
+ * no window in which the controller can hold a stale `_activeSlot`.
+ *
  * Never holds the mutable {@link StacksTray} — all slot writes go through
  * {@link GameOperations.refillTraySlot}.
  */
@@ -24,7 +29,6 @@ export class StacksTrayViewController implements IViewController<IStacksTrayView
   private _events: GameEvents | null = null;
   private _ops: GameOperations | null = null;
   private _view: IStacksTrayView | null = null;
-  private _activeSlot: number | null = null;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
@@ -37,14 +41,12 @@ export class StacksTrayViewController implements IViewController<IStacksTrayView
     if (!this._tray || !this._events || !this._ops) throw new Error("StacksTrayViewController is not initialized");
     this._view = view;
 
-    const initialSlots: (ReturnType<IStacksTray["getSlot"]>)[] = [];
-    for (let i = 0; i < this._tray.slotCount; i++) initialSlots.push(this._tray.getSlot(i));
-    view.buildTray(initialSlots);
+    view.buildTray(this._tray.getAllSlots());
 
     this._subs.add(view.onStackPressed((slotIndex) => this._handleStackPressed(slotIndex)));
     this._subs.add(view.onPointerReleased(() => this._handlePointerReleased()));
-    this._subs.add(this._events.onStackPlaced((_stack, _col, _row) => this._handleStackPlaced()));
-    this._subs.add(this._events.onStackDropCancelled(() => this._handleStackDropCancelled()));
+    this._subs.add(this._events.onStackPlaced((stack) => this._handleStackPlaced(stack)));
+    this._subs.add(this._events.onStackDropCancelled((stack) => this._handleStackDropCancelled(stack)));
   }
 
   public destroy(): void {
@@ -53,35 +55,38 @@ export class StacksTrayViewController implements IViewController<IStacksTrayView
     this._tray = null;
     this._events = null;
     this._ops = null;
-    this._activeSlot = null;
   }
 
   private _handleStackPressed(slotIndex: number): void {
     if (!this._tray || !this._events) return;
     const stack = this._tray.getSlot(slotIndex);
     if (!stack) return;
-    this._activeSlot = slotIndex;
     this._events.emitStackPickedUp(stack);
   }
 
   private _handlePointerReleased(): void {
-    if (this._activeSlot === null || !this._events) return;
-    this._events.emitStackReleased();
+    // The view only emits release while a drag is in flight, so no
+    // guard is needed here — the grid controller decides placed vs
+    // cancelled.
+    this._events?.emitStackReleased();
   }
 
-  private _handleStackPlaced(): void {
-    if (this._activeSlot === null || !this._view || !this._ops) return;
-    const slotIndex = this._activeSlot;
-    this._activeSlot = null;
+  private _handleStackPlaced(stack: BlockStack): void {
+    if (!this._tray || !this._view || !this._ops) return;
+    // Grid mutates its own state first, but the tray is still holding
+    // this stack at the origin slot at event-fire time.
+    const slotIndex = this._tray.findSlotByStackId(stack.id);
+    if (slotIndex < 0) return;
 
     this._view.removeSlotVisual(slotIndex);
     const replacement = this._ops.refillTraySlot(slotIndex);
     this._view.addSlotStack(slotIndex, replacement);
   }
 
-  private _handleStackDropCancelled(): void {
-    if (this._activeSlot === null || !this._view) return;
-    this._view.resetSlotVisual(this._activeSlot);
-    this._activeSlot = null;
+  private _handleStackDropCancelled(stack: BlockStack): void {
+    if (!this._tray || !this._view) return;
+    const slotIndex = this._tray.findSlotByStackId(stack.id);
+    if (slotIndex < 0) return;
+    this._view.resetSlotVisual(slotIndex);
   }
 }

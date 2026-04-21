@@ -9,7 +9,6 @@ import type { IGameScreenView } from "./IGameScreenView.js";
 export class GameScreenView extends ScreenView implements IGameScreenView {
   private _settingsBtn: ButtonComponent | null = null;
   private readonly _settingsListeners = new Set<() => void>();
-  private _screenWidth = 0;
 
   public override postInitialize(): void {
     super.postInitialize();
@@ -33,7 +32,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._screenWidth = width;
     if (this._settingsBtn) this._settingsBtn.position.set(width - 60, 16);
   }
 

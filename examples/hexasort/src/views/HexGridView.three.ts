@@ -4,6 +4,7 @@ import { World, WorldViewBase, type IInstanceResolver, type IPointerInputHandler
 import type { HexCellCoord, IHexGridView } from "./IHexGridView.js";
 import type { IHexGrid } from "../models/IHexGrid.js";
 import { HexaSortConfig } from "../HexaSortConfig.js";
+import { hexCellKey } from "../utilities/HexNeighbors.js";
 
 type CellRecord = {
   readonly col: number;
@@ -53,6 +54,9 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
   private _lastClientX = 0;
   private readonly _dragListeners = new Set<(dx: number) => void>();
 
+  /** Active gsap tweens keyed by the object whose properties they animate. */
+  private readonly _activeTweens = new Set<gsap.core.Tween>();
+
   private readonly _raycaster = new THREE.Raycaster();
   private readonly _ndc = new THREE.Vector2();
 
@@ -86,7 +90,7 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
         mesh.add(edges);
         this.add(mesh);
         this._cellMeshes.push(mesh);
-        this._cellsByKey.set(HexGridView._cellKey(col, row), { col, row, mesh, material });
+        this._cellsByKey.set(hexCellKey(col, row), { col, row, mesh, material });
       }
     }
   }
@@ -111,7 +115,7 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
 
   public setHighlightedCell(col: number, row: number): void {
     const cfg = this._requireConfig();
-    const next = this._cellsByKey.get(HexGridView._cellKey(col, row));
+    const next = this._cellsByKey.get(hexCellKey(col, row));
     if (!next) return;
     if (this._highlightedCell && (this._highlightedCell.col !== col || this._highlightedCell.row !== row)) {
       this._restoreCellColor(this._highlightedCell.col, this._highlightedCell.row);
@@ -131,7 +135,7 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
   }
 
   public popTopBlock(col: number, row: number): void {
-    const key = HexGridView._cellKey(col, row);
+    const key = hexCellKey(col, row);
     const blocks = this._blocksByCell.get(key);
     if (!blocks || blocks.length === 0) return;
     const mesh = blocks.pop()!;
@@ -141,13 +145,13 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
 
   public pushTopBlock(col: number, row: number, colorIndex: number): void {
     const cfg = this._requireConfig();
-    const record = this._cellsByKey.get(HexGridView._cellKey(col, row));
+    const record = this._cellsByKey.get(hexCellKey(col, row));
     if (!record || !this._blockGeometry) return;
 
     const material = this._getOrCreateBlockMaterial(colorIndex);
     const block = new THREE.Mesh(this._blockGeometry, material);
 
-    const key = HexGridView._cellKey(col, row);
+    const key = hexCellKey(col, row);
     let blocks = this._blocksByCell.get(key);
     if (!blocks) {
       blocks = [];
@@ -171,8 +175,8 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
     onComplete: () => void,
   ): void {
     const cfg = this._requireConfig();
-    const sourceRecord = this._cellsByKey.get(HexGridView._cellKey(sourceCol, sourceRow));
-    const targetRecord = this._cellsByKey.get(HexGridView._cellKey(targetCol, targetRow));
+    const sourceRecord = this._cellsByKey.get(hexCellKey(sourceCol, sourceRow));
+    const targetRecord = this._cellsByKey.get(hexCellKey(targetCol, targetRow));
     if (!sourceRecord || !targetRecord || !this._blockGeometry) {
       onComplete();
       return;
@@ -180,7 +184,7 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
 
     // Pop the source's top mesh (tracking + scene) BEFORE starting the
     // tween so the source visual immediately reflects one less block.
-    const sourceKey = HexGridView._cellKey(sourceCol, sourceRow);
+    const sourceKey = hexCellKey(sourceCol, sourceRow);
     const sourceBlocks = this._blocksByCell.get(sourceKey);
     if (sourceBlocks && sourceBlocks.length > 0) {
       const topMesh = sourceBlocks.pop()!;
@@ -199,7 +203,7 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
       cfg.hexHeight + cfg.blockHeight * (srcStackIndex + 0.5),
       sourceRecord.mesh.position.z,
     );
-    const targetBlocks = this._blocksByCell.get(HexGridView._cellKey(targetCol, targetRow));
+    const targetBlocks = this._blocksByCell.get(hexCellKey(targetCol, targetRow));
     const tgtNextStackIndex = targetBlocks?.length ?? 0;
     const endLocal = new THREE.Vector3(
       targetRecord.mesh.position.x,
@@ -235,7 +239,7 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
 
     // One linear progress tween drives the whole trajectory so XZ motion,
     // parabolic Y arc, and flip quaternion advance in lockstep.
-    gsap.to(progress, {
+    const tween = gsap.to(progress, {
       t: 1,
       duration,
       ease: "none",
@@ -251,17 +255,19 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
         flying.quaternion.copy(tmpQuat);
       },
       onComplete: () => {
+        this._activeTweens.delete(tween);
         flying.removeFromParent();
         // Fresh mesh with identity rotation lands flat on the target stack.
         this.pushTopBlock(targetCol, targetRow, colorIndex);
         onComplete();
       },
     });
+    this._activeTweens.add(tween);
   }
 
   public animateBlockDestroy(col: number, row: number, onComplete: () => void): void {
     const cfg = this._requireConfig();
-    const key = HexGridView._cellKey(col, row);
+    const key = hexCellKey(col, row);
     const blocks = this._blocksByCell.get(key);
     if (!blocks || blocks.length === 0) {
       onComplete();
@@ -270,17 +276,19 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
     const topMesh = blocks.pop()!;
     if (blocks.length === 0) this._blocksByCell.delete(key);
 
-    gsap.to(topMesh.scale, {
+    const tween = gsap.to(topMesh.scale, {
       x: 0,
       y: 0,
       z: 0,
       duration: cfg.animDestroyScaleSeconds,
       ease: "power2.in",
       onComplete: () => {
+        this._activeTweens.delete(tween);
         topMesh.removeFromParent();
         onComplete();
       },
     });
+    this._activeTweens.add(tween);
   }
 
   // IPointerInputHandler — fires for every canvas pointer event. This view
@@ -318,6 +326,11 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
   }
 
   public override preDestroy(): void {
+    // Kill in-flight tweens before disposing meshes so gsap doesn't keep
+    // writing to freed geometry/material refs. `kill()` fires onComplete
+    // only if `.kill(true)` is used; we want silent cancellation.
+    for (const tween of this._activeTweens) tween.kill();
+    this._activeTweens.clear();
     this._hoverListeners.clear();
     this._dragListeners.clear();
     this._endDrag();
@@ -361,7 +374,7 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
 
   private _restoreCellColor(col: number, row: number): void {
     const cfg = this._requireConfig();
-    const record = this._cellsByKey.get(HexGridView._cellKey(col, row));
+    const record = this._cellsByKey.get(hexCellKey(col, row));
     if (record) record.material.color.setHex(cfg.cellColor);
   }
 
@@ -406,10 +419,6 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
   private _requireConfig(): HexaSortConfig {
     if (!this._config) throw new Error("HexGridView is not initialized");
     return this._config;
-  }
-
-  private static _cellKey(col: number, row: number): number {
-    return col * 1000 + row;
   }
 
   /**

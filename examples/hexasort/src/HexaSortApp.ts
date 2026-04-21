@@ -11,6 +11,7 @@ import {
   SettingsEvents,
   SettingsNumberField,
   UIEvents,
+  UnsubscribeBag,
   World,
   type ISettingsModel as ISettingsModelType,
 } from "@gamebyte/gamelabsjs";
@@ -21,7 +22,7 @@ import { IHexGrid } from "./models/IHexGrid.js";
 import { StacksTray } from "./models/StacksTray.js";
 import { IStacksTray } from "./models/IStacksTray.js";
 import { GameEvents } from "./events/GameEvents.js";
-import { BlockStackFactory } from "./utilities/BlockStackFactory.js";
+import { BlockStackOperations } from "./utilities/BlockStackOperations.js";
 import { GameOperations } from "./utilities/GameOperations.js";
 import { SortingManager } from "./utilities/SortingManager.js";
 import { SfxService } from "./services/SfxService.js";
@@ -61,12 +62,12 @@ export class HexaSortApp extends GamelabsApp {
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _settingsBinding = new SettingsBinding();
   private readonly _events = new GameEvents();
-  private readonly _stackFactory = new BlockStackFactory(this._config);
+  private readonly _stackOps = new BlockStackOperations(this._config);
   private _grid: HexGrid | null = null;
   private _tray: StacksTray | null = null;
   private _gridView: HexGridView | null = null;
   private _trayView: StacksTrayView | null = null;
-  private _cameraController: Orbital3dCameraController | null = null;
+  private readonly _systemUnsubs = new UnsubscribeBag();
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -99,7 +100,7 @@ export class HexaSortApp extends GamelabsApp {
     this.diContainer.bindInstance(StacksTray, this._tray, [IStacksTray]);
 
     this.diContainer.bindInstance(GameEvents, this._events);
-    this.diContainer.bindInstance(BlockStackFactory, this._stackFactory);
+    this.diContainer.bindInstance(BlockStackOperations, this._stackOps);
 
     const audioService = this.diContainer.getInstance(AudioService);
     this.diContainer.bindInstance(SfxService, new SfxService(audioService));
@@ -133,13 +134,14 @@ export class HexaSortApp extends GamelabsApp {
     this._trayView = this.viewFactory.createView(StacksTrayView);
     this.world.addView(this._trayView);
 
-    // Camera.
+    // Camera. `register()` wires the controller into the camera manager;
+    // no unregister / destroy hook exists today, so the ref is local.
     this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._cameraController = new Orbital3dCameraController(this._gameCameraBinding.cameraManager).register();
-    this._cameraController.distance = this._config.cameraDistance;
-    this._cameraController.pitch = this._config.cameraPitch;
-    this._cameraController.azimuth = 0;
-    this._cameraController.followPosition(0, 0, 0);
+    const camera = new Orbital3dCameraController(this._gameCameraBinding.cameraManager).register();
+    camera.distance = this._config.cameraDistance;
+    camera.pitch = this._config.cameraPitch;
+    camera.azimuth = 0;
+    camera.followPosition(0, 0, 0);
 
     // Settings → AudioService bridge.
     this._applyInitialSettings();
@@ -157,7 +159,10 @@ export class HexaSortApp extends GamelabsApp {
   }
 
   protected override preDestroy(): void {
-    this._cameraController = null;
+    this._systemUnsubs.flush();
+    // DI singleton: explicitly destroy so the scheduler's UpdateManager
+    // subscription + in-flight phase state don't leak past app teardown.
+    this.diContainer.getInstance(SortingManager).destroy();
     this._trayView?.destroy();
     this._trayView = null;
     this._gridView?.destroy();
@@ -170,7 +175,7 @@ export class HexaSortApp extends GamelabsApp {
   private _createInitialTray(): StacksTray {
     const tray = new StacksTray(this._config.initialStacks.length);
     for (let i = 0; i < this._config.initialStacks.length; i++) {
-      tray.setSlot(i, this._stackFactory.createStack(this._config.initialStacks[i]!));
+      tray.setSlot(i, this._stackOps.createStack(this._config.initialStacks[i]!));
     }
     return tray;
   }
@@ -188,7 +193,9 @@ export class HexaSortApp extends GamelabsApp {
     const settings = this.diContainer.getInstance(ISettingsModel);
     const audio = this.diContainer.getInstance(AudioService);
     const events = this.diContainer.getInstance(SettingsEvents);
-    events.onValueChanged((name) => this._onSettingValueChanged(name, settings, audio));
+    this._systemUnsubs.add(
+      events.onValueChanged((name) => this._onSettingValueChanged(name, settings, audio)),
+    );
   }
 
   private _onSettingValueChanged(name: string, settings: ISettingsModelType, audio: AudioService): void {

@@ -15,12 +15,15 @@ import { HexaSortConfig } from "../HexaSortConfig.js";
  * Valid:   `[blue]`                       (one segment)
  * Invalid: `[blue, red, blue, red]`       (blue appears in two segments)
  *
+ * Named `*Operations` per DeveloperNotes.md "Where logic lives" — this
+ * is a stateful rules/operations utility (not a browser-API service).
+ *
  * {@link isValid} checks the invariant; {@link createStack} throws when a
  * caller supplies an explicit color list that violates it;
  * {@link createRandomStack} constructs random stacks that are valid by
  * construction.
  */
-export class BlockStackFactory {
+export class BlockStackOperations {
   private readonly _config: HexaSortConfig;
   private _nextId: number;
 
@@ -30,7 +33,7 @@ export class BlockStackFactory {
   }
 
   public createRandomStack(): BlockStack {
-    const colors = BlockStackFactory._buildContiguousStack(
+    const colors = BlockStackOperations._buildContiguousStack(
       this._config.spawnedStackLength,
       this._config.blockColors.length,
     );
@@ -38,7 +41,7 @@ export class BlockStackFactory {
   }
 
   public createStack(colors: readonly number[]): BlockStack {
-    if (!BlockStackFactory.isValid(colors)) {
+    if (!BlockStackOperations.isValid(colors)) {
       throw new Error(
         `Invalid block stack [${colors.join(", ")}]: each color must form a single contiguous segment`,
       );
@@ -76,7 +79,7 @@ export class BlockStackFactory {
     // Pick `segmentCount` distinct palette indices via Fisher–Yates prefix.
     const indices: number[] = [];
     for (let i = 0; i < paletteSize; i++) indices.push(i);
-    BlockStackFactory._shuffleInPlace(indices);
+    BlockStackOperations._shuffleInPlace(indices);
     const segmentColors = indices.slice(0, segmentCount);
 
     // Allocate ≥ 1 block per segment, then distribute the remaining

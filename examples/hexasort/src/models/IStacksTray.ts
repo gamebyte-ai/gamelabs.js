@@ -9,6 +9,8 @@ import type { BlockStack } from "./BlockStack.js";
 export interface IStacksTray {
   readonly slotCount: number;
   getSlot(index: number): BlockStack | null;
+  /** Snapshot of every slot in order. The caller must not mutate it. */
+  getAllSlots(): readonly (BlockStack | null)[];
   findSlotByStackId(stackId: number): number;
 }
 

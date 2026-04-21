@@ -1,6 +1,17 @@
 export type HexCoord = { readonly col: number; readonly row: number };
 
 /**
+ * Packs `(col, row)` into a single number key for use in Sets / Maps.
+ *
+ * The `* 1000` multiplier supports grids up to 1000 rows; adjust here
+ * (not per call-site) if the grid ever grows. Shared by `HexGridView`
+ * and `SortingManager` so both use the same packing scheme.
+ */
+export function hexCellKey(col: number, row: number): number {
+  return col * 1000 + row;
+}
+
+/**
  * Neighbor offsets for a flat-top hex grid in odd-q offset coordinates.
  *
  * In this layout odd columns are shifted +0.5 row along the row axis (Z).

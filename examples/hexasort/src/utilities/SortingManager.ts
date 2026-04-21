@@ -1,16 +1,16 @@
 import { UnsubscribeBag, UpdateManager, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { HexGrid } from "../models/HexGrid.js";
-import type { IHexGridView } from "../views/IHexGridView.js";
 import { HexaSortConfig } from "../HexaSortConfig.js";
+import { GameEvents } from "../events/GameEvents.js";
 import { SortOperations, type SortMove } from "./SortOperations.js";
 import { SfxService } from "../services/SfxService.js";
-import type { HexCoord } from "./HexNeighbors.js";
+import { hexCellKey, type HexCoord } from "./HexNeighbors.js";
 
 type Phase = "idle" | "sorting" | "destroying" | "cooldown";
 
 /**
  * Global, single-track placement-merge state manager with continuous
- * grid-wide propagation, GSAP-driven animations, and deferred destruction.
+ * grid-wide propagation and deferred destruction.
  *
  * A *trigger queue* drives everything. A trigger is a cell to evaluate as
  * the placed cell of the next merge iteration. Triggers enter the queue
@@ -23,15 +23,22 @@ type Phase = "idle" | "sorting" | "destroying" | "cooldown";
  * 3. Post-destruction rescan: after a cell's destruction completes, the
  *    same scan runs so the revealed top can seed new merges.
  *
- * Bound as a DI singleton. The view is attached later via
- * {@link setView} once the HexGridView has been created by the factory
- * — this lets the controller hold only the readonly `IHexGrid` while
- * the manager keeps the concrete mutable reference it needs to pop/push.
+ * **Rendering separation.** The manager mutates the model and plays the
+ * SFX that are tied to domain steps, then emits
+ * {@link GameEvents.onSortMoveStarted} / {@link GameEvents.onBlockDestroyStarted}
+ * with plain `(col, row, color)` coordinates. It never imports view
+ * types and never holds a view reference — the grid view controller
+ * subscribes and translates events into view animations. Step cadence
+ * is time-based and derived from the animation durations in
+ * {@link HexaSortConfig}, so the manager advances in lockstep with the
+ * view's tweens without needing a completion callback.
+ *
+ * Bound as a DI singleton.
  */
 export class SortingManager implements IInjectionTarget {
   private _grid: HexGrid | null = null;
-  private _view: IHexGridView | null = null;
   private _config: HexaSortConfig | null = null;
+  private _events: GameEvents | null = null;
   private _sfx: SfxService | null = null;
 
   private readonly _queue: HexCoord[] = [];
@@ -49,25 +56,16 @@ export class SortingManager implements IInjectionTarget {
   private _destroyColor: number | null = null;
 
   private _timeAccum = 0;
-  private _animating = false;
 
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
     this._grid = resolver.getInstance(HexGrid);
     this._config = resolver.getInstance(HexaSortConfig);
+    this._events = resolver.getInstance(GameEvents);
     this._sfx = resolver.getInstance(SfxService);
     const updateManager = resolver.getInstance(UpdateManager);
     this._subs.add(updateManager.register((dt) => this._tick(dt)));
-  }
-
-  /**
-   * Called by the HexGridViewController once its view has been built.
-   * Pass `null` on controller destroy to release the reference; the
-   * manager will simply skip animations until a new view is attached.
-   */
-  public setView(view: IHexGridView | null): void {
-    this._view = view;
   }
 
   /** Queues a placement cell as a merge trigger. A running phase is never disturbed. */
@@ -81,34 +79,39 @@ export class SortingManager implements IInjectionTarget {
     this._queue.length = 0;
     this._queuedKeys.clear();
     this._setIdle();
-    this._animating = false;
-    this._view = null;
     this._grid = null;
     this._config = null;
+    this._events = null;
     this._sfx = null;
   }
 
   // --- Tick driver --------------------------------------------------------
 
   private _tick(dtSeconds: number): void {
-    if (this._animating) return;
     if (!this._grid || !this._config) return;
     this._timeAccum += dtSeconds;
-    while (!this._animating && this._timeAccum >= this._currentStepSeconds()) {
+    while (this._timeAccum >= this._currentStepSeconds()) {
       this._timeAccum -= this._currentStepSeconds();
       this._fireStep();
     }
   }
 
+  /**
+   * Phase step durations bundle animation-run-time with the per-step
+   * gap, so a single timer drives both "view is animating" and
+   * "breathing room between steps". The view's gsap tween duration
+   * matches the animation portion, so the two advance in lockstep.
+   */
   private _currentStepSeconds(): number {
-    if (!this._config) return Number.POSITIVE_INFINITY;
+    const cfg = this._config;
+    if (!cfg) return Number.POSITIVE_INFINITY;
     switch (this._phase) {
       case "sorting":
-        return this._config.sortStepSeconds;
+        return cfg.animSortMoveSeconds + cfg.sortStepSeconds;
       case "destroying":
-        return this._config.destructionStepSeconds;
+        return cfg.animDestroyScaleSeconds + cfg.destructionStepSeconds;
       case "cooldown":
-        return this._config.colorCooldownSeconds;
+        return cfg.colorCooldownSeconds;
       default:
         return Number.POSITIVE_INFINITY;
     }
@@ -133,7 +136,7 @@ export class SortingManager implements IInjectionTarget {
   // --- Queue --------------------------------------------------------------
 
   private _enqueueTrigger(cell: HexCoord): void {
-    const key = SortingManager._cellKey(cell.col, cell.row);
+    const key = hexCellKey(cell.col, cell.row);
     if (this._queuedKeys.has(key)) return;
     this._queuedKeys.add(key);
     this._queue.push({ col: cell.col, row: cell.row });
@@ -142,7 +145,7 @@ export class SortingManager implements IInjectionTarget {
   private _dequeueTrigger(): HexCoord | null {
     const cell = this._queue.shift();
     if (!cell) return null;
-    this._queuedKeys.delete(SortingManager._cellKey(cell.col, cell.row));
+    this._queuedKeys.delete(hexCellKey(cell.col, cell.row));
     return cell;
   }
 
@@ -166,7 +169,7 @@ export class SortingManager implements IInjectionTarget {
    * destruction scan or idle.
    */
   private _tryStartNext(): void {
-    if (this._phase !== "idle" || this._animating) return;
+    if (this._phase !== "idle") return;
     while (this._queue.length > 0) {
       const trigger = this._dequeueTrigger()!;
       if (this._startMergeIteration(trigger)) {
@@ -241,11 +244,11 @@ export class SortingManager implements IInjectionTarget {
 
   private _onSortStep(): void {
     const move = this._pickNextMergeMove();
-    if (move) {
-      this._startSortMove(move);
+    if (!move) {
+      this._onMergeIterationDone();
       return;
     }
-    this._onMergeIterationDone();
+    this._startSortMove(move);
   }
 
   /** First pending source whose top still matches `_mergeColor`. */
@@ -260,34 +263,22 @@ export class SortingManager implements IInjectionTarget {
   }
 
   private _startSortMove(move: SortMove): void {
-    if (!this._grid || !this._sfx) return;
+    if (!this._grid || !this._events) return;
     const popped = this._grid.popTop(move.source.col, move.source.row);
     if (popped === null) return;
     this._grid.pushTop(move.target.col, move.target.row, move.color);
 
-    // SFX 1: the tile is leaving the source stack.
-    this._sfx.playMoveStart();
+    // SFX tied to the domain step; landing SFX is fired by the view
+    // controller when the tween completes (tied to the rendered motion).
+    this._sfx?.playMoveStart();
 
-    if (!this._view) return;
-    this._animating = true;
-    this._view.animateBlockMove(
+    this._events.emitSortMoveStarted(
       move.source.col,
       move.source.row,
       move.target.col,
       move.target.row,
       move.color,
-      () => this._onSortMoveAnimComplete(),
     );
-  }
-
-  private _onSortMoveAnimComplete(): void {
-    this._animating = false;
-    this._timeAccum = 0;
-    // SFX 2: the tile has just settled onto the target stack.
-    this._sfx?.playTileLand();
-    // Tighten post-move transitions: if the iteration is exhausted,
-    // immediately rescan + cooldown so the next step starts sooner.
-    if (!this._pickNextMergeMove()) this._onMergeIterationDone();
   }
 
   private _onMergeIterationDone(): void {
@@ -326,17 +317,12 @@ export class SortingManager implements IInjectionTarget {
   }
 
   private _startDestroyStep(cell: HexCoord): void {
-    if (!this._grid || !this._sfx) return;
+    if (!this._grid || !this._events) return;
     this._grid.popTop(cell.col, cell.row);
     // SFX 3: one pop per destroyed tile — fires at the start of each
-    // 0.1s destruction step, so rapid cascades sound as a natural burst.
-    this._sfx.playTileDestroy();
-    if (!this._view) return;
-    this._animating = true;
-    this._view.animateBlockDestroy(cell.col, cell.row, () => {
-      this._animating = false;
-      this._timeAccum = 0;
-    });
+    // destruction step, so rapid cascades sound as a natural burst.
+    this._sfx?.playTileDestroy();
+    this._events.emitBlockDestroyStarted(cell.col, cell.row);
   }
 
   private _onDestructionComplete(): void {
@@ -361,9 +347,5 @@ export class SortingManager implements IInjectionTarget {
 
   private static _sameCell(a: HexCoord, b: HexCoord): boolean {
     return a.col === b.col && a.row === b.row;
-  }
-
-  private static _cellKey(col: number, row: number): number {
-    return col * 1000 + row;
   }
 }

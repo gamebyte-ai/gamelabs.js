@@ -29,6 +29,10 @@ export class StacksTray implements IStacksTray {
     return this._slots[index]!;
   }
 
+  public getAllSlots(): readonly (BlockStack | null)[] {
+    return this._slots;
+  }
+
   public findSlotByStackId(stackId: number): number {
     for (let i = 0; i < this._slots.length; i++) {
       if (this._slots[i]?.id === stackId) return i;
