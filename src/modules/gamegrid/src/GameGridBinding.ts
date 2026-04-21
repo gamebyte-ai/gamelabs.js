@@ -10,8 +10,6 @@ import { GridsView } from "./views/GridsView.three.js";
 import { GridObjectCreator } from "./views/GridObjectCreator.js";
 
 export class GameGridBinding extends ModuleBinding {
-  private readonly _events = new GridEvents();
-  private readonly _model = new GridsModel(this._events);
   private readonly _objectCreator: GridObjectCreator;
   private readonly _viewClass: typeof GridsView;
   private readonly _controllerClass: typeof GridsViewController;
@@ -28,20 +26,12 @@ export class GameGridBinding extends ModuleBinding {
   }
 
   public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {
-    diContainer.bindInstance(GridEvents, this._events);
-    diContainer.bindInstance(GridsModel, this._model, [IGridsModel]);
+    diContainer.bindInstance(GridEvents, new GridEvents());
+    diContainer.bindSingleton(GridsModel, (r) => new GridsModel(r.getInstance(GridEvents)), [IGridsModel]);
     viewDiContainer.bindInstance(GridObjectCreator, this._objectCreator);
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {
     viewFactory.register(this._viewClass, this._controllerClass);
-  }
-
-  public get model(): GridsModel {
-    return this._model;
-  }
-
-  public get events(): GridEvents {
-    return this._events;
   }
 }

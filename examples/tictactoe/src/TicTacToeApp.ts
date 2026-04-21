@@ -61,8 +61,6 @@ export class TicTacToeApp extends GamelabsApp {
     this._gameGridView = this.viewFactory.createView(GameGridsView);
     this.world.addView(this._gameGridView);
 
-    this._gameGridBinding.model.getGrid(this._config.boardId);
-
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);
     this._cameraController = new Topdown3dCameraController(this._cameraManager).register();
