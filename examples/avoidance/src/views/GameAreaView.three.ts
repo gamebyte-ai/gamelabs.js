@@ -25,6 +25,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   }
 
   public override postInitialize(): void {
+    super.postInitialize();
     const config = this._config!;
     this._areaSize = config.gameAreaSize;
     const size = this._areaSize;

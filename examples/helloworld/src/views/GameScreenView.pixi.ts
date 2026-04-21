@@ -16,19 +16,20 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private topBar: TopBarView | null = null;
   private debugBar: DebugBarView | null = null;
 
-  public postInitialize(): void {
+  public override postInitialize(): void {
+    super.postInitialize();
     // Enable flex layout: top bar at top, debug bar below it.
-    (this as any).layout = {
+    this.layout = {
       width: 1,
       height: 1,
       flexDirection: "column",
       justifyContent: "flex-start",
       padding: 16,
-      gap: 12
+      gap: 12,
     };
 
     // Invisible overlay to define bounds + potential future interactions.
-    (this.overlay as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    this.overlay.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     if (!this.overlay.parent) this.addChild(this.overlay);
 
     // View owns subview creation.
@@ -39,13 +40,13 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this.addChild(this.debugBar);
 
     // Layout children: fill width, take intrinsic height.
-    (this.topBar as any).layout = { width: "100%" };
-    (this.debugBar as any).layout = { width: "100%" };
+    this.topBar.layout = { width: "100%" };
+    this.debugBar.layout = { width: "100%" };
   }
 
-  override onResize(width: number, height: number, _dpr: number): void {
+  public override onResize(width: number, height: number, _dpr: number): void {
     // Drive layout sizing from the app.
-    (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
+    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
 
     this.overlay.clear();
     // Transparent overlay; keeps the screen non-obtrusive while defining bounds.

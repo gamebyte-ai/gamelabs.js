@@ -32,6 +32,7 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
   private readonly _joystickDirListeners = new Set<(id: string, nx: number, ny: number) => void>();
 
   public override postInitialize(): void {
+    super.postInitialize();
     this.eventMode = "auto";
     this.interactiveChildren = true;
   }

@@ -54,7 +54,8 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     this.initialCurrentLevel = opts.currentLevel;
   }
 
-  public postInitialize(): void {
+  public override postInitialize(): void {
+    super.postInitialize();
     if (typeof this.initialVisibleCount === "number") {
       this.visibleCount = Math.max(1, Math.floor(this.initialVisibleCount));
     }

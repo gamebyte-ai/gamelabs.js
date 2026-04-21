@@ -37,8 +37,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._config = resolver.getInstance(WaterSortConfig);
   }
 
-  public postInitialize(): void {
-    (this as any).layout = { width: 1, height: 1 };
+  public override postInitialize(): void {
+    super.postInitialize();
 
     const bgTexture = this.assetLoader.getAsset<PIXI.Texture>(WaterSortAssetIds.Background);
     if (bgTexture) {
@@ -81,7 +81,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   public override onResize(width: number, height: number, _dpr: number): void {
     this._screenWidth = Math.max(1, width);
     this._screenHeight = Math.max(1, height);
-    (this as any).layout = { width: this._screenWidth, height: this._screenHeight };
 
     if (this._bgTile) {
       this._bgTile.width = this._screenWidth;

@@ -1,8 +1,8 @@
 import "@pixi/layout";
 import * as PIXI from "pixi.js";
-import type { IApp } from "../app/IApp.js";
-import type { AppEvents } from "../app/AppEvents.js";
-import { UnsubscribeBag } from "../events/subscriptions.js";
+import type { IApp } from "../../../../core/app/IApp.js";
+import type { AppEvents } from "../../../../core/app/AppEvents.js";
+import { UnsubscribeBag } from "../../../../core/events/subscriptions.js";
 
 /**
  * Container whose `@pixi/layout` box tracks the app's canvas dimensions.
@@ -12,7 +12,7 @@ import { UnsubscribeBag } from "../events/subscriptions.js";
  * Useful as a layout root for HUD widgets that are created outside the
  * `ViewFactory` lifecycle (debug overlays, app-level content panels, etc.).
  */
-export class FullscreenLayoutContainer extends PIXI.Container {
+export class FullscreenLayoutComponent extends PIXI.Container {
   private readonly _subs = new UnsubscribeBag();
 
   public constructor(app: IApp, appEvents: AppEvents) {

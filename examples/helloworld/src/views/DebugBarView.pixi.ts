@@ -46,7 +46,8 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     radius: 10,
   });
 
-  public postInitialize(): void {
+  public override postInitialize(): void {
+    super.postInitialize();
     this.layout = { width: "100%", padding: 16 };
 
     this.bar.addChild(this.barBg);

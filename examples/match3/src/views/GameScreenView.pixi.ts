@@ -9,14 +9,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private _screenWidth = 0;
 
   public override postInitialize(): void {
-    (this as any).layout = {
-      width: 1,
-      height: 1,
-      flexDirection: "column",
-      justifyContent: "flex-start",
-      alignItems: "flex-start",
-      padding: 16
-    };
+    super.postInitialize();
 
     this._scoreText = new PIXI.Text({
       text: "Score: 0",
@@ -42,7 +35,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public override onResize(width: number, height: number, _dpr: number): void {
     this._screenWidth = Math.max(1, width);
-    (this as any).layout = { width: this._screenWidth, height: Math.max(1, height) };
     if (this._scoreText) {
       this._scoreText.x = 16;
       this._scoreText.y = 12;

@@ -13,7 +13,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private _activeTeam: Team = Team.X;
 
   public override postInitialize(): void {
-    (this as any).layout = {
+    super.postInitialize();
+    this.layout = {
       width: 1,
       height: 1,
       flexDirection: "row",
@@ -43,6 +44,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   }
 
   override onResize(width: number, height: number, _dpr: number): void {
-    (this as any).layout = { width: Math.max(1, width), height: Math.max(1, height) };
+    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
   }
 }

@@ -2,6 +2,7 @@ export * from "./views/ButtonComponent.pixi.js";
 export * from "./views/BackgroundComponent.pixi.js";
 export * from "./views/VerticalLayoutComponent.pixi.js";
 export * from "./views/HorizontalLayoutComponent.pixi.js";
+export * from "./views/FullscreenLayoutComponent.pixi.js";
 export * from "./views/ImageComponent.pixi.js";
 export * from "./views/ToggleComponent.pixi.js";
 export * from "./views/SliderComponent.pixi.js";

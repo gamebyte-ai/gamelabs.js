@@ -43,7 +43,8 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
   private playButton!: ButtonComponent;
   private settingsButton!: ButtonComponent;
 
-  public postInitialize(): void {
+  public override postInitialize(): void {
+    super.postInitialize();
     // Create components from presets stored in asset manager.
     const bgPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.BackgroundPreset) ?? "{}";
     this.background = new BackgroundComponent(parseBackgroundComponentPreset(bgPresetJson));
