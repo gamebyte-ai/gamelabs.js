@@ -16,6 +16,21 @@ This is a **game framework**, not a web app framework. Games are single-page, ti
 
 This applies to: `GamelabsApp.initialize()`, DI container, module `configureDI()`, asset loading, and any other one-time setup that establishes application state.
 
+## Module lifecycle
+
+Modules are **static, boot-time bundles**. They are created once at app construction and never unloaded, reloaded, or destroyed independently.
+
+- A `ModuleBinding` exposes only `configureDI`, `configureViews`, and `assetRequestList`. Do **not** add `onInitialize`, `onUpdate`, `onResize`, or `onDestroy` hooks to modules.
+- Any runtime orchestration belongs in the `GamelabsApp` subclass:
+  - `postInitialize()` for one-time wiring once world/hud/DI are ready (e.g. `cameraManager.initialize(this.world)`).
+  - `onResize(w, h, dpr)` for viewport-dependent updates.
+  - `onStep(dt)` for per-frame work.
+  - `preDestroy()` for cleanup of anything the app itself wired.
+- If a module binds a manager that needs `initialize` / `update` / `destroy` calls, the app is responsible for calling them from those hooks. The module's README should document the required wiring.
+- Bound dependencies are released with the DI container; assets are freed by `AssetManager`. Modules do not need per-module teardown.
+
+This is deliberate: modules are decorators on the DI container + view factory, not parallel runtime entities. Keeping the module surface static avoids implicit per-frame dispatch, hidden ordering rules, and ambiguous teardown responsibilities.
+
 ## Rules and constraints
 
 - Views must NOT access `diContainer`. Views receive `viewDiContainer` only.

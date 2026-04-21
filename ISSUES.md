@@ -2,7 +2,7 @@
 
 Last updated: April 2026 (re-evaluated after full refactor session).
 
-Total: **4 active issues** (0 Critical, 0 High, 0 Medium, 2 Low, 2 Architectural).
+Total: **3 active issues** (0 Critical, 0 High, 0 Medium, 2 Low, 1 Architectural).
 
 ---
 
@@ -24,15 +24,7 @@ Total: **4 active issues** (0 Critical, 0 High, 0 Medium, 2 Low, 2 Architectural
 
 ## Architectural Concerns
 
-### A1. Module API is not lifecycle-aware — framework leakage
-
-**Problem:** Modules like `GameCameraBinding` only bind a manager. Apps must manually call `initialize()`, `resize()`, `update()` from app hooks. Not a reusable module boundary.
-
-**Fix idea:** `ModuleBinding` could have optional `onInitialize(app)`, `onResize(w, h, dpr)`, `onUpdate(dt)` methods called automatically by `GamelabsApp`.
-
----
-
-### A2. `bindInstance()` vs `bindSingleton()` inject() asymmetry
+### A1. `bindInstance()` vs `bindSingleton()` inject() asymmetry
 
 **Problem:** `bindSingleton` triggers `IInjectionTarget.inject()` automatically. `bindInstance` does not. This asymmetry broke SettingsManager (fixed) and will affect any future `IInjectionTarget` registered via `bindInstance`.
 
@@ -46,5 +38,4 @@ Total: **4 active issues** (0 Critical, 0 High, 0 Medium, 2 Low, 2 Architectural
 |---|----------|-------|----------|
 | 1 | Low | No tests for core/modules | — |
 | 2 | Low | No module collision smoke test | — |
-| A1 | Arch | Module API not lifecycle-aware | GameCameraBinding + app hooks |
-| A2 | Arch | bindInstance vs bindSingleton inject asymmetry | DIContainer.ts |
+| A1 | Arch | bindInstance vs bindSingleton inject asymmetry | DIContainer.ts |

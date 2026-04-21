@@ -199,7 +199,9 @@ Your `MyGameApp` class extends `GamelabsApp` and implements following methods:
 
 ### Modules
 
-Modules are a contained, configurable, feature-mechanic set for common purposes. 
+Modules are a contained, configurable, feature-mechanic set for common purposes.
+They are **static, boot-time bundles**. They are created once at app construction and never unloaded, reloaded, or destroyed independently. 
+
 They replicate folder structure of project
 ```
 MyModule
