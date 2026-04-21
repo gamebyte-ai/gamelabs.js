@@ -15,10 +15,9 @@ export class SettingsBinding extends ModuleBinding {
   public configureDI(diContainer: DIContainer, _viewDiContainer: DIContainer): void {
     diContainer.bindInstance(SettingsModel, new SettingsModel(), [ISettingsModel]);
     diContainer.bindInstance(SettingsEvents, new SettingsEvents());
-    // SettingsManager has a dependency (SettingsModel) and is an IInjectionTarget
-    // (resolves StorageService + SettingsEvents via inject()). Factory binding
-    // lets the container auto-fire inject() on first resolution.
-    diContainer.bindSingleton(SettingsManager, (r) => new SettingsManager(r.getInstance(SettingsModel)));
+    // SettingsManager is an IInjectionTarget — all its deps come via inject().
+    // Factory binding lets the container auto-fire inject() on first resolution.
+    diContainer.bindSingleton(SettingsManager, () => new SettingsManager());
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {

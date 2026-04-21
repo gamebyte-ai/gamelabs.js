@@ -1,13 +1,15 @@
 import type { Grid } from "./Grid.js";
-import type { GridEvents } from "../events/GridEvents.js";
+import { GridEvents } from "../events/GridEvents.js";
 import type { IGridsModel } from "./IGridsModel.js";
+import type { IInjectionTarget } from "../../../../core/di/IInjectionTarget.js";
+import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
 
-export class GridsModel implements IGridsModel {
+export class GridsModel implements IGridsModel, IInjectionTarget {
   private readonly _grids = new Map<number, Grid>();
-  private readonly _events: GridEvents | null;
+  private _events: GridEvents | null = null;
 
-  public constructor(events: GridEvents | null = null) {
-    this._events = events;
+  public inject(resolver: IInstanceResolver): void {
+    this._events = resolver.getInstance(GridEvents);
   }
 
   public getGrid(id: number): Grid | undefined {

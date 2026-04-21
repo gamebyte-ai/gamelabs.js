@@ -27,7 +27,8 @@ export class GameGridBinding extends ModuleBinding {
 
   public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {
     diContainer.bindInstance(GridEvents, new GridEvents());
-    diContainer.bindSingleton(GridsModel, (r) => new GridsModel(r.getInstance(GridEvents)), [IGridsModel]);
+    // GridsModel is an IInjectionTarget — resolves GridEvents via inject().
+    diContainer.bindSingleton(GridsModel, () => new GridsModel(), [IGridsModel]);
     viewDiContainer.bindInstance(GridObjectCreator, this._objectCreator);
   }
 
