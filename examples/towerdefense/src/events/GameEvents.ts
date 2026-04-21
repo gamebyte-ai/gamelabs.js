@@ -148,4 +148,32 @@ export class GameEvents {
   public emitBaseHpChanged(hp: number, maxHp: number): void {
     for (const cb of this._baseHpChangedListeners) cb(hp, maxHp);
   }
+
+  // --- Area impact (arc projectile landed; view spawns shockwave) ---
+  private readonly _areaImpactListeners = new Set<(x: number, z: number, radius: number) => void>();
+
+  public onAreaImpact(cb: (x: number, z: number, radius: number) => void): Unsubscribe {
+    this._areaImpactListeners.add(cb);
+    return () => { this._areaImpactListeners.delete(cb); };
+  }
+
+  public emitAreaImpact(x: number, z: number, radius: number): void {
+    for (const cb of this._areaImpactListeners) cb(x, z, radius);
+  }
+
+  // --- Tesla arc fired (instant-hit lightning visual between two points) ---
+  private readonly _teslaArcFiredListeners = new Set<
+    (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number) => void
+  >();
+
+  public onTeslaArcFired(
+    cb: (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number) => void,
+  ): Unsubscribe {
+    this._teslaArcFiredListeners.add(cb);
+    return () => { this._teslaArcFiredListeners.delete(cb); };
+  }
+
+  public emitTeslaArcFired(x1: number, y1: number, z1: number, x2: number, y2: number, z2: number): void {
+    for (const cb of this._teslaArcFiredListeners) cb(x1, y1, z1, x2, y2, z2);
+  }
 }

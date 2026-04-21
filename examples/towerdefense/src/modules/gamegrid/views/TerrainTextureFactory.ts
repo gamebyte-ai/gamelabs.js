@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CellType } from "../constants/CellType.js";
+import { CellType } from "../../../constants/CellType.js";
 
 /**
  * Generates and caches procedural `THREE.CanvasTexture` terrain tiles.
@@ -57,6 +57,7 @@ export class TerrainTextureFactory {
       case CellType.Spawn:  return TerrainTextureFactory._makeSpawn();
       case CellType.Base:   return TerrainTextureFactory._makeBase();
       case CellType.Tower:  return TerrainTextureFactory._makeStone();
+      default: throw new Error(`TerrainTextureFactory: unknown CellType ${cellType as number}`);
     }
   }
 

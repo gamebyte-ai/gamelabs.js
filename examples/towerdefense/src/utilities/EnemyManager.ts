@@ -1,29 +1,37 @@
-import * as THREE from "three";
 import type { TowerDefenseConfig } from "../TowerDefenseConfig.js";
 import type { GameEvents } from "../events/GameEvents.js";
 import type { ILevelState } from "./ILevelState.js";
-import { BillboardHealthBar } from "../views/BillboardHealthBar.js";
 import { EnemyTypeId, ENEMY_TYPES, type EnemyTypeDef } from "../constants/EnemyTypeDef.js";
 import { CellType } from "../constants/CellType.js";
 
-export interface EnemyInstance {
+/**
+ * Readonly snapshot of a single enemy's state. The same shape backs the
+ * internal mutable `EnemyInstance`; views only ever see this view.
+ */
+export interface IEnemyState {
   readonly id: number;
-  readonly mesh: THREE.Object3D;
-  readonly healthBar: BillboardHealthBar;
   readonly typeDef: EnemyTypeDef;
+  readonly posX: number;
+  readonly posZ: number;
+  readonly velX: number;
+  readonly velZ: number;
+  readonly hp: number;
+  /** 0 while not frozen; counts down to 0 while frozen. */
+  readonly freezeTimer: number;
+}
+
+interface EnemyInstance {
+  id: number;
+  typeDef: EnemyTypeDef;
   hp: number;
-  readonly lateralOffset: number;
+  lateralOffset: number;
   posX: number;
   posZ: number;
   velX: number;
   velZ: number;
   waypointIndex: number;
-  /** Seconds remaining of post-knockback movement slow. */
   slowTimer: number;
-  /** Seconds remaining of freeze (no movement at all). */
   freezeTimer: number;
-  /** Visual overlay shown while frozen, disposed when timer expires. */
-  freezeOverlay: THREE.Mesh | null;
 }
 
 interface SpawnEntry {
@@ -32,19 +40,29 @@ interface SpawnEntry {
 }
 
 /**
- * Physics-based enemy manager with knockback slow and improved models.
+ * Physics-based enemy state manager.
+ *
+ * Owns:
+ * - Group-based spawn scheduling (timers + queue)
+ * - Per-frame physics: steering, separation, cell avoidance, damping
+ * - Waypoint tracking for path following
+ * - Damage / kill / reached-base lifecycle
+ * - Knockback + freeze + slow timers
+ *
+ * Emits via `GameEvents`:
+ * - `onEnemyKilled(reward, worldX, worldZ)` when hp ≤ 0 from damage
+ * - `onEnemyReachedBase(damage)` when an enemy reaches the last path cell
+ *
+ * **No renderer dependency.** The `GameSceneView` reconciles THREE
+ * meshes against {@link activeEnemies} each frame. Per
+ * DeveloperNotes.md "Where logic lives": state managers coordinate
+ * state, not rendering — this class is unit-testable with no THREE
+ * present.
  */
 export class EnemyManager {
-  private static readonly BASE_RADIUS = 0.18;
-  private static readonly FLOAT_Y = 0.32;
-  private static readonly HP_BAR_W = 0.35;
-  private static readonly HP_BAR_H = 0.05;
-  private static readonly HP_BAR_Y = 0.28;
-
   private readonly _config: TowerDefenseConfig;
   private readonly _events: GameEvents;
   private readonly _level: ILevelState;
-  private readonly _container: THREE.Group;
   private readonly _enemies: EnemyInstance[] = [];
 
   private _groupCount = 0;
@@ -54,14 +72,13 @@ export class EnemyManager {
   private _spawning = true;
   private _nextId = 1;
 
-  public constructor(config: TowerDefenseConfig, events: GameEvents, level: ILevelState, container: THREE.Group) {
+  public constructor(config: TowerDefenseConfig, events: GameEvents, level: ILevelState) {
     this._config = config;
     this._events = events;
     this._level = level;
-    this._container = container;
   }
 
-  public get activeEnemies(): ReadonlyArray<EnemyInstance> {
+  public get activeEnemies(): ReadonlyArray<IEnemyState> {
     return this._enemies;
   }
 
@@ -113,113 +130,14 @@ export class EnemyManager {
   private _spawn(typeId: EnemyTypeId): void {
     const typeDef = ENEMY_TYPES.get(typeId);
     if (!typeDef) return;
-    const r = EnemyManager.BASE_RADIUS * typeDef.scale;
-    const mat = new THREE.MeshStandardMaterial({ color: typeDef.color, metalness: 0.2, roughness: 0.5 });
-    const group = new THREE.Group();
-
-    if (typeId === EnemyTypeId.Brute) {
-      EnemyManager._buildBruteMesh(group, r, mat);
-    } else {
-      EnemyManager._buildScoutMesh(group, r, mat);
-    }
-
-    group.castShadow = true;
-    group.traverse((c) => { if (c instanceof THREE.Mesh) c.castShadow = true; });
-
-    const healthBar = new BillboardHealthBar(EnemyManager.HP_BAR_W, EnemyManager.HP_BAR_H);
-    healthBar.position.y = (EnemyManager.HP_BAR_Y + r) * typeDef.scale;
-    group.add(healthBar);
-
     const [startCol, startRow] = this._level.pathWaypoints[0];
-    const floatY = EnemyManager.FLOAT_Y * typeDef.scale;
-    group.position.set(startCol, floatY, startRow);
-    this._container.add(group);
-
     this._enemies.push({
-      id: this._nextId++, mesh: group, healthBar, typeDef,
+      id: this._nextId++, typeDef,
       hp: typeDef.hp,
       lateralOffset: (Math.random() * 2 - 1) * this._config.enemyLateralOffsetMax,
       posX: startCol, posZ: startRow, velX: 0, velZ: 0,
-      waypointIndex: 1, slowTimer: 0, freezeTimer: 0, freezeOverlay: null,
+      waypointIndex: 1, slowTimer: 0, freezeTimer: 0,
     });
-  }
-
-  // ── Enemy model builders ──────────────────────────────────────────────
-
-  /**
-   * Scout — sleek insectoid dart.
-   * Teardrop body, swept-back wing fins, two small glowing eyes.
-   */
-  private static _buildScoutMesh(group: THREE.Group, r: number, mat: THREE.Material): void {
-    // Teardrop body: sphere + backward-pointing cone tail
-    const body = new THREE.Mesh(new THREE.SphereGeometry(r * 0.9, 10, 7), mat);
-    group.add(body);
-    const tail = new THREE.Mesh(new THREE.ConeGeometry(r * 0.55, r * 1.6, 6), mat);
-    tail.rotation.x = Math.PI; // point downward (backward when moving)
-    tail.position.y = -r * 0.5;
-    group.add(tail);
-
-    // Swept-back wing fins (thin boxes angled outward)
-    const wingMat = new THREE.MeshStandardMaterial({ color: 0xbb44dd, metalness: 0.3, roughness: 0.4 });
-    for (const side of [-1, 1]) {
-      const wing = new THREE.Mesh(new THREE.BoxGeometry(r * 1.4, r * 0.06, r * 0.5), wingMat);
-      wing.position.set(side * r * 0.7, r * 0.1, -r * 0.1);
-      wing.rotation.z = side * 0.3;
-      wing.rotation.y = side * -0.2;
-      group.add(wing);
-    }
-
-    // Glowing eyes
-    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff2222, emissiveIntensity: 0.8 });
-    for (const side of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(r * 0.12, 5, 4), eyeMat);
-      eye.position.set(side * r * 0.3, r * 0.25, r * 0.6);
-      group.add(eye);
-    }
-  }
-
-  /**
-   * Brute — heavy golem.
-   * Wide rocky torso (dodecahedron for angular look), thick arm stumps,
-   * small head nub, shoulder spike horns.
-   */
-  private static _buildBruteMesh(group: THREE.Group, r: number, mat: THREE.Material): void {
-    // Angular torso (dodecahedron = rocky feel)
-    const torso = new THREE.Mesh(new THREE.DodecahedronGeometry(r * 0.95, 0), mat);
-    torso.scale.set(1, 0.85, 0.8);
-    torso.position.y = r * 0.15;
-    group.add(torso);
-
-    // Head nub
-    const headMat = new THREE.MeshStandardMaterial({ color: 0x339977, metalness: 0.25, roughness: 0.5 });
-    const head = new THREE.Mesh(new THREE.SphereGeometry(r * 0.4, 6, 4), headMat);
-    head.position.y = r * 1.0;
-    group.add(head);
-
-    // Arm stumps
-    for (const side of [-1, 1]) {
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.25, r * 0.3, r * 0.7, 6), mat);
-      arm.position.set(side * r * 0.9, r * 0.1, 0);
-      arm.rotation.z = side * 0.4;
-      group.add(arm);
-    }
-
-    // Shoulder spike horns
-    const spikeMat = new THREE.MeshStandardMaterial({ color: 0x226655, metalness: 0.4, roughness: 0.3 });
-    for (const side of [-1, 1]) {
-      const spike = new THREE.Mesh(new THREE.ConeGeometry(r * 0.15, r * 0.5, 4), spikeMat);
-      spike.position.set(side * r * 0.65, r * 0.85, 0);
-      spike.rotation.z = side * -0.5;
-      group.add(spike);
-    }
-
-    // Glowing eyes
-    const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffaa22, emissive: 0xff8811, emissiveIntensity: 0.6 });
-    for (const side of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(r * 0.1, 4, 3), eyeMat);
-      eye.position.set(side * r * 0.22, r * 1.05, r * 0.25);
-      group.add(eye);
-    }
   }
 
   // ── Physics tick ──────────────────────────────────────────────────────
@@ -237,7 +155,6 @@ export class EnemyManager {
         e.freezeTimer = Math.max(0, e.freezeTimer - dt);
         e.velX = 0;
         e.velZ = 0;
-        if (e.freezeTimer <= 0) this._removeFreezeOverlay(e);
         continue;
       }
 
@@ -318,12 +235,7 @@ export class EnemyManager {
         const wdz = wp[1] - e.posZ;
         if (wdx * wdx + wdz * wdz < cfg.enemyWaypointRadius * cfg.enemyWaypointRadius) e.waypointIndex++;
       }
-      if (e.waypointIndex >= path.length) { this._onReachedBase(i); continue; }
-
-      // 7. Mesh position + rotation toward movement direction
-      e.mesh.position.set(e.posX, EnemyManager.FLOAT_Y * e.typeDef.scale, e.posZ);
-      const spd2 = e.velX * e.velX + e.velZ * e.velZ;
-      if (spd2 > 0.001) e.mesh.rotation.y = Math.atan2(e.velX, e.velZ);
+      if (e.waypointIndex >= path.length) this._onReachedBase(i);
     }
   }
 
@@ -382,27 +294,8 @@ export class EnemyManager {
         e.freezeTimer = duration;
         e.velX = 0;
         e.velZ = 0;
-        this._addFreezeOverlay(e);
       }
     }
-  }
-
-  private _addFreezeOverlay(e: EnemyInstance): void {
-    if (e.freezeOverlay) return;
-    const r = EnemyManager.BASE_RADIUS * e.typeDef.scale * 1.3;
-    const geom = new THREE.SphereGeometry(r, 8, 6);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x88ddff, emissive: 0x2288cc, emissiveIntensity: 0.4, transparent: true, opacity: 0.35 });
-    const overlay = new THREE.Mesh(geom, mat);
-    e.mesh.add(overlay);
-    e.freezeOverlay = overlay;
-  }
-
-  private _removeFreezeOverlay(e: EnemyInstance): void {
-    if (!e.freezeOverlay) return;
-    e.freezeOverlay.geometry.dispose();
-    (e.freezeOverlay.material as THREE.Material).dispose();
-    e.freezeOverlay.removeFromParent();
-    e.freezeOverlay = null;
   }
 
   // ── Damage ────────────────────────────────────────────────────────────
@@ -412,7 +305,6 @@ export class EnemyManager {
     if (idx === -1) return false;
     const enemy = this._enemies[idx];
     enemy.hp -= amount;
-    this._refreshHpBar(enemy);
     if (enemy.hp <= 0) { this._killEnemy(idx); return true; }
     return false;
   }
@@ -423,7 +315,6 @@ export class EnemyManager {
       const e = this._enemies[i];
       if ((e.posX - x) ** 2 + (e.posZ - z) ** 2 <= r2) {
         e.hp -= amount;
-        this._refreshHpBar(e);
         if (e.hp <= 0) this._killEnemy(i);
       }
     }
@@ -433,23 +324,19 @@ export class EnemyManager {
   private _killEnemy(index: number): void {
     const enemy = this._enemies[index];
     this._events.emitEnemyKilled(enemy.typeDef.goldReward, enemy.posX, enemy.posZ);
-    this._destroyEnemy(index);
-  }
-
-  private _refreshHpBar(enemy: EnemyInstance): void {
-    enemy.healthBar.setRatio(enemy.hp / enemy.typeDef.hp);
+    this._enemies.splice(index, 1);
   }
 
   private _onReachedBase(index: number): void {
     const damage = this._enemies[index].typeDef.baseDamage;
-    this._destroyEnemy(index);
+    this._enemies.splice(index, 1);
     this._events.emitEnemyReachedBase(damage);
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────
 
   public clearAll(): void {
-    for (let i = this._enemies.length - 1; i >= 0; i--) this._destroyEnemy(i);
+    this._enemies.length = 0;
     this._spawnQueue = [];
     this._memberTimer = 0;
     this._groupTimer = 0;
@@ -458,20 +345,5 @@ export class EnemyManager {
 
   public destroy(): void {
     this.clearAll();
-    this._container.removeFromParent();
-  }
-
-  private _destroyEnemy(index: number): void {
-    const enemy = this._enemies[index];
-    this._removeFreezeOverlay(enemy);
-    enemy.healthBar.dispose();
-    enemy.mesh.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.geometry.dispose();
-        if (child.material instanceof THREE.Material) child.material.dispose();
-      }
-    });
-    enemy.mesh.removeFromParent();
-    this._enemies.splice(index, 1);
   }
 }

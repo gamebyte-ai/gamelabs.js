@@ -24,6 +24,12 @@ export class GameSceneViewController implements IViewController<IGameSceneView> 
     this._subs.add(this._events!.onLevelGenerated(() => this._view?.showBaseHpBar()));
     this._subs.add(this._events!.onBaseHpChanged((hp, maxHp) => this._view?.setBaseHpRatio(hp / maxHp)));
     this._subs.add(this._events!.onEnemyKilled((reward, x, z) => this._view?.showGoldPopup(x, z, reward)));
+    // Combat effects — manager emits, controller translates to view calls
+    // so the view stays free of diContainer-only bindings.
+    this._subs.add(this._events!.onAreaImpact((x, z, r) => this._view?.spawnShockwave(x, z, r)));
+    this._subs.add(
+      this._events!.onTeslaArcFired((x1, y1, z1, x2, y2, z2) => this._view?.spawnTeslaArc(x1, y1, z1, x2, y2, z2)),
+    );
   }
 
   public destroy(): void {

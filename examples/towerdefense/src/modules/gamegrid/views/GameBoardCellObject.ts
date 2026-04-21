@@ -11,7 +11,7 @@ import {
 import { CellType } from "../../../constants/CellType.js";
 import { TowerDefenseConfig } from "../../../TowerDefenseConfig.js";
 import type { ILevelState } from "../../../utilities/ILevelState.js";
-import { TerrainTextureFactory } from "../../../utilities/TerrainTextureFactory.js";
+import { TerrainTextureFactory } from "./TerrainTextureFactory.js";
 
 type HoverCallback = (col: number, row: number, hovered: boolean) => void;
 

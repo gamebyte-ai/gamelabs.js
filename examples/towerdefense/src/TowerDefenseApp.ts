@@ -196,11 +196,11 @@ export class TowerDefenseApp extends GamelabsApp {
     window.addEventListener("keydown", this._onKeyDown);
     inputTarget.addEventListener("contextmenu", this._onContextMenu);
 
-    // Enemy / combat managers render into the scene view's containers,
-    // not into world.scene directly. The view owns those THREE.Groups.
-    this._enemyManager = new EnemyManager(this._config, this._events, this._level, this._sceneView.enemyContainer);
+    // Enemy / combat managers are pure state — they don't render. The
+    // scene view reconciles meshes against their state each frame.
+    this._enemyManager = new EnemyManager(this._config, this._events, this._level);
     const sfx = this.diContainer.getInstance(SfxService);
-    this._combatManager = new CombatManager(this._config, this._events, sfx, this._enemyManager, this._sceneView.combatContainer);
+    this._combatManager = new CombatManager(this._config, this._events, sfx, this._enemyManager);
 
     // Per-frame updates — all gated by _levelActive so no tick fires on
     // partially-torn-down state during the teardown → rebuild gap.
@@ -208,10 +208,10 @@ export class TowerDefenseApp extends GamelabsApp {
     this._systemUnsubs.add(this.updateManager.register((dt) => { if (this._levelActive) this._enemyManager!.update(dt); }));
     this._systemUnsubs.add(this.updateManager.register((dt) => { if (this._levelActive) this._combatManager!.update(dt); }));
     this._systemUnsubs.add(this.updateManager.register((dt) => { if (this._levelActive) ops.tickPassiveIncome(dt); }));
-    // Scene-view animations (gold popups) tick every frame regardless of
-    // level state so an in-flight popup at teardown still finishes its
-    // fade instead of leaking.
-    this._systemUnsubs.add(this.updateManager.register((dt) => this._sceneView?.tickAnimations(dt)));
+    // Scene reconciliation runs every frame (even during teardown) so
+    // that already-cleared state cleanly disposes meshes. Gated-by-
+    // levelActive would leak meshes during the teardown→rebuild gap.
+    this._systemUnsubs.add(this.updateManager.register((dt) => this._reconcileScene(dt)));
 
     // Cross-system event wiring.
     this._systemUnsubs.add(this._events.onTowerPlaced((col, row, towerType) => this._combatManager!.addTower(col, row, towerType)));
@@ -241,6 +241,23 @@ export class TowerDefenseApp extends GamelabsApp {
 
   private _onEnemyReachedBase(damage: number): void {
     this.diContainer.getInstance(GameOperations).damageBase(damage);
+  }
+
+  /**
+   * Per-frame scene reconcile: mirror enemy/projectile/laser-beam state
+   * from the managers into the scene view's mesh pools, and advance the
+   * view's own animations (gold popups, trails, shockwaves, arcs).
+   */
+  private _reconcileScene(dt: number): void {
+    const sceneView = this._sceneView;
+    if (!sceneView) return;
+    const enemies = this._enemyManager?.activeEnemies ?? [];
+    const projectiles = this._combatManager?.activeProjectiles ?? [];
+    const towers = this._combatManager?.activeTowers ?? [];
+    sceneView.reconcileEnemies(enemies);
+    sceneView.reconcileProjectiles(projectiles);
+    sceneView.reconcileLaserBeams(towers, enemies);
+    sceneView.tickAnimations(dt);
   }
 
   // ── Camera controls ────────────────────────────────────────────────────
