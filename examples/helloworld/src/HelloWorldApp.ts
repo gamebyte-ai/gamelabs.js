@@ -1,4 +1,4 @@
-import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, Orbital3dCameraController, UIEvents } from "@gamebyte/gamelabsjs";
+import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, GameCameraManager, Orbital3dCameraController, UIEvents } from "@gamebyte/gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeViewController } from "./controllers/CubeViewController";
@@ -28,6 +28,7 @@ export class HelloWorldApp extends GamelabsApp {
 
   private _cubeView: CubeView | null = null;
   private _orbitalController: Orbital3dCameraController | null = null;
+  private _cameraManager: GameCameraManager | null = null;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -62,8 +63,9 @@ export class HelloWorldApp extends GamelabsApp {
     }
 
     // Camera setup
-    this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._orbitalController = new Orbital3dCameraController(this._gameCameraBinding.cameraManager).register();
+    this._cameraManager = this.diContainer.getInstance(GameCameraManager);
+    this._cameraManager.initialize(this.world);
+    this._orbitalController = new Orbital3dCameraController(this._cameraManager).register();
     this._orbitalController.minDistance = this._config.minCameraDistance;
     this._orbitalController.maxDistance = this._config.maxCameraDistance;
     this.diContainer.bindInstance(Orbital3dCameraController, this._orbitalController);
@@ -85,12 +87,12 @@ export class HelloWorldApp extends GamelabsApp {
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._gameCameraBinding.cameraManager.resize(width, height);
+    this._cameraManager?.resize(width, height);
   }
 
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
-    this._gameCameraBinding.cameraManager.update(timestepSeconds);
+    this._cameraManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {

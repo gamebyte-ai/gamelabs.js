@@ -1,4 +1,4 @@
-import { GamelabsApp, LogTypes, GameCameraBinding, Topdown3dCameraController, UIEvents } from "@gamebyte/gamelabsjs";
+import { GamelabsApp, LogTypes, GameCameraBinding, GameCameraManager, Topdown3dCameraController, UIEvents } from "@gamebyte/gamelabsjs";
 import { GameTurnManager, GameTurnManagerToken } from "./utilities/GameTurnManager";
 import { TurnEvents } from "./events/TurnEvents";
 import { GameModel } from "./models/GameModel";
@@ -19,6 +19,7 @@ export class TicTacToeApp extends GamelabsApp {
   private readonly _gameGridBinding = new TicTacToeGameGridBinding();
   private _gameGridView: GameGridsView | null = null;
   private _cameraController: Topdown3dCameraController | null = null;
+  private _cameraManager: GameCameraManager | null = null;
 
   constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -62,8 +63,9 @@ export class TicTacToeApp extends GamelabsApp {
 
     this._gameGridBinding.model.getGrid(this._config.boardId);
 
-    this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._cameraController = new Topdown3dCameraController(this._gameCameraBinding.cameraManager).register();
+    this._cameraManager = this.diContainer.getInstance(GameCameraManager);
+    this._cameraManager.initialize(this.world);
+    this._cameraController = new Topdown3dCameraController(this._cameraManager).register();
     const centerX = (this._config.boardColumnCount - 1) / 2;
     const centerZ = (this._config.boardRowCount - 1) / 2;
     this._cameraController.followPosition(centerX, 0.5, centerZ);
@@ -71,12 +73,12 @@ export class TicTacToeApp extends GamelabsApp {
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._gameCameraBinding.cameraManager.resize(width, height);
+    this._cameraManager?.resize(width, height);
   }
 
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
-    this._gameCameraBinding.cameraManager.update(timestepSeconds);
+    this._cameraManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {

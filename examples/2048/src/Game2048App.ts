@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { AssetTypes, GamelabsApp, GameCameraBinding, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "@gamebyte/gamelabsjs";
+import { AssetTypes, GamelabsApp, GameCameraBinding, GameCameraManager, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "@gamebyte/gamelabsjs";
 import { GameModel } from "./models/GameModel.js";
 import { IGameModel } from "./models/IGameModel.js";
 import { Game2048AssetIds } from "./Game2048AssetIds.js";
@@ -19,6 +19,7 @@ export class Game2048App extends GamelabsApp {
   private readonly _settingsBinding = new SettingsBinding();
   private readonly _gameEvents = new GameEvents();
   private _cameraController: Topdown2dCameraController | null = null;
+  private _cameraManager: GameCameraManager | null = null;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -66,15 +67,16 @@ export class Game2048App extends GamelabsApp {
       const midZ = ((this._config.rows - 1) * grid.preset.rowSize) * 0.5;
       grid.setPosition(vector(-midX, 0, -midZ));
     }
-    this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._cameraController = new Topdown2dCameraController(this._gameCameraBinding.cameraManager).register();
+    this._cameraManager = this.diContainer.getInstance(GameCameraManager);
+    this._cameraManager.initialize(this.world);
+    this._cameraController = new Topdown2dCameraController(this._cameraManager).register();
     this._cameraController.followPosition(0, 0, 0);
     this._fitOrthoToBoard(this.width, this.height);
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._gameCameraBinding.cameraManager.resize(width, height);
+    this._cameraManager?.resize(width, height);
     this._fitOrthoToBoard(width, height);
   }
 
@@ -92,12 +94,12 @@ export class Game2048App extends GamelabsApp {
     const orthoForHeight = requiredH;
     const orthoForWidth = requiredW / aspect;
     const orthoSize = Math.max(orthoForHeight, orthoForWidth);
-    this._gameCameraBinding.cameraManager.setOrthoSize(orthoSize);
+    this._cameraManager?.setOrthoSize(orthoSize);
   }
 
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
-    this._gameCameraBinding.cameraManager.update(timestepSeconds);
+    this._cameraManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {

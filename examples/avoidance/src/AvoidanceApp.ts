@@ -1,4 +1,4 @@
-import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, Topdown2dCameraController, OnScreenControlsBinding } from "@gamebyte/gamelabsjs";
+import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, GameCameraManager, Topdown2dCameraController, OnScreenControlsBinding } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
@@ -26,6 +26,7 @@ export class AvoidanceApp extends GamelabsApp {
 
   private _gameAreaView: GameAreaView | null = null;
   private _cameraController: Topdown2dCameraController | null = null;
+  private _cameraManager: GameCameraManager | null = null;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -64,8 +65,9 @@ export class AvoidanceApp extends GamelabsApp {
   protected override postInitialize(): void {
     if (!this.world || !this.hud) throw new Error("World or HUD is not initialized");
 
-    this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._cameraController = new Topdown2dCameraController(this._gameCameraBinding.cameraManager).register();
+    this._cameraManager = this.diContainer.getInstance(GameCameraManager);
+    this._cameraManager.initialize(this.world);
+    this._cameraController = new Topdown2dCameraController(this._cameraManager).register();
     const half = this._config.gameAreaSize / 2;
     this._cameraController.followPosition(half, 0, half);
     this._fitCamera(this.width, this.height);
@@ -78,7 +80,7 @@ export class AvoidanceApp extends GamelabsApp {
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._gameCameraBinding.cameraManager.resize(width, height);
+    this._cameraManager?.resize(width, height);
     this._fitCamera(width, height);
   }
 
@@ -87,12 +89,12 @@ export class AvoidanceApp extends GamelabsApp {
     const areaSize = this._config.gameAreaSize * margin;
     const aspect = Math.max(0.01, screenWidth) / Math.max(0.01, screenHeight);
     const orthoSize = aspect < 1 ? areaSize / aspect : areaSize;
-    this._gameCameraBinding.cameraManager.setOrthoSize(orthoSize);
+    this._cameraManager?.setOrthoSize(orthoSize);
   }
 
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
-    this._gameCameraBinding.cameraManager.update(timestepSeconds);
+    this._cameraManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {
