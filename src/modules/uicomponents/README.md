@@ -11,6 +11,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`SliderComponent`](#slidercomponent) — horizontal slider with min/max/step constraints
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
 - [`HorizontalLayoutComponent`](#horizontallayoutcomponent) — horizontal flex container
+- [`FullscreenLayoutComponent`](#fullscreenlayoutcomponent) — layout container whose size tracks the canvas via `AppEvents`
 
 Each component exports a matching `parse<Name>Preset(json: string)` helper that parses a JSON string into the preset type.
 
@@ -254,6 +255,31 @@ const row = new HorizontalLayoutComponent({
 | `top`            | `number`                                                                                        | —              | Absolute offset from top.                                    |
 | `right`          | `number`                                                                                        | —              | Absolute offset from right.                                  |
 | `bottom`         | `number`                                                                                        | —              | Absolute offset from bottom.                                 |
+
+---
+
+## FullscreenLayoutComponent
+
+Layout container whose `@pixi/layout` box tracks the app's canvas
+dimensions via `AppEvents.onResize`. Useful as a layout root for HUD
+widgets created outside the `ViewFactory` lifecycle (debug overlays,
+app-level panels, etc.). Unlike the flex containers above, this takes
+no preset — it resolves its size from the app itself.
+
+```ts
+import { FullscreenLayoutComponent, IApp, AppEvents } from "@gamebyte/gamelabsjs";
+
+// In app or a container that has diContainer access:
+const app = diContainer.getInstance(IApp);
+const events = diContainer.getInstance(AppEvents);
+const overlay = new FullscreenLayoutComponent(app, events);
+parent.addChild(overlay);
+// Merge in any extra layout rules as needed:
+overlay.layout = { ...overlay.layout, flexDirection: "column", gap: 12 };
+```
+
+The container unsubscribes from `AppEvents.onResize` automatically in
+its `destroy()`.
 
 ---
 

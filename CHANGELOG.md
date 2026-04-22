@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-04-22
+
+### Added
+- `IApp` — readonly app-state interface (`width`, `height`, `dpr`) bound in both DI containers.
+- `AppEvents` — app-level event bus (`onResize`). Views and app code subscribe to get viewport changes.
+- `HudViewBase` / `WorldViewBase` now inject `IApp` + `AppEvents` and auto-fire `onResize(w, h, dpr)` in `postInitialize`. Subclasses just override `onResize`.
+- `FullscreenLayoutComponent` (uicomponents) — container whose `@pixi/layout` box tracks the canvas via `AppEvents`, independent of parent.
+- `stripInternal: true` in `tsconfig.json` so `@internal` members disappear from the published `.d.ts`.
+- Module lifecycle + binding-shape rules documented in `AGENTS.md`, `DeveloperNotes.md`, and `ModuleBinding` JSDoc.
+- DI tests for alias/primary collision guards (3 new cases).
+
+### Changed
+- **`ModuleBinding` contract is static / boot-only.** Bindings contribute DI registrations, view registrations, and asset requests. Runtime orchestration (init-with-world, per-frame update, resize, teardown) lives in the `GamelabsApp` subclass. Removed binding-field instances, getters, and forwarding methods from every module:
+  - `OnScreenControlsBinding` — dropped `manager` getter, `addControl`, `removeControl`. Apps resolve `OnScreenControlManager` from DI.
+  - `GameCameraBinding` — dropped `cameraManager` getter. Apps resolve `GameCameraManager` from DI in `postInitialize`; five example apps migrated.
+  - `SettingsBinding` — dropped three stored instances, `addField` forwarding, and the manual `inject()` workaround. `SettingsManager` is now bound as a factory that auto-fires `inject()`.
+  - `GameGridBinding` — dropped `model` and `events` getters. Apps resolve `GridsModel` from DI.
+- `SettingsManager` and `GridsModel` — `inject()`-only dependencies; constructor params moved into `inject()` so all deps flow through one path.
+- `ScreenView` and `PopupView` are layout-neutral. `this.layout` and the `"layout"` event listeners removed. Subclasses that want layout set `this.layout` in `onResize`. The clipMask (`ScreenView`) and blocker (`PopupView`) are now sized directly from `onResize`.
+- `ViewFactory.resize()` removed. Resize flows through `AppEvents` instead of the factory walking screens + popups.
+- `GridCell.setItem` / `GridItem.setCell` marked `@internal` — hidden from the published API.
+
+### Fixed
+- **DI:** `bindAliases()` now rejects aliases already bound as primaries, and `bindInstance`/`bindSingleton` reject primaries already registered as aliases. Previously silent hijack.
+- **Grids:** `GridsModel.addGrid()` throws on duplicate id; `Grid.setCellItem()` maintains both sides of the cell/item back-reference and throws if the incoming item is already attached elsewhere; `GridsView.removeGrid()` and `preDestroy()` dispose geometries and materials on torn-down subtrees.
+- **Camera:** `GameCameraManager._ensureCameraForController()` no longer clobbers the smart ortho↔perspective transition position with `existing.position`. The overwrite became a fallback gated on the transition not firing.
+- **On-screen controls:** `removeControl()` releases the control's virtual keys before deletion, so downstream listeners don't latch when a control is removed while held.
+- **Input:** `InputManager._onPointerDown` now calls `setPointerCapture(pointerId)` so drag-off-canvas releases route back correctly.
+- **Keyboard:** `KeyboardListener` handles `window.blur` and `document.visibilitychange` by firing release callbacks for every held key — fixes keys stuck after alt-tab.
+- **Settings popup:** `SettingsPopupViewController` subscribes to `SettingsEvents.onValueChanged` and pushes fresh values into the view via `updateFieldValue`. Reset-to-defaults and stepped-slider snapback now visibly update.
+- **Match3 swap:** `_swapItems` detaches both cells before re-assigning, consistent with the new `setCellItem` invariants.
+- **View resize regression:** 13 view overrides across `src/modules` and `examples` now call `super.postInitialize()` so the `AppEvents` subscription fires. Also added `onResize` overrides to three popup subclasses (`tictactoe/WinPopupView`, `watersort/WinPopupView`, `avoidance/GameOverPopupView`) so their content stays centered after `PopupView` dropped its root layout.
+
+### Removed
+- `(this as any).layout` casts across six game-screen and three popup views — `pixi-layout-augment.d.ts` already makes `this.layout` work.
+- Dead `this.layout = {...}` lines from `2048`, `match3`, and `watersort` `GameScreenView` files (those views position children manually).
+- `viewFactory.resize(w, h, dpr)` from `GamelabsApp._onWindowResize` — replaced by `_appEvents.emitResize`.
+- Architectural issue A1 ("module API not lifecycle-aware") from `ISSUES.md` — resolved as a design choice, not tech debt.
+
 ## [0.2.0] - 2026-04-07
 
 ### Added
