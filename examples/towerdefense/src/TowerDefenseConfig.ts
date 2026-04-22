@@ -92,7 +92,7 @@ export class TowerDefenseConfig {
   /** Seconds between passive income ticks. */
   public readonly passiveIncomeInterval = 4;
 
-  public readonly startingGold = 400;
+  public readonly startingGold = 350;
   public readonly baseHp = 1000;
 
   public readonly transitions: { gameScreenEnter: ScreenTransition } = {
