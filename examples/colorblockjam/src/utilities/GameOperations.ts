@@ -1,5 +1,6 @@
 import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
-import { ColorBlockJamConfig, type CellCoord, type DoorSide } from "../ColorBlockJamConfig.js";
+import { ColorBlockJamConfig } from "../ColorBlockJamConfig.js";
+import type { CellCoord, DoorSide } from "../constants/BoardTypes.js";
 import { GameModel } from "../models/GameModel.js";
 import { Block } from "../models/Block.js";
 import { Door } from "../models/Door.js";

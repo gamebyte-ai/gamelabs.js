@@ -1,5 +1,5 @@
 import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
-import type { DoorSide } from "../ColorBlockJamConfig.js";
+import type { DoorSide } from "../constants/BoardTypes.js";
 import type { Block } from "../models/Block.js";
 import type { Door } from "../models/Door.js";
 

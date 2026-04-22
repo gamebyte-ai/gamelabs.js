@@ -7,7 +7,8 @@ import {
   type IPointerInputHandler,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
-import { ColorBlockJamConfig, type DoorSide } from "../ColorBlockJamConfig.js";
+import { ColorBlockJamConfig } from "../ColorBlockJamConfig.js";
+import type { DoorSide } from "../constants/BoardTypes.js";
 import type { Block } from "../models/Block.js";
 import type { Door } from "../models/Door.js";
 import type { GridPointer, IBoardView } from "./IBoardView.js";

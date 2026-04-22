@@ -1,4 +1,4 @@
-import type { DoorSide } from "../ColorBlockJamConfig.js";
+import type { DoorSide } from "../constants/BoardTypes.js";
 
 /**
  * A colored exit on a grid edge. A block can clear through the door only

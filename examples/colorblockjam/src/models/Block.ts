@@ -1,4 +1,4 @@
-import type { CellCoord } from "../ColorBlockJamConfig.js";
+import type { CellCoord } from "../constants/BoardTypes.js";
 
 /**
  * A colored block that lives on the grid. `shape` is a fixed, normalized

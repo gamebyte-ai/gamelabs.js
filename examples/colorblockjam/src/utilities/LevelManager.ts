@@ -1,4 +1,5 @@
-import { ColorBlockJamConfig, type LevelDescriptor } from "../ColorBlockJamConfig.js";
+import { ColorBlockJamConfig } from "../ColorBlockJamConfig.js";
+import type { LevelDescriptor } from "../constants/LevelSchema.js";
 
 /**
  * Tracks which level is currently loaded. Purely state — no side effects,

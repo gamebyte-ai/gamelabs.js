@@ -7,8 +7,8 @@ import {
 import { IGameModel } from "../models/IGameModel.js";
 import type { IGameModel as IGameModelType } from "../models/IGameModel.js";
 import type { Block } from "../models/Block.js";
-import type { CellCoord } from "../ColorBlockJamConfig.js";
 import { ColorBlockJamConfig } from "../ColorBlockJamConfig.js";
+import type { CellCoord } from "../constants/BoardTypes.js";
 import { GameOperations, type FloatPos } from "../utilities/GameOperations.js";
 import { GameEvents } from "../events/GameEvents.js";
 import { LevelManager } from "../utilities/LevelManager.js";
