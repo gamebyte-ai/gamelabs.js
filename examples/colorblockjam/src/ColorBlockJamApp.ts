@@ -2,7 +2,7 @@ import {
   GamelabsApp,
   GameCameraBinding,
   LogTypes,
-  Topdown3dCameraController,
+  Orbital3dCameraController,
   UIEvents,
   UnsubscribeBag,
   World,
@@ -103,14 +103,22 @@ export class ColorBlockJamApp extends GamelabsApp {
     this.world.addView(this._boardView);
 
     this._gameCameraBinding.cameraManager.initialize(this.world);
-    const camera = new Topdown3dCameraController(this._gameCameraBinding.cameraManager).register();
-    camera.followPosition(0, 0, 0);
+    // Orbital 3D camera driven entirely from `ColorBlockJamConfig` —
+    // tweak `cameraDistance` / `cameraPitch` / `cameraAzimuth` / focus
+    // to reframe the grid without touching this file.
+    const camera = new Orbital3dCameraController(this._gameCameraBinding.cameraManager).register();
+    camera.distance = this._config.cameraDistance;
+    camera.pitch = this._config.cameraPitch;
+    camera.azimuth = this._config.cameraAzimuth;
+    camera.followPosition(this._config.cameraFocusX, this._config.cameraFocusY, this._config.cameraFocusZ);
     // Re-centre the camera whenever the grid dimensions change — the
-    // grid is rendered centred on (0, 0) regardless of cols/rows, so the
-    // focus point doesn't actually move, but this guards against future
-    // layout changes that shift the grid origin.
+    // grid is rendered centred on (0, 0) regardless of cols/rows, so
+    // the focus point usually doesn't actually move, but this guards
+    // against future layout changes that shift the grid origin.
     this._systemUnsubs.add(
-      this._events.onLevelChanged(() => camera.followPosition(0, 0, 0)),
+      this._events.onLevelChanged(() =>
+        camera.followPosition(this._config.cameraFocusX, this._config.cameraFocusY, this._config.cameraFocusZ),
+      ),
     );
   }
 

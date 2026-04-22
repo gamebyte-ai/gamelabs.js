@@ -56,13 +56,74 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   /** Extra key light added to brighten the studs. */
   private _keyLight: THREE.DirectionalLight | null = null;
 
-  private readonly _doorMeshes: THREE.Mesh[] = [];
-  private readonly _doorMaterials: THREE.MeshStandardMaterial[] = [];
-  private readonly _doorGeometries: THREE.BufferGeometry[] = [];
+  /**
+   * Per-door records keyed by id. Stores each gate's mesh + its side so
+   * `animateExit` can look up exactly which wall the block should be
+   * clipped against and which axis to press on the gate. Materials and
+   * geometries are held for dispose.
+   */
+  private readonly _doors = new Map<
+    number,
+    {
+      readonly mesh: THREE.Mesh;
+      /** White arrow on top of the gate, animated alongside the button-press. */
+      readonly arrowMesh: THREE.Mesh;
+      readonly arrowGeometry: THREE.BufferGeometry;
+      /** Rest Y of the arrow (gate top + lift). Animated during the press. */
+      readonly arrowRestY: number;
+      readonly side: DoorSide;
+      /** Inclusive cell indices along the gate's span. Used by the
+       * particle emitter to spread spawn origins across the full
+       * opening instead of a single centre point. */
+      readonly spanStart: number;
+      readonly spanEnd: number;
+      readonly material: THREE.MeshStandardMaterial;
+      readonly geometry: THREE.BufferGeometry;
+    }
+  >();
+
+  /**
+   * Neutral-colour walls filling every edge cell that doesn't host a
+   * gate. Each wall is an independent mesh + material (random gray) so
+   * the border has subtle shade variation; all horizontal walls share
+   * one geometry and all vertical walls share another.
+   */
+  private readonly _walls: Array<{
+    readonly mesh: THREE.Mesh;
+    readonly material: THREE.MeshStandardMaterial;
+  }> = [];
+  private _wallGeometryH: THREE.BufferGeometry | null = null;
+  private _wallGeometryV: THREE.BufferGeometry | null = null;
+  /** Shared arrow material — white, used by every gate arrow. */
+  private _gateArrowMaterial: THREE.MeshStandardMaterial | null = null;
 
   private readonly _blocks = new Map<number, BlockRecord>();
   /** Shared stud geometry — one cylinder for every block on the board. */
   private _studGeometry: THREE.CylinderGeometry | null = null;
+
+  /**
+   * Per-block selection highlight. Added on {@link setBlockSelected}(.., true)
+   * and fully disposed on the matching `false` call (or when the block /
+   * board is torn down). The outline is built as an inverted-hull shader
+   * pass: duplicate meshes push every vertex along its normal by
+   * {@link ColorBlockJamConfig.selectionOutlineThickness} so the hull
+   * sticks out past the original mesh by a uniform amount on all faces;
+   * `side: BackSide` culls the front faces so only the "shell" renders.
+   * `depthTest: false` + `renderOrder: 9998` keep the outline painted on
+   * top of every other block while the dragged block is re-rendered at
+   * `renderOrder: 9999` on top of its own outline — giving a clean white
+   * silhouette around the block's live 3D shape regardless of camera
+   * angle.
+   */
+  private readonly _selectionOutlines = new Map<
+    number,
+    {
+      readonly outlineMeshes: THREE.Mesh[];
+    }
+  >();
+
+  /** Shared outline shader — one allocation for every selected block. */
+  private _outlineMaterial: THREE.ShaderMaterial | null = null;
 
   private _draggedBlockId: number | null = null;
   private _activePointerId: number | null = null;
@@ -92,6 +153,10 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     super.postInitialize();
     this._installSkyGradient();
     this._installKeyLight();
+    // Needed for the per-material `clippingPlanes` used by the exit
+    // animation to hide the portion of the block that has crossed the
+    // grid edge.
+    if (this._world) this._world.renderer.localClippingEnabled = true;
   }
 
   /**
@@ -102,9 +167,10 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
    */
   private _installKeyLight(): void {
     if (!this._world) return;
-    const light = new THREE.DirectionalLight(0xfff4d6, 1.1);
-    light.position.set(-3, 8, -2);
-    light.target.position.set(0, 0, 0);
+    const cfg = this._requireConfig();
+    const light = new THREE.DirectionalLight(cfg.keyLightColor, cfg.keyLightIntensity);
+    light.position.set(cfg.keyLightX, cfg.keyLightY, cfg.keyLightZ);
+    light.target.position.set(cfg.keyLightTargetX, cfg.keyLightTargetY, cfg.keyLightTargetZ);
     this._world.scene.add(light);
     this._world.scene.add(light.target);
     this._keyLight = light;
@@ -128,15 +194,16 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
    */
   private _installSkyGradient(): void {
     if (!this._world) return;
+    const cfg = this._requireConfig();
     const canvas = document.createElement("canvas");
     canvas.width = 4;
     canvas.height = 512;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, "#ffb074"); // light-orange at the top
-    gradient.addColorStop(0.55, "#7a5ea6"); // dusk purple transition
-    gradient.addColorStop(1, "#0b1a3e"); // deep blue at the bottom
+    gradient.addColorStop(0, cfg.skyTopColor);
+    gradient.addColorStop(cfg.skyMidStop, cfg.skyMidColor);
+    gradient.addColorStop(1, cfg.skyBottomColor);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -194,6 +261,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._studGeometry = new THREE.CylinderGeometry(studRadius, studRadius, studHeight, 32);
 
     for (const door of doors) this._createDoorMesh(door);
+    this._installWalls(cols, rows, doors);
   }
 
   public clearBoard(): void {
@@ -397,9 +465,10 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     return result;
   }
 
-  public animateExit(blockId: number, side: DoorSide, onComplete: () => void): void {
+  public animateExit(blockId: number, doorId: number, onComplete: () => void): void {
     const record = this._blocks.get(blockId);
-    if (!record) {
+    const doorEntry = this._doors.get(doorId);
+    if (!record || !doorEntry) {
       onComplete();
       return;
     }
@@ -407,19 +476,54 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     record.isExiting = true;
 
     const cfg = this._requireConfig();
+    const side = doorEntry.side;
+    const gridHalfW = (this._cols * cfg.cellSize) * 0.5;
+    const gridHalfD = (this._rows * cfg.cellSize) * 0.5;
+
+    // Direction the block travels through the gate, and the clip plane
+    // that hides the portion that has crossed the grid edge. Plane
+    // `normal · p + constant >= 0` stays visible; `< 0` is clipped.
+    let outwardX = 0;
+    let outwardZ = 0;
+    let clipPlane: THREE.Plane;
+    switch (side) {
+      case "top":
+        outwardZ = -1;
+        clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), gridHalfD);
+        break;
+      case "bottom":
+        outwardZ = 1;
+        clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), gridHalfD);
+        break;
+      case "left":
+        outwardX = -1;
+        clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), gridHalfW);
+        break;
+      case "right":
+        outwardX = 1;
+        clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), gridHalfW);
+        break;
+    }
+
+    // Clip block body + studs against the grid edge as they move outward.
+    record.material.clippingPlanes = [clipPlane];
+    record.material.clipShadows = true;
+    record.material.needsUpdate = true;
+
+    // Kick off the particle burst on the outside of the gate AND the
+    // gate's squash-and-spring — both start the instant the match is
+    // confirmed, in lockstep with the block's travel tween. The gate's
+    // total press duration equals `exitAnimationSeconds` so every
+    // phase finishes at the same moment the block is fully consumed.
+    this._spawnExitParticles(record, doorEntry, outwardX, outwardZ);
+    this._animateGatePress(doorId);
+
+    // Tween the block straight through the gate; clipping does the
+    // "shredded by the gate" look — no scale-to-zero needed.
     const distance = cfg.cellSize * cfg.exitAnimationDistanceCells;
     const duration = cfg.exitAnimationSeconds;
-
-    let dx = 0;
-    let dz = 0;
-    if (side === "top") dz = -distance;
-    else if (side === "bottom") dz = distance;
-    else if (side === "left") dx = -distance;
-    else if (side === "right") dx = distance;
-
     const startX = record.group.position.x;
     const startZ = record.group.position.z;
-    const startY = record.group.position.y;
 
     const timeline = gsap.timeline({
       onComplete: () => {
@@ -427,18 +531,164 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
         onComplete();
       },
     });
+    timeline.to(record.group.position, {
+      x: startX + outwardX * distance,
+      z: startZ + outwardZ * distance,
+      duration,
+      ease: "power2.in",
+    });
+    this._activeTimelines.add(timeline);
+  }
+
+  /**
+   * Spawns `exitParticlesPerCell` small coloured cubes from **each**
+   * occupied cell of the gate's span, so the shred effect covers the
+   * full door opening instead of bursting from a single centre point.
+   * Each particle tweens outward with a lateral spread + slight
+   * vertical arc, and disposes its own geometry/material on completion.
+   */
+  private _spawnExitParticles(
+    record: BlockRecord,
+    doorEntry: {
+      mesh: THREE.Mesh;
+      side: DoorSide;
+      spanStart: number;
+      spanEnd: number;
+    },
+    outwardX: number,
+    outwardZ: number,
+  ): void {
+    const cfg = this._requireConfig();
+    const color = cfg.colors[record.block.colorIndex % cfg.colors.length]!;
+    const size = cfg.exitParticleSize;
+    const gateMesh = doorEntry.mesh;
+    const isHorizontal = doorEntry.side === "top" || doorEntry.side === "bottom";
+
+    // Tangent unit vector (perpendicular to gate's outward direction)
+    // used to scatter particles laterally along the gate's span.
+    const lateralX = outwardZ;
+    const lateralZ = -outwardX;
+
+    // One origin per occupied cell along the span — centres the spawn
+    // at each cell's midpoint on the gate axis, while the perpendicular
+    // axis and height stay pinned to the gate's own position.
+    const cellCount = doorEntry.spanEnd - doorEntry.spanStart + 1;
+    for (let cellIdx = 0; cellIdx < cellCount; cellIdx++) {
+      const cellCoord = doorEntry.spanStart + cellIdx;
+      const originX = isHorizontal ? this._cellWorld(cellCoord, 0).x : gateMesh.position.x;
+      const originZ = isHorizontal ? gateMesh.position.z : this._cellWorld(0, cellCoord).z;
+      const originY = cfg.blockHeight * 0.5;
+
+      for (let i = 0; i < cfg.exitParticlesPerCell; i++) {
+        const geometry = new THREE.BoxGeometry(size, size, size);
+        const material = new THREE.MeshStandardMaterial({ color, metalness: 0.1, roughness: 0.7 });
+        const mesh = new THREE.Mesh(geometry, material);
+        // Small random offset within the cell so particles don't all
+        // stack on the exact cell centre.
+        mesh.position.set(
+          originX + (Math.random() - 0.5) * 0.35,
+          originY + (Math.random() - 0.5) * 0.25,
+          originZ + (Math.random() - 0.5) * 0.35,
+        );
+        this.add(mesh);
+
+        const life = cfg.exitParticleLifetime + Math.random() * cfg.exitParticleLifetimeJitter;
+        const speed = cfg.exitParticleSpeed * (0.7 + Math.random() * 0.6);
+        const sideJitter = (Math.random() - 0.5) * cfg.exitParticleSpread;
+        const upJitter = 0.6 + Math.random() * 0.6;
+        const endX = mesh.position.x + outwardX * speed + lateralX * sideJitter;
+        const endY = mesh.position.y + upJitter - 0.9;
+        const endZ = mesh.position.z + outwardZ * speed + lateralZ * sideJitter;
+
+        const timeline = gsap.timeline({
+          onComplete: () => {
+            this._activeTimelines.delete(timeline);
+            mesh.removeFromParent();
+            geometry.dispose();
+            material.dispose();
+          },
+        });
+        timeline.to(
+          mesh.position,
+          { x: endX, y: endY, z: endZ, duration: life, ease: "power1.out" },
+          0,
+        );
+        timeline.to(
+          mesh.rotation,
+          {
+            x: Math.random() * Math.PI * 2,
+            z: Math.random() * Math.PI * 2,
+            duration: life,
+            ease: "none",
+          },
+          0,
+        );
+        timeline.to(
+          mesh.scale,
+          { x: 0, y: 0, z: 0, duration: life * 0.6, ease: "power2.in" },
+          life * 0.4,
+        );
+        this._activeTimelines.add(timeline);
+      }
+    }
+  }
+
+  /**
+   * Squashes the gate along its own height (world Y) and springs it back
+   * to full height. The mesh origin is at the gate's base (see
+   * `_createDoorMesh`) so scaling Y makes the top descend while the
+   * base stays planted — identical behaviour for every edge. Total
+   * duration equals `exitAnimationSeconds` so it finishes in sync with
+   * the block's travel tween.
+   */
+  private _animateGatePress(doorId: number): void {
+    const entry = this._doors.get(doorId);
+    if (!entry) return;
+    const cfg = this._requireConfig();
+    const mesh = entry.mesh;
+    const arrow = entry.arrowMesh;
+
+    const total = cfg.exitAnimationSeconds;
+    const downFraction = Math.min(0.9, Math.max(0.1, cfg.gatePressDownFraction));
+    const downSeconds = total * downFraction;
+    const upSeconds = total * (1 - downFraction);
+
+    // Arrow Y tracks the gate's top — otherwise it would hover while
+    // the gate squashes down under it.
+    const gateHeight = cfg.blockHeight * cfg.gateHeightMultiplier;
+    const arrowLift = entry.arrowRestY - gateHeight;
+    const pressedArrowY = gateHeight * cfg.gatePressScale + arrowLift;
+
+    const timeline = gsap.timeline({
+      onComplete: () => this._activeTimelines.delete(timeline),
+    });
     timeline.to(
-      record.group.position,
-      { x: startX + dx, y: startY + 0.05, z: startZ + dz, duration, ease: "power2.in" },
+      mesh.scale,
+      { y: cfg.gatePressScale, duration: downSeconds, ease: "power2.in" },
       0,
     );
-    timeline.to(record.group.scale, { x: 0.01, y: 0.01, z: 0.01, duration: duration * 0.6, ease: "power2.in" }, duration * 0.4);
+    timeline.to(
+      arrow.position,
+      { y: pressedArrowY, duration: downSeconds, ease: "power2.in" },
+      0,
+    );
+    timeline.to(
+      mesh.scale,
+      { y: 1, duration: upSeconds, ease: "back.out(2.4)" },
+      downSeconds,
+    );
+    timeline.to(
+      arrow.position,
+      { y: entry.arrowRestY, duration: upSeconds, ease: "back.out(2.4)" },
+      downSeconds,
+    );
     this._activeTimelines.add(timeline);
   }
 
   public removeBlock(blockId: number): void {
     const record = this._blocks.get(blockId);
     if (!record) return;
+    this._removeSelectionOutline(blockId);
     record.group.removeFromParent();
     record.bodyGeometry.dispose();
     record.material.dispose();
@@ -458,6 +708,98 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     const record = this._blocks.get(blockId);
     if (!record) return;
     record.group.position.y = record.baseY + (lifted ? cfg.dragLiftAmount : 0);
+  }
+
+  public setBlockSelected(blockId: number, selected: boolean): void {
+    if (selected) this._addSelectionOutline(blockId);
+    else this._removeSelectionOutline(blockId);
+  }
+
+  /**
+   * Spawns inverted-hull silhouette clones of every pickable mesh on the
+   * block (body + studs) and flips the block's own meshes into a "paint
+   * on top" state so the outline fringe wraps the block's live 3D shape
+   * from every camera angle. Each clone reuses the original geometry
+   * unchanged — normals are already defined on it, and the outline
+   * shader displaces every vertex outward along its own normal so the
+   * expansion is uniform regardless of the footprint shape.
+   */
+  private _addSelectionOutline(blockId: number): void {
+    const record = this._blocks.get(blockId);
+    if (!record) return;
+    if (this._selectionOutlines.has(blockId)) return;
+
+    const outlineMaterial = this._ensureOutlineMaterial();
+    const outlineMeshes: THREE.Mesh[] = [];
+    for (const mesh of record.pickableMeshes) {
+      const outline = new THREE.Mesh(mesh.geometry, outlineMaterial);
+      outline.position.copy(mesh.position);
+      outline.rotation.copy(mesh.rotation);
+      outline.scale.copy(mesh.scale);
+      outline.renderOrder = 9998;
+      record.group.add(outline);
+      outlineMeshes.push(outline);
+    }
+
+    // Re-render the block's own surfaces on top of the outline so the
+    // silhouette interior is covered and only the fringe remains visible
+    // — and on top of every OTHER block too, matching the always-visible
+    // spec when the dragged block is overlapping neighbours.
+    record.material.depthTest = false;
+    record.material.depthWrite = false;
+    record.material.needsUpdate = true;
+    for (const mesh of record.pickableMeshes) mesh.renderOrder = 9999;
+
+    this._selectionOutlines.set(blockId, { outlineMeshes });
+  }
+
+  private _removeSelectionOutline(blockId: number): void {
+    const entry = this._selectionOutlines.get(blockId);
+    if (!entry) return;
+    for (const mesh of entry.outlineMeshes) mesh.removeFromParent();
+    this._selectionOutlines.delete(blockId);
+
+    const record = this._blocks.get(blockId);
+    if (!record) return;
+    record.material.depthTest = true;
+    record.material.depthWrite = true;
+    record.material.needsUpdate = true;
+    for (const mesh of record.pickableMeshes) mesh.renderOrder = 0;
+  }
+
+  /**
+   * The outline material is a `ShaderMaterial` that pushes every vertex
+   * along its per-vertex normal by `thickness` world units and paints
+   * the result white. With `side: BackSide` only the far face of the
+   * expanded hull renders, and `depthTest: false` keeps it visible
+   * through other blocks. Shared across all selected blocks — one
+   * allocation per `BoardView` lifetime.
+   */
+  private _ensureOutlineMaterial(): THREE.ShaderMaterial {
+    if (this._outlineMaterial) return this._outlineMaterial;
+    const cfg = this._requireConfig();
+    this._outlineMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        thickness: { value: cfg.selectionOutlineThickness },
+      },
+      vertexShader: [
+        "uniform float thickness;",
+        "void main() {",
+        "  vec3 n = length(normal) > 0.0 ? normalize(normal) : vec3(0.0);",
+        "  vec3 displaced = position + n * thickness;",
+        "  gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);",
+        "}",
+      ].join("\n"),
+      fragmentShader: [
+        "void main() {",
+        "  gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);",
+        "}",
+      ].join("\n"),
+      side: THREE.BackSide,
+      depthTest: false,
+      depthWrite: false,
+    });
+    return this._outlineMaterial;
   }
 
   public onBlockPointerDown(cb: (blockId: number, pointer: GridPointer) => void): Unsubscribe {
@@ -548,40 +890,210 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   private _createDoorMesh(door: Door): void {
     const cfg = this._requireConfig();
     const color = cfg.colors[door.colorIndex % cfg.colors.length]!;
-    const material = new THREE.MeshStandardMaterial({ color, metalness: 0.1, roughness: 0.75 });
-    this._doorMaterials.push(material);
+    const material = new THREE.MeshStandardMaterial({ color, metalness: 0.1, roughness: 0.55 });
 
     const span = door.spanEnd - door.spanStart + 1;
-    const longSide = cfg.cellSize * span * 0.92;
-    const shortSide = cfg.cellSize * 0.35;
-    const height = cfg.blockHeight * 0.9;
+    const longSide = cfg.cellSize * span * 0.94;
+    const shortSide = cfg.edgePieceDepth;
+    const height = cfg.blockHeight * cfg.gateHeightMultiplier;
     const halfShort = shortSide * 0.5;
     const gridHalfWidth = (this._cols * cfg.cellSize) * 0.5;
     const gridHalfDepth = (this._rows * cfg.cellSize) * 0.5;
 
-    let width = 0;
-    let depth = 0;
+    let widthX = 0;
+    let depthZ = 0;
     let x = 0;
     let z = 0;
+    let outwardX = 0;
+    let outwardZ = 0;
 
     if (door.side === "top" || door.side === "bottom") {
-      width = longSide;
-      depth = shortSide;
+      widthX = longSide;
+      depthZ = shortSide;
       x = this._cellWorld((door.spanStart + door.spanEnd) * 0.5, 0).x;
       z = door.side === "top" ? -gridHalfDepth - halfShort : gridHalfDepth + halfShort;
+      outwardZ = door.side === "top" ? -1 : 1;
     } else {
-      width = shortSide;
-      depth = longSide;
+      widthX = shortSide;
+      depthZ = longSide;
       z = this._cellWorld(0, (door.spanStart + door.spanEnd) * 0.5).z;
       x = door.side === "left" ? -gridHalfWidth - halfShort : gridHalfWidth + halfShort;
+      outwardX = door.side === "left" ? -1 : 1;
     }
 
-    const geom = new THREE.BoxGeometry(width, height, depth);
-    this._doorGeometries.push(geom);
-    const mesh = new THREE.Mesh(geom, material);
-    mesh.position.set(x, height * 0.5, z);
+    // Rounded body. Origin baked at y = 0 (base) so the button-press
+    // animation scales only along Y and the top of the gate descends
+    // toward the ground without lifting the base.
+    const geometry = this._createRoundedEdgePieceGeometry(widthX, depthZ, height);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, 0, z);
     this.add(mesh);
-    this._doorMeshes.push(mesh);
+
+    // White arrow sitting on top, pointing outward.
+    const arrowGeometry = this._createArrowGeometry(outwardX, outwardZ);
+    const arrowMesh = new THREE.Mesh(arrowGeometry, this._ensureGateArrowMaterial());
+    const arrowRestY = height + cfg.gateArrowLift;
+    arrowMesh.position.set(x, arrowRestY, z);
+    this.add(arrowMesh);
+
+    this._doors.set(door.id, {
+      mesh,
+      arrowMesh,
+      arrowGeometry,
+      arrowRestY,
+      side: door.side,
+      spanStart: door.spanStart,
+      spanEnd: door.spanEnd,
+      material,
+      geometry,
+    });
+  }
+
+  /**
+   * Rounded-corner box used by both gates and walls. The corners in the
+   * XZ plane are quadratic-curve arcs; top/bottom edges get a small
+   * bevel so the final silhouette reads as a soft rounded brick. The
+   * mesh origin is placed at the base (world y = 0) so Y-scale
+   * animations pivot from the floor.
+   */
+  private _createRoundedEdgePieceGeometry(
+    widthX: number,
+    depthZ: number,
+    height: number,
+  ): THREE.BufferGeometry {
+    const cfg = this._requireConfig();
+    const w = widthX * 0.5;
+    const d = depthZ * 0.5;
+    const r = Math.max(0, Math.min(cfg.edgePieceCornerRadius, Math.min(w, d) * 0.95));
+
+    const shape = new THREE.Shape();
+    shape.moveTo(-w + r, -d);
+    shape.lineTo(w - r, -d);
+    shape.quadraticCurveTo(w, -d, w, -d + r);
+    shape.lineTo(w, d - r);
+    shape.quadraticCurveTo(w, d, w - r, d);
+    shape.lineTo(-w + r, d);
+    shape.quadraticCurveTo(-w, d, -w, d - r);
+    shape.lineTo(-w, -d + r);
+    shape.quadraticCurveTo(-w, -d, -w + r, -d);
+
+    const bevel = Math.min(r * 0.5, height * 0.18);
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: height,
+      bevelEnabled: true,
+      bevelThickness: bevel,
+      bevelSize: bevel,
+      bevelOffset: -bevel,
+      bevelSegments: 3,
+      curveSegments: 4,
+    });
+    // Shape was built in the XY plane. Rotate so extrusion axis maps to
+    // world +Y, then the box occupies X ∈ [-w, w], Y ∈ [0, height],
+    // Z ∈ [-d, d] — with the origin on the base.
+    geometry.rotateX(-Math.PI / 2);
+    return geometry;
+  }
+
+  /**
+   * Builds a flat arrow sitting on the XZ plane pointing along the
+   * `outwardX` / `outwardZ` unit vector. Extruded vertically by
+   * `gateArrowThickness` so it reads as a solid arrow from any camera
+   * angle, including the near-top-down view this game uses.
+   */
+  private _createArrowGeometry(outwardX: number, outwardZ: number): THREE.BufferGeometry {
+    const cfg = this._requireConfig();
+    const length = cfg.gateArrowLength;
+    const width = cfg.gateArrowWidth;
+    const thickness = cfg.gateArrowThickness;
+
+    const shape = new THREE.Shape();
+    // Tip on the +X side; base on the -X side. We rotate into the
+    // outward direction below.
+    shape.moveTo(-length * 0.5, -width * 0.5);
+    shape.lineTo(length * 0.5, 0);
+    shape.lineTo(-length * 0.5, width * 0.5);
+    shape.closePath();
+
+    const geometry = new THREE.ExtrudeGeometry(shape, {
+      depth: thickness,
+      bevelEnabled: false,
+    });
+    // Lie flat: shape XY → world XZ (Y up).
+    geometry.rotateX(-Math.PI / 2);
+    // Orient the tip (+X) toward the outward direction.
+    geometry.rotateY(Math.atan2(-outwardZ, outwardX));
+    return geometry;
+  }
+
+  private _ensureGateArrowMaterial(): THREE.MeshStandardMaterial {
+    if (this._gateArrowMaterial) return this._gateArrowMaterial;
+    const cfg = this._requireConfig();
+    this._gateArrowMaterial = new THREE.MeshStandardMaterial({
+      color: cfg.gateArrowColor,
+      metalness: 0.0,
+      roughness: 0.4,
+    });
+    return this._gateArrowMaterial;
+  }
+
+  /**
+   * Drops a rounded wall block into every edge cell that doesn't host a
+   * gate. Shares one geometry for horizontal walls (top/bottom edges)
+   * and one for vertical walls (left/right edges); each wall gets its
+   * own material with a random colour picked from {@link ColorBlockJamConfig.wallColors}
+   * so the border has subtle shade variation.
+   */
+  private _installWalls(cols: number, rows: number, doors: readonly Door[]): void {
+    const cfg = this._requireConfig();
+    const cellSize = cfg.cellSize;
+    const longCell = cellSize * 0.94;
+    const shortSide = cfg.edgePieceDepth;
+    const height = cfg.blockHeight * cfg.gateHeightMultiplier;
+    const gridHalfW = (cols * cellSize) * 0.5;
+    const gridHalfD = (rows * cellSize) * 0.5;
+    const halfShort = shortSide * 0.5;
+
+    const covered: Record<DoorSide, Set<number>> = {
+      top: new Set<number>(),
+      bottom: new Set<number>(),
+      left: new Set<number>(),
+      right: new Set<number>(),
+    };
+    for (const door of doors) {
+      for (let i = door.spanStart; i <= door.spanEnd; i++) covered[door.side].add(i);
+    }
+
+    this._wallGeometryH = this._createRoundedEdgePieceGeometry(longCell, shortSide, height);
+    this._wallGeometryV = this._createRoundedEdgePieceGeometry(shortSide, longCell, height);
+
+    const pickColor = (): number => {
+      const palette = cfg.wallColors;
+      return palette[Math.floor(Math.random() * palette.length)]!;
+    };
+    const addWall = (geometry: THREE.BufferGeometry, x: number, z: number): void => {
+      const material = new THREE.MeshStandardMaterial({
+        color: pickColor(),
+        metalness: 0.05,
+        roughness: 0.8,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(x, 0, z);
+      this.add(mesh);
+      this._walls.push({ mesh, material });
+    };
+
+    // Top + bottom edges: one wall per uncovered column.
+    for (let col = 0; col < cols; col++) {
+      const x = this._cellWorld(col, 0).x;
+      if (!covered.top.has(col)) addWall(this._wallGeometryH, x, -gridHalfD - halfShort);
+      if (!covered.bottom.has(col)) addWall(this._wallGeometryH, x, gridHalfD + halfShort);
+    }
+    // Left + right edges: one wall per uncovered row.
+    for (let row = 0; row < rows; row++) {
+      const z = this._cellWorld(0, row).z;
+      if (!covered.left.has(row)) addWall(this._wallGeometryV, -gridHalfW - halfShort, z);
+      if (!covered.right.has(row)) addWall(this._wallGeometryV, gridHalfW + halfShort, z);
+    }
   }
 
   private _raycastBlock(event: PointerEvent): number | null {
@@ -624,6 +1136,12 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   private _clearBoard(): void {
+    for (const entry of this._selectionOutlines.values()) {
+      for (const mesh of entry.outlineMeshes) mesh.removeFromParent();
+    }
+    this._selectionOutlines.clear();
+    this._outlineMaterial?.dispose();
+    this._outlineMaterial = null;
     for (const record of this._blocks.values()) {
       record.group.removeFromParent();
       record.bodyGeometry.dispose();
@@ -633,12 +1151,26 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._studGeometry?.dispose();
     this._studGeometry = null;
 
-    for (const mesh of this._doorMeshes) mesh.removeFromParent();
-    this._doorMeshes.length = 0;
-    for (const mat of this._doorMaterials) mat.dispose();
-    this._doorMaterials.length = 0;
-    for (const geom of this._doorGeometries) geom.dispose();
-    this._doorGeometries.length = 0;
+    for (const entry of this._doors.values()) {
+      entry.mesh.removeFromParent();
+      entry.arrowMesh.removeFromParent();
+      entry.material.dispose();
+      entry.geometry.dispose();
+      entry.arrowGeometry.dispose();
+    }
+    this._doors.clear();
+    this._gateArrowMaterial?.dispose();
+    this._gateArrowMaterial = null;
+
+    for (const wall of this._walls) {
+      wall.mesh.removeFromParent();
+      wall.material.dispose();
+    }
+    this._walls.length = 0;
+    this._wallGeometryH?.dispose();
+    this._wallGeometryH = null;
+    this._wallGeometryV?.dispose();
+    this._wallGeometryV = null;
 
     this._gridOverlay?.removeFromParent();
     this._gridOverlay = null;

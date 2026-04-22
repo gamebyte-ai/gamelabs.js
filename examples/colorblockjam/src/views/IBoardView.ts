@@ -44,13 +44,24 @@ export interface IBoardView extends IView {
   setBlockLifted(blockId: number, lifted: boolean): void;
 
   /**
-   * Runs the exit animation for a block: it slides perpendicular to the
-   * door's edge, shrinks out, and calls `onComplete` when done. While
-   * the animation runs, the block must not respond to pointer input —
-   * the view stops emitting `onBlockPointerDown` for it until the
-   * controller removes it.
+   * Shows / hides a white outline around the block's shape footprint so
+   * the player can see which block is currently being dragged. The
+   * outline must render on top of every other block (depth-test off,
+   * high render order) so it stays visible when the dragged block
+   * passes over or close to others.
    */
-  animateExit(blockId: number, side: DoorSide, onComplete: () => void): void;
+  setBlockSelected(blockId: number, selected: boolean): void;
+
+  /**
+   * Runs the exit animation for a block passing through `doorId`:
+   *  - tweens the block's position outward through the gate, clipped
+   *    against the grid edge so the part past the wall disappears,
+   *  - spawns a coloured particle burst on the outside of the gate,
+   *  - triggers the gate's button-press scale animation once the block
+   *    is fully consumed,
+   *  - calls `onComplete` so the controller can finalize the clear.
+   */
+  animateExit(blockId: number, doorId: number, onComplete: () => void): void;
 
   /**
    * Subscribes to a pointer-down on a block mesh. The pointer's grid

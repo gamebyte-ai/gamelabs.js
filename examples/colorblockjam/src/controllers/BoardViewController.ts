@@ -7,7 +7,7 @@ import {
 import { IGameModel } from "../models/IGameModel.js";
 import type { IGameModel as IGameModelType } from "../models/IGameModel.js";
 import type { Block } from "../models/Block.js";
-import type { CellCoord, DoorSide } from "../ColorBlockJamConfig.js";
+import type { CellCoord } from "../ColorBlockJamConfig.js";
 import { ColorBlockJamConfig } from "../ColorBlockJamConfig.js";
 import { GameOperations, type FloatPos } from "../utilities/GameOperations.js";
 import { GameEvents } from "../events/GameEvents.js";
@@ -131,6 +131,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     this._grabOffsetCol = pointer.col - block.anchor.col;
     this._grabOffsetRow = pointer.row - block.anchor.row;
     this._view.setBlockLifted(blockId, true);
+    this._view.setBlockSelected(blockId, true);
   }
 
   private _onMove(pointer: GridPointer): void {
@@ -162,7 +163,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     this._view.setBlockAnchor(block.id, next.col, next.row);
 
     const trigger = this._ops.detectExitTrigger(block.id, next);
-    if (trigger) this._beginExit(block, trigger.doorId, trigger.side, trigger.anchor);
+    if (trigger) this._beginExit(block, trigger.doorId, trigger.anchor);
   }
 
   private _onRelease(_pointer: GridPointer): void {
@@ -178,9 +179,10 @@ export class BoardViewController implements IViewController<IBoardView> {
     if (!result) return;
 
     if (result.kind === "exit") {
-      this._beginExit(block, result.doorId, result.side, result.anchor);
+      this._beginExit(block, result.doorId, result.anchor);
     } else {
       this._view.setBlockLifted(block.id, false);
+      this._view.setBlockSelected(block.id, false);
       this._view.setBlockAnchor(block.id, result.anchor.col, result.anchor.row);
     }
   }
@@ -191,14 +193,15 @@ export class BoardViewController implements IViewController<IBoardView> {
    * on-release commit — in both cases the animation starts from the
    * snapped integer anchor, never from a mid-drag float offset.
    */
-  private _beginExit(block: Block, doorId: number, side: DoorSide, anchor: CellCoord): void {
+  private _beginExit(block: Block, doorId: number, anchor: CellCoord): void {
     if (!this._view) return;
     if (this._exitingBlockIds.has(block.id)) return;
     this._exitingBlockIds.add(block.id);
     if (this._draggedBlock?.id === block.id) this._draggedBlock = null;
     this._view.setBlockLifted(block.id, false);
+    this._view.setBlockSelected(block.id, false);
     this._view.setBlockAnchor(block.id, anchor.col, anchor.row);
-    this._view.animateExit(block.id, side, () => this._finishExit(block.id, doorId));
+    this._view.animateExit(block.id, doorId, () => this._finishExit(block.id, doorId));
   }
 
   private _finishExit(blockId: number, doorId: number): void {
