@@ -16,7 +16,7 @@ import { ColorBlockJamConfig, type LevelDescriptor } from "../ColorBlockJamConfi
  */
 export class LevelManager {
   private readonly _config: ColorBlockJamConfig;
-  private _index = 4;
+  private _index = 0;
 
   public constructor(config: ColorBlockJamConfig) {
     this._config = config;

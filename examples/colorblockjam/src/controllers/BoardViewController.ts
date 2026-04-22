@@ -12,6 +12,7 @@ import { ColorBlockJamConfig } from "../ColorBlockJamConfig.js";
 import { GameOperations, type FloatPos } from "../utilities/GameOperations.js";
 import { GameEvents } from "../events/GameEvents.js";
 import { LevelManager } from "../utilities/LevelManager.js";
+import { SfxService } from "../services/SfxService.js";
 import type { GridPointer, IBoardView } from "../views/IBoardView.js";
 
 /**
@@ -53,6 +54,7 @@ export class BoardViewController implements IViewController<IBoardView> {
   private _events: GameEvents | null = null;
   private _levels: LevelManager | null = null;
   private _config: ColorBlockJamConfig | null = null;
+  private _sfx: SfxService | null = null;
   private _view: IBoardView | null = null;
 
   private _draggedBlock: Block | null = null;
@@ -72,6 +74,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     this._events = resolver.getInstance(GameEvents);
     this._levels = resolver.getInstance(LevelManager);
     this._config = resolver.getInstance(ColorBlockJamConfig);
+    this._sfx = resolver.getInstance(SfxService);
     const updates = resolver.getInstance(UpdateManager);
     this._subs.add(updates.register((dt) => this._tickDrag(dt)));
   }
@@ -98,6 +101,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     this._events = null;
     this._levels = null;
     this._config = null;
+    this._sfx = null;
     this._draggedBlock = null;
     this._exitingBlockIds.clear();
   }
@@ -132,6 +136,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     this._grabOffsetRow = pointer.row - block.anchor.row;
     this._view.setBlockLifted(blockId, true);
     this._view.setBlockSelected(blockId, true);
+    this._sfx?.playPickup();
   }
 
   private _onMove(pointer: GridPointer): void {
@@ -184,6 +189,7 @@ export class BoardViewController implements IViewController<IBoardView> {
       this._view.setBlockLifted(block.id, false);
       this._view.setBlockSelected(block.id, false);
       this._view.setBlockAnchor(block.id, result.anchor.col, result.anchor.row);
+      this._sfx?.playDrop();
     }
   }
 
@@ -201,6 +207,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     this._view.setBlockLifted(block.id, false);
     this._view.setBlockSelected(block.id, false);
     this._view.setBlockAnchor(block.id, anchor.col, anchor.row);
+    this._sfx?.playGateShred();
     this._view.animateExit(block.id, doorId, () => this._finishExit(block.id, doorId));
   }
 

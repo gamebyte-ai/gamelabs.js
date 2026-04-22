@@ -1,17 +1,25 @@
 import {
+  AudioService,
   GamelabsApp,
   GameCameraBinding,
+  ISettingsModel,
   LogTypes,
   Orbital3dCameraController,
+  SettingsBinding,
+  SettingsBooleanField,
+  SettingsEvents,
+  SettingsNumberField,
   UIEvents,
   UnsubscribeBag,
   World,
+  type ISettingsModel as ISettingsModelType,
 } from "@gamebyte/gamelabsjs";
 import { ColorBlockJamConfig } from "./ColorBlockJamConfig.js";
 import { ColorBlockJamUIIds } from "./ColorBlockJamUIIds.js";
 import { GameEvents } from "./events/GameEvents.js";
 import { GameModel } from "./models/GameModel.js";
 import { IGameModel } from "./models/IGameModel.js";
+import { SfxService } from "./services/SfxService.js";
 import { GameOperations } from "./utilities/GameOperations.js";
 import { LevelManager } from "./utilities/LevelManager.js";
 import { BoardView } from "./views/BoardView.three.js";
@@ -55,6 +63,7 @@ import { WinPopupViewController } from "./controllers/WinPopupViewController.js"
 export class ColorBlockJamApp extends GamelabsApp {
   private readonly _config = new ColorBlockJamConfig();
   private readonly _gameCameraBinding = new GameCameraBinding();
+  private readonly _settingsBinding = new SettingsBinding();
   private readonly _events = new GameEvents();
   private readonly _levels = new LevelManager(this._config);
   private _boardView: BoardView | null = null;
@@ -62,10 +71,15 @@ export class ColorBlockJamApp extends GamelabsApp {
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
+    // Settings fields are declared here so they're ready before
+    // `configureDI` hands the SettingsBinding's model to the container.
+    this._settingsBinding.addField(new SettingsBooleanField("sfxEnabled", "Sound Effects", true));
+    this._settingsBinding.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 0.8, 0, 1, 0.1));
   }
 
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
+    this.addModule(this._settingsBinding);
   }
 
   protected override configureDI(): void {
@@ -75,6 +89,11 @@ export class ColorBlockJamApp extends GamelabsApp {
     this.diContainer.bindInstance(LevelManager, this._levels);
     this.diContainer.bindInstance(GameModel, new GameModel(), [IGameModel]);
     this.diContainer.bindSingleton(GameOperations, () => new GameOperations());
+
+    // Procedural SFX — no audio assets to load; the service synthesises
+    // every sound from Web Audio oscillators at call-time.
+    const audioService = this.diContainer.getInstance(AudioService);
+    this.diContainer.bindInstance(SfxService, new SfxService(audioService));
 
     if (!this.world) {
       this.logger.log("World is not initialized", LogTypes.Error);
@@ -101,6 +120,11 @@ export class ColorBlockJamApp extends GamelabsApp {
 
     this._boardView = this.viewFactory.createView(BoardView);
     this.world.addView(this._boardView);
+
+    // Apply persisted audio settings once and then keep them in sync
+    // with the settings popup.
+    this._applyInitialSettings();
+    this._subscribeSettingsChanges();
 
     this._gameCameraBinding.cameraManager.initialize(this.world);
     // Orbital 3D camera driven entirely from `ColorBlockJamConfig` —
@@ -137,5 +161,29 @@ export class ColorBlockJamApp extends GamelabsApp {
     this._boardView?.destroy();
     this._boardView = null;
     super.preDestroy();
+  }
+
+  private _applyInitialSettings(): void {
+    const settings = this.diContainer.getInstance(ISettingsModel);
+    const audio = this.diContainer.getInstance(AudioService);
+    audio.setSfxMute(!settings.getBooleanValue("sfxEnabled"));
+    audio.setSfxVolume(settings.getNumberValue("sfxVolume"));
+  }
+
+  private _subscribeSettingsChanges(): void {
+    const settings = this.diContainer.getInstance(ISettingsModel);
+    const audio = this.diContainer.getInstance(AudioService);
+    const events = this.diContainer.getInstance(SettingsEvents);
+    this._systemUnsubs.add(
+      events.onValueChanged((name) => this._onSettingValueChanged(name, settings, audio)),
+    );
+  }
+
+  private _onSettingValueChanged(name: string, settings: ISettingsModelType, audio: AudioService): void {
+    if (name === "sfxEnabled") {
+      audio.setSfxMute(!settings.getBooleanValue("sfxEnabled"));
+    } else if (name === "sfxVolume") {
+      audio.setSfxVolume(settings.getNumberValue("sfxVolume"));
+    }
   }
 }

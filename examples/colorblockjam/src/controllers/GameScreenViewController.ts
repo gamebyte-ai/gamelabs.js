@@ -1,4 +1,10 @@
-import { UIEvents, UnsubscribeBag, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
+import {
+  SettingsUIIds,
+  UIEvents,
+  UnsubscribeBag,
+  type IInstanceResolver,
+  type IViewController,
+} from "@gamebyte/gamelabsjs";
 import { ColorBlockJamUIIds } from "../ColorBlockJamUIIds.js";
 import { GameEvents } from "../events/GameEvents.js";
 import { LevelManager } from "../utilities/LevelManager.js";
@@ -35,6 +41,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
 
     this._subs.add(this._gameEvents.onWin(() => this._onWin()));
     this._subs.add(this._gameEvents.onLevelChanged(() => this._refreshHeader()));
+    this._subs.add(view.onSettingsTapped(() => this._onSettingsTapped()));
   }
 
   public destroy(): void {
@@ -53,5 +60,9 @@ export class GameScreenViewController implements IViewController<IGameScreenView
 
   private _onWin(): void {
     this._uiEvents?.createPopup(ColorBlockJamUIIds.WinPopup);
+  }
+
+  private _onSettingsTapped(): void {
+    this._uiEvents?.createPopup(SettingsUIIds.SettingsPopup);
   }
 }

@@ -1,14 +1,17 @@
 import * as PIXI from "pixi.js";
-import { ScreenView } from "@gamebyte/gamelabsjs";
+import { ButtonComponent, ScreenView, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView.js";
 
 /**
- * Lightweight PIXI overlay: top-left title and one-line instructions. No
- * interactive elements; gameplay input is handled by the world view.
+ * PIXI overlay: top-left title/subtitle and a top-right settings gear
+ * button. The button is the only interactive element — gameplay input
+ * is handled by the world view.
  */
 export class GameScreenView extends ScreenView implements IGameScreenView {
   private _titleText: PIXI.Text | null = null;
   private _subtitleText: PIXI.Text | null = null;
+  private _settingsBtn: ButtonComponent | null = null;
+  private readonly _settingsListeners = new Set<() => void>();
 
   public override postInitialize(): void {
     super.postInitialize();
@@ -37,6 +40,26 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     });
     this._subtitleText.position.set(20, 48);
     this.addChild(this._subtitleText);
+
+    this._settingsBtn = new ButtonComponent({
+      width: 44,
+      height: 44,
+      label: "⚙", // ⚙ — cog glyph
+      labelStyle: { fontSize: 22, fill: 0xe8eef6 },
+      radius: 12,
+      fillColor: 0x1e293b,
+      fillAlpha: 0.75,
+      strokeColor: 0x475569,
+    });
+    this.addChild(this._settingsBtn);
+    this._settingsBtn.onPress(() => {
+      for (const cb of this._settingsListeners) cb();
+    });
+  }
+
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
+    if (this._settingsBtn) this._settingsBtn.position.set(width - 60, 16);
   }
 
   public setTitle(title: string): void {
@@ -47,9 +70,16 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     if (this._subtitleText) this._subtitleText.text = subtitle;
   }
 
+  public onSettingsTapped(cb: () => void): Unsubscribe {
+    this._settingsListeners.add(cb);
+    return () => this._settingsListeners.delete(cb);
+  }
+
   public override preDestroy(): void {
+    this._settingsListeners.clear();
     this._titleText = null;
     this._subtitleText = null;
+    this._settingsBtn = null;
     super.preDestroy();
   }
 }
