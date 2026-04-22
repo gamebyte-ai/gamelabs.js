@@ -18,15 +18,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public override postInitialize(): void {
     super.postInitialize();
-    // Enable flex layout: top bar at top, debug bar below it.
-    this.layout = {
-      width: 1,
-      height: 1,
-      flexDirection: "column",
-      justifyContent: "flex-start",
-      padding: 16,
-      gap: 12,
-    };
 
     // Invisible overlay to define bounds + potential future interactions.
     this.overlay.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
@@ -44,9 +35,17 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this.debugBar.layout = { width: "100%" };
   }
 
-  public override onResize(width: number, height: number, _dpr: number): void {
-    // Drive layout sizing from the app.
-    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
+    // Flex column: top bar at top, debug bar below it.
+    this.layout = {
+      width: Math.max(1, width),
+      height: Math.max(1, height),
+      flexDirection: "column",
+      justifyContent: "flex-start",
+      padding: 16,
+      gap: 12,
+    };
 
     this.overlay.clear();
     // Transparent overlay; keeps the screen non-obtrusive while defining bounds.

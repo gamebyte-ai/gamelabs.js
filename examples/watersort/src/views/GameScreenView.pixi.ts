@@ -78,7 +78,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this.addChild(this._bottlesContainer);
   }
 
-  public override onResize(width: number, height: number, _dpr: number): void {
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
     this._screenWidth = Math.max(1, width);
     this._screenHeight = Math.max(1, height);
 

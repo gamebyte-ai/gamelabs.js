@@ -33,7 +33,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     });
   }
 
-  public override onResize(width: number, height: number, _dpr: number): void {
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
     this._screenWidth = Math.max(1, width);
     if (this._scoreText) {
       this._scoreText.x = 16;

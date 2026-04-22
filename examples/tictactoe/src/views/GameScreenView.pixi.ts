@@ -14,17 +14,9 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public override postInitialize(): void {
     super.postInitialize();
-    this.layout = {
-      width: 1,
-      height: 1,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      padding: 16,
-      alignItems: "flex-start"
-    };
 
-    (this._playerX as any).layout = {};
-    (this._playerO as any).layout = {};
+    this._playerX.layout = {};
+    this._playerO.layout = {};
     this.addChild(this._playerX);
     this.addChild(this._playerO);
     this._updateHighlight();
@@ -43,7 +35,15 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     (this._playerO as PIXI.Text).style = this._activeTeam === Team.O ? highlightO as any : baseStyle as any;
   }
 
-  override onResize(width: number, height: number, _dpr: number): void {
-    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
+    this.layout = {
+      width: Math.max(1, width),
+      height: Math.max(1, height),
+      flexDirection: "row",
+      justifyContent: "space-between",
+      padding: 16,
+      alignItems: "flex-start",
+    };
   }
 }

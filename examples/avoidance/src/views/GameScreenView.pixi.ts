@@ -9,7 +9,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public override postInitialize(): void {
     super.postInitialize();
-    this.layout = { width: 1, height: 1 };
 
     this._waveLabel = new PIXI.Text({
       text: "WAVE 1",
@@ -33,7 +32,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this.on("layout", () => this._updateWaveAnnouncePosition());
   }
 
-  public override onResize(width: number, height: number, _dpr: number): void {
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
     this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
     this._onScreenControls?.resize(width, height);
   }

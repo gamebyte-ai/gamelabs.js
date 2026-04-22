@@ -63,14 +63,6 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       this.currentLevel = Math.max(1, Math.floor(this.initialCurrentLevel));
     }
 
-    // Full-screen container that centers its children.
-    this.layout = {
-      width: 1,
-      height: 1,
-      justifyContent: "center",
-      alignItems: "center",
-    };
-
     // Background component.
     const bgPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackgroundPreset) ?? "{}";
     this.background = new BackgroundComponent(parseBackgroundComponentPreset(bgPresetJson));
@@ -106,14 +98,21 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     this.applyLevels();
   }
 
-  public override onResize(width: number, height: number, _dpr: number): void {
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
     const w = Math.max(1, width);
     const h = Math.max(1, height);
-    this.layout = { width: w, height: h };
+    // Full-screen container that centers its children.
+    this.layout = { width: w, height: h, justifyContent: "center", alignItems: "center" };
     this.applyBackButtonLayout(w);
   }
 
   private applyBackButtonLayout(screenWidth: number): void {
+    // super.postInitialize() in HudViewBase fires onResize with the current
+    // canvas size before this subclass's body creates backButton; skip the
+    // first call and let postInitialize re-trigger once the button exists.
+    if (!this.backButton) return;
+
     const w = Math.max(1, Math.floor(screenWidth));
     const targetW = Math.max(220, Math.min(340, Math.round(w * 0.22)));
     const targetH = Math.max(64, Math.round(targetW / LevelProgressScreenView.backButtonAspect));
