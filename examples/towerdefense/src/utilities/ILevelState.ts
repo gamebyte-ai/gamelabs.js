@@ -1,14 +1,6 @@
 import { InjectionToken } from "@gamebyte/gamelabsjs";
 import type { CellType } from "../constants/CellType.js";
-
-export interface PathCellInfo {
-  /** true when the path changes direction at this cell. */
-  readonly isTurn: boolean;
-  /** true for right-hand turns, false for left or straight. */
-  readonly isRightTurn: boolean;
-  /** Mesh rotation.y to align the directional texture with the path. */
-  readonly rotation: number;
-}
+import type { PathCellInfo } from "../constants/PathCellInfo.js";
 
 /**
  * Readonly view of the current level's path and cell-type queries.

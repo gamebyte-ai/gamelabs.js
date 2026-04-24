@@ -1,13 +1,9 @@
 import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
-import type { DoorSide } from "../constants/BoardTypes.js";
+import type { GridPointer } from "../constants/DragTypes.js";
 import type { Block } from "../models/Block.js";
 import type { Door } from "../models/Door.js";
 
-/**
- * Grid-space pointer position. `col`/`row` are float cell coordinates
- * (`col` along the X axis, `row` along the Z axis).
- */
-export type GridPointer = { readonly col: number; readonly row: number };
+export type { GridPointer } from "../constants/DragTypes.js";
 
 /**
  * World-side 3D view of the Color Block Jam board: grid plate, colored

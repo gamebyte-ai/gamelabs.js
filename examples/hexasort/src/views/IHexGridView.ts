@@ -1,7 +1,12 @@
 import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
+import type { HexCoord } from "../constants/HexCoord.js";
 import type { IHexGrid } from "../models/IHexGrid.js";
 
-export type HexCellCoord = { readonly col: number; readonly row: number };
+/**
+ * Alias kept for readability at the view boundary — a hover callback
+ * talks about "the cell the pointer is over" rather than "a HexCoord".
+ */
+export type HexCellCoord = HexCoord;
 
 export interface IHexGridView extends IView {
   /** (Re)builds visible cells for the supplied grid model. */

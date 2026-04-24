@@ -1,7 +1,5 @@
 import { InjectionToken } from "@gamebyte/gamelabsjs";
-
-export type HexCellPosition = { readonly x: number; readonly y: number; readonly z: number };
-export type HexGridBounds = { readonly width: number; readonly depth: number };
+import type { HexCellPosition, HexGridBounds } from "../constants/HexGridTypes.js";
 
 /**
  * Readonly view of the hex grid model. Controllers and views receive this

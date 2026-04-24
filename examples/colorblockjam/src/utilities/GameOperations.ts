@@ -1,35 +1,13 @@
 import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { ColorBlockJamConfig } from "../ColorBlockJamConfig.js";
 import type { CellCoord, DoorSide } from "../constants/BoardTypes.js";
+import type { CommitResult, ExitMatch, FloatPos } from "../constants/DragTypes.js";
 import { GameModel } from "../models/GameModel.js";
 import { Block } from "../models/Block.js";
 import { Door } from "../models/Door.js";
 import { LevelManager } from "./LevelManager.js";
 
-/** Continuous (float) position in cell coordinates. */
-export type FloatPos = { readonly col: number; readonly row: number };
-
-/**
- * Door match + which side it's on + the snapped anchor cell the block
- * should occupy before the exit animation plays. Both the auto-exit
- * trigger and the on-release commit return this shape so the controller
- * can first snap the block's visual to the exit cell, then animate.
- */
-export type ExitMatch = {
-  readonly doorId: number;
-  readonly side: DoorSide;
-  readonly anchor: CellCoord;
-};
-
-/** Outcome of a commit (release). */
-export type CommitResult =
-  | { readonly kind: "rest"; readonly anchor: CellCoord }
-  | {
-      readonly kind: "exit";
-      readonly doorId: number;
-      readonly side: DoorSide;
-      readonly anchor: CellCoord;
-    };
+export type { CommitResult, ExitMatch, FloatPos } from "../constants/DragTypes.js";
 
 /**
  * Owns every mutation to the game model and all movement rules.

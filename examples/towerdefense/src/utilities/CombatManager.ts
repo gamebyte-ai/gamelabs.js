@@ -1,31 +1,11 @@
 import { TowerTypeId, TOWER_TYPES, type TowerTypeDef } from "../constants/TowerTypeDef.js";
+import type { IEnemyState, IProjectileState, ITowerState } from "../constants/EntityStates.js";
 import type { TowerDefenseConfig } from "../TowerDefenseConfig.js";
 import type { GameEvents } from "../events/GameEvents.js";
 import type { SfxService } from "../services/SfxService.js";
-import type { EnemyManager, IEnemyState } from "./EnemyManager.js";
+import type { EnemyManager } from "./EnemyManager.js";
 
-/**
- * Readonly view of a placed tower. Exposed to views for rendering laser
- * beams (locked tower → target) and for any per-tower visual state.
- */
-export interface ITowerState {
-  readonly col: number;
-  readonly row: number;
-  readonly towerTypeId: TowerTypeId;
-  /** Laser only — id of the currently locked target, or 0 when none. */
-  readonly lockedTargetId: number;
-}
-
-/** Readonly projectile state exposed for per-frame mesh reconciliation. */
-export interface IProjectileState {
-  readonly id: number;
-  readonly kind: "linear" | "arc";
-  /** Base color hex (controls projectile mesh + trail tint). */
-  readonly color: number;
-  readonly posX: number;
-  readonly posY: number;
-  readonly posZ: number;
-}
+export type { IProjectileState, ITowerState } from "../constants/EntityStates.js";
 
 interface TowerInstance {
   col: number;

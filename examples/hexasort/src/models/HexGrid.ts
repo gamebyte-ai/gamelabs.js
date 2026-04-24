@@ -1,7 +1,8 @@
+import type { HexCellPosition, HexGridBounds } from "../constants/HexGridTypes.js";
 import type { BlockStack } from "./BlockStack.js";
-import type { HexCellPosition, HexGridBounds, IHexGrid } from "./IHexGrid.js";
+import type { IHexGrid } from "./IHexGrid.js";
 
-export type { HexCellPosition, HexGridBounds } from "./IHexGrid.js";
+export type { HexCellPosition, HexGridBounds } from "../constants/HexGridTypes.js";
 
 /**
  * Flat-top hex grid model with odd-q offset coordinates and per-cell

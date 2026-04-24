@@ -1,10 +1,12 @@
 import { UnsubscribeBag, UpdateManager, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
+import type { HexCoord } from "../constants/HexCoord.js";
+import type { SortMove } from "../constants/SortMove.js";
 import { HexGrid } from "../models/HexGrid.js";
 import { HexaSortConfig } from "../HexaSortConfig.js";
 import { GameEvents } from "../events/GameEvents.js";
-import { SortOperations, type SortMove } from "./SortOperations.js";
+import { SortOperations } from "./SortOperations.js";
 import { SfxService } from "../services/SfxService.js";
-import { hexCellKey, type HexCoord } from "./HexNeighbors.js";
+import { hexCellKey } from "./HexNeighbors.js";
 
 type Phase = "idle" | "sorting" | "destroying" | "cooldown";
 

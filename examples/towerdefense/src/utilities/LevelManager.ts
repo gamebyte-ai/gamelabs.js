@@ -1,9 +1,10 @@
 import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { CellType } from "../constants/CellType.js";
+import type { PathCellInfo } from "../constants/PathCellInfo.js";
 import { TowerDefenseConfig } from "../TowerDefenseConfig.js";
-import type { ILevelState, PathCellInfo } from "./ILevelState.js";
+import type { ILevelState } from "./ILevelState.js";
 
-export type { PathCellInfo } from "./ILevelState.js";
+export type { PathCellInfo } from "../constants/PathCellInfo.js";
 
 /**
  * Owns the mutable level state for tower defense — the path waypoints

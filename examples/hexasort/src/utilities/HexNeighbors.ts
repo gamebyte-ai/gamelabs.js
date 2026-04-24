@@ -1,4 +1,4 @@
-export type HexCoord = { readonly col: number; readonly row: number };
+import type { HexCoord } from "../constants/HexCoord.js";
 
 /**
  * Packs `(col, row)` into a single number key for use in Sets / Maps.

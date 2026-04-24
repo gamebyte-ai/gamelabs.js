@@ -2,23 +2,10 @@ import type { TowerDefenseConfig } from "../TowerDefenseConfig.js";
 import type { GameEvents } from "../events/GameEvents.js";
 import type { ILevelState } from "./ILevelState.js";
 import { EnemyTypeId, ENEMY_TYPES, type EnemyTypeDef } from "../constants/EnemyTypeDef.js";
+import type { IEnemyState } from "../constants/EntityStates.js";
 import { CellType } from "../constants/CellType.js";
 
-/**
- * Readonly snapshot of a single enemy's state. The same shape backs the
- * internal mutable `EnemyInstance`; views only ever see this view.
- */
-export interface IEnemyState {
-  readonly id: number;
-  readonly typeDef: EnemyTypeDef;
-  readonly posX: number;
-  readonly posZ: number;
-  readonly velX: number;
-  readonly velZ: number;
-  readonly hp: number;
-  /** 0 while not frozen; counts down to 0 while frozen. */
-  readonly freezeTimer: number;
-}
+export type { IEnemyState } from "../constants/EntityStates.js";
 
 interface EnemyInstance {
   id: number;

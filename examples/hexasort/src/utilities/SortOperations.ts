@@ -1,11 +1,6 @@
+import type { HexCoord } from "../constants/HexCoord.js";
 import type { HexGrid } from "../models/HexGrid.js";
-import { getHexNeighbors, type HexCoord } from "./HexNeighbors.js";
-
-export type SortMove = {
-  readonly source: HexCoord;
-  readonly target: HexCoord;
-  readonly color: number;
-};
+import { getHexNeighbors } from "./HexNeighbors.js";
 
 /**
  * Pure merge logic for the placement-driven Hexasort transfer system.
