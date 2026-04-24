@@ -1,14 +1,18 @@
 import * as THREE from "three";
 import gsap from "gsap";
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import {
+  LogTypes,
   World,
   WorldViewBase,
   type IInstanceResolver,
   type IPointerInputHandler,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
+import { ColorBlockJamAssetIds } from "../ColorBlockJamAssetIds.js";
 import { ColorBlockJamConfig } from "../ColorBlockJamConfig.js";
 import type { DoorSide } from "../constants/BoardTypes.js";
+import { resolveBrickAssetId } from "../constants/BrickShapeAssets.js";
 import type { Block } from "../models/Block.js";
 import type { Door } from "../models/Door.js";
 import type { GridPointer, IBoardView } from "./IBoardView.js";
@@ -18,14 +22,19 @@ type BlockRecord = {
   readonly block: Block;
   readonly group: THREE.Group;
   /**
-   * All meshes the raycaster can hit to select this block. The Lego body
-   * is one extruded piece; the studs sit on top. Any of them selecting
-   * the block's id on pointer-down.
+   * Every mesh inside the cloned brick model. The whole set receives the
+   * block id in `userData` so the raycaster can pick the block through
+   * either its body or its studs.
    */
   readonly pickableMeshes: THREE.Mesh[];
-  /** Per-block geometry — needs explicit dispose on remove. */
-  readonly bodyGeometry: THREE.BufferGeometry;
-  readonly material: THREE.MeshStandardMaterial;
+  /**
+   * Cloned materials on this block. Geometry is shared across every
+   * clone of the same GLB (never disposed by the view), but each block
+   * gets its own material so it can be tinted independently and have
+   * clipping planes / depth flags toggled without leaking into other
+   * blocks.
+   */
+  readonly materials: THREE.MeshStandardMaterial[];
   readonly baseY: number;
   /**
    * True once the exit animation has been started. Prevents the raycaster
@@ -99,8 +108,6 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   private _gateArrowMaterial: THREE.MeshStandardMaterial | null = null;
 
   private readonly _blocks = new Map<number, BlockRecord>();
-  /** Shared stud geometry — one cylinder for every block on the board. */
-  private _studGeometry: THREE.CylinderGeometry | null = null;
 
   /**
    * Per-block selection highlight. Added on {@link setBlockSelected}(.., true)
@@ -255,12 +262,6 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
 
     this._installGridOverlay(cols, rows);
 
-    // Taller, more pronounced studs so they read as clear cylinders under
-    // the gradient sky light. Higher segment count keeps them smooth.
-    const studRadius = cfg.cellSize * 0.2;
-    const studHeight = cfg.blockHeight * 0.55;
-    this._studGeometry = new THREE.CylinderGeometry(studRadius, studRadius, studHeight, 32);
-
     for (const door of doors) this._createDoorMesh(door);
     this._installWalls(cols, rows, doors);
   }
@@ -303,32 +304,31 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
 
   public addBlock(block: Block): void {
     const cfg = this._requireConfig();
-    if (!this._studGeometry) return;
-    const color = cfg.colors[block.colorIndex % cfg.colors.length]!;
-    const material = new THREE.MeshStandardMaterial({ color, metalness: 0.05, roughness: 0.5 });
-
-    const group = new THREE.Group();
-    const pickableMeshes: THREE.Mesh[] = [];
-
-    // One solid Lego-style body extruded from the block's footprint outline,
-    // with rounded top/bottom edges via ExtrudeGeometry's bevel.
-    const bodyGeometry = this._createBrickBodyGeometry(block.shape);
-    const bodyMesh = new THREE.Mesh(bodyGeometry, material);
-    bodyMesh.userData = { blockId: block.id };
-    group.add(bodyMesh);
-    pickableMeshes.push(bodyMesh);
-
-    // Classic studs on top — one per cell, centred on each occupied cell.
-    // Sized to match `_studGeometry`.
-    const studHeight = cfg.blockHeight * 0.55;
-    const studY = cfg.blockHeight + studHeight * 0.5;
-    for (const offset of block.shape) {
-      const stud = new THREE.Mesh(this._studGeometry, material);
-      stud.position.set(offset.col * cfg.cellSize, studY, offset.row * cfg.cellSize);
-      stud.userData = { blockId: block.id };
-      group.add(stud);
-      pickableMeshes.push(stud);
+    const assetId = resolveBrickAssetId(block.shape);
+    if (!assetId) {
+      this.logger.log(`BoardView: no brick asset registered for block ${block.id}`, LogTypes.Error);
+      throw new Error(`BoardView: no brick asset registered for block ${block.id}`);
     }
+    const gltf = this.assetLoader.getAsset<GLTF>(assetId);
+    if (!gltf) {
+      this.logger.log(`BoardView: missing brick asset ${assetId}`, LogTypes.Error);
+      throw new Error(`BoardView: missing brick asset ${assetId}`);
+    }
+
+    const color = cfg.colors[block.colorIndex % cfg.colors.length]!;
+    const group = gltf.scene.clone(true) as THREE.Group;
+    const pickableMeshes: THREE.Mesh[] = [];
+    const materials: THREE.MeshStandardMaterial[] = [];
+
+    group.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const tinted = this._cloneAsStandardMaterial(mesh.material, color);
+      mesh.material = tinted;
+      mesh.userData = { ...mesh.userData, blockId: block.id };
+      materials.push(tinted);
+      pickableMeshes.push(mesh);
+    });
 
     const baseY = cfg.cellHeight;
     group.position.y = baseY;
@@ -339,8 +339,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       block,
       group,
       pickableMeshes,
-      bodyGeometry,
-      material,
+      materials,
       baseY,
       isExiting: false,
     });
@@ -348,122 +347,23 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   /**
-   * Builds one extruded mesh that covers every cell of `shape`, with
-   * bevelled top and bottom edges for a Lego-plate silhouette. The
-   * geometry is translated so that the anchor cell's CENTRE sits at the
-   * group origin, which is where {@link setBlockAnchor} places it in
-   * world space. Works for any cell-set (rectangles, squares, L-shape,
-   * future arbitrary polyominoes).
+   * Clones whatever material the GLB shipped with into a fresh
+   * `MeshStandardMaterial` tinted by the block color. Using a uniform
+   * material type keeps the selection outline + exit clipping flags
+   * consistent regardless of what the exporter produced.
    */
-  private _createBrickBodyGeometry(shape: readonly { col: number; row: number }[]): THREE.BufferGeometry {
-    const cfg = this._requireConfig();
-    const outline = this._insetOutline(shape, cfg.blockMargin);
-    const points = outline.map(
-      (p) => new THREE.Vector2(p.col * cfg.cellSize, p.row * cfg.cellSize),
-    );
-    const threeShape = new THREE.Shape(points);
-    // Generous bevel for a softly rounded Lego silhouette. `bevelOffset`
-    // is negative so the bevel eats inward from the cell outline — the
-    // brick stays within its footprint and adjacent bricks don't overlap.
-    // Higher segment counts keep the rounding smooth under light.
-    const bevelThickness = Math.min(cfg.blockHeight * 0.45, 0.14);
-    const bevelSize = Math.min(cfg.cellSize * 0.11, cfg.blockHeight * 0.6);
-    const geometry = new THREE.ExtrudeGeometry(threeShape, {
-      depth: cfg.blockHeight,
-      bevelEnabled: true,
-      bevelThickness,
-      bevelSize,
-      bevelOffset: -bevelSize,
-      bevelSegments: 6,
-      curveSegments: 6,
+  private _cloneAsStandardMaterial(
+    source: THREE.Material | THREE.Material[],
+    color: number,
+  ): THREE.MeshStandardMaterial {
+    const base = Array.isArray(source) ? source[0] : source;
+    const standard = (base as THREE.MeshStandardMaterial | undefined) ?? null;
+    const material = new THREE.MeshStandardMaterial({
+      color,
+      metalness: standard?.metalness ?? 0.05,
+      roughness: standard?.roughness ?? 0.5,
     });
-    // Shape was built in the XY plane extruding to +Z. Rotate so the
-    // extrusion axis becomes +Y, and translate so: (a) the footprint's
-    // anchor cell (0, 0) centre maps to the group origin, and (b) the
-    // brick sits with y ∈ [0, blockHeight].
-    geometry.rotateX(Math.PI / 2);
-    geometry.translate(-cfg.cellSize * 0.5, cfg.blockHeight, -cfg.cellSize * 0.5);
-    return geometry;
-  }
-
-  /**
-   * Returns the outline polygon insed by `margin` cell units on every
-   * side — the same amount {@link GameOperations} uses to shrink the
-   * collider. Works for rectilinear polyominoes: each axis-aligned edge
-   * is shifted toward the interior by `margin`, and each vertex lands at
-   * the intersection of its two inset adjacent edges. Two collinear
-   * consecutive edges contribute the same shift only once.
-   */
-  private _insetOutline(
-    shape: readonly { col: number; row: number }[],
-    margin: number,
-  ): { col: number; row: number }[] {
-    const outline = this._computeShapeOutline(shape);
-    const n = outline.length;
-    if (n === 0 || margin <= 0) return outline;
-
-    // Per-edge shift perpendicular to the edge, pointing into the interior.
-    // Polygon is CCW, so "interior is on the left" → rotate edge direction
-    // 90° CCW to get the inward normal.
-    const edgeShifts: { dx: number; dy: number }[] = [];
-    for (let i = 0; i < n; i++) {
-      const p = outline[i]!;
-      const q = outline[(i + 1) % n]!;
-      const ndx = Math.sign(q.col - p.col);
-      const ndy = Math.sign(q.row - p.row);
-      edgeShifts.push({ dx: -ndy * margin, dy: ndx * margin });
-    }
-
-    const result: { col: number; row: number }[] = [];
-    for (let i = 0; i < n; i++) {
-      const prev = edgeShifts[(i - 1 + n) % n]!;
-      const curr = edgeShifts[i]!;
-      const sameDirection = prev.dx === curr.dx && prev.dy === curr.dy;
-      const dx = sameDirection ? curr.dx : prev.dx + curr.dx;
-      const dy = sameDirection ? curr.dy : prev.dy + curr.dy;
-      const v = outline[i]!;
-      result.push({ col: v.col + dx, row: v.row + dy });
-    }
-    return result;
-  }
-
-  /**
-   * Walks the boundary of a cell-set and returns the closed polygon as a
-   * CCW-wound list of integer lattice points (in cell units). Works for
-   * arbitrary simply-connected polyominoes.
-   */
-  private _computeShapeOutline(shape: readonly { col: number; row: number }[]): { col: number; row: number }[] {
-    const cellKey = (c: number, r: number): string => `${c},${r}`;
-    const occupied = new Set<string>();
-    for (const c of shape) occupied.add(cellKey(c.col, c.row));
-    const has = (c: number, r: number): boolean => occupied.has(cellKey(c, r));
-
-    type Edge = { fromC: number; fromR: number; toC: number; toR: number };
-    const edges: Edge[] = [];
-    for (const { col, row } of shape) {
-      // Each boundary edge is emitted with a direction that keeps the
-      // shape on its left, producing a CCW outer winding overall.
-      if (!has(col, row - 1)) edges.push({ fromC: col, fromR: row, toC: col + 1, toR: row });
-      if (!has(col + 1, row)) edges.push({ fromC: col + 1, fromR: row, toC: col + 1, toR: row + 1 });
-      if (!has(col, row + 1)) edges.push({ fromC: col + 1, fromR: row + 1, toC: col, toR: row + 1 });
-      if (!has(col - 1, row)) edges.push({ fromC: col, fromR: row + 1, toC: col, toR: row });
-    }
-    if (edges.length === 0) return [];
-    const byFrom = new Map<string, Edge>();
-    for (const e of edges) byFrom.set(cellKey(e.fromC, e.fromR), e);
-
-    const result: { col: number; row: number }[] = [];
-    const start = edges[0]!;
-    let current: Edge | undefined = start;
-    let guard = 4 * shape.length + 1;
-    while (current && guard-- > 0) {
-      result.push({ col: current.fromC, row: current.fromR });
-      const nextKey = cellKey(current.toC, current.toR);
-      const next = byFrom.get(nextKey);
-      if (!next || next === start) break;
-      current = next;
-    }
-    return result;
+    return material;
   }
 
   public animateExit(blockId: number, doorId: number, onComplete: () => void): void {
@@ -507,9 +407,14 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     }
 
     // Clip block body + studs against the grid edge as they move outward.
-    record.material.clippingPlanes = [clipPlane];
-    record.material.clipShadows = true;
-    record.material.needsUpdate = true;
+    // Every mesh in the cloned brick shares a clip plane through its
+    // own cloned material, so the whole brick disappears uniformly as
+    // it crosses the wall.
+    for (const material of record.materials) {
+      material.clippingPlanes = [clipPlane];
+      material.clipShadows = true;
+      material.needsUpdate = true;
+    }
 
     // Kick off the particle burst on the outside of the gate AND the
     // gate's squash-and-spring — both start the instant the match is
@@ -691,8 +596,9 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     if (!record) return;
     this._removeSelectionOutline(blockId);
     record.group.removeFromParent();
-    record.bodyGeometry.dispose();
-    record.material.dispose();
+    // Geometry is shared with the GLB asset and is reused by every
+    // clone — only dispose the per-block cloned materials.
+    for (const material of record.materials) material.dispose();
     this._blocks.delete(blockId);
   }
 
@@ -738,7 +644,9 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       outline.rotation.copy(mesh.rotation);
       outline.scale.copy(mesh.scale);
       outline.renderOrder = 9998;
-      record.group.add(outline);
+      // Attach to the mesh's own parent so the outline's local
+      // transform lines up even when the GLB contains nested groups.
+      (mesh.parent ?? record.group).add(outline);
       outlineMeshes.push(outline);
     }
 
@@ -746,9 +654,11 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     // silhouette interior is covered and only the fringe remains visible
     // — and on top of every OTHER block too, matching the always-visible
     // spec when the dragged block is overlapping neighbours.
-    record.material.depthTest = false;
-    record.material.depthWrite = false;
-    record.material.needsUpdate = true;
+    for (const material of record.materials) {
+      material.depthTest = false;
+      material.depthWrite = false;
+      material.needsUpdate = true;
+    }
     for (const mesh of record.pickableMeshes) mesh.renderOrder = 9999;
 
     this._selectionOutlines.set(blockId, { outlineMeshes });
@@ -762,9 +672,11 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
 
     const record = this._blocks.get(blockId);
     if (!record) return;
-    record.material.depthTest = true;
-    record.material.depthWrite = true;
-    record.material.needsUpdate = true;
+    for (const material of record.materials) {
+      material.depthTest = true;
+      material.depthWrite = true;
+      material.needsUpdate = true;
+    }
     for (const mesh of record.pickableMeshes) mesh.renderOrder = 0;
   }
 
@@ -1145,12 +1057,11 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._outlineMaterial = null;
     for (const record of this._blocks.values()) {
       record.group.removeFromParent();
-      record.bodyGeometry.dispose();
-      record.material.dispose();
+      // Brick geometry is shared with the GLB asset; only the
+      // per-block cloned materials are owned by this view.
+      for (const material of record.materials) material.dispose();
     }
     this._blocks.clear();
-    this._studGeometry?.dispose();
-    this._studGeometry = null;
 
     for (const entry of this._doors.values()) {
       entry.mesh.removeFromParent();
