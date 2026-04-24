@@ -4,12 +4,16 @@ import {
   AudioService,
   GamelabsApp,
   GameCameraBinding,
+  GameCameraManager,
   Grid,
+  GridEvents,
   GridPreset,
+  GridsModel,
   LogTypes,
   Orbital3dCameraController,
   SettingsBinding,
   SettingsBooleanField,
+  SettingsManager,
   SettingsNumberField,
   UIEvents,
   UnsubscribeBag,
@@ -60,6 +64,7 @@ export class TowerDefenseApp extends GamelabsApp {
   private _enemyManager: EnemyManager | null = null;
   private _combatManager: CombatManager | null = null;
   private _sceneView: GameSceneView | null = null;
+  private _cameraManager: GameCameraManager | null = null;
   private readonly _systemUnsubs = new UnsubscribeBag();
   /**
    * Gate for all per-frame game-logic callbacks. Set to `false` during
@@ -83,9 +88,6 @@ export class TowerDefenseApp extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._gameGridBinding);
-
-    this._settingsBinding.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
-    this._settingsBinding.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 80, 0, 100, 5));
     this.addModule(this._settingsBinding);
   }
 
@@ -124,9 +126,11 @@ export class TowerDefenseApp extends GamelabsApp {
     const audioService = this.diContainer.getInstance(AudioService);
     this.diContainer.bindInstance(SfxService, new SfxService(audioService));
 
-    // Create the grid and register it on the model provided by GameGridBinding
-    const model = this._gameGridBinding.model;
-    const events = this._gameGridBinding.events;
+    // Create the grid and register it on the GameGridBinding's model.
+    // Post-refactor the model + events are resolved from DI instead of
+    // fields on the binding.
+    const model = this.diContainer.getInstance(GridsModel);
+    const events = this.diContainer.getInstance(GridEvents);
     const preset = new GridPreset(this._config.cellSize, this._config.cellSize, vector(1, 0, 0), vector(0, 0, 1));
     const grid = new Grid(TowerDefenseConfig.GRID_ID, this._config.cols, this._config.rows, events, preset);
     model.addGrid(grid);
@@ -143,6 +147,12 @@ export class TowerDefenseApp extends GamelabsApp {
       this.logger.log("HUD or World is not initialized", LogTypes.Error);
       throw new Error("HUD or World is not initialized");
     }
+
+    // Register settings fields via SettingsManager (post-refactor the
+    // binding no longer forwards addField).
+    const settings = this.diContainer.getInstance(SettingsManager);
+    settings.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
+    settings.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 80, 0, 100, 5));
 
     // Track popup open/close to gate raw DOM input handlers.
     const uiEvents = this.diContainer.getInstance(UIEvents);
@@ -163,7 +173,7 @@ export class TowerDefenseApp extends GamelabsApp {
     this.world.addView(this._sceneView);
 
     // Center the grid around the origin
-    const grid = this._gameGridBinding.model.getGrid(TowerDefenseConfig.GRID_ID);
+    const grid = this.diContainer.getInstance(GridsModel).getGrid(TowerDefenseConfig.GRID_ID);
     if (grid) {
       const midX = ((this._config.cols - 1) * grid.preset.columnSize) * 0.5;
       const midZ = ((this._config.rows - 1) * grid.preset.rowSize) * 0.5;
@@ -171,8 +181,9 @@ export class TowerDefenseApp extends GamelabsApp {
     }
 
     // Camera: orbital perspective with an isometric-style starting angle
-    this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._orbitalController = new Orbital3dCameraController(this._gameCameraBinding.cameraManager).register();
+    this._cameraManager = this.diContainer.getInstance(GameCameraManager);
+    this._cameraManager.initialize(this.world);
+    this._orbitalController = new Orbital3dCameraController(this._cameraManager).register();
     this._orbitalController.distance = this._config.cameraDistance;
     this._orbitalController.azimuth = this._config.cameraAzimuth;
     this._orbitalController.pitch = this._config.cameraPitch;
@@ -337,12 +348,12 @@ export class TowerDefenseApp extends GamelabsApp {
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._gameCameraBinding.cameraManager.resize(width, height);
+    this._cameraManager?.resize(width, height);
   }
 
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
-    this._gameCameraBinding.cameraManager.update(timestepSeconds);
+    this._cameraManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {

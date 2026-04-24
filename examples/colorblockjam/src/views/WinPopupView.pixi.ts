@@ -1,5 +1,11 @@
 import * as PIXI from "pixi.js";
-import { PopupView, ButtonComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  ButtonComponent,
+  HorizontalLayoutComponent,
+  PopupView,
+  VerticalLayoutComponent,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { IWinPopupView } from "./IWinPopupView.js";
 
 export class WinPopupView extends PopupView implements IWinPopupView {
@@ -9,31 +15,31 @@ export class WinPopupView extends PopupView implements IWinPopupView {
   private _advanceBtn: ButtonComponent | null = null;
   private readonly _advanceListeners = new Set<() => void>();
 
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
+    // Root layout must be told the viewport size so `width/height: "100%"`
+    // on the wrapper resolves correctly — post-@pixi/layout decoupling
+    // the PopupView base no longer does this automatically.
+    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
+  }
+
   public override postInitialize(): void {
     super.postInitialize();
 
-    const panel = new PIXI.Container();
-    (panel as unknown as { layout: unknown }).layout = {
+    const panel = new VerticalLayoutComponent({
       width: 340,
       height: 240,
-      flexDirection: "column",
       justifyContent: "center",
       alignItems: "center",
       gap: 10,
-    };
+    });
 
     const panelBg = new PIXI.Graphics();
     panelBg.eventMode = "static";
     panelBg.roundRect(0, 0, 340, 240, 20);
     panelBg.fill({ color: 0x111827, alpha: 0.95 });
     panelBg.stroke({ color: 0x475569, width: 2 });
-    (panelBg as unknown as { layout: unknown }).layout = {
-      position: "absolute",
-      left: 0,
-      top: 0,
-      width: "100%",
-      height: "100%",
-    };
+    panelBg.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     panel.addChild(panelBg);
 
     this._titleText = new PIXI.Text({
@@ -46,7 +52,7 @@ export class WinPopupView extends PopupView implements IWinPopupView {
       },
     });
     this._titleText.anchor.set(0.5, 0.5);
-    (this._titleText as unknown as { layout: unknown }).layout = {};
+    this._titleText.layout = {};
     panel.addChild(this._titleText);
 
     this._levelText = new PIXI.Text({
@@ -59,7 +65,7 @@ export class WinPopupView extends PopupView implements IWinPopupView {
       },
     });
     this._levelText.anchor.set(0.5, 0.5);
-    (this._levelText as unknown as { layout: unknown }).layout = {};
+    this._levelText.layout = {};
     panel.addChild(this._levelText);
 
     this._detailText = new PIXI.Text({
@@ -72,7 +78,7 @@ export class WinPopupView extends PopupView implements IWinPopupView {
       },
     });
     this._detailText.anchor.set(0.5, 0.5);
-    (this._detailText as unknown as { layout: unknown }).layout = {};
+    this._detailText.layout = {};
     panel.addChild(this._detailText);
 
     this._advanceBtn = new ButtonComponent({
@@ -90,13 +96,12 @@ export class WinPopupView extends PopupView implements IWinPopupView {
       for (const cb of this._advanceListeners) cb();
     });
 
-    const wrapper = new PIXI.Container();
-    (wrapper as unknown as { layout: unknown }).layout = {
+    const wrapper = new HorizontalLayoutComponent({
       width: "100%",
       height: "100%",
       justifyContent: "center",
       alignItems: "center",
-    };
+    });
     wrapper.addChild(panel);
     this.addChild(wrapper);
   }

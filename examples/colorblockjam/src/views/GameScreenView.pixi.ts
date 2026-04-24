@@ -15,7 +15,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public override postInitialize(): void {
     super.postInitialize();
-    (this as unknown as { layout: unknown }).layout = { width: 1, height: 1 };
 
     this._titleText = new PIXI.Text({
       text: "Color Block Jam",

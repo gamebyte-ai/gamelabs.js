@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { PopupView } from "@gamebyte/gamelabsjs";
+import { HorizontalLayoutComponent, PopupView, VerticalLayoutComponent } from "@gamebyte/gamelabsjs";
 import type { IGeneratingPopupView } from "./IGeneratingPopupView.js";
 
 /**
@@ -13,23 +13,29 @@ export class GeneratingPopupView extends PopupView implements IGeneratingPopupVi
   private static readonly PANEL_H = 90;
   private static readonly PANEL_R = 12;
 
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
+    // Give @pixi/layout the viewport size so the centered wrapper below
+    // resolves its "100%" dimensions correctly.
+    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
+  }
+
   public override postInitialize(): void {
     super.postInitialize();
 
-    const panel = new PIXI.Container();
-    (panel as any).layout = {
+    const panel = new VerticalLayoutComponent({
       width: GeneratingPopupView.PANEL_W,
       height: GeneratingPopupView.PANEL_H,
       justifyContent: "center",
       alignItems: "center",
-    };
+    });
 
     const bg = new PIXI.Graphics();
     bg.eventMode = "static";
     bg.roundRect(0, 0, GeneratingPopupView.PANEL_W, GeneratingPopupView.PANEL_H, GeneratingPopupView.PANEL_R);
     bg.fill({ color: 0x0b1620, alpha: 0.95 });
     bg.stroke({ color: 0x4488cc, width: 2 });
-    (bg as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    bg.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     panel.addChild(bg);
 
     const label = new PIXI.Text({
@@ -37,11 +43,15 @@ export class GeneratingPopupView extends PopupView implements IGeneratingPopupVi
       style: { fill: 0xe8eef6, fontSize: 18, fontWeight: "600", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" },
     });
     label.anchor.set(0.5, 0.5);
-    (label as any).layout = {};
+    label.layout = {};
     panel.addChild(label);
 
-    const wrapper = new PIXI.Container();
-    (wrapper as any).layout = { width: "100%", height: "100%", justifyContent: "center", alignItems: "center" };
+    const wrapper = new HorizontalLayoutComponent({
+      width: "100%",
+      height: "100%",
+      justifyContent: "center",
+      alignItems: "center",
+    });
     wrapper.addChild(panel);
     this.addChild(wrapper);
   }

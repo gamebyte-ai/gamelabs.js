@@ -26,17 +26,9 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public override postInitialize(): void {
     super.postInitialize();
-    (this as any).layout = {
-      width: 1,
-      height: 1,
-      flexDirection: "column",
-      justifyContent: "space-between",
-      padding: 12,
-      gap: 8,
-    };
 
-    (this.overlay as any).layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
-    (this.overlay as any).eventMode = "none";
+    this.overlay.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    this.overlay.eventMode = "none";
     if (!this.overlay.parent) this.addChild(this.overlay);
 
     this._createTopBar();
@@ -69,6 +61,17 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
+    // Root layout must track viewport size so the top bar + tower shop
+    // actually flex across the screen; the PopupView/ScreenView bases no
+    // longer set this automatically after the @pixi/layout decoupling.
+    this.layout = {
+      width: Math.max(1, width),
+      height: Math.max(1, height),
+      flexDirection: "column",
+      justifyContent: "space-between",
+      padding: 12,
+      gap: 8,
+    };
     this.overlay.clear();
     this.overlay.rect(0, 0, Math.max(1, width), Math.max(1, height)).fill({ color: 0x000000, alpha: 0 });
   }
@@ -85,7 +88,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   private _createTopBar(): void {
     const row = new PIXI.Container();
-    (row as any).layout = { flexDirection: "row", gap: 16, alignItems: "center" };
+    row.layout = { flexDirection: "row", gap: 16, alignItems: "center" };
 
     const generateBtn = new ButtonComponent({
       width: GameScreenView.BTN_W,
@@ -103,14 +106,14 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       text: "Gold: 0",
       style: { fontSize: 16, fontFamily: "Arial, sans-serif", fill: 0xffdd44, fontWeight: "bold" },
     });
-    (this._goldText as any).layout = { height: GameScreenView.BTN_H };
+    this._goldText.layout = { height: GameScreenView.BTN_H };
     row.addChild(this._goldText);
 
     this._statsText = new PIXI.Text({
       text: "Kills: 0  Wave: 1",
       style: { fontSize: 14, fontFamily: "Arial, sans-serif", fill: 0xccddee, fontWeight: "600" },
     });
-    (this._statsText as any).layout = { height: GameScreenView.BTN_H };
+    this._statsText.layout = { height: GameScreenView.BTN_H };
     row.addChild(this._statsText);
 
     // Settings gear button
@@ -141,7 +144,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   private _createTowerShop(): void {
     const bar = new PIXI.Container();
-    (bar as any).layout = { flexDirection: "row", justifyContent: "center", gap: 12 };
+    bar.layout = { flexDirection: "row", justifyContent: "center", gap: 12 };
 
     for (const [typeId, typeDef] of TOWER_TYPES) {
       const card = this._makeTowerCard(typeId, typeDef.name, typeDef.cost, typeDef.color);

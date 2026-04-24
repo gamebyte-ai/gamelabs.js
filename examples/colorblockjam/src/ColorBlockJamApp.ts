@@ -5,12 +5,14 @@ import {
   AudioService,
   GamelabsApp,
   GameCameraBinding,
+  GameCameraManager,
   ISettingsModel,
   LogTypes,
   Orbital3dCameraController,
   SettingsBinding,
   SettingsBooleanField,
   SettingsEvents,
+  SettingsManager,
   SettingsNumberField,
   UIEvents,
   UnsubscribeBag,
@@ -74,14 +76,11 @@ export class ColorBlockJamApp extends GamelabsApp {
   private readonly _levels = new LevelManager(this._config);
   private readonly _assetRequestList = new AssetRequestList();
   private _boardView: BoardView | null = null;
+  private _cameraManager: GameCameraManager | null = null;
   private readonly _systemUnsubs = new UnsubscribeBag();
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
-    // Settings fields are declared here so they're ready before
-    // `configureDI` hands the SettingsBinding's model to the container.
-    this._settingsBinding.addField(new SettingsBooleanField("sfxEnabled", "Sound Effects", true));
-    this._settingsBinding.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 0.8, 0, 1, 0.1));
   }
 
   protected override registerModules(): void {
@@ -137,6 +136,12 @@ export class ColorBlockJamApp extends GamelabsApp {
       throw new Error("World is not initialized");
     }
 
+    // Register settings fields now that the SettingsManager is resolvable.
+    // Post-refactor the fields are owned by the manager, not the binding.
+    const settings = this.diContainer.getInstance(SettingsManager);
+    settings.addField(new SettingsBooleanField("sfxEnabled", "Sound Effects", true));
+    settings.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 0.8, 0, 1, 0.1));
+
     this.diContainer
       .getInstance(UIEvents)
       .createScreen(ColorBlockJamUIIds.GameScreen, this._config.transitions.gameScreenEnter);
@@ -149,11 +154,12 @@ export class ColorBlockJamApp extends GamelabsApp {
     this._applyInitialSettings();
     this._subscribeSettingsChanges();
 
-    this._gameCameraBinding.cameraManager.initialize(this.world);
+    this._cameraManager = this.diContainer.getInstance(GameCameraManager);
+    this._cameraManager.initialize(this.world);
     // Orbital 3D camera driven entirely from `ColorBlockJamConfig` —
     // tweak `cameraDistance` / `cameraPitch` / `cameraAzimuth` / focus
     // to reframe the grid without touching this file.
-    const camera = new Orbital3dCameraController(this._gameCameraBinding.cameraManager).register();
+    const camera = new Orbital3dCameraController(this._cameraManager).register();
     camera.distance = this._config.cameraDistance;
     camera.pitch = this._config.cameraPitch;
     camera.azimuth = this._config.cameraAzimuth;
@@ -171,12 +177,12 @@ export class ColorBlockJamApp extends GamelabsApp {
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._gameCameraBinding.cameraManager.resize(width, height);
+    this._cameraManager?.resize(width, height);
   }
 
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
-    this._gameCameraBinding.cameraManager.update(timestepSeconds);
+    this._cameraManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {

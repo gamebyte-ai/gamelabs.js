@@ -12,7 +12,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public override postInitialize(): void {
     super.postInitialize();
-    (this as any).layout = { width: 1, height: 1 };
 
     this._settingsBtn = new ButtonComponent({
       width: 44,

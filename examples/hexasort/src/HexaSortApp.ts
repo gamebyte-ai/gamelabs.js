@@ -2,6 +2,7 @@ import {
   AudioService,
   GamelabsApp,
   GameCameraBinding,
+  GameCameraManager,
   ISettingsModel,
   LogTypes,
   Orbital3dCameraController,
@@ -9,6 +10,7 @@ import {
   SettingsBinding,
   SettingsBooleanField,
   SettingsEvents,
+  SettingsManager,
   SettingsNumberField,
   UIEvents,
   UnsubscribeBag,
@@ -67,12 +69,11 @@ export class HexaSortApp extends GamelabsApp {
   private _tray: StacksTray | null = null;
   private _gridView: HexGridView | null = null;
   private _trayView: StacksTrayView | null = null;
+  private _cameraManager: GameCameraManager | null = null;
   private readonly _systemUnsubs = new UnsubscribeBag();
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
-    this._settingsBinding.addField(new SettingsBooleanField("sfxEnabled", "Sound Effects", true));
-    this._settingsBinding.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 0.8, 0, 1, 0.1));
   }
 
   protected override registerModules(): void {
@@ -123,6 +124,12 @@ export class HexaSortApp extends GamelabsApp {
       throw new Error("World is not initialized");
     }
 
+    // Register settings fields via SettingsManager (post-refactor the
+    // binding no longer forwards addField).
+    const settings = this.diContainer.getInstance(SettingsManager);
+    settings.addField(new SettingsBooleanField("sfxEnabled", "Sound Effects", true));
+    settings.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 0.8, 0, 1, 0.1));
+
     // HUD screen (settings-gear button).
     this.diContainer
       .getInstance(UIEvents)
@@ -136,8 +143,9 @@ export class HexaSortApp extends GamelabsApp {
 
     // Camera. `register()` wires the controller into the camera manager;
     // no unregister / destroy hook exists today, so the ref is local.
-    this._gameCameraBinding.cameraManager.initialize(this.world);
-    const camera = new Orbital3dCameraController(this._gameCameraBinding.cameraManager).register();
+    this._cameraManager = this.diContainer.getInstance(GameCameraManager);
+    this._cameraManager.initialize(this.world);
+    const camera = new Orbital3dCameraController(this._cameraManager).register();
     camera.distance = this._config.cameraDistance;
     camera.pitch = this._config.cameraPitch;
     camera.azimuth = 0;
@@ -150,12 +158,12 @@ export class HexaSortApp extends GamelabsApp {
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._gameCameraBinding.cameraManager.resize(width, height);
+    this._cameraManager?.resize(width, height);
   }
 
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
-    this._gameCameraBinding.cameraManager.update(timestepSeconds);
+    this._cameraManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {
