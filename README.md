@@ -124,6 +124,9 @@ src/
 | `avoidance` | Survival game with keyboard + on-screen joystick input |
 | `watersort` | Puzzle game with tween pour animations |
 | `2048` | 2048 sliding-tile puzzle with keyboard / swipe input and best-score persistence |
+| `colorblockjam` | Color-matching brick puzzle with pre-baked GLB brick shapes, silhouette outlines, and smooth drag |
+| `hexasort` | Hexagonal sort puzzle with decoupled sorting manager |
+| `towerdefense` | Tower defense with pure-state managers and reconcile-based rendering |
 
 ```bash
 npm run build                    # Build library first

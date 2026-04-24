@@ -5,7 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-04-22
+## [2.0.0] - 2026-04-24
+
+### BREAKING CHANGES
+
+Consumers upgrading from 1.0.0 must update any code that touched these APIs:
+
+- `OnScreenControlsBinding` — removed `manager` getter, `addControl(config)`, and `removeControl(id)`. Resolve `OnScreenControlManager` from the DI container instead.
+- `GameCameraBinding` — removed `cameraManager` getter. Resolve `GameCameraManager` from the DI container.
+- `GameGridBinding` — removed `model` and `events` getters. Resolve `GridsModel` / `GridEvents` from the DI container.
+- `SettingsBinding` — removed `addField(field)` forwarding and stored instances. Resolve `SettingsManager` from the DI container and call `addField` on it.
+- `ScreenView` / `PopupView` — no longer self-apply `this.layout = { width, height }` in `postInitialize`. Subclasses that relied on the implicit `@pixi/layout` root must set `this.layout` themselves (typically in `onResize`).
+- `ViewFactory.resize(width, height, dpr)` — removed. Resize events now flow through `AppEvents.onResize`; subscribe via `HudViewBase` / `WorldViewBase` (automatic for subclasses that call `super.postInitialize()`).
+- `DIContainer.bindSingleton` / `bindInstance` — now throw when an alias token is already bound as a primary, and vice versa. Previously silent hijack.
+- `GridCell.setItem` / `GridItem.setCell` — marked `@internal` and no longer appear in the published `.d.ts`.
 
 ### Added
 - `IApp` — readonly app-state interface (`width`, `height`, `dpr`) bound in both DI containers.
@@ -43,6 +56,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dead `this.layout = {...}` lines from `2048`, `match3`, and `watersort` `GameScreenView` files (those views position children manually).
 - `viewFactory.resize(w, h, dpr)` from `GamelabsApp._onWindowResize` — replaced by `_appEvents.emitResize`.
 - Architectural issue A1 ("module API not lifecycle-aware") from `ISSUES.md` — resolved as a design choice, not tech debt.
+
+### Examples
+- `colorblockjam` — color-matching brick puzzle with pre-baked GLB brick shapes, silhouette outlines, smooth drag, shatter/gate polish, and audio settings wiring.
+- `hexasort` — hexagonal sort puzzle with decoupled `SortingManager`.
+- `towerdefense` — tower defense with pure-state managers and reconcile-based rendering.
+
+## [1.0.0] - 2026-04-22
+
+> Published to npm but not documented at the time. The following is reconstructed from git history and is approximate.
+
+### Added
+- **GameModel pattern** — `match3`, `2048`, `tictactoe`, `avoidance`, `watersort` each extract a dedicated `GameModel` plus a `GameOperations` class for pure domain logic, separated from controllers.
+- **UI components** — `ToggleComponent`, `SliderComponent` added alongside the existing Button/Background/Image/layout components.
+- **Readonly model interfaces** — `ISettingsModel`, readonly grid model interfaces for safer consumer access.
+- Fail-fast initialization guard in `GamelabsApp`; `AudioService` throws on double-init; `StorageService` wraps its I/O in try/catch.
+
+### Changed
+- **HUD layering** — `Hud` now exposes a 5-layer system (replacing the old `contentLayer` / `overlayLayer` split).
+- **HUD API** — `Hud.app` is now private; consumers use `canvas`, `resolution`, `hitTest` instead.
+- Modules (`gamecamera`, `gamegrid`, `settings`, `onscreencontrols`, `uicomponents`) reorganized to follow project conventions (views in `views/`, module-extension code co-located).
+- Screen transitions and `PopupView` blocker rebuilt after HUD layering change.
+
+### Fixed
+- `PopupView` blocker and `SettingsPopupView` panel background rendering.
+- HUD hit-testing, popup blocker interaction, CSS stacking, and camera drag input regressions.
+- TicTacToe DI double-inject, asset paths, camera, and input.
+- Many lint warnings resolved to zero (`no-explicit-any` in DI/ViewFactory and PixiJS interop).
+
+## [0.3.0] - 2026-04-15
+
+> Published but not documented at the time. The following is reconstructed from git history and is approximate.
+
+### Added
+- `Constants` convention documented in `DeveloperNotes.md` — pure types and static tables live in `constants/` directories.
+- 12 findings from a Codex review added to `ISSUES.md`, with 2 prior issues marked resolved.
+
+### Changed
+- Internal cleanup: removed shared-context pattern from core; regenerated `package-lock.json` to fix CI `npm ci` failures.
 
 ## [0.2.0] - 2026-04-07
 
