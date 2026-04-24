@@ -35,7 +35,8 @@ export class CubeView extends WorldViewBase implements ICubeView, IPointerInputH
     this._dragState.isDragging = false;
   }
 
-  public postInitialize(): void {
+  public override postInitialize(): void {
+    super.postInitialize();
     const gltf = this.assetLoader.getAsset<GLTF>(HelloWorldAssetIds.Cube);
     if (!gltf) {
       const msg = `CubeView: missing asset: ${HelloWorldAssetIds.Cube}`;

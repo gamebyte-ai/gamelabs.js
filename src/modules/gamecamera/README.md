@@ -13,31 +13,37 @@ Controls the 3D scene camera in Three.js. Supports multiple projection modes, ob
 
 ### Basic setup
 
+The binding registers `GameCameraManager` in the DI container. The app
+resolves it in `postInitialize` and forwards the runtime events
+(`initialize`, `resize`, `update`) from its own lifecycle hooks — the
+module itself is boot-only and does not auto-wire these.
+
 ```ts
-import { GamelabsApp, GameCameraBinding, Front2dCameraController } from "@gamebyte/gamelabsjs";
+import { GamelabsApp, GameCameraBinding, GameCameraManager, Front2dCameraController } from "@gamebyte/gamelabsjs";
 
 class MyApp extends GamelabsApp {
   private readonly _cameraBinding = new GameCameraBinding();
+  private _cameraManager: GameCameraManager | null = null;
 
   protected override registerModules(): void {
     this.addModule(this._cameraBinding);
   }
 
   protected override postInitialize(): void {
-    if (this.world) {
-      this._cameraBinding.cameraManager.initialize(this.world);
-      new Front2dCameraController(this._cameraBinding.cameraManager).register();
-    }
+    if (!this.world) throw new Error("world not initialized");
+    this._cameraManager = this.diContainer.getInstance(GameCameraManager);
+    this._cameraManager.initialize(this.world);
+    new Front2dCameraController(this._cameraManager).register();
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._cameraBinding.cameraManager.resize(width, height);
+    this._cameraManager?.resize(width, height);
   }
 
   protected override onStep(dtSeconds: number): void {
     super.onStep(dtSeconds);
-    this._cameraBinding.cameraManager.update(dtSeconds);
+    this._cameraManager?.update(dtSeconds);
   }
 }
 ```
@@ -64,7 +70,7 @@ this._cameraManager.setPosition(0, 5, 0);
 
 ```ts
 import { Topdown2dCameraController } from "@gamebyte/gamelabsjs";
-new Topdown2dCameraController(cameraManager).register();
+new Topdown2dCameraController(this._cameraManager).register();
 ```
 
 ### Orthographic size (ortho modes)

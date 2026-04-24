@@ -216,6 +216,8 @@ MyModule
     ├──MyModuleAssetIds.ts
     └──index.ts
 ```
+- Modules must not have instances, unless it is neccessary to construct with parameters and/or initialize with methods before adding to di containers.
+- Do not expose bound instances via getters or methods
 - Modules may have an asset id enums as described above (`enum MyModuleAssetIds ...`)
 - Modules must have a bindings class (`class MyModuleBinding extends ModuleBinding ...`)
  - `assetRequestList` is list of assets

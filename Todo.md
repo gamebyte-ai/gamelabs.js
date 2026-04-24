@@ -1,74 +1,38 @@
-# Todo (Roadmap) (This is subject to changes)
+# Todo (Roadmap)
 
-This repo is intentionally a **project skeleton + reusable modules** (not a full engine). The goal of this file is to keep future work explicit and prioritized, especially for AI-generated projects that will be reviewed by humans.
+This repo is a **project skeleton + reusable modules**, not a full engine. This file tracks future work for humans and AI contributors reviewing the codebase.
 
-## Current state (as of ~Mar 2025)
+## Current state (as of April 2026, v1.0.0)
 
-- **Build**: `npm run build` (tsup), `npm run typecheck` (tsc) both pass.
-- **Screens**: `ScreenView` exposes `isInTransition`; transitions are synchronous (no Promise return). Screens block input during transitions by checking `isInTransition` in interaction handlers (e.g. `MainScreenView`, `LevelProgressScreenView`).
-- **Examples**: `helloworld` (Three.js + Pixi), `screens` (Pixi screens, main + level progress), `tictactoe` (gamegrid module, Pixi + Three), `match3` (gamegrid: Three board + Pixi HUD).
-- **Modules**: mainscreen, levelprogressscreen, gamegrid; DI + ViewFactory registration.
-- **Assets**: `AssetLoader` loads textures, GLTFs; apps poll `loadedItems/totalItems` or call `getAsset()`.
+- **Build / test / CI**: `npm run typecheck`, `lint`, `format:check`, `test`, `build` — all gates pass on Node 20 + 22 via GitHub Actions.
+- **Architecture docs**: `AGENTS.md` (policies + module lifecycle + binding shape rules), `DeveloperNotes.md` (architecture details), `README.md` (quick start + structure), per-module READMEs.
+- **Core**: `IApp` + `AppEvents` for app-wide state/events. Views subscribe to resize via `HudViewBase`/`WorldViewBase`, which inject `IApp` + `AppEvents` automatically. `ViewFactory` is layout/resize-neutral.
+- **Modules** (all boot-only `ModuleBinding`s, DI-resolved managers): `gamecamera`, `gamegrid`, `mainscreen`, `levelprogressscreen`, `onscreencontrols`, `settings`, `uicomponents`, `audiodsp`.
+- **Examples**: `helloworld`, `screens`, `tictactoe`, `match3`, `avoidance`, `watersort`, `2048` — all build clean.
+- **Assets**: `AssetManager` with fail-fast awaitable `waitForAll()` and `failedIds` set. Used across the library.
+- **Tests**: 58 Vitest tests (DIContainer, UnsubscribeBag, InjectionToken).
+- **Layout**: `@pixi/layout` is opt-in. Core views are layout-neutral; apps and uicomponents set `this.layout` where they need it. `FullscreenLayoutComponent` available for HUD widgets.
 
-## P0 — Consistency & reviewability (AI-first)
+## Open issues
 
-- Define and document the **canonical project layout** (folders, naming, “where things go”).
-- Add a small “project policy” doc (e.g. `AGENTS.md` or `CONTRIBUTING.md`) that states:
-  - Views render; Controllers/Models own behavior/state.
-  - Cross-feature communication goes through Events injected via DI.
-  - Modules must not depend on app-specific globals.
-  - New features should land as modules whenever reusable.
-- Add formatting + linting that enforces consistency (predictable diffs, faster review).
-- Add a module compatibility harness:
-  - “smoke test app” that imports every module and verifies DI/view registration doesn’t collide
-  - basic runtime checks in dev mode (duplicate bindings, missing registrations, etc.)
+See `ISSUES.md` for the maintained list. Currently open:
 
-## P0 — Correctness & failure modes
+- **Low:** no tests for `AssetManager`, `ViewFactory`, `InputManager`, or modules.
+- **Low:** no integration smoke test for module DI collisions.
+- **Arch:** `bindInstance()` vs `bindSingleton()` `inject()` asymmetry (A1 in ISSUES.md). Deferred.
 
-- Asset loading should be **fail-fast and observable**:
-  - track per-asset failures (not just counts)
-  - expose a single awaitable “load all requested assets” primitive (instead of polling counters)
-  - provide progress callbacks/events for loading screens
-- Define lifecycle semantics:
-  - what happens when `initialize()` is called twice
-  - what happens when assets fail
-  - what is safe/unsafe to do in `configureDI`, `configureViews`, `postInitialize`
+## P1 — Correctness & observability
 
-## P1 — Screens/navigation semantics
-
-- Make screen changes deterministic:
-  - ✓ `ScreenView.isInTransition` + input blocking during transitions (done)
-  - define cancellation rules when screens are replaced quickly
-  - avoid destroying screens mid-transition without cleanup
-
-## P1 — Resize/layout robustness
-
-- Add `ResizeObserver` support so resizing works when the mount element changes size without a window resize.
-- Clarify/standardize DPR behavior:
-  - clamp DPR consistently (or make it configurable)
-  - ensure canvas CSS sizing and drawing buffer sizing do not fight each other
-
-## P1 — Type safety at wiring boundaries
-
-- Reduce `any/unknown` at `IViewContainer` and `ViewFactory` attachment boundaries:
-  - introduce typed parent/child contracts for common cases (Pixi containers, Three objects)
-  - aim for “invalid parent types fail at compile time” for the normal path
+- **Module DI collision smoke test.** An integration test that imports every module, wires them into a throwaway app, and verifies DI tokens + view registrations don't collide. Matches `ISSUES.md` low-priority item.
+- **Asset loading progress callbacks.** `AssetManager` exposes counts and `waitForAll()`. Per-asset `onLoaded(id)` / `onFailed(id, error)` events would let loading screens show real progress without polling.
+- **Screen transition cancellation rules.** Define what happens when `createScreen()` fires while the previous screen is still in `isInTransition`. Current behavior is implicit; should be documented or enforced.
 
 ## P2 — Module library hygiene
 
-- Fix naming/typos that leak into the public API (e.g. module path naming); plan as a breaking change with a migration note.
-- Add a lightweight versioning policy (what is breaking, what is additive).
-- Add documentation per module:
-  - what it provides (views/controllers/events/models/assets)
-  - how it’s wired (`IModuleBinding`)
-  - minimal usage snippet
+- Lightweight versioning policy (breaking vs. additive changes). Useful now that 1.0.0 is published.
+- Coverage for modules that still have zero tests: `AssetManager`, `ViewFactory`, `InputManager`, and each feature module.
 
 ## P2 — Developer experience
 
-- Add a CLI/template to create a new game project with the canonical structure.
-- Add CI:
-  - `typecheck`
-  - lint
-  - build
-  - example build smoke checks
-
+- CLI / template for bootstrapping a new game project with the canonical layout and a minimal working app.
+- Example build smoke checks in CI (currently only the library itself is gated; examples are built manually).

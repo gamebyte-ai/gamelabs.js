@@ -4,39 +4,58 @@ Touch-friendly virtual controls (buttons and joysticks) rendered as a PixiJS HUD
 
 ## Usage
 
-### 1. Configure controls in the app
+### 1. Register the module
 
 ```ts
-import { OnScreenControlsBinding, ControlType, ControlAnchor } from "@gamebyte/gamelabsjs";
+import { OnScreenControlsBinding } from "@gamebyte/gamelabsjs";
 
-const onScreenControls = new OnScreenControlsBinding();
+class MyApp extends GamelabsApp {
+  private readonly _onScreenControls = new OnScreenControlsBinding();
 
-onScreenControls.addControl({
-  type: ControlType.Joystick,
-  id: "move",
-  anchor: ControlAnchor.BottomLeft,
-  offsetX: 120,
-  offsetY: 120,
-  baseSize: 60,
-  knobSize: 25,
-  dynamic: false,
-  threshold: 0.2,
-});
-
-onScreenControls.addControl({
-  type: ControlType.Button,
-  id: "fire",
-  anchor: ControlAnchor.BottomRight,
-  offsetX: 80,
-  offsetY: 80,
-  size: 70,
-});
-
-// Register before initialize
-this.addModule(onScreenControls);
+  protected override registerModules(): void {
+    this.addModule(this._onScreenControls);
+  }
+}
 ```
 
-### 2. Create the view in your screen
+The binding registers `OnScreenControlManager` and `OnScreenControlEvents`
+in the DI container.
+
+### 2. Add controls in `postInitialize`
+
+Resolve the manager from DI and call `addControl` directly on it. Controls
+can be added or removed at any time after DI is configured.
+
+```ts
+import { OnScreenControlManager, ControlType, ControlAnchor } from "@gamebyte/gamelabsjs";
+
+protected override postInitialize(): void {
+  const manager = this.diContainer.getInstance(OnScreenControlManager);
+
+  manager.addControl({
+    type: ControlType.Joystick,
+    id: "move",
+    anchor: ControlAnchor.BottomLeft,
+    offsetX: 120,
+    offsetY: 120,
+    baseSize: 60,
+    knobSize: 25,
+    dynamic: false,
+    threshold: 0.2,
+  });
+
+  manager.addControl({
+    type: ControlType.Button,
+    id: "fire",
+    anchor: ControlAnchor.BottomRight,
+    offsetX: 80,
+    offsetY: 80,
+    size: 70,
+  });
+}
+```
+
+### 3. Create the view in your screen
 
 ```ts
 // In your GameScreenView.postInitialize():
@@ -47,12 +66,13 @@ this.addChild(this._controls);
 this._controls.resize(width, height);
 ```
 
-### 3. Map to InputMapper
+### 4. Map to InputMapper
 
 ```ts
+const manager = resolver.getInstance(OnScreenControlManager);
 const mapper = new InputMapper();
 mapper.addDeviceListener(keyboard);
-mapper.addDeviceListener(onScreenControls.manager); // deviceId = "onscreen"
+mapper.addDeviceListener(manager); // deviceId = "onscreen"
 
 // Joystick exposes virtual keys: <id>.up, <id>.down, <id>.left, <id>.right
 mapper.mapKeysToDirection("onscreen", "move.up", "move.down", "move.left", "move.right", "move");

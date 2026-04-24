@@ -6,17 +6,28 @@ Typed game settings with boolean toggles and number sliders. Values are persiste
 
 ### Setup
 
+The binding registers `SettingsModel`, `SettingsEvents`, and `SettingsManager`
+in the DI container. Field definitions are added at runtime through the
+manager, resolved from DI in `postInitialize`.
+
 ```ts
-import { SettingsBinding, SettingsBooleanField, SettingsNumberField } from "gamelabsjs";
+import { SettingsBinding, SettingsManager, SettingsBooleanField, SettingsNumberField } from "@gamebyte/gamelabsjs";
 
-const settings = new SettingsBinding("MyGame"); // prefix for localStorage keys
-settings.addField(new SettingsBooleanField("music", "Music", true));
-settings.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
-settings.addField(new SettingsNumberField("volume", "Volume", 80, 0, 100, 5));
-settings.addField(new SettingsNumberField("difficulty", "Difficulty", 1, 1, 10, 1));
+class MyApp extends GamelabsApp {
+  private readonly _settings = new SettingsBinding();
 
-// In registerModules:
-this.addModule(settings);
+  protected override registerModules(): void {
+    this.addModule(this._settings);
+  }
+
+  protected override postInitialize(): void {
+    const manager = this.diContainer.getInstance(SettingsManager);
+    manager.addField(new SettingsBooleanField("music", "Music", true));
+    manager.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
+    manager.addField(new SettingsNumberField("volume", "Volume", 80, 0, 100, 5));
+    manager.addField(new SettingsNumberField("difficulty", "Difficulty", 1, 1, 10, 1));
+  }
+}
 ```
 
 ### Open settings popup
@@ -88,10 +99,12 @@ new SettingsNumberField(name, label, defaultValue, min, max, step);
 
 ## Persistence
 
-Values are stored in `localStorage` with the prefix passed to `SettingsBinding`. For example, with prefix `"MyGame"`:
+Values are stored in `localStorage` via the shared `StorageService`,
+namespaced by the app's class name (the constructor name of your
+`GamelabsApp` subclass). For example, with `class MyApp extends GamelabsApp`:
 
-- `music` → stored as `"MyGame.music"`
-- `volume` → stored as `"MyGame.volume"`
+- `music` → stored as `"MyApp.music"`
+- `volume` → stored as `"MyApp.volume"`
 
 On load, if a persisted value exists and is valid for the field type, it's used. Otherwise the field's `defaultValue` is used. This handles schema changes gracefully — adding a new field uses its default, removing a field leaves the orphaned key harmless.
 

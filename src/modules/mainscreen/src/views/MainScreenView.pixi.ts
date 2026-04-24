@@ -43,7 +43,8 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
   private playButton!: ButtonComponent;
   private settingsButton!: ButtonComponent;
 
-  public postInitialize(): void {
+  public override postInitialize(): void {
+    super.postInitialize();
     // Create components from presets stored in asset manager.
     const bgPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.BackgroundPreset) ?? "{}";
     this.background = new BackgroundComponent(parseBackgroundComponentPreset(bgPresetJson));
@@ -60,14 +61,6 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     const buttonsColPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.ButtonsColPreset) ?? "{}";
     this.buttonsCol = new VerticalLayoutComponent(parseVerticalLayoutComponentPreset(buttonsColPresetJson));
 
-    // Full-screen layout container that centers its children.
-    this.layout = {
-      width: 1,
-      height: 1,
-      justifyContent: "center",
-      alignItems: "center",
-    };
-
     this.addChild(this.background);
 
     // Logo bar: absolute positioned so it doesn't affect centered button layout.
@@ -81,10 +74,12 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     this.buttonsCol.addChild(this.settingsButton);
   }
 
-  public override onResize(width: number, height: number, _dpr: number): void {
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
     const w = Math.max(1, width);
     const h = Math.max(1, height);
-    this.layout = { width: w, height: h };
+    // Full-screen container that centers its children.
+    this.layout = { width: w, height: h, justifyContent: "center", alignItems: "center" };
   }
 
   onPlayClick(cb: () => void): () => void {

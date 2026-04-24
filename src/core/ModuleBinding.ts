@@ -22,6 +22,27 @@ import { AssetRequestList } from "./assets/AssetRequestList.js";
  * Bound dependencies are released with the DI container; assets are freed
  * by `AssetManager`. This deliberate static shape keeps module boundaries
  * inspectable and avoids implicit per-frame dispatch through modules.
+ *
+ * Binding shape rules:
+ *   - Zero-arg class: construct and bind eagerly inside `configureDI`.
+ *     `diContainer.bindInstance(Class, new Class())`.
+ *     Do NOT store the instance in a binding field.
+ *   - Class with dependencies: bind as a factory that resolves from DI.
+ *     `diContainer.bindSingleton(Class, (r) => new Class(r.getInstance(Dep)))`.
+ *   - Do NOT expose bound instances via getters on the binding. Callers
+ *     resolve them through DI (typically in `GamelabsApp.postInitialize`)
+ *     and call methods directly.
+ *   - Do NOT add forwarding methods (e.g. `addControl`, `addField`) that
+ *     proxy to a bound instance. Resolve and call directly at the app.
+ *
+ * Legitimate fields / constructor args on a binding:
+ *   - Asset request data (preset strings, config) used to populate
+ *     `_assetRequestList` in the constructor.
+ *   - Class or factory overrides passed via the binding's constructor for
+ *     customization (e.g. a custom view class, controller class, or
+ *     object creator).
+ *   - Optional pre-built dependencies the app supplies to the binding
+ *     (e.g. an app-provided model implementation).
  */
 export class ModuleBinding {
   //  FIELDS

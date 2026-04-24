@@ -42,6 +42,11 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
   private readonly _numberChangedListeners = new Set<(name: string, value: number) => void>();
   private readonly _closeListeners = new Set<() => void>();
 
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
+    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
+  }
+
   public override postInitialize(): void {
     super.postInitialize();
 

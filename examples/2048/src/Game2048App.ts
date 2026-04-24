@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { AssetTypes, GamelabsApp, GameCameraBinding, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField } from "@gamebyte/gamelabsjs";
+import { AssetTypes, GamelabsApp, GameCameraBinding, GameCameraManager, GridsModel, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField, SettingsManager } from "@gamebyte/gamelabsjs";
 import { GameModel } from "./models/GameModel.js";
 import { IGameModel } from "./models/IGameModel.js";
 import { Game2048AssetIds } from "./Game2048AssetIds.js";
@@ -19,6 +19,7 @@ export class Game2048App extends GamelabsApp {
   private readonly _settingsBinding = new SettingsBinding();
   private readonly _gameEvents = new GameEvents();
   private _cameraController: Topdown2dCameraController | null = null;
+  private _cameraManager: GameCameraManager | null = null;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -27,9 +28,6 @@ export class Game2048App extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._gameGridBinding);
-
-    this._settingsBinding.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
-    this._settingsBinding.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 100, 0, 100, 5));
     this.addModule(this._settingsBinding);
   }
 
@@ -57,24 +55,30 @@ export class Game2048App extends GamelabsApp {
       this.logger.log("HUD or world is not initialized", LogTypes.Error);
       throw new Error("HUD or world is not initialized");
     }
+
+    const settings = this.diContainer.getInstance(SettingsManager);
+    settings.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
+    settings.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 100, 0, 100, 5));
+
     this.diContainer.getInstance(UIEvents).createScreen(Game2048UIIds.GameScreen, this._config.transitions.gameScreenEnter);
     this.world.addView(this.viewFactory.createView(GameBoardsView));
 
-    const grid = this._gameGridBinding.model.getGrid(Game2048Config.GRID_ID);
+    const grid = this.diContainer.getInstance(GridsModel).getGrid(Game2048Config.GRID_ID);
     if (grid) {
       const midX = ((this._config.cols - 1) * grid.preset.columnSize) * 0.5;
       const midZ = ((this._config.rows - 1) * grid.preset.rowSize) * 0.5;
       grid.setPosition(vector(-midX, 0, -midZ));
     }
-    this._gameCameraBinding.cameraManager.initialize(this.world);
-    this._cameraController = new Topdown2dCameraController(this._gameCameraBinding.cameraManager).register();
+    this._cameraManager = this.diContainer.getInstance(GameCameraManager);
+    this._cameraManager.initialize(this.world);
+    this._cameraController = new Topdown2dCameraController(this._cameraManager).register();
     this._cameraController.followPosition(0, 0, 0);
     this._fitOrthoToBoard(this.width, this.height);
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    this._gameCameraBinding.cameraManager.resize(width, height);
+    this._cameraManager?.resize(width, height);
     this._fitOrthoToBoard(width, height);
   }
 
@@ -92,12 +96,12 @@ export class Game2048App extends GamelabsApp {
     const orthoForHeight = requiredH;
     const orthoForWidth = requiredW / aspect;
     const orthoSize = Math.max(orthoForHeight, orthoForWidth);
-    this._gameCameraBinding.cameraManager.setOrthoSize(orthoSize);
+    this._cameraManager?.setOrthoSize(orthoSize);
   }
 
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
-    this._gameCameraBinding.cameraManager.update(timestepSeconds);
+    this._cameraManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {

@@ -133,14 +133,21 @@ cd examples/<name> && npm i && npm run dev
 ## Commands
 
 ```bash
-npm run build       # Build library (tsup)
-npm run typecheck   # Type check (tsc --noEmit)
-npm run dev         # Watch mode (rebuild on change)
+npm run build         # Build library (tsup)
+npm run typecheck     # Type check (tsc --noEmit)
+npm run lint          # ESLint
+npm run format:check  # Prettier check
+npm test              # Vitest
+npm run dev           # Watch mode (rebuild on change)
 ```
+
+CI gate order: `typecheck` → `lint` → `format:check` → `test` → `build`.
 
 ## Documentation
 
-- **DeveloperNotes.md** — Full architecture, implementation details, naming conventions, and rules
-- **ClaudeNotes.txt** — Code review notes and remaining items
+- **AGENTS.md** — Project policies, architecture rules, module lifecycle and binding-shape conventions
+- **DeveloperNotes.md** — Full architecture, implementation details, naming conventions
+- **CHANGELOG.md** — Version history
+- **ISSUES.md** — Known bugs and technical debt with severity ratings
 - **Module READMEs** — `src/modules/*/README.md` for per-module documentation
 - **Example READMEs** — `examples/*/README.md` for per-example documentation
