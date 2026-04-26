@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import type { GridObject, IInstanceResolver } from "@gamebyte/gamelabsjs";
+import type { GridObject, IInstanceResolver, RectGridPreset } from "@gamebyte/gamelabsjs";
 import { GridsView, type GridCellObject } from "@gamebyte/gamelabsjs";
 import { Match3Config } from "../../../Match3Config.js";
 import type { GravityMove, RefillSpawn } from "../../../utilities/GameOperations.js";
@@ -110,7 +110,8 @@ export class GameBoardsView extends GridsView implements IGameBoardsView {
     const go = this.getGridObject(gridId);
     if (!cfg || !go || moves.length === 0) return Promise.resolve();
     const dur = cfg.animFallSec;
-    const cellStep = Math.min(go.preset.columnSize, go.preset.rowSize);
+    const preset = go.preset as RectGridPreset;
+    const cellStep = Math.min(preset.columnSize, preset.rowSize);
     return new Promise((resolve) => {
       let n = moves.length;
       const doneOne = (): void => {
@@ -139,7 +140,8 @@ export class GameBoardsView extends GridsView implements IGameBoardsView {
     const go = this.getGridObject(gridId);
     if (!cfg || !go || spawns.length === 0) return Promise.resolve();
     const dur = cfg.animSpawnSec;
-    const step = Math.min(go.preset.columnSize, go.preset.rowSize);
+    const preset = go.preset as RectGridPreset;
+    const step = Math.min(preset.columnSize, preset.rowSize);
     const byCol = new Map<number, RefillSpawn[]>();
     for (const s of spawns) {
       const list = byCol.get(s.col) ?? [];
@@ -211,7 +213,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView {
 
   /** Opposite of grid `rowAxis`: gravity/refill tween toward +rowAxis (match-3 uses +Z as down). */
   private _negRowAxisOffset(go: GridObject, distance: number): THREE.Vector3 {
-    const r = go.preset.rowAxis;
+    const r = (go.preset as RectGridPreset).rowAxis;
     return new THREE.Vector3(-r.x * distance, -r.y * distance, -r.z * distance);
   }
 }

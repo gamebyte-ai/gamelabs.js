@@ -1,25 +1,10 @@
-import { InjectionToken } from "@gamebyte/gamelabsjs";
-import type { HexCellPosition, HexGridBounds } from "../constants/HexGridTypes.js";
+import { InjectionToken, type IHexGrid as IHexGridFramework } from "@gamebyte/gamelabsjs";
 
 /**
- * Readonly view of the hex grid model. Controllers and views receive this
- * interface; the concrete {@link HexGrid} (with mutating methods) is held
- * only by utilities that own state (e.g. `GameOperations`, `SortingManager`).
+ * Re-export of the framework's `IHexGrid` readonly view, paired with an
+ * `InjectionToken` for DI resolution. Controllers and views resolve this
+ * interface; only `GameOperations` and `SortingManager` resolve the
+ * concrete `HexGrid` class and own the mutations.
  */
-export interface IHexGrid {
-  readonly gridId: number;
-  readonly columnCount: number;
-  readonly rowCount: number;
-  readonly hexSize: number;
-  isValidCell(col: number, row: number): boolean;
-  isEmpty(col: number, row: number): boolean;
-  getColors(col: number, row: number): readonly number[] | null;
-  getHeight(col: number, row: number): number;
-  getTopColor(col: number, row: number): number | null;
-  getDistinctColorCount(col: number, row: number): number;
-  getCellPosition(col: number, row: number): HexCellPosition;
-  getBounds(): HexGridBounds;
-  getCenterOffset(): HexCellPosition;
-}
-
+export type IHexGrid = IHexGridFramework;
 export const IHexGrid = new InjectionToken<IHexGrid>("IHexGrid");

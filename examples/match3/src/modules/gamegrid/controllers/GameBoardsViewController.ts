@@ -1,4 +1,4 @@
-import type { Grid, GridItem, IGridView, IInstanceResolver } from "@gamebyte/gamelabsjs";
+import type { IGridItem, IGridView, IInstanceResolver, IRectGrid } from "@gamebyte/gamelabsjs";
 import { GridsViewController } from "@gamebyte/gamelabsjs";
 import { Match3Config } from "../../../Match3Config.js";
 import { Match3AssetIds } from "../../../Match3AssetIds.js";
@@ -33,7 +33,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._gridsView.setCellPointerDownHandler((gridId, col, row) => this._onGridCellPointerDown(gridId, col, row));
   }
 
-  protected override createItemObjectOption(item: GridItem, grid: Grid): GameBoardItemObjectOptions {
+  protected override createItemObjectOption(item: IGridItem, grid: IRectGrid): GameBoardItemObjectOptions {
     if (!(item instanceof GameBoardItem)) throw new Error("Expected GameBoardItem");
     return new GameBoardItemObjectOptions(item.itemId, grid.preset, item.gemType);
   }

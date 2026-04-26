@@ -75,9 +75,8 @@ export class Match3App extends GamelabsApp {
 
     const grid = this.diContainer.getInstance(GridsModel).getGrid(Match3Config.GRID_ID);
     if (grid) {
-      const midX = ((this._config.cols - 1) * grid.preset.columnSize) * 0.5;
-      const midZ = ((this._config.rows - 1) * grid.preset.rowSize) * 0.5;
-      grid.setPosition(vector(-midX, 0, -midZ));
+      const offset = grid.getCenterOffset();
+      grid.setPosition(vector(-offset.x, -offset.y, -offset.z));
     }
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);

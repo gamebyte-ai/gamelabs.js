@@ -7,6 +7,7 @@ import {
   type IGridObjectListener,
   type IInputManager,
   type IPointerInputHandler,
+  type RectGridPreset,
 } from "@gamebyte/gamelabsjs";
 import { CellType } from "../../../constants/CellType.js";
 import { TowerDefenseConfig } from "../../../TowerDefenseConfig.js";
@@ -49,6 +50,8 @@ export class GameBoardCellObject extends GridCellObject implements IPointerInput
 
   /** Emissive intensity applied on hover — a subtle brightness lift. */
   private static readonly HOVER_EMISSIVE = 0x333333;
+
+  public declare readonly preset: RectGridPreset;
 
   /**
    * `declare` prevents the ES2022 field-initialiser from overwriting

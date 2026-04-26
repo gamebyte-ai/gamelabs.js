@@ -3,6 +3,8 @@ import {
   GamelabsApp,
   GameCameraBinding,
   GameCameraManager,
+  HexGrid,
+  HexGridPreset,
   ISettingsModel,
   LogTypes,
   Orbital3dCameraController,
@@ -19,7 +21,7 @@ import {
 } from "@gamebyte/gamelabsjs";
 import { HexaSortConfig } from "./HexaSortConfig.js";
 import { HexaSortUIIds } from "./HexaSortUIIds.js";
-import { HexGrid } from "./models/HexGrid.js";
+import { BlockGridAllocator } from "./models/BlockGridAllocator.js";
 import { IHexGrid } from "./models/IHexGrid.js";
 import { StacksTray } from "./models/StacksTray.js";
 import { IStacksTray } from "./models/IStacksTray.js";
@@ -91,7 +93,13 @@ export class HexaSortApp extends GamelabsApp {
     }
     this.viewDiContainer.bindInstance(World, this.world);
 
-    this._grid = new HexGrid(HexaSortConfig.GRID_ID, this._config.cols, this._config.rows, this._config.hexSize);
+    const preset = new HexGridPreset({
+      columnCount: this._config.cols,
+      rowCount: this._config.rows,
+      hexSize: this._config.hexSize,
+    });
+    const allocator = new BlockGridAllocator(this._config);
+    this._grid = new HexGrid(HexaSortConfig.GRID_ID, preset, null, allocator);
     // Bind the concrete HexGrid AND the readonly IHexGrid token to the
     // same instance. Controllers/views resolve IHexGrid; only the
     // GameOperations / SortingManager utilities resolve HexGrid.

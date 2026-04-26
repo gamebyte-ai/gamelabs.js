@@ -2,13 +2,24 @@ import { ModuleBinding } from "../../../core/ModuleBinding.js";
 import type { DIContainer } from "../../../core/di/DIContainer.js";
 import type { IInstanceResolver } from "../../../core/di/IInstanceResolver.js";
 import type { ViewFactory } from "../../../core/views/ViewFactory.js";
-import { GridsModel } from "./models/GridsModel.js";
-import { IGridsModel } from "./models/IGridsModel.js";
-import { GridEvents } from "./events/GridEvents.js";
-import { GridsViewController } from "./controllers/GridsViewController.js";
-import { GridsView } from "./views/GridsView.three.js";
-import { GridObjectCreator } from "./views/GridObjectCreator.js";
+import { GridEvents } from "./grid/events/GridEvents.js";
+import { GridsModel } from "./grid/models/GridsModel.js";
+import { IGridsModel } from "./grid/models/IGridsModel.js";
+import { GridsViewController } from "./grid/controllers/GridsViewController.js";
+import { GridsView } from "./grid/views/GridsView.three.js";
+import { GridObjectCreator } from "./grid/views/GridObjectCreator.js";
 
+/**
+ * Module binding for the gamegrid module.
+ *
+ * Binds the shape-agnostic {@link GridEvents} and {@link GridsModel}
+ * (with {@link IGridsModel} alias) into the app DI container — both
+ * `RectGrid` and `HexGrid` instances are stored and emitted through the
+ * same channels. Also binds the rect-grid view layer (`GridObjectCreator`
+ * in the view container, `GridsView` + `GridsViewController` registered
+ * with the view factory). Hex grids have no shared visual contract yet
+ * and must be rendered by app-specific code.
+ */
 export class GameGridBinding extends ModuleBinding {
   private readonly _objectCreator: GridObjectCreator;
   private readonly _viewClass: typeof GridsView;

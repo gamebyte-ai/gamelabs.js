@@ -6,6 +6,9 @@ import {
   GamelabsApp,
   GameCameraBinding,
   GameCameraManager,
+  GridEvents,
+  GridsModel,
+  IGridsModel,
   ISettingsModel,
   LogTypes,
   Orbital3dCameraController,
@@ -94,6 +97,11 @@ export class ColorBlockJamApp extends GamelabsApp {
     this.diContainer.bindInstance(GameEvents, this._events);
     this.diContainer.bindInstance(LevelManager, this._levels);
     this.diContainer.bindInstance(GameModel, new GameModel(), [IGameModel]);
+    // Framework grid plumbing: GridEvents + GridsModel are bound once;
+    // the per-level RectGrid is constructed by GameOperations.buildLevel
+    // and registered/unregistered with GridsModel as levels load/end.
+    this.diContainer.bindInstance(GridEvents, new GridEvents());
+    this.diContainer.bindSingleton(GridsModel, () => new GridsModel(), [IGridsModel]);
     this.diContainer.bindSingleton(GameOperations, () => new GameOperations());
 
     // Procedural SFX — no audio assets to load; the service synthesises

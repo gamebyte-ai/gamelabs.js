@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { GridsView } from "@gamebyte/gamelabsjs";
+import { GridsView, type RectGridPreset } from "@gamebyte/gamelabsjs";
 import { TowerDefenseConfig } from "../../../TowerDefenseConfig.js";
 import type { TowerTypeId } from "../../../constants/TowerTypeDef.js";
 import { GameBoardCellObject } from "./GameBoardCellObject.js";
@@ -55,7 +55,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView {
     const gridObj = this.getGridObject(TowerDefenseConfig.GRID_ID);
     if (!gridObj) return;
 
-    this._ghostMesh = GameBoardItemObject.createGhostMesh(towerType, gridObj.preset);
+    this._ghostMesh = GameBoardItemObject.createGhostMesh(towerType, gridObj.preset as RectGridPreset);
     this._ghostMesh.visible = false;
 
     // Grab the material reference for tinting valid/invalid

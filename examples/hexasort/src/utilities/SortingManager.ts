@@ -1,7 +1,6 @@
-import { UnsubscribeBag, UpdateManager, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { HexGrid, UnsubscribeBag, UpdateManager, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import type { HexCoord } from "../constants/HexCoord.js";
 import type { SortMove } from "../constants/SortMove.js";
-import { HexGrid } from "../models/HexGrid.js";
 import { HexaSortConfig } from "../HexaSortConfig.js";
 import { GameEvents } from "../events/GameEvents.js";
 import { SortOperations } from "./SortOperations.js";
@@ -185,7 +184,7 @@ export class SortingManager implements IInjectionTarget {
 
   private _startMergeIteration(placed: HexCoord): boolean {
     if (!this._grid) return false;
-    const top = this._grid.getTopColor(placed.col, placed.row);
+    const top = SortOperations.getTopColor(this._grid, placed.col, placed.row);
     if (top === null) return false;
     const matches = SortOperations.findMatchingNeighbors(this._grid, placed.col, placed.row);
     if (matches.length === 0) return false;
@@ -215,7 +214,7 @@ export class SortingManager implements IInjectionTarget {
     const candidates = SortOperations.findDestructionCandidates(this._grid, this._config.destructionThreshold);
     const cell = candidates[0] ?? null;
     if (cell) {
-      const color = this._grid.getTopColor(cell.col, cell.row);
+      const color = SortOperations.getTopColor(this._grid, cell.col, cell.row);
       if (color !== null) {
         this._destroyCell = cell;
         this._destroyColor = color;
@@ -257,7 +256,7 @@ export class SortingManager implements IInjectionTarget {
   private _pickNextMergeMove(): SortMove | null {
     if (!this._grid || !this._mergeTarget || this._mergeColor === null) return null;
     for (const source of this._mergeSources) {
-      if (this._grid.getTopColor(source.col, source.row) === this._mergeColor) {
+      if (SortOperations.getTopColor(this._grid, source.col, source.row) === this._mergeColor) {
         return { source, target: this._mergeTarget, color: this._mergeColor };
       }
     }
@@ -266,9 +265,10 @@ export class SortingManager implements IInjectionTarget {
 
   private _startSortMove(move: SortMove): void {
     if (!this._grid || !this._events) return;
-    const popped = this._grid.popTop(move.source.col, move.source.row);
-    if (popped === null) return;
-    this._grid.pushTop(move.target.col, move.target.row, move.color);
+    const popped = this._grid.removeCellItem(move.source.col, move.source.row);
+    if (!popped) return;
+    // Reuse the popped item; its back-reference was cleared by removeCellItem.
+    this._grid.addCellItem(move.target.col, move.target.row, popped);
 
     // SFX tied to the domain step; landing SFX is fired by the view
     // controller when the tween completes (tied to the rendered motion).
@@ -311,7 +311,7 @@ export class SortingManager implements IInjectionTarget {
       this._onDestructionIterationDone();
       return;
     }
-    if (this._grid.getTopColor(cell.col, cell.row) !== color) {
+    if (SortOperations.getTopColor(this._grid, cell.col, cell.row) !== color) {
       this._onDestructionComplete();
       return;
     }
@@ -320,7 +320,7 @@ export class SortingManager implements IInjectionTarget {
 
   private _startDestroyStep(cell: HexCoord): void {
     if (!this._grid || !this._events) return;
-    this._grid.popTop(cell.col, cell.row);
+    this._grid.removeCellItem(cell.col, cell.row);
     // SFX 3: one pop per destroyed tile — fires at the start of each
     // destruction step, so rapid cascades sound as a natural burst.
     this._sfx?.playTileDestroy();

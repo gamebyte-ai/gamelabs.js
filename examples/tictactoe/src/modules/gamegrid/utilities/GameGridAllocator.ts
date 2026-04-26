@@ -1,4 +1,4 @@
-import { DefaultGridAllocator, type IGridAllocator, type Grid, type GridCell, type GridItem } from "@gamebyte/gamelabsjs";
+import { DefaultGridAllocator, type GridItem, type IGridAllocator } from "@gamebyte/gamelabsjs";
 import { GameItem } from "../models/GameItem.js";
 import { Team } from "../../../constants/Team.js";
 

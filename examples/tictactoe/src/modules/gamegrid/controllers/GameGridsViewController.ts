@@ -1,6 +1,6 @@
-import type { Grid } from "@gamebyte/gamelabsjs";
-import type { GridItem } from "@gamebyte/gamelabsjs";
+import type { IGridItem } from "@gamebyte/gamelabsjs";
 import type { IInstanceResolver } from "@gamebyte/gamelabsjs";
+import type { IRectGrid } from "@gamebyte/gamelabsjs";
 import { GridsViewController } from "@gamebyte/gamelabsjs";
 import { GameItem } from "../models/GameItem.js";
 import { GameItemObjectOptions } from "../views/GameItemObjectOptions.js";
@@ -25,7 +25,7 @@ export class GameGridsViewController extends GridsViewController {
     }
   }
 
-  protected override createItemObjectOption(item: GridItem, grid: Grid): GameItemObjectOptions {
+  protected override createItemObjectOption(item: IGridItem, grid: IRectGrid): GameItemObjectOptions {
     if (!(item instanceof GameItem)) throw new Error("Expected GameItem");
     return new GameItemObjectOptions(item.itemId, grid.preset, item.team);
   }

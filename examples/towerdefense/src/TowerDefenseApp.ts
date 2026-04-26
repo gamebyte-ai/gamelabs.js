@@ -5,10 +5,10 @@ import {
   GamelabsApp,
   GameCameraBinding,
   GameCameraManager,
-  Grid,
   GridEvents,
-  GridPreset,
   GridsModel,
+  RectGrid,
+  RectGridPreset,
   LogTypes,
   Orbital3dCameraController,
   SettingsBinding,
@@ -131,8 +131,15 @@ export class TowerDefenseApp extends GamelabsApp {
     // fields on the binding.
     const model = this.diContainer.getInstance(GridsModel);
     const events = this.diContainer.getInstance(GridEvents);
-    const preset = new GridPreset(this._config.cellSize, this._config.cellSize, vector(1, 0, 0), vector(0, 0, 1));
-    const grid = new Grid(TowerDefenseConfig.GRID_ID, this._config.cols, this._config.rows, events, preset);
+    const preset = new RectGridPreset({
+      columnCount: this._config.cols,
+      rowCount: this._config.rows,
+      columnSize: this._config.cellSize,
+      rowSize: this._config.cellSize,
+      columnAxis: vector(1, 0, 0),
+      rowAxis: vector(0, 0, 1),
+    });
+    const grid = new RectGrid(TowerDefenseConfig.GRID_ID, preset, events);
     model.addGrid(grid);
   }
 
@@ -175,9 +182,8 @@ export class TowerDefenseApp extends GamelabsApp {
     // Center the grid around the origin
     const grid = this.diContainer.getInstance(GridsModel).getGrid(TowerDefenseConfig.GRID_ID);
     if (grid) {
-      const midX = ((this._config.cols - 1) * grid.preset.columnSize) * 0.5;
-      const midZ = ((this._config.rows - 1) * grid.preset.rowSize) * 0.5;
-      grid.setPosition(vector(-midX, 0, -midZ));
+      const offset = grid.getCenterOffset();
+      grid.setPosition(vector(-offset.x, -offset.y, -offset.z));
     }
 
     // Camera: orbital perspective with an isometric-style starting angle

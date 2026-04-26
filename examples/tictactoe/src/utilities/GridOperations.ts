@@ -1,4 +1,4 @@
-import { Grid, GridsModel, GridEvents, type IInstanceResolver, type IInjectionTarget } from "@gamebyte/gamelabsjs";
+import { GridEvents, GridsModel, RectGrid, RectGridPreset, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { TicTacToeConfig } from "../TicTacToeConfig";
 import { GameGridAllocator } from "../modules/gamegrid/utilities/GameGridAllocator.js";
 
@@ -18,7 +18,8 @@ export class GridOperations implements IInjectionTarget {
     const events = this._events!;
     const config = this._config!;
     const allocator = new GameGridAllocator();
-    const grid = new Grid(config.boardId, config.boardColumnCount, config.boardRowCount, events, null, allocator);
+    const preset = new RectGridPreset({ columnCount: config.boardColumnCount, rowCount: config.boardRowCount });
+    const grid = new RectGrid(config.boardId, preset, events, allocator);
     model.addGrid(grid);
   }
 }

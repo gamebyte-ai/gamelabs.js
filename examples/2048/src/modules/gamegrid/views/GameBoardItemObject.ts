@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import type { IAssetManager, IInputManager } from "@gamebyte/gamelabsjs";
+import type { IAssetManager, IInputManager, RectGridPreset } from "@gamebyte/gamelabsjs";
 import { GridItemObject, type IGridObjectListener } from "@gamebyte/gamelabsjs";
 import { GameBoardItemObjectOptions } from "./GameBoardItemObjectOptions.js";
 
@@ -24,6 +24,8 @@ const FALLBACK_COLORS: TileColors = { bg: "#3c3a32", fg: "#f9f6f2" };
 export class GameBoardItemObject extends GridItemObject {
   private static readonly QUAD_Y = 0.05;
   private static readonly TEXTURE_SIZE = 256;
+
+  public declare readonly preset: RectGridPreset;
 
   private _mesh: THREE.Mesh | null = null;
   private _texture: THREE.CanvasTexture | null = null;

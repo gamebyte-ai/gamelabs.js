@@ -1,6 +1,6 @@
+import type { HexGrid, IGridCell } from "@gamebyte/gamelabsjs";
 import type { HexCoord } from "../constants/HexCoord.js";
-import type { HexGrid } from "../models/HexGrid.js";
-import { getHexNeighbors } from "./HexNeighbors.js";
+import { BlockItem } from "../models/BlockItem.js";
 
 /**
  * Pure merge logic for the placement-driven Hexasort transfer system.
@@ -33,12 +33,11 @@ import { getHexNeighbors } from "./HexNeighbors.js";
 export class SortOperations {
   /** Cells adjacent to `(col, row)` whose top color equals the cell's top color. */
   public static findMatchingNeighbors(grid: HexGrid, col: number, row: number): HexCoord[] {
-    const top = grid.getTopColor(col, row);
+    const top = SortOperations.getTopColor(grid, col, row);
     if (top === null) return [];
     const matches: HexCoord[] = [];
-    for (const n of getHexNeighbors(col, row)) {
-      if (!grid.isValidCell(n.col, n.row)) continue;
-      if (grid.getTopColor(n.col, n.row) === top) matches.push(n);
+    for (const n of grid.getAllNeighbors(col, row)) {
+      if (SortOperations.getTopColor(grid, n.col, n.row) === top) matches.push(n);
     }
     return matches;
   }
@@ -60,8 +59,8 @@ export class SortOperations {
     if (placedClusters !== neighborClusters) return placedClusters < neighborClusters ? placed : neighbor;
 
     // 3. Most occupied: higher total block count.
-    const placedHeight = grid.getHeight(placed.col, placed.row);
-    const neighborHeight = grid.getHeight(neighbor.col, neighbor.row);
+    const placedHeight = grid.getCell(placed.col, placed.row)?.size ?? 0;
+    const neighborHeight = grid.getCell(neighbor.col, neighbor.row)?.size ?? 0;
     if (placedHeight !== neighborHeight) return placedHeight > neighborHeight ? placed : neighbor;
 
     // 4. Default: the newly placed cell.
@@ -85,11 +84,12 @@ export class SortOperations {
    * `(col, row)` (contiguous from the top). 0 when the cell is empty.
    */
   public static countTopContiguousSameColor(grid: HexGrid, col: number, row: number): number {
-    const colors = grid.getColors(col, row);
-    if (!colors || colors.length === 0) return 0;
-    const top = colors[colors.length - 1]!;
+    const cell = grid.getCell(col, row);
+    if (!cell || cell.size === 0) return 0;
+    const items = cell.items;
+    const top = (items[items.length - 1] as BlockItem).colorIndex;
     let n = 0;
-    for (let i = colors.length - 1; i >= 0 && colors[i] === top; i--) n++;
+    for (let i = items.length - 1; i >= 0 && (items[i] as BlockItem).colorIndex === top; i--) n++;
     return n;
   }
 
@@ -98,12 +98,26 @@ export class SortOperations {
    * `[R, R, B, R]` → 3 clusters. `[R, R, R]` → 1. Empty → 0.
    */
   public static countStackClusters(grid: HexGrid, col: number, row: number): number {
-    const colors = grid.getColors(col, row);
-    if (!colors || colors.length === 0) return 0;
+    const cell = grid.getCell(col, row);
+    if (!cell || cell.size === 0) return 0;
+    const items = cell.items;
     let clusters = 1;
-    for (let i = 1; i < colors.length; i++) {
-      if (colors[i] !== colors[i - 1]) clusters++;
+    for (let i = 1; i < items.length; i++) {
+      if ((items[i] as BlockItem).colorIndex !== (items[i - 1] as BlockItem).colorIndex) clusters++;
     }
     return clusters;
+  }
+
+  /** Top color index of the cell at `(col, row)`, or `null` for an empty / out-of-bounds cell. */
+  public static getTopColor(grid: HexGrid, col: number, row: number): number | null {
+    const cell = grid.getCell(col, row);
+    if (!cell || cell.size === 0) return null;
+    return (cell.item as BlockItem).colorIndex;
+  }
+
+  /** All color indices in the cell's stack, bottom → top, or `null` for an empty cell. */
+  public static getColors(cell: IGridCell | null): readonly number[] | null {
+    if (!cell || cell.size === 0) return null;
+    return cell.items.map((it) => (it as BlockItem).colorIndex);
   }
 }

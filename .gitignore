@@ -1,3 +1,7 @@
+# local files for publising
+npm_publish.sh
+
+
 # Logs
 logs
 *.log

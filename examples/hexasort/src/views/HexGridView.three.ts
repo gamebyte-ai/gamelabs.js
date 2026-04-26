@@ -1,8 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import { World, WorldViewBase, type IInstanceResolver, type IPointerInputHandler, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import { World, WorldViewBase, type IHexGrid, type IInstanceResolver, type IPointerInputHandler, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { HexCellCoord, IHexGridView } from "./IHexGridView.js";
-import type { IHexGrid } from "../models/IHexGrid.js";
 import { HexaSortConfig } from "../HexaSortConfig.js";
 import { hexCellKey } from "../utilities/HexNeighbors.js";
 
@@ -70,18 +69,18 @@ export class HexGridView extends WorldViewBase implements IHexGridView, IPointer
     this._clearGrid();
     const cfg = this._requireConfig();
 
-    const visualRadius = grid.hexSize * cfg.hexFillRatio;
+    const visualRadius = grid.preset.hexSize * cfg.hexFillRatio;
     this._cellGeometry = HexGridView._createFlatTopHexPrismGeometry(visualRadius, cfg.hexHeight);
     this._edgeGeometry = new THREE.EdgesGeometry(this._cellGeometry);
     this._edgeMaterial = new THREE.LineBasicMaterial({ color: cfg.cellEdgeColor });
     this._blockGeometry = HexGridView._createFlatTopHexPrismGeometry(visualRadius, cfg.blockHeight);
 
-    const center = grid.getCenterOffset();
+    const center = grid.preset.getCenterOffset();
     const baseY = cfg.hexHeight * 0.5;
 
-    for (let col = 0; col < grid.columnCount; col++) {
-      for (let row = 0; row < grid.rowCount; row++) {
-        const pos = grid.getCellPosition(col, row);
+    for (let col = 0; col < grid.preset.columnCount; col++) {
+      for (let row = 0; row < grid.preset.rowCount; row++) {
+        const pos = grid.preset.getCellPosition(col, row);
         const material = new THREE.MeshStandardMaterial({ color: cfg.cellColor, metalness: 0.05, roughness: 0.85 });
         const mesh = new THREE.Mesh(this._cellGeometry, material);
         mesh.position.set(pos.x - center.x, baseY, pos.z - center.z);

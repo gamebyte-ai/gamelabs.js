@@ -200,13 +200,16 @@ export class BoardViewController implements IViewController<IBoardView> {
    * snapped integer anchor, never from a mid-drag float offset.
    */
   private _beginExit(block: Block, doorId: number, anchor: CellCoord): void {
-    if (!this._view) return;
+    if (!this._view || !this._ops) return;
     if (this._exitingBlockIds.has(block.id)) return;
     this._exitingBlockIds.add(block.id);
     if (this._draggedBlock?.id === block.id) this._draggedBlock = null;
     this._view.setBlockLifted(block.id, false);
     this._view.setBlockSelected(block.id, false);
     this._view.setBlockAnchor(block.id, anchor.col, anchor.row);
+    // Vacate the grid cells now so other blocks can move into the
+    // departing space while the exit visual still plays out.
+    this._ops.clearBlock(block.id);
     this._sfx?.playGateShred();
     this._view.animateExit(block.id, doorId, () => this._finishExit(block.id, doorId));
   }
@@ -216,7 +219,6 @@ export class BoardViewController implements IViewController<IBoardView> {
       this._exitingBlockIds.delete(blockId);
       return;
     }
-    this._ops.clearBlock(blockId);
     this._view.removeBlock(blockId);
     this._events.emitBlockCleared(blockId, doorId);
     this._exitingBlockIds.delete(blockId);

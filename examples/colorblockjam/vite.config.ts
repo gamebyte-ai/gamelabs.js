@@ -18,7 +18,7 @@ export default defineConfig({
     dedupe: ["three", "pixi.js", "@pixi/layout", "@pixi/ui"],
   },
   server: {
-    port: 5182,
+    port: 5183,
     strictPort: true,
   },
 });

@@ -1,5 +1,5 @@
-import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
-import { HexGrid } from "../models/HexGrid.js";
+import { HexGrid, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { BlockItem } from "../models/BlockItem.js";
 import { StacksTray } from "../models/StacksTray.js";
 import type { BlockStack } from "../models/BlockStack.js";
 import { BlockStackOperations } from "./BlockStackOperations.js";
@@ -17,11 +17,15 @@ import { BlockStackOperations } from "./BlockStackOperations.js";
  * Holding the concrete mutable {@link HexGrid} / {@link StacksTray}
  * references here (not in controllers) is explicitly endorsed by the
  * rule: "The utility that owns the state exposes the readonly view."
+ *
+ * Mints {@link BlockItem} instances on placement so each block becomes a
+ * tracked grid item with a back-reference to its cell.
  */
 export class GameOperations implements IInjectionTarget {
   private _grid!: HexGrid;
   private _tray!: StacksTray;
   private _factory!: BlockStackOperations;
+  private _nextItemId = 1;
 
   public inject(resolver: IInstanceResolver): void {
     this._grid = resolver.getInstance(HexGrid);
@@ -34,12 +38,15 @@ export class GameOperations implements IInjectionTarget {
    * cell must exist in the grid and hold no blocks.
    */
   public canPlaceStack(col: number, row: number): boolean {
-    return this._grid.isValidCell(col, row) && this._grid.isEmpty(col, row);
+    if (!this._grid.isValidCell(col, row)) return false;
+    return this._grid.getCell(col, row)?.size === 0;
   }
 
-  /** Write a fresh block stack onto the hex grid at the given cell. */
+  /** Push every color in `stack` onto the grid cell as a fresh `BlockItem`. */
   public placeStackOnGrid(col: number, row: number, stack: BlockStack): void {
-    this._grid.placeStack(col, row, stack);
+    for (const colorIndex of stack.colors) {
+      this._grid.addCellItem(col, row, new BlockItem(this._nextItemId++, colorIndex));
+    }
   }
 
   /**

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import gsap from "gsap";
-import type { IAssetManager, IInputManager } from "@gamebyte/gamelabsjs";
+import type { IAssetManager, IInputManager, RectGridPreset } from "@gamebyte/gamelabsjs";
 import { GridItemObject, type IGridObjectListener } from "@gamebyte/gamelabsjs";
 import { GEM_ASSET_IDS_BY_TYPE } from "../../../Match3AssetIds.js";
 import type { GameBoardItemObjectOptions } from "./GameBoardItemObjectOptions.js";
@@ -9,6 +9,8 @@ export class GameBoardItemObject extends GridItemObject {
   private static readonly SELECTION_ACCENT = 0xfbbf24;
   private static readonly SELECTION_SCALE = 1.1;
   private static readonly QUAD_Y = 0.06;
+
+  public declare readonly preset: RectGridPreset;
 
   private _mesh: THREE.Mesh | null = null;
   private _selectionHalo: THREE.Mesh | null = null;

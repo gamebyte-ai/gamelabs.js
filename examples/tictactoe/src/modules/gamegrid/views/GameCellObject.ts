@@ -1,12 +1,14 @@
 import * as THREE from "three";
 import { GridCellObject, GridCellObjectOptions, POINTER_INPUT_LAYER } from "@gamebyte/gamelabsjs";
-import type { IAssetManager, IInputManager, IPointerInputHandler } from "@gamebyte/gamelabsjs";
+import type { IAssetManager, IInputManager, IPointerInputHandler, RectGridPreset } from "@gamebyte/gamelabsjs";
 import type { IGridObjectListener } from "@gamebyte/gamelabsjs";
 import { TicTacToeAssetIds } from "../../../TicTacToeAssetIds";
 
 export class GameCellObject extends GridCellObject implements IPointerInputHandler {
   private static readonly COLLIDER_THICKNESS = 0.2;
   private static readonly QUAD_THICKNESS = 0.01;
+
+  public declare readonly preset: RectGridPreset;
 
   public constructor(options: GridCellObjectOptions, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
     super(options, pointerListener, inputManager, assetManager);

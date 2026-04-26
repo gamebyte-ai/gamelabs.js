@@ -11,7 +11,7 @@ export class Game2048Config {
   public readonly initialTileCount = 2;
   /** Probability that a freshly-spawned tile is a 4 (otherwise 2). */
   public readonly fourSpawnChance = 0.1;
-  /** World cell size for {@link GridPreset} (Three.js board). */
+  /** World cell size for {@link RectGridPreset} (Three.js board). */
   public readonly gridColumnSize = 1;
   public readonly gridRowSize = 1;
   /** World-space margin around the board on every side. The camera ortho size is

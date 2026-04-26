@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { GridItemObject, type GridPreset } from "@gamebyte/gamelabsjs";
+import { GridItemObject, type RectGridPreset } from "@gamebyte/gamelabsjs";
 import { TowerTypeId, TOWER_TYPES } from "../../../constants/TowerTypeDef.js";
 import { GameBoardItemObjectOptions } from "./GameBoardItemObjectOptions.js";
 
@@ -9,12 +9,14 @@ import { GameBoardItemObjectOptions } from "./GameBoardItemObjectOptions.js";
  * a transparent material override.
  */
 export class GameBoardItemObject extends GridItemObject {
+  public declare readonly preset: RectGridPreset;
+
   protected override createVisual(): void {
     const opts = this._options as GameBoardItemObjectOptions;
     GameBoardItemObject._build(this, opts.towerType, this.preset, false);
   }
 
-  public static createGhostMesh(towerType: TowerTypeId, preset: GridPreset): THREE.Group {
+  public static createGhostMesh(towerType: TowerTypeId, preset: RectGridPreset): THREE.Group {
     const group = new THREE.Group();
     GameBoardItemObject._build(group, towerType, preset, true);
     return group;
@@ -22,7 +24,7 @@ export class GameBoardItemObject extends GridItemObject {
 
   // ── Central dispatcher ────────────────────────────────────────────────
 
-  private static _build(parent: THREE.Object3D, type: TowerTypeId, preset: GridPreset, ghost: boolean): void {
+  private static _build(parent: THREE.Object3D, type: TowerTypeId, preset: RectGridPreset, ghost: boolean): void {
     const typeDef = TOWER_TYPES.get(type);
     if (!typeDef) return;
     const s = Math.min(preset.columnSize, preset.rowSize) * 0.75;

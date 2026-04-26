@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { Grid, GridEvents, GridPreset, GridsModel, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { GridEvents, GridsModel, RectGrid, RectGridPreset, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { Game2048Config } from "../Game2048Config.js";
 import { GameBoardItem } from "../modules/gamegrid/models/GameBoardItem.js";
 import { GameModel } from "../models/GameModel.js";
@@ -38,7 +38,7 @@ export type MovePlan = {
 };
 
 /**
- * 2048 in-domain logic on top of gamegrid {@link Grid} (cells hold {@link GameBoardItem}).
+ * 2048 in-domain logic on top of gamegrid {@link RectGrid} (cells hold {@link GameBoardItem}).
  *
  * Two-phase mutation:
  *  - {@link planMove} computes a plan from the current model state without mutating it,
@@ -54,11 +54,11 @@ export type MovePlan = {
  * DI container creates the instance via the
  * `bindSingleton(GameOperations, () => new GameOperations())` factory and then
  * automatically calls `inject(resolver)` once. All dependencies (config, model,
- * grid events) are pulled in `inject`, the `Grid` is constructed and registered
+ * grid events) are pulled in `inject`, the `RectGrid` is constructed and registered
  * with the model there, and the initial tiles are spawned.
  */
 export class GameOperations implements IInjectionTarget {
-  private _grid!: Grid;
+  private _grid!: RectGrid;
   private _config!: Game2048Config;
   private _gameModel!: GameModel;
   private _nextItemId = 1;
@@ -68,13 +68,20 @@ export class GameOperations implements IInjectionTarget {
     this._gameModel = resolver.getInstance(GameModel);
     const gridsModel = resolver.getInstance(GridsModel);
     const gridEvents = resolver.getInstance(GridEvents);
-    const preset = new GridPreset(this._config.gridColumnSize, this._config.gridRowSize, vector(1, 0, 0), vector(0, 0, 1));
-    this._grid = new Grid(Game2048Config.GRID_ID, this._config.cols, this._config.rows, gridEvents, preset);
+    const preset = new RectGridPreset({
+      columnCount: this._config.cols,
+      rowCount: this._config.rows,
+      columnSize: this._config.gridColumnSize,
+      rowSize: this._config.gridRowSize,
+      columnAxis: vector(1, 0, 0),
+      rowAxis: vector(0, 0, 1),
+    });
+    this._grid = new RectGrid(Game2048Config.GRID_ID, preset, gridEvents);
     gridsModel.addGrid(this._grid);
     this._spawnInitialTiles();
   }
 
-  public get grid(): Grid {
+  public get grid(): RectGrid {
     return this._grid;
   }
 

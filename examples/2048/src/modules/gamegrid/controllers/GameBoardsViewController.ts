@@ -1,4 +1,4 @@
-import type { Grid, GridItem, IGridView, IInstanceResolver, Unsubscribe } from "@gamebyte/gamelabsjs";
+import type { IGridItem, IGridView, IInstanceResolver, IRectGrid, Unsubscribe } from "@gamebyte/gamelabsjs";
 import { GridsViewController, KeyboardListener, UnsubscribeBag } from "@gamebyte/gamelabsjs";
 import { Game2048Config } from "../../../Game2048Config.js";
 import { Game2048AssetIds } from "../../../Game2048AssetIds.js";
@@ -68,7 +68,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._gameEvents?.emitBestChanged(this._gameModel?.best ?? 0);
   }
 
-  protected override createItemObjectOption(item: GridItem, grid: Grid): GameBoardItemObjectOptions {
+  protected override createItemObjectOption(item: IGridItem, grid: IRectGrid): GameBoardItemObjectOptions {
     if (!(item instanceof GameBoardItem)) throw new Error("Expected GameBoardItem");
     return new GameBoardItemObjectOptions(item.itemId, grid.preset, item.value);
   }

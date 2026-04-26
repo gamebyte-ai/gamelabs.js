@@ -10,7 +10,7 @@ export class Match3Config {
   public readonly rows = 8;
   public readonly cols = 8;
   public readonly gemTypeCount = 5;
-  /** World cell size for {@link GridPreset} (Three.js board). */
+  /** World cell size for {@link RectGridPreset} (Three.js board). */
   public readonly gridColumnSize = 0.92;
   public readonly gridRowSize = 0.92;
   /** Orthographic half-height for top-down camera (world units; board ~7.4 + margin). */

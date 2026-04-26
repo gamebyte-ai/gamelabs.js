@@ -1,4 +1,5 @@
 import type { CellCoord } from "../constants/BoardTypes.js";
+import type { BlockItem } from "./BlockItem.js";
 
 /**
  * A colored block that lives on the grid. `shape` is a fixed, normalized
@@ -6,8 +7,11 @@ import type { CellCoord } from "../constants/BoardTypes.js";
  * the grid cell the shape's origin currently occupies; sliding the block
  * changes the anchor, never the shape.
  *
- * Mutations go through {@link GameOperations}; controllers / views read
- * via the readonly {@link IGameModel} interface.
+ * `items` holds one {@link BlockItem} per shape offset, in the same
+ * order as `shape`. Operations.buildLevel mints them and places them in
+ * grid cells; coordinated moves (anchor changes) keep the shape↔item
+ * correspondence intact. Mutations go through `GameOperations`;
+ * controllers / views read via the readonly {@link IGameModel} interface.
  */
 export class Block {
   public readonly id: number;
@@ -18,6 +22,7 @@ export class Block {
 
   private _anchor: CellCoord;
   private _cleared = false;
+  private _items: BlockItem[] = [];
 
   public constructor(id: number, colorIndex: number, shape: readonly CellCoord[], anchor: CellCoord) {
     this.id = id;
@@ -50,6 +55,15 @@ export class Block {
 
   public clear(): void {
     this._cleared = true;
+  }
+
+  public get items(): readonly BlockItem[] {
+    return this._items;
+  }
+
+  /** @internal Set by `GameOperations.buildLevel` once the shape's items are minted. */
+  public setItems(items: BlockItem[]): void {
+    this._items = items;
   }
 
   /** Absolute grid cells currently occupied by this block. */

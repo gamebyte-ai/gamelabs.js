@@ -3,11 +3,11 @@ import {
   GridsViewController,
   IGridsModel,
   UnsubscribeBag,
-  type Grid,
-  type GridItem,
+  type IGridItem,
   type IGridView,
   type IInstanceResolver,
   type IGridsModel as IGridsModelType,
+  type IRectGrid,
 } from "@gamebyte/gamelabsjs";
 import { CellType } from "../../../constants/CellType.js";
 import { TOWER_TYPES, TowerTypeId } from "../../../constants/TowerTypeDef.js";
@@ -64,7 +64,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._tdSubs.add(this._gameEvents!.onCannonFired((col, row, tx, tz) => this._gridsView?.animateCannonFire(col, row, tx, tz)));
   }
 
-  protected override createItemObjectOption(item: GridItem, grid: Grid): GridItemObjectOptions {
+  protected override createItemObjectOption(item: IGridItem, grid: IRectGrid): GridItemObjectOptions {
     if (item instanceof GameBoardItem) {
       return new GameBoardItemObjectOptions(item.itemId, grid.preset, item.towerType);
     }

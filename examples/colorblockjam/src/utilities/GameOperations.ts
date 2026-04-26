@@ -1,16 +1,26 @@
-import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { GridsModel, RectGrid, RectGridPreset, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { ColorBlockJamConfig } from "../ColorBlockJamConfig.js";
 import type { CellCoord, DoorSide } from "../constants/BoardTypes.js";
 import type { CommitResult, ExitMatch, FloatPos } from "../constants/DragTypes.js";
 import { GameModel } from "../models/GameModel.js";
 import { Block } from "../models/Block.js";
+import { BlockItem } from "../models/BlockItem.js";
 import { Door } from "../models/Door.js";
 import { LevelManager } from "./LevelManager.js";
 
 export type { CommitResult, ExitMatch, FloatPos } from "../constants/DragTypes.js";
 
+const BOARD_GRID_ID = 1;
+
 /**
  * Owns every mutation to the game model and all movement rules.
+ *
+ * Each level constructs a fresh framework `RectGrid` (sized to the level
+ * descriptor's `cols × rows`) and places one `BlockItem` per shape cell
+ * of every block. All blocks belonging to the same logical block share a
+ * `groupId` (= `Block.id`) so collision logic can identify them. The
+ * grid is registered with the framework's `GridsModel`; on level end we
+ * remove it.
  *
  * Movement model — continuous drag with slide-and-stop collisions:
  * - A block's "anchor" in the model is always an integer cell. During a
@@ -18,14 +28,17 @@ export type { CommitResult, ExitMatch, FloatPos } from "../constants/DragTypes.j
  *   {@link clampDragStep} each pointer move to figure out where the
  *   block should actually be, given the cursor's target and obstacles.
  * - {@link clampDragStep} applies the requested translation axis-by-axis
- *   (X, then Z), clamping each axis against (a) other un-cleared blocks'
- *   AABBs, (b) grid bounds, and (c) door passages when — and only when —
- *   the block is aligned with a matching-colour, matching-span door on
- *   that edge. This produces the "slide along the wall / stop against
- *   the block" feel the player expects.
- * - On release, {@link commitRelease} either clears the block (if it has
- *   been dragged more than halfway off-grid through a matching door) or
- *   snaps the model anchor to the nearest legal integer cell.
+ *   (X, then Z), clamping each axis against (a) other un-cleared cells
+ *   in the grid (cells whose item belongs to a different `groupId`),
+ *   (b) grid bounds, and (c) door passages when — and only when — the
+ *   block is aligned with a matching-colour, matching-span door on that
+ *   edge.
+ * - On release, {@link commitRelease} either marks the block for exit
+ *   (if it has been dragged into a cell adjacent to a matching door) or
+ *   snaps the model anchor to the nearest legal integer cell. Anchor
+ *   changes are *coordinated moves*: items are removed from the old
+ *   anchor's cells, the anchor is updated, then items are re-added at
+ *   the new anchor.
  *
  * Door match semantics are strict:
  * - A door covers a contiguous span of edge cells with a single colour.
@@ -38,26 +51,45 @@ export type { CommitResult, ExitMatch, FloatPos } from "../constants/DragTypes.j
 export class GameOperations implements IInjectionTarget {
   private _model!: GameModel;
   private _levels!: LevelManager;
-  /**
-   * Still carries level-independent tuning (drag alignment tolerance,
-   * animation durations). Grid size + block/door layout come from the
-   * {@link LevelManager} instead.
-   */
   private _config!: ColorBlockJamConfig;
+  private _gridsModel!: GridsModel;
+  private _grid: RectGrid | null = null;
+  private _nextItemId = 1;
 
   public inject(resolver: IInstanceResolver): void {
     this._model = resolver.getInstance(GameModel);
     this._levels = resolver.getInstance(LevelManager);
     this._config = resolver.getInstance(ColorBlockJamConfig);
+    this._gridsModel = resolver.getInstance(GridsModel);
   }
 
   /** Seeds the current level from the {@link LevelManager}. */
   public buildLevel(): void {
+    // Tear down the previous level's grid (if any) — clears all items
+    // along with it. Items are GC'd; nothing else references them.
+    if (this._grid) {
+      this._gridsModel.removeGrid(BOARD_GRID_ID);
+      this._grid = null;
+    }
+
     const level = this._levels.current;
+    const preset = new RectGridPreset({ columnCount: level.cols, rowCount: level.rows });
+    this._grid = new RectGrid(BOARD_GRID_ID, preset);
+    this._gridsModel.addGrid(this._grid);
+
     const blocks: Block[] = [];
     for (const b of level.blocks) {
-      blocks.push(new Block(b.id, b.colorIndex, b.shape, b.anchor));
+      const block = new Block(b.id, b.colorIndex, b.shape, b.anchor);
+      const items: BlockItem[] = [];
+      for (const offset of block.shape) {
+        const item = new BlockItem(this._nextItemId++, block.id, block.colorIndex);
+        items.push(item);
+        this._grid.addCellItem(block.anchor.col + offset.col, block.anchor.row + offset.row, item);
+      }
+      block.setItems(items);
+      blocks.push(block);
     }
+
     const doors: Door[] = [];
     for (const d of level.doors) {
       doors.push(new Door(d.id, d.side, d.spanStart, d.spanEnd, d.colorIndex));
@@ -71,7 +103,7 @@ export class GameOperations implements IInjectionTarget {
    *
    * `current` is the block's present float position; `target` is where
    * the cursor wants it to be. The X axis is solved first, then Z. Each
-   * axis is clamped against (a) other un-cleared blocks' AABBs that
+   * axis is clamped against (a) other un-cleared cells in the grid that
    * overlap on the perpendicular axis, (b) the grid bound, with a door
    * pass-through when the block's perpendicular position aligns with a
    * matching door on that side.
@@ -89,8 +121,7 @@ export class GameOperations implements IInjectionTarget {
    * Checks whether the currently-dragged block is parked in the cell(s)
    * directly in front of a matching door, within
    * {@link ColorBlockJamConfig.exitAlignTolerance}, AND whose exit path
-   * (the cells it would sweep while leaving) is free of obstacles. Used
-   * by the controller to auto-trigger the exit animation mid-drag.
+   * (the cells it would sweep while leaving) is free of obstacles.
    */
   public detectExitTrigger(blockId: number, dragPos: FloatPos): ExitMatch | null {
     const block = this._model.getBlockById(blockId);
@@ -104,10 +135,9 @@ export class GameOperations implements IInjectionTarget {
     const match = this._findExitAt(block, snapCol, snapRow);
     if (!match) return null;
     if (!this._isExitPathClear(block, anchor, match.side)) return null;
-    // Commit the anchor to the model so downstream exit-path/collision
-    // checks see the snapped position, and the controller can render the
-    // block at the integer cell before the animation fires.
-    block.setAnchor(anchor);
+    // Commit the anchor (coordinated move so the items live at the
+    // snapped cells before the exit animation reads from them).
+    this._moveBlockToAnchor(block, anchor);
     return { doorId: match.doorId, side: match.side, anchor };
   }
 
@@ -123,7 +153,7 @@ export class GameOperations implements IInjectionTarget {
     if (!block || block.cleared) return null;
 
     const anchor = this._snapToLegalAnchor(block, finalPos);
-    block.setAnchor(anchor);
+    this._moveBlockToAnchor(block, anchor);
 
     const adjacent = this._findExitAt(block, anchor.col, anchor.row);
     if (adjacent && this._isExitPathClear(block, anchor, adjacent.side)) {
@@ -133,13 +163,21 @@ export class GameOperations implements IInjectionTarget {
   }
 
   /**
-   * Marks the block as cleared and frees its cells. Controllers call this
-   * after the exit animation completes so other blocks can move through
-   * the space the exiting block was occupying.
+   * Removes the block's items from the grid and marks it as cleared.
+   * The controller calls this when the exit animation begins so the
+   * vacated cells become available for other blocks while the visual
+   * still plays its slide-off.
    */
   public clearBlock(blockId: number): void {
     const block = this._model.getBlockById(blockId);
     if (!block || block.cleared) return;
+    const grid = this._requireGrid();
+    for (const offset of block.shape) {
+      const col = block.anchor.col + offset.col;
+      const row = block.anchor.row + offset.row;
+      grid.removeCellItem(col, row);
+    }
+    block.setItems([]);
     block.clear();
   }
 
@@ -150,16 +188,38 @@ export class GameOperations implements IInjectionTarget {
   // --- internals ----------------------------------------------------------
 
   /**
+   * Removes every item of `block` from its cells at the current anchor,
+   * updates the anchor, then re-adds the items at the new anchor's cells.
+   * Order matters: detaching all first lets the new cells overlap the
+   * old ones (e.g., a 1-step slide along the shape's long axis).
+   */
+  private _moveBlockToAnchor(block: Block, newAnchor: CellCoord): void {
+    if (block.anchor.col === newAnchor.col && block.anchor.row === newAnchor.row) return;
+    const grid = this._requireGrid();
+    const detached: BlockItem[] = [];
+    for (const offset of block.shape) {
+      const item = grid.removeCellItem(block.anchor.col + offset.col, block.anchor.row + offset.row);
+      if (item) detached.push(item as BlockItem);
+    }
+    block.setAnchor(newAnchor);
+    for (let i = 0; i < block.shape.length; i++) {
+      const offset = block.shape[i]!;
+      const item = detached[i];
+      if (!item) continue;
+      grid.addCellItem(newAnchor.col + offset.col, newAnchor.row + offset.row, item);
+    }
+    block.setItems(detached);
+  }
+
+  /**
    * Clamps a proposed X move against per-cell (not bounding-box) collisions.
    *
-   * Stateless side-check: for every (dragged shape cell, other occupied cell)
+   * Stateless side-check: for every (dragged shape cell, occupied grid cell)
    * pair that overlaps on the Z axis, the dragged cell's X range must not
    * cross the obstacle's X range. The clamp is written in terms of
    * "obstacle is not fully to the left" (for rightward motion) and "not
    * fully to the right" (for leftward motion), so a float-drift position
-   * of `1.0000001` reaches the same clamp decision as an exact `1.0`. This
-   * makes the collision path-independent — the block can pass through any
-   * gap that actually fits its shape, regardless of drag segmentation.
+   * of `1.0000001` reaches the same clamp decision as an exact `1.0`.
    */
   private _clampAxisX(block: Block, currentCol: number, currentRow: number, targetCol: number): number {
     const W = block.width;
@@ -169,37 +229,24 @@ export class GameOperations implements IInjectionTarget {
     const moving = targetCol - currentCol;
     if (Math.abs(moving) < 1e-9) return currentCol;
 
-    // Hard walls on the grid edge. The block never crosses an edge during
-    // drag — door passage only happens via the auto-exit trigger once the
-    // block is fully aligned in the edge-adjacent cell.
     let leftLimit = 0;
     let rightLimit = cols - W;
 
     const eps = 1e-6;
-    for (const other of this._model.blocks) {
-      if (other.id === block.id || other.cleared) continue;
-      for (const otherCell of other.absoluteCells()) {
-        for (const shapeCell of block.shape) {
-          const dRow = currentRow + shapeCell.row;
-          const oRow = otherCell.row;
-          // Shrunk-cell Z-overlap: each cell is inset by `m` on every side
-          // so a pair of cells that only touch or have a tiny gap doesn't
-          // register as overlapping, giving a cushion against float drift.
-          if (dRow + (1 - m) <= oRow + m + eps) continue;
-          if (dRow + m >= oRow + (1 - m) - eps) continue;
+    for (const otherCell of this._collectOccupiedCellsExcept(block.id)) {
+      for (const shapeCell of block.shape) {
+        const dRow = currentRow + shapeCell.row;
+        const oRow = otherCell.row;
+        if (dRow + (1 - m) <= oRow + m + eps) continue;
+        if (dRow + m >= oRow + (1 - m) - eps) continue;
 
-          const dCol = currentCol + shapeCell.col;
-          const oCol = otherCell.col;
+        const dCol = currentCol + shapeCell.col;
+        const oCol = otherCell.col;
 
-          if (moving > 0 && oCol + (1 - m) > dCol + m + eps) {
-            // Obstacle is NOT fully to the left — constrains rightward motion.
-            // `2m` extra slack lets the dragged cell's right edge touch the
-            // obstacle's left edge, both shrunk by `m`.
-            rightLimit = Math.min(rightLimit, oCol - shapeCell.col - 1 + 2 * m);
-          } else if (moving < 0 && oCol + m < dCol + (1 - m) - eps) {
-            // Obstacle is NOT fully to the right — constrains leftward motion.
-            leftLimit = Math.max(leftLimit, oCol + 1 - 2 * m - shapeCell.col);
-          }
+        if (moving > 0 && oCol + (1 - m) > dCol + m + eps) {
+          rightLimit = Math.min(rightLimit, oCol - shapeCell.col - 1 + 2 * m);
+        } else if (moving < 0 && oCol + m < dCol + (1 - m) - eps) {
+          leftLimit = Math.max(leftLimit, oCol + 1 - 2 * m - shapeCell.col);
         }
       }
     }
@@ -219,23 +266,20 @@ export class GameOperations implements IInjectionTarget {
     let bottomLimit = rows - H;
 
     const eps = 1e-6;
-    for (const other of this._model.blocks) {
-      if (other.id === block.id || other.cleared) continue;
-      for (const otherCell of other.absoluteCells()) {
-        for (const shapeCell of block.shape) {
-          const dCol = currentCol + shapeCell.col;
-          const oCol = otherCell.col;
-          if (dCol + (1 - m) <= oCol + m + eps) continue;
-          if (dCol + m >= oCol + (1 - m) - eps) continue;
+    for (const otherCell of this._collectOccupiedCellsExcept(block.id)) {
+      for (const shapeCell of block.shape) {
+        const dCol = currentCol + shapeCell.col;
+        const oCol = otherCell.col;
+        if (dCol + (1 - m) <= oCol + m + eps) continue;
+        if (dCol + m >= oCol + (1 - m) - eps) continue;
 
-          const dRow = currentRow + shapeCell.row;
-          const oRow = otherCell.row;
+        const dRow = currentRow + shapeCell.row;
+        const oRow = otherCell.row;
 
-          if (moving > 0 && oRow + (1 - m) > dRow + m + eps) {
-            bottomLimit = Math.min(bottomLimit, oRow - shapeCell.row - 1 + 2 * m);
-          } else if (moving < 0 && oRow + m < dRow + (1 - m) - eps) {
-            topLimit = Math.max(topLimit, oRow + 1 - 2 * m - shapeCell.row);
-          }
+        if (moving > 0 && oRow + (1 - m) > dRow + m + eps) {
+          bottomLimit = Math.min(bottomLimit, oRow - shapeCell.row - 1 + 2 * m);
+        } else if (moving < 0 && oRow + m < dRow + (1 - m) - eps) {
+          topLimit = Math.max(topLimit, oRow + 1 - 2 * m - shapeCell.row);
         }
       }
     }
@@ -244,10 +288,30 @@ export class GameOperations implements IInjectionTarget {
   }
 
   /**
+   * Cells in the grid whose top item is a `BlockItem` from a different
+   * group than `excludeGroupId`. Skips empty cells. Used by collision
+   * clamping so the dragged block doesn't collide with itself.
+   */
+  private _collectOccupiedCellsExcept(excludeGroupId: number): CellCoord[] {
+    const grid = this._requireGrid();
+    const out: CellCoord[] = [];
+    for (let col = 0; col < grid.columnCount; col++) {
+      for (let row = 0; row < grid.rowCount; row++) {
+        const cell = grid.getCell(col, row);
+        if (!cell || cell.size === 0) continue;
+        const item = cell.item;
+        if (!(item instanceof BlockItem)) continue;
+        if (item.groupId === excludeGroupId) continue;
+        out.push({ col, row });
+      }
+    }
+    return out;
+  }
+
+  /**
    * Returns `{ doorId, side }` when the block at the integer cell
    * (`col`, `row`) sits on an edge cell whose door matches it (colour,
-   * perpendicular span contains the block). Callers already have the
-   * anchor, so it isn't duplicated on the return.
+   * perpendicular span contains the block).
    */
   private _findExitAt(block: Block, col: number, row: number): { doorId: number; side: DoorSide } | null {
     const W = block.width;
@@ -274,10 +338,9 @@ export class GameOperations implements IInjectionTarget {
   /**
    * Verifies that the block can complete its exit animation without
    * sweeping through another block's cell. Walks the block one cardinal
-   * cell at a time from `startAnchor` in the exit direction for
-   * `W`/`H` steps (enough for the entire block to clear the edge). At
-   * each intermediate anchor, any in-grid shape cell must be empty of
-   * other un-cleared blocks.
+   * cell at a time from `startAnchor` in the exit direction; at each
+   * intermediate anchor, any in-grid shape cell must be empty (or hold
+   * only this block's own items).
    */
   private _isExitPathClear(block: Block, startAnchor: CellCoord, side: DoorSide): boolean {
     let dCol = 0;
@@ -297,18 +360,18 @@ export class GameOperations implements IInjectionTarget {
       steps = block.width;
     }
 
+    const grid = this._requireGrid();
     for (let i = 1; i <= steps; i++) {
       const anchor = { col: startAnchor.col + dCol * i, row: startAnchor.row + dRow * i };
       const cells = block.absoluteCellsAt(anchor);
       for (const cell of cells) {
         if (cell.col < 0 || cell.col >= this._levels.current.cols) continue;
         if (cell.row < 0 || cell.row >= this._levels.current.rows) continue;
-        for (const other of this._model.blocks) {
-          if (other.id === block.id || other.cleared) continue;
-          for (const oc of other.absoluteCells()) {
-            if (oc.col === cell.col && oc.row === cell.row) return false;
-          }
-        }
+        const occupant = grid.getCell(cell.col, cell.row)?.item;
+        if (!occupant) continue;
+        if (!(occupant instanceof BlockItem)) continue;
+        if (occupant.groupId === block.id) continue;
+        return false;
       }
     }
     return true;
@@ -318,17 +381,6 @@ export class GameOperations implements IInjectionTarget {
    * Finds a door on `side` that `block` can pass through from perpendicular
    * start index `perpStart` (= anchor.col for top/bottom, anchor.row for
    * left/right).
-   *
-   * Generalized passage rule (same for every shape family):
-   *  - Colour must match.
-   *  - Block's perpendicular bounding dimension must be ≤ door span length.
-   *  - Block's occupied perpendicular range must be fully inside the door
-   *    span — no cell sticks past the wall next to the door.
-   *
-   * Doors can therefore be wider than the block; a 1×1 can pass through a
-   * 3-wide door of matching colour anywhere within its span. Adjacent
-   * same-edge doors of different colours never combine, because each door
-   * is checked independently and must cover the block's full span by itself.
    */
   private _findMatchingDoor(
     side: "top" | "bottom" | "left" | "right",
@@ -358,9 +410,7 @@ export class GameOperations implements IInjectionTarget {
 
     if (this._canOccupyInGridAt(block, { col, row })) return { col, row };
 
-    // Fallback: scan outward for a nearby legal cell. Restricted to a
-    // small radius so a release in a pathological state still resolves
-    // deterministically without hunting the entire grid.
+    // Fallback: scan outward for a nearby legal cell.
     for (let r = 1; r <= 2; r++) {
       for (let dc = -r; dc <= r; dc++) {
         for (let dr = -r; dr <= r; dr++) {
@@ -381,18 +431,15 @@ export class GameOperations implements IInjectionTarget {
   }
 
   private _canOccupyInGridAt(block: Block, anchor: CellCoord): boolean {
+    const grid = this._requireGrid();
     const cells = block.absoluteCellsAt(anchor);
     for (const cell of cells) {
       if (cell.col < 0 || cell.col >= this._levels.current.cols) return false;
       if (cell.row < 0 || cell.row >= this._levels.current.rows) return false;
-    }
-    for (const other of this._model.blocks) {
-      if (other.id === block.id || other.cleared) continue;
-      for (const a of cells) {
-        for (const b of other.absoluteCells()) {
-          if (a.col === b.col && a.row === b.row) return false;
-        }
-      }
+      const occupant = grid.getCell(cell.col, cell.row)?.item;
+      if (!occupant) continue;
+      if (!(occupant instanceof BlockItem)) return false;
+      if (occupant.groupId !== block.id) return false;
     }
     return true;
   }
@@ -417,5 +464,10 @@ export class GameOperations implements IInjectionTarget {
         }
       }
     }
+  }
+
+  private _requireGrid(): RectGrid {
+    if (!this._grid) throw new Error("GameOperations: grid is not built — call buildLevel() first");
+    return this._grid;
   }
 }

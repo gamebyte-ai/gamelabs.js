@@ -1,10 +1,12 @@
 import * as THREE from "three";
-import type { IAssetManager, IInputManager, IPointerInputHandler } from "@gamebyte/gamelabsjs";
+import type { IAssetManager, IInputManager, IPointerInputHandler, RectGridPreset } from "@gamebyte/gamelabsjs";
 import { GridCellObject, GridCellObjectOptions, POINTER_INPUT_LAYER, type IGridObjectListener } from "@gamebyte/gamelabsjs";
 
 export class GameBoardCellObject extends GridCellObject implements IPointerInputHandler {
   private static readonly COLLIDER_THICKNESS = 0.22;
   private static readonly PLANE_Y = 0.01;
+
+  public declare readonly preset: RectGridPreset;
 
   public constructor(options: GridCellObjectOptions, pointerListener: IGridObjectListener, inputManager: IInputManager | null, assetManager?: IAssetManager | null) {
     super(options, pointerListener, inputManager, assetManager);

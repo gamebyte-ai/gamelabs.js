@@ -1,6 +1,5 @@
-import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
+import type { IHexGrid, IView, Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { HexCoord } from "../constants/HexCoord.js";
-import type { IHexGrid } from "../models/IHexGrid.js";
 
 /**
  * Alias kept for readability at the view boundary — a hover callback
