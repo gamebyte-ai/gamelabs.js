@@ -41,7 +41,7 @@ export class UIPlaygroundConfig {
 
   // ─── Outline (debug) ───────────────────────────────────────────────
   /** Color of the debug outline drawn around the active demo's component. */
-  public readonly outlineColor = 0xfacc15;
+  public readonly outlineColor = 0xffffff;
   /** Stroke width of the debug outline, in pixels. */
   public readonly outlineWidth = 2;
 

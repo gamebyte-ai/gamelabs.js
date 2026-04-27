@@ -11,6 +11,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`SliderComponent`](#slidercomponent) — horizontal slider with min/max/step constraints
 - [`DropdownComponent`](#dropdowncomponent) — select-style dropdown with overlay-rendered option list
 - [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator with optional label; designed to compose into a group
+- [`RadioButtonGroupComponent`](#radiobuttongroupcomponent) — mutually exclusive set of radio buttons stacked in a column or row
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
 - [`HorizontalLayoutComponent`](#horizontallayoutcomponent) — horizontal flex container
 - [`GridLayoutComponent`](#gridlayoutcomponent) — flex container with row-wrap that approximates a CSS grid (no real grid algorithm)
@@ -307,6 +308,57 @@ option.onPress(() => {
 
 - **State is decoupled from input.** The button does not auto-toggle on tap. This lets a group own the mutual-exclusion model and keeps the standalone-button case explicit. For a single button used outside a group, wire `btn.onPress(() => btn.setSelected(true))`.
 - **Layout-aware.** The component sets its own `.layout = { width, height }` so it participates in `@pixi/layout` flex flows. The whole bounding box (indicator + gap + label) is the click target via an explicit `hitArea`.
+
+---
+
+## RadioButtonGroupComponent
+
+Mutually exclusive set of `RadioButtonComponent`s arranged in a column or row. The group owns the selection model: tapping a button updates `selectedId`, calls `setSelected()` on every other button to deselect them, and fires `onChange` with the new id + item.
+
+```ts
+const group = new RadioButtonGroupComponent({
+  items: [
+    { id: "easy", label: "Easy" },
+    { id: "normal", label: "Normal" },
+    { id: "hard", label: "Hard" },
+  ],
+  selectedId: "normal",
+  direction: "column",
+  spacing: 10,
+});
+group.onChange((id, item) => {
+  console.log("picked:", id, item.label);
+});
+```
+
+### `RadioButtonGroupComponentPreset`
+
+| Field         | Type                              | Default    | Description                                                                                            |
+| ------------- | --------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------ |
+| `x`           | `number`                          | —          | X position.                                                                                            |
+| `y`           | `number`                          | —          | Y position.                                                                                            |
+| `items`       | `readonly RadioButtonGroupItem[]` | `[]`       | Options the group exposes. May be replaced later with `setItems()`.                                    |
+| `selectedId`  | `string`                          | —          | Initial selection. Ignored if it doesn't match an item id.                                             |
+| `direction`   | `"column" \| "row"`               | `"column"` | Stack direction for the buttons.                                                                       |
+| `spacing`     | `number`                          | `8`        | Gap between adjacent buttons.                                                                          |
+| `padding`     | `number`                          | `0`        | Padding around the group.                                                                              |
+| `buttonStyle` | `RadioButtonGroupButtonStyle`     | —          | Style overrides forwarded to every child button (`labelStyle`, `radius`, `innerRadius`, colors, etc.). |
+
+`RadioButtonGroupItem` is `{ id: string; label: string }`.
+
+`buttonStyle` is a `Pick` of `RadioButtonComponentPreset` excluding the fields the group manages itself (`x`, `y`, `width`, `height`, `label`, `selected`). Concretely it accepts `labelStyle`, `radius`, `innerRadius`, `borderWidth`, `borderColor`, `fillColor`, `selectedColor`, and `gap`.
+
+### Methods
+
+- `selectedId` / `selectedItem` / `items` — getters.
+- `setItems(items)` — replace the items. If the previous selection isn't present, it's cleared silently.
+- `setSelectedId(id | null)` — set selection programmatically. Does **not** fire `onChange`.
+- `onChange(cb): Unsubscribe` — fires only on user-driven selection changes (re-tapping the already-selected button is a no-op).
+
+### Notes
+
+- **The group is the single source of truth.** Each child `RadioButtonComponent` exposes `onPress` (decoupled by design) and only updates its visual when the group calls `setSelected`. This keeps the mutual-exclusion logic in one place and makes programmatic vs. user-driven changes distinguishable (`setSelectedId` is silent; user taps fire `onChange`).
+- **Layout-aware.** The group sets its own `.layout` (a flex container with the configured `direction`, `spacing`, and `padding`, plus `alignItems: "flex-start"` and `justifyContent: "flex-start"`) so it nests inside other `@pixi/layout` flex flows.
 
 ---
 

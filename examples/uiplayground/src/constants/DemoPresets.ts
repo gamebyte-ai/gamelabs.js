@@ -148,3 +148,22 @@ export const RADIO_LABEL_PRESETS: readonly string[] = [
   "Subscribe to updates",
   "Enable notifications",
 ];
+
+// ─── RadioButtonGroupDemo ──────────────────────────────────────────────
+
+export interface RadioGroupItemPreset {
+  readonly id: string;
+  readonly label: string;
+}
+
+export const RADIO_GROUP_ITEM_LIBRARY: readonly RadioGroupItemPreset[] = [
+  { id: "easy", label: "Easy" },
+  { id: "normal", label: "Normal" },
+  { id: "hard", label: "Hard" },
+  { id: "insane", label: "Insane" },
+  { id: "custom", label: "Custom" },
+];
+
+export type RadioGroupDirection = "column" | "row";
+
+export const RADIO_GROUP_DIRECTIONS: readonly RadioGroupDirection[] = ["column", "row"];

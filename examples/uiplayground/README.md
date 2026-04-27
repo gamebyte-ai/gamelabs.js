@@ -6,16 +6,17 @@ mounts into the stage region with a controls panel for live prop
 tweaking and an event log for runtime callbacks.
 
 ```
-┌────────────┬────────────────────────┬──────────┐
-│ Sidebar    │  Stage (active demo)   │ Controls │
-│  Button    │                        │ (live    │
-│  Slider    │                        │  prop    │
-│  Toggle    ├────────────────────────┤  tweaks) │
-│  GridLayout│  Event log (rolling)   │          │
-│  Dropdown  │                        │          │
-│  RadioButton│                       │          │
-│   …        │                        │          │
-└────────────┴────────────────────────┴──────────┘
+┌────────────────┬────────────────────┬──────────┐
+│ Sidebar        │ Stage (active demo)│ Controls │
+│  Button        │                    │ (live    │
+│  Slider        │                    │  prop    │
+│  Toggle        ├────────────────────┤  tweaks) │
+│  GridLayout    │ Event log (rolling)│          │
+│  Dropdown      │                    │          │
+│  RadioButton   │                    │          │
+│  RadioGroup    │                    │          │
+│   …            │                    │          │
+└────────────────┴────────────────────┴──────────┘
 ```
 
 Three columns: sidebar (left, fixed width), centre (stage on top + log
@@ -123,6 +124,7 @@ examples/uiplayground/src/
 │   ├── GridLayoutDemoViewController.ts
 │   ├── PlaygroundShellViewController.ts    # sidebar selection routing + ControlsManager.bindShell
 │   ├── RadioButtonDemoViewController.ts
+│   ├── RadioButtonGroupDemoViewController.ts
 │   ├── SliderDemoViewController.ts
 │   └── ToggleDemoViewController.ts
 ├── utilities/
@@ -137,10 +139,12 @@ examples/uiplayground/src/
 │   ├── IGridLayoutDemoView.ts
 │   ├── IPlaygroundShellView.ts
 │   ├── IRadioButtonDemoView.ts
+│   ├── IRadioButtonGroupDemoView.ts
 │   ├── ISliderDemoView.ts
 │   ├── IToggleDemoView.ts
 │   ├── PlaygroundShellView.pixi.ts          # sidebar + stage + controls + log layout, hosts demo views
 │   ├── RadioButtonDemoView.pixi.ts
+│   ├── RadioButtonGroupDemoView.pixi.ts
 │   ├── SliderDemoView.pixi.ts
 │   └── ToggleDemoView.pixi.ts
 ├── UIPlaygroundApp.ts                      # registers shell + every demo View↔Controller pair, binds ControlsManager
