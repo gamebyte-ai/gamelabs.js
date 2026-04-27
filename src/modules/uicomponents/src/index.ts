@@ -8,3 +8,4 @@ export * from "./views/ImageComponent.pixi.js";
 export * from "./views/ToggleComponent.pixi.js";
 export * from "./views/SliderComponent.pixi.js";
 export * from "./views/DropdownComponent.pixi.js";
+export * from "./views/RadioButtonComponent.pixi.js";

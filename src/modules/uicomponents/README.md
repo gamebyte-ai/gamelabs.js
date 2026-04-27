@@ -10,6 +10,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`ToggleComponent`](#togglecomponent) — on/off switch with configurable colors
 - [`SliderComponent`](#slidercomponent) — horizontal slider with min/max/step constraints
 - [`DropdownComponent`](#dropdowncomponent) — select-style dropdown with overlay-rendered option list
+- [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator with optional label; designed to compose into a group
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
 - [`HorizontalLayoutComponent`](#horizontallayoutcomponent) — horizontal flex container
 - [`GridLayoutComponent`](#gridlayoutcomponent) — flex container with row-wrap that approximates a CSS grid (no real grid algorithm)
@@ -259,6 +260,53 @@ dropdown.onChange((id, item) => {
 - **Hit handling inside the list.** Each row has an explicit hit rect covering its full bounds, so hover and tap fire on the entire row — not just the text. The list background also absorbs pointer events so taps at the rounded corners (where no row sits) don't fall through to the scrim and close the dropdown unexpectedly.
 - **Static placement.** The list's position is computed once on `open()` from the dropdown's current global transform. Moving the dropdown while open won't reposition the list — close and re-open instead. Parent scale / rotation is not propagated to the re-parented list.
 - **Detached scenarios.** When the dropdown has no parent at `open()` time, the list stays inline as a child of the dropdown — placement and z-order then follow standard Pixi rules.
+
+---
+
+## RadioButtonComponent
+
+Single radio indicator (outer ring + inner dot when selected) with an optional label. Designed to be composed into a `RadioButtonGroupComponent` — the button reports user taps via `onPress`, and the group calls `setSelected(true/false)` on each button to enforce mutual exclusion.
+
+```ts
+const option = new RadioButtonComponent({
+  label: "Easy",
+  selected: true,
+});
+option.onPress(() => {
+  // Group decides what to do; standalone consumers can do:
+  // option.setSelected(true);
+});
+```
+
+### `RadioButtonComponentPreset`
+
+| Field           | Type                             | Default    | Description                                                      |
+| --------------- | -------------------------------- | ---------- | ---------------------------------------------------------------- |
+| `x`             | `number`                         | —          | X position.                                                      |
+| `y`             | `number`                         | —          | Y position.                                                      |
+| `width`         | `number`                         | —          | Fixed width. When omitted, sized to fit indicator + gap + label. |
+| `height`        | `number`                         | —          | Fixed height. When omitted, matches the indicator diameter.      |
+| `label`         | `string`                         | —          | Optional label drawn to the right of the indicator.              |
+| `labelStyle`    | `Partial<PIXI.TextStyleOptions>` | —          | Label style overrides merged on top of the defaults.             |
+| `radius`        | `number`                         | `9`        | Outer ring radius.                                               |
+| `innerRadius`   | `number`                         | `4`        | Inner dot radius drawn when selected.                            |
+| `borderWidth`   | `number`                         | `2`        | Outer ring border width.                                         |
+| `borderColor`   | `number`                         | `0x475569` | Outer ring border color.                                         |
+| `fillColor`     | `number`                         | `0x111827` | Indicator background fill (interior of the ring).                |
+| `selectedColor` | `number`                         | `0x4338ca` | Inner dot color when selected.                                   |
+| `gap`           | `number`                         | `8`        | Gap between the indicator and the label.                         |
+| `selected`      | `boolean`                        | `false`    | Initial selected state.                                          |
+
+### Methods
+
+- `selected` — current selected state (getter).
+- `setSelected(value)` — silent visual update; does **not** fire `onPress`. Used by a group to enforce mutual exclusion.
+- `onPress(cb): Unsubscribe` — fires on user taps anywhere within the indicator + label hit box. Selection state is decoupled — the listener decides what to do.
+
+### Notes
+
+- **State is decoupled from input.** The button does not auto-toggle on tap. This lets a group own the mutual-exclusion model and keeps the standalone-button case explicit. For a single button used outside a group, wire `btn.onPress(() => btn.setSelected(true))`.
+- **Layout-aware.** The component sets its own `.layout = { width, height }` so it participates in `@pixi/layout` flex flows. The whole bounding box (indicator + gap + label) is the click target via an explicit `hitArea`.
 
 ---
 

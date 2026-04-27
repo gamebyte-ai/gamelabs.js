@@ -13,6 +13,7 @@ tweaking and an event log for runtime callbacks.
 │  Toggle    ├────────────────────────┤  tweaks) │
 │  GridLayout│  Event log (rolling)   │          │
 │  Dropdown  │                        │          │
+│  RadioButton│                       │          │
 │   …        │                        │          │
 └────────────┴────────────────────────┴──────────┘
 ```
@@ -112,7 +113,7 @@ Each returns an `Unsubscribe`. Collect them in your controller's
 ```
 examples/uiplayground/src/
 ├── constants/
-│   ├── DemoPresets.ts                      # palettes / label arrays / range presets / grid item-height modes / dropdown items
+│   ├── DemoPresets.ts                      # palettes / label arrays / range presets / grid item-height modes / dropdown items / radio palette
 │   ├── DemoRegistry.ts                     # DEMO_REGISTRY (id, label, category)
 │   ├── PlaygroundTypes.ts                  # DemoCategory, SIDEBAR_CATEGORY_ORDER, DemoEntry, SliderControlOpts
 │   └── Typography.ts                        # FONT_FAMILY, MONO_FAMILY, LABEL_STYLE, READOUT_STYLE
@@ -121,6 +122,7 @@ examples/uiplayground/src/
 │   ├── DropdownDemoViewController.ts
 │   ├── GridLayoutDemoViewController.ts
 │   ├── PlaygroundShellViewController.ts    # sidebar selection routing + ControlsManager.bindShell
+│   ├── RadioButtonDemoViewController.ts
 │   ├── SliderDemoViewController.ts
 │   └── ToggleDemoViewController.ts
 ├── utilities/
@@ -134,9 +136,11 @@ examples/uiplayground/src/
 │   ├── IDropdownDemoView.ts
 │   ├── IGridLayoutDemoView.ts
 │   ├── IPlaygroundShellView.ts
+│   ├── IRadioButtonDemoView.ts
 │   ├── ISliderDemoView.ts
 │   ├── IToggleDemoView.ts
 │   ├── PlaygroundShellView.pixi.ts          # sidebar + stage + controls + log layout, hosts demo views
+│   ├── RadioButtonDemoView.pixi.ts
 │   ├── SliderDemoView.pixi.ts
 │   └── ToggleDemoView.pixi.ts
 ├── UIPlaygroundApp.ts                      # registers shell + every demo View↔Controller pair, binds ControlsManager

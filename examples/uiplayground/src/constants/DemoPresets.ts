@@ -127,3 +127,24 @@ export const DROPDOWN_PLACEHOLDERS: readonly string[] = [
   "Choose difficulty",
   "Pick one",
 ];
+
+// ─── RadioButtonDemo ───────────────────────────────────────────────────
+
+export const RADIO_SELECTED_PALETTE: readonly number[] = [
+  0x4338ca, 0x22c55e, 0xef4444, 0xeab308, 0xa855f7,
+];
+
+export const RADIO_SELECTED_LABELS: readonly string[] = [
+  "indigo",
+  "green",
+  "red",
+  "yellow",
+  "purple",
+];
+
+export const RADIO_LABEL_PRESETS: readonly string[] = [
+  "Option A",
+  "Easy mode",
+  "Subscribe to updates",
+  "Enable notifications",
+];
