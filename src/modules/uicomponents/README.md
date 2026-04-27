@@ -9,6 +9,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch)
 - [`ToggleComponent`](#togglecomponent) — on/off switch with configurable colors
 - [`SliderComponent`](#slidercomponent) — horizontal slider with min/max/step constraints
+- [`DropdownComponent`](#dropdowncomponent) — select-style dropdown with overlay-rendered option list
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
 - [`HorizontalLayoutComponent`](#horizontallayoutcomponent) — horizontal flex container
 - [`GridLayoutComponent`](#gridlayoutcomponent) — flex container with row-wrap that approximates a CSS grid (no real grid algorithm)
@@ -195,6 +196,69 @@ slider.onChange((value) => {
 - `min`, `max`, `step` — constraint values (getters).
 - `setValue(value)` — set the value programmatically (does not fire `onChange`).
 - `onChange(cb): Unsubscribe` — subscribe to value changes.
+
+---
+
+## DropdownComponent
+
+Select-style dropdown. The header shows the current selection (or a placeholder) plus a chevron; tapping it toggles a list of options that's anchored beneath the header. Tapping an option selects it and closes the list. A scrim catches taps outside the list and closes the dropdown.
+
+```ts
+const dropdown = new DropdownComponent({
+  width: 200,
+  items: [
+    { id: "easy", label: "Easy" },
+    { id: "normal", label: "Normal" },
+    { id: "hard", label: "Hard" },
+  ],
+  selectedId: "normal",
+});
+dropdown.onChange((id, item) => {
+  console.log("selected:", id, item.label);
+});
+```
+
+### `DropdownComponentPreset`
+
+| Field               | Type                             | Default     | Description                                                |
+| ------------------- | -------------------------------- | ----------- | ---------------------------------------------------------- |
+| `x`                 | `number`                         | —           | X position.                                                |
+| `y`                 | `number`                         | —           | Y position.                                                |
+| `width`             | `number`                         | `160`       | Header width (also list width).                            |
+| `height`            | `number`                         | `36`        | Header height.                                             |
+| `radius`            | `number`                         | `6`         | Header / list corner radius.                               |
+| `fillColor`         | `number`                         | `0x1f2937`  | Header fill color.                                         |
+| `fillAlpha`         | `number`                         | `1`         | Header fill alpha.                                         |
+| `strokeColor`       | `number`                         | `0x475569`  | Header stroke color, also used for the list outline.       |
+| `strokeWidth`       | `number`                         | `1`         | Header stroke width.                                       |
+| `labelStyle`        | `Partial<PIXI.TextStyleOptions>` | —           | Style overrides for header label and item labels.          |
+| `placeholder`       | `string`                         | `"Select…"` | Header text shown when no selection.                       |
+| `items`             | `readonly DropdownItem[]`        | `[]`        | Option list. May be replaced later with `setItems()`.      |
+| `selectedId`        | `string`                         | —           | Initial selection. Ignored if it doesn't match an item id. |
+| `chevronColor`      | `number`                         | `0xe8eef6`  | Chevron tint.                                              |
+| `itemHeight`        | `number`                         | `32`        | Per-row height in the option list.                         |
+| `itemFillColor`     | `number`                         | `0x111827`  | Resting row background.                                    |
+| `itemHoverColor`    | `number`                         | `0x374151`  | Hover row background.                                      |
+| `itemSelectedColor` | `number`                         | `0x4338ca`  | Background of the currently selected row.                  |
+| `itemTextColor`     | `number`                         | `0xe8eef6`  | Item label color.                                          |
+| `listOffset`        | `number`                         | `4`         | Vertical gap between header bottom and list top.           |
+
+`DropdownItem` is `{ id: string; label: string }`. The `id` is the value emitted by `onChange` and accepted by `setSelectedId`; the `label` is what's drawn.
+
+### Methods
+
+- `selectedId` / `selectedItem` / `isOpen` / `items` — getters.
+- `setItems(items)` — replace the items list. If the previous selection isn't present, it's cleared silently.
+- `setSelectedId(id | null)` — set selection programmatically. Does **not** fire `onChange`.
+- `open()` / `close()` / `toggle()` — open-state control. `open()` is a no-op when items is empty.
+- `onChange(cb): Unsubscribe` — fires only on user-driven selection changes.
+
+### Notes
+
+- **Overlay rendering.** When opened, the option list is re-parented to the scene root, given a very large `zIndex`, and the root is set to `sortableChildren = true` so the list paints above any HUD layers or other zIndex-based stacking. A near-transparent scrim sits behind the list and closes the dropdown when tapped. On `close()` (and on `destroy()`) the list returns to the dropdown.
+- **Hit handling inside the list.** Each row has an explicit hit rect covering its full bounds, so hover and tap fire on the entire row — not just the text. The list background also absorbs pointer events so taps at the rounded corners (where no row sits) don't fall through to the scrim and close the dropdown unexpectedly.
+- **Static placement.** The list's position is computed once on `open()` from the dropdown's current global transform. Moving the dropdown while open won't reposition the list — close and re-open instead. Parent scale / rotation is not propagated to the re-parented list.
+- **Detached scenarios.** When the dropdown has no parent at `open()` time, the list stays inline as a child of the dropdown — placement and z-order then follow standard Pixi rules.
 
 ---
 

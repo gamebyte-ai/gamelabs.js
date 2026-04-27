@@ -19,4 +19,5 @@ export const DEMO_REGISTRY: readonly DemoEntry[] = [
   { id: "slider", label: "Slider", category: "Component" },
   { id: "toggle", label: "Toggle", category: "Component" },
   { id: "grid-layout", label: "GridLayout", category: "Component" },
+  { id: "dropdown", label: "Dropdown", category: "Component" },
 ];

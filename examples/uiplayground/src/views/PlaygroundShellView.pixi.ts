@@ -16,6 +16,7 @@ import type { DemoEntry, SliderControlOpts } from "../constants/PlaygroundTypes.
 import { SIDEBAR_CATEGORY_ORDER } from "../constants/PlaygroundTypes.js";
 import { FONT_FAMILY, LABEL_STYLE, LABEL_WIDTH, MONO_FAMILY, READOUT_STYLE, READOUT_WIDTH } from "../constants/Typography.js";
 import { ButtonDemoView } from "./ButtonDemoView.pixi.js";
+import { DropdownDemoView } from "./DropdownDemoView.pixi.js";
 import { GridLayoutDemoView } from "./GridLayoutDemoView.pixi.js";
 import { SliderDemoView } from "./SliderDemoView.pixi.js";
 import { ToggleDemoView } from "./ToggleDemoView.pixi.js";
@@ -46,6 +47,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     ["slider", SliderDemoView],
     ["toggle", ToggleDemoView],
     ["grid-layout", GridLayoutDemoView],
+    ["dropdown", DropdownDemoView],
   ]);
 
   private _config: UIPlaygroundConfig | null = null;

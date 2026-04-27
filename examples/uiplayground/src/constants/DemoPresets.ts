@@ -99,3 +99,34 @@ export const GRID_ITEM_HEIGHT_MODE_LABELS: Readonly<Record<GridItemHeightMode, s
   ascending: "Ascending",
   random: "Random",
 };
+
+// ─── DropdownDemo ──────────────────────────────────────────────────────
+
+export interface DropdownItemPreset {
+  readonly id: string;
+  readonly label: string;
+}
+
+/**
+ * Pool of items the demo cycles between via the `itemCount` control.
+ * The controller slices the first N entries based on the selected
+ * count so a single library backs every variant.
+ */
+export const DROPDOWN_ITEM_LIBRARY: readonly DropdownItemPreset[] = [
+  { id: "easy", label: "Easy" },
+  { id: "normal", label: "Normal" },
+  { id: "hard", label: "Hard" },
+  { id: "insane", label: "Insane" },
+  { id: "custom", label: "Custom" },
+  { id: "tutorial", label: "Tutorial" },
+  { id: "story", label: "Story" },
+  { id: "sandbox", label: "Sandbox" },
+];
+
+export const DROPDOWN_ITEM_COUNTS: readonly number[] = [3, 5, 8];
+
+export const DROPDOWN_PLACEHOLDERS: readonly string[] = [
+  "Select…",
+  "Choose difficulty",
+  "Pick one",
+];

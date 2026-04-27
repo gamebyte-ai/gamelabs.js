@@ -12,6 +12,7 @@ tweaking and an event log for runtime callbacks.
 │  Slider    │                        │  prop    │
 │  Toggle    ├────────────────────────┤  tweaks) │
 │  GridLayout│  Event log (rolling)   │          │
+│  Dropdown  │                        │          │
 │   …        │                        │          │
 └────────────┴────────────────────────┴──────────┘
 ```
@@ -111,12 +112,13 @@ Each returns an `Unsubscribe`. Collect them in your controller's
 ```
 examples/uiplayground/src/
 ├── constants/
-│   ├── DemoPresets.ts                      # palettes / label arrays / range presets / grid item-height modes
+│   ├── DemoPresets.ts                      # palettes / label arrays / range presets / grid item-height modes / dropdown items
 │   ├── DemoRegistry.ts                     # DEMO_REGISTRY (id, label, category)
 │   ├── PlaygroundTypes.ts                  # DemoCategory, SIDEBAR_CATEGORY_ORDER, DemoEntry, SliderControlOpts
 │   └── Typography.ts                        # FONT_FAMILY, MONO_FAMILY, LABEL_STYLE, READOUT_STYLE
 ├── controllers/
 │   ├── ButtonDemoViewController.ts
+│   ├── DropdownDemoViewController.ts
 │   ├── GridLayoutDemoViewController.ts
 │   ├── PlaygroundShellViewController.ts    # sidebar selection routing + ControlsManager.bindShell
 │   ├── SliderDemoViewController.ts
@@ -126,8 +128,10 @@ examples/uiplayground/src/
 │   └── IControlsManager.ts                 # demo-facing interface + InjectionToken
 ├── views/
 │   ├── ButtonDemoView.pixi.ts
+│   ├── DropdownDemoView.pixi.ts
 │   ├── GridLayoutDemoView.pixi.ts
 │   ├── IButtonDemoView.ts
+│   ├── IDropdownDemoView.ts
 │   ├── IGridLayoutDemoView.ts
 │   ├── IPlaygroundShellView.ts
 │   ├── ISliderDemoView.ts
