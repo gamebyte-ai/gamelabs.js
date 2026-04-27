@@ -121,8 +121,11 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     this._globalControls.addChild(this._buildOutlineToggleRow());
     this._controls.addChild(this._buildControlsDivider());
     // Per-demo controls — populated by demo controllers via add*Control().
+    // Each control row is wrapped in a section with a trailing divider
+    // (see `_wrapInSection`); the gap below adds breathing room around
+    // each divider so successive settings are visually distinct.
     this._demoControls = new VerticalLayoutComponent({
-      gap: 4,
+      gap: 8,
       padding: 0,
       alignItems: "stretch",
       justifyContent: "flex-start",
@@ -327,13 +330,28 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     labelText.layout = { width: LABEL_WIDTH };
     row.addChild(labelText);
 
+    // Slider sizing notes:
+    // - `SliderComponent` doesn't set its own `.layout`, so without an
+    //   explicit one here Yoga skips it and the row's flex flow only
+    //   contains [label, readout] — the slider then renders at its
+    //   untransformed (0, 0), appearing on its own line above the row.
+    // - The component draws its track centered on y=0 and its thumb at
+    //   y=0 with a 10px radius, so the visual extent is
+    //   (-thumbRadius, -thumbRadius) → (trackWidth+thumbRadius, +thumbRadius).
+    //   We give the slider a `(trackWidth + 2·thumbRadius) × (2·thumbRadius)`
+    //   layout box and shift it by `(thumbRadius, thumbRadius)` so the
+    //   centered drawing fits inside the box.
+    const trackWidth = 140;
+    const thumbRadius = 10;
     const slider = new SliderComponent({
-      trackWidth: 160,
+      trackWidth,
       min: opts.min,
       max: opts.max,
       step: opts.step ?? 0,
       value: opts.value,
     });
+    slider.layout = { width: trackWidth + thumbRadius * 2, height: thumbRadius * 2 };
+    slider.position.set(thumbRadius, thumbRadius);
     row.addChild(slider);
 
     const readout = new PIXI.Text({ text: formatValue(opts.value), style: READOUT_STYLE });
@@ -345,8 +363,9 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       onChange(value);
     };
     const sliderUnsub = slider.onChange(handleChange);
-    this._demoControls.addChild(row);
-    return () => this._removeControlRow(row, sliderUnsub);
+    const section = this._wrapInSection(row);
+    this._demoControls.addChild(section);
+    return () => this._removeControlSection(section, sliderUnsub);
   }
 
   public addToggleControl(
@@ -377,8 +396,9 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       onChange(value);
     };
     const toggleUnsub = toggle.onChange(handleChange);
-    this._demoControls.addChild(row);
-    return () => this._removeControlRow(row, toggleUnsub);
+    const section = this._wrapInSection(row);
+    this._demoControls.addChild(section);
+    return () => this._removeControlSection(section, toggleUnsub);
   }
 
   public addCycleControl<T>(
@@ -413,8 +433,9 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       onChange(values[index]!, index);
     };
     const buttonUnsub = button.onPress(handlePress);
-    this._demoControls.addChild(row);
-    return () => this._removeControlRow(row, buttonUnsub);
+    const section = this._wrapInSection(row);
+    this._demoControls.addChild(section);
+    return () => this._removeControlSection(section, buttonUnsub);
   }
 
   public addActionControl(label: string, onPress: () => void): Unsubscribe {
@@ -437,8 +458,9 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     row.addChild(button);
 
     const buttonUnsub = button.onPress(onPress);
-    this._demoControls.addChild(row);
-    return () => this._removeControlRow(row, buttonUnsub);
+    const section = this._wrapInSection(row);
+    this._demoControls.addChild(section);
+    return () => this._removeControlSection(section, buttonUnsub);
   }
 
   // ── IPlaygroundShellView — log ─────────────────────────────────────
@@ -575,10 +597,35 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     this._sidebarUnsubs.length = 0;
   }
 
-  private _removeControlRow(row: PIXI.Container, listenerUnsub: Unsubscribe): void {
+  /**
+   * Wraps a control row in a vertical "section" container that holds
+   * the row plus a thin trailing divider, so successive settings are
+   * visually separated in the panel.
+   */
+  private _wrapInSection(row: PIXI.Container): VerticalLayoutComponent {
+    const section = new VerticalLayoutComponent({
+      gap: 6,
+      padding: 0,
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+    });
+    section.addChild(row);
+    section.addChild(this._buildSectionDivider());
+    return section;
+  }
+
+  /** Thin horizontal rule used between consecutive control sections. */
+  private _buildSectionDivider(): PIXI.Graphics {
+    const divider = new PIXI.Graphics();
+    divider.layout = { width: "100%", height: 1 };
+    divider.rect(0, 0, 1, 1).fill({ color: this._cfg.sidebarItemBorderColor, alpha: 0.4 });
+    return divider;
+  }
+
+  private _removeControlSection(section: PIXI.Container, listenerUnsub: Unsubscribe): void {
     listenerUnsub();
-    row.removeFromParent();
-    row.destroy({ children: true });
+    section.removeFromParent();
+    section.destroy({ children: true });
   }
 
   /**

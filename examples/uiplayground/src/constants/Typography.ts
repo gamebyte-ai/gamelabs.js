@@ -15,8 +15,8 @@ export const READOUT_WIDTH = 64;
 /** Text style for control-row labels. */
 export const LABEL_STYLE: Partial<PIXI.TextStyleOptions> = {
   fill: 0xcbd5e0,
-  fontSize: 13,
-  fontWeight: "600",
+  fontSize: 15,
+  fontWeight: "600", 
   fontFamily: FONT_FAMILY,
 };
 

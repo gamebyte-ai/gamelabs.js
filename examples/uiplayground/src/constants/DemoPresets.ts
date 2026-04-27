@@ -53,9 +53,6 @@ export type GridJustifyContent =
   | "space-evenly";
 export type GridFlexWrap = "wrap" | "nowrap" | "wrap-reverse";
 
-/** Cycle preset for the demo's "itemCount" control. */
-export const GRID_ITEM_COUNTS: readonly number[] = [4, 8, 12, 16];
-
 /** Rotating palette used to color the demo's child squares. */
 export const GRID_ITEM_PALETTE: readonly number[] = [
   0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x14b8a6, 0x3b82f6, 0x8b5cf6, 0xec4899,

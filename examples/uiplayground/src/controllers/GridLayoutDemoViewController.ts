@@ -6,7 +6,6 @@ import {
 import {
   GRID_ALIGN_ITEMS,
   GRID_FLEX_WRAP,
-  GRID_ITEM_COUNTS,
   GRID_ITEM_HEIGHT_MODE_LABELS,
   GRID_ITEM_HEIGHT_MODES,
   GRID_JUSTIFY_CONTENT,
@@ -27,7 +26,6 @@ import type { IGridLayoutDemoView } from "../views/IGridLayoutDemoView.js";
 export class GridLayoutDemoViewController implements IViewController<IGridLayoutDemoView> {
   private _controls: IControlsManager | null = null;
   private _view: IGridLayoutDemoView | null = null;
-  private _itemCountIndex = 1; // default: 8 items
   private _alignItemsIndex = 1; // default: "center"
   private _justifyContentIndex = 0; // default: "flex-start"
   private _flexWrapIndex = 0; // default: "wrap"
@@ -65,12 +63,10 @@ export class GridLayoutDemoViewController implements IViewController<IGridLayout
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addSliderControl(
         "itemCount",
-        GRID_ITEM_COUNTS,
-        this._itemCountIndex,
-        (count) => `${count}`,
-        (count) => this._onItemCountCycled(count),
+        { min: 1, max: 36, step: 1, value: 8, format: (v) => `${Math.round(v)}` },
+        (v) => this._onItemCountChanged(v),
       ),
     );
 
@@ -135,8 +131,8 @@ export class GridLayoutDemoViewController implements IViewController<IGridLayout
     this._controls?.appendLog(`GridLayout → padding=${padding}px`);
   }
 
-  private _onItemCountCycled(count: number): void {
-    this._itemCountIndex = GRID_ITEM_COUNTS.indexOf(count);
+  private _onItemCountChanged(v: number): void {
+    const count = Math.round(v);
     this._view?.setItemCount(count);
     this._controls?.appendLog(`GridLayout → itemCount=${count}`);
   }
