@@ -1,10 +1,15 @@
+import * as PIXI from "pixi.js";
 import {
   HudViewBase,
   SliderComponent,
-  VerticalLayoutComponent,
+  type IInstanceResolver,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
+import { UIPlaygroundConfig } from "../UIPlaygroundConfig.js";
 import type { ISliderDemoView } from "./ISliderDemoView.js";
+
+/** Default thumb radius matches `SliderComponent`'s constructor default. */
+const SLIDER_THUMB_RADIUS = 10;
 
 /**
  * Live preview for the `SliderComponent` playground demo.
@@ -12,10 +17,18 @@ import type { ISliderDemoView } from "./ISliderDemoView.js";
  * Most prop changes rebuild the underlying slider instance because
  * `SliderComponent`'s constructor-only options (track width, min/max,
  * step, colors) cannot be mutated after construction.
+ *
+ * Centring: handled by the parent stage container.
+ *
+ * Outline: drawn at `[0, -thumbRadius] → [trackWidth, +thumbRadius]`,
+ * matching the slider's actual visible bounds (the track sits centered
+ * on y=0; the thumb extends ±thumbRadius vertically).
  */
 export class SliderDemoView extends HudViewBase implements ISliderDemoView {
-  private _wrapper: VerticalLayoutComponent | null = null;
+  private _config: UIPlaygroundConfig | null = null;
   private _slider: SliderComponent | null = null;
+  private _outline: PIXI.Graphics | null = null;
+  private _outlineVisible = false;
   private _changeUnsub: Unsubscribe | null = null;
   private readonly _changeListeners = new Set<(value: number) => void>();
 
@@ -27,15 +40,14 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
   private _fillColor = 0x4299e1;
   private _value = 0.5;
 
+  public override inject(resolver: IInstanceResolver): void {
+    super.inject(resolver);
+    this._config = resolver.getInstance(UIPlaygroundConfig);
+  }
+
   public override postInitialize(): void {
     super.postInitialize();
-    this._wrapper = new VerticalLayoutComponent({
-      width: "100%",
-      height: "100%",
-      justifyContent: "center",
-      alignItems: "center",
-    });
-    this.addChild(this._wrapper);
+    this.layout = {};
     this._rebuildSlider();
   }
 
@@ -49,8 +61,6 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
     if (this._min === min && this._max === max) return;
     this._min = min;
     this._max = max;
-    // Snap the current value to the new range's lower bound so the
-    // visible thumb starts in a sensible place after a range change.
     this._value = min;
     this._rebuildSlider();
   }
@@ -72,6 +82,11 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
     this._slider?.setValue(value);
   }
 
+  public setOutlineVisible(visible: boolean): void {
+    this._outlineVisible = visible;
+    this._refreshOutline();
+  }
+
   public onChange(cb: (value: number) => void): Unsubscribe {
     this._changeListeners.add(cb);
     return () => this._changeListeners.delete(cb);
@@ -81,12 +96,13 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
     this._changeListeners.clear();
     this._changeUnsub?.();
     this._changeUnsub = null;
+    this._outline?.removeFromParent();
+    this._outline?.destroy();
+    this._outline = null;
     this._slider?.removeFromParent();
     this._slider?.destroy();
     this._slider = null;
-    this._wrapper?.removeFromParent();
-    this._wrapper?.destroy({ children: true });
-    this._wrapper = null;
+    this._config = null;
     super.preDestroy();
   }
 
@@ -96,9 +112,11 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
   }
 
   private _rebuildSlider(): void {
-    if (!this._wrapper) return;
     this._changeUnsub?.();
     this._changeUnsub = null;
+    this._outline?.removeFromParent();
+    this._outline?.destroy();
+    this._outline = null;
     this._slider?.removeFromParent();
     this._slider?.destroy();
 
@@ -113,6 +131,22 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
       thumbColor: this._fillColor,
     });
     this._changeUnsub = this._slider.onChange((value) => this._fireChange(value));
-    this._wrapper.addChild(this._slider);
+    this.addChild(this._slider);
+    this._refreshOutline();
+  }
+
+  private _refreshOutline(): void {
+    this._outline?.removeFromParent();
+    this._outline?.destroy();
+    this._outline = null;
+    if (!this._outlineVisible || !this._slider || !this._config) return;
+
+    const outline = new PIXI.Graphics();
+    outline.eventMode = "none";
+    outline
+      .rect(0, -SLIDER_THUMB_RADIUS, this._trackWidth, SLIDER_THUMB_RADIUS * 2)
+      .stroke({ color: this._config.outlineColor, width: this._config.outlineWidth });
+    this._slider.addChild(outline);
+    this._outline = outline;
   }
 }

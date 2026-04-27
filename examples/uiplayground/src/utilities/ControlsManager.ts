@@ -71,4 +71,12 @@ export class ControlsManager implements IControlsManager {
   public appendLog(msg: string): void {
     this._shell?.appendLog(msg);
   }
+
+  public isOutlineVisible(): boolean {
+    return this._shell?.isOutlineVisible() ?? false;
+  }
+
+  public onOutlineChanged(cb: (visible: boolean) => void): Unsubscribe {
+    return this._shell?.onOutlineChanged(cb) ?? NOOP_UNSUBSCRIBE;
+  }
 }

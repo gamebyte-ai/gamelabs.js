@@ -1,9 +1,11 @@
+import * as PIXI from "pixi.js";
 import {
   HudViewBase,
   ToggleComponent,
-  VerticalLayoutComponent,
+  type IInstanceResolver,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
+import { UIPlaygroundConfig } from "../UIPlaygroundConfig.js";
 import type { IToggleDemoView } from "./IToggleDemoView.js";
 
 /**
@@ -11,10 +13,16 @@ import type { IToggleDemoView } from "./IToggleDemoView.js";
  * height / on-color changes rebuild the underlying toggle (those are
  * constructor-only on `ToggleComponent`); `toggle()` reuses the live
  * instance so the user sees the actual flip animation.
+ *
+ * Centring: handled by the parent stage container.
+ *
+ * Outline: drawn at the toggle's `_width × _height` bounds.
  */
 export class ToggleDemoView extends HudViewBase implements IToggleDemoView {
-  private _wrapper: VerticalLayoutComponent | null = null;
+  private _config: UIPlaygroundConfig | null = null;
   private _toggle: ToggleComponent | null = null;
+  private _outline: PIXI.Graphics | null = null;
+  private _outlineVisible = false;
   private _changeUnsub: Unsubscribe | null = null;
   private readonly _changeListeners = new Set<(value: boolean) => void>();
 
@@ -23,15 +31,14 @@ export class ToggleDemoView extends HudViewBase implements IToggleDemoView {
   private _onColor = 0x48bb78;
   private _value = false;
 
+  public override inject(resolver: IInstanceResolver): void {
+    super.inject(resolver);
+    this._config = resolver.getInstance(UIPlaygroundConfig);
+  }
+
   public override postInitialize(): void {
     super.postInitialize();
-    this._wrapper = new VerticalLayoutComponent({
-      width: "100%",
-      height: "100%",
-      justifyContent: "center",
-      alignItems: "center",
-    });
-    this.addChild(this._wrapper);
+    this.layout = {};
     this._rebuildToggle();
   }
 
@@ -57,6 +64,11 @@ export class ToggleDemoView extends HudViewBase implements IToggleDemoView {
     this._toggle?.toggle();
   }
 
+  public setOutlineVisible(visible: boolean): void {
+    this._outlineVisible = visible;
+    this._refreshOutline();
+  }
+
   public onChange(cb: (value: boolean) => void): Unsubscribe {
     this._changeListeners.add(cb);
     return () => this._changeListeners.delete(cb);
@@ -66,12 +78,13 @@ export class ToggleDemoView extends HudViewBase implements IToggleDemoView {
     this._changeListeners.clear();
     this._changeUnsub?.();
     this._changeUnsub = null;
+    this._outline?.removeFromParent();
+    this._outline?.destroy();
+    this._outline = null;
     this._toggle?.removeFromParent();
     this._toggle?.destroy();
     this._toggle = null;
-    this._wrapper?.removeFromParent();
-    this._wrapper?.destroy({ children: true });
-    this._wrapper = null;
+    this._config = null;
     super.preDestroy();
   }
 
@@ -81,9 +94,11 @@ export class ToggleDemoView extends HudViewBase implements IToggleDemoView {
   }
 
   private _rebuildToggle(): void {
-    if (!this._wrapper) return;
     this._changeUnsub?.();
     this._changeUnsub = null;
+    this._outline?.removeFromParent();
+    this._outline?.destroy();
+    this._outline = null;
     this._toggle?.removeFromParent();
     this._toggle?.destroy();
 
@@ -94,6 +109,22 @@ export class ToggleDemoView extends HudViewBase implements IToggleDemoView {
       value: this._value,
     });
     this._changeUnsub = this._toggle.onChange((value) => this._fireChange(value));
-    this._wrapper.addChild(this._toggle);
+    this.addChild(this._toggle);
+    this._refreshOutline();
+  }
+
+  private _refreshOutline(): void {
+    this._outline?.removeFromParent();
+    this._outline?.destroy();
+    this._outline = null;
+    if (!this._outlineVisible || !this._toggle || !this._config) return;
+
+    const outline = new PIXI.Graphics();
+    outline.eventMode = "none";
+    outline
+      .rect(0, 0, this._width, this._height)
+      .stroke({ color: this._config.outlineColor, width: this._config.outlineWidth });
+    this._toggle.addChild(outline);
+    this._outline = outline;
   }
 }

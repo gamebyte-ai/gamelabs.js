@@ -58,4 +58,16 @@ export interface IPlaygroundShellView extends IScreenView {
   // ── Event log ──────────────────────────────────────────────────────
   /** Appends a single timestamped line to the rolling event log. */
   appendLog(msg: string): void;
+
+  // ── Outline (debug) ────────────────────────────────────────────────
+  /**
+   * Whether the global "show outline" toggle is currently ON. Demo
+   * controllers query this on init to seed their view's outline state.
+   */
+  isOutlineVisible(): boolean;
+  /**
+   * Fires whenever the global outline toggle changes. Demo controllers
+   * subscribe so their view can show/hide its bounds outline live.
+   */
+  onOutlineChanged(cb: (visible: boolean) => void): Unsubscribe;
 }

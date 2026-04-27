@@ -16,6 +16,7 @@ import type { DemoEntry, SliderControlOpts } from "../constants/PlaygroundTypes.
 import { SIDEBAR_CATEGORY_ORDER } from "../constants/PlaygroundTypes.js";
 import { FONT_FAMILY, LABEL_STYLE, LABEL_WIDTH, MONO_FAMILY, READOUT_STYLE, READOUT_WIDTH } from "../constants/Typography.js";
 import { ButtonDemoView } from "./ButtonDemoView.pixi.js";
+import { GridLayoutDemoView } from "./GridLayoutDemoView.pixi.js";
 import { SliderDemoView } from "./SliderDemoView.pixi.js";
 import { ToggleDemoView } from "./ToggleDemoView.pixi.js";
 import type { IPlaygroundShellView } from "./IPlaygroundShellView.js";
@@ -44,6 +45,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     ["button", ButtonDemoView],
     ["slider", SliderDemoView],
     ["toggle", ToggleDemoView],
+    ["grid-layout", GridLayoutDemoView],
   ]);
 
   private _config: UIPlaygroundConfig | null = null;
@@ -54,7 +56,12 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
   private _stageBg: PIXI.Graphics | null = null;
   private _stage: PIXI.Container | null = null;
   private _controlsBg: PIXI.Graphics | null = null;
+  /** Outer container for the controls region — hosts global + demo subsections. */
   private _controls: VerticalLayoutComponent | null = null;
+  /** Persistent global controls (outline toggle etc.). Survives demo switches. */
+  private _globalControls: VerticalLayoutComponent | null = null;
+  /** Per-demo controls — cleared by `clearControls()` whenever a new demo mounts. */
+  private _demoControls: VerticalLayoutComponent | null = null;
   private _logBg: PIXI.Graphics | null = null;
   private _log: VerticalLayoutComponent | null = null;
   private _logLines: PIXI.Text[] = [];
@@ -67,6 +74,10 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
 
   // ── Stage state ────────────────────────────────────────────────────
   private _activeDemoView: IView | null = null;
+
+  // ── Outline toggle state ───────────────────────────────────────────
+  private _outlineEnabled = false;
+  private readonly _outlineListeners = new Set<(visible: boolean) => void>();
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
@@ -90,12 +101,31 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     this._controlsBg = new PIXI.Graphics();
     this.addChild(this._controlsBg);
     this._controls = new VerticalLayoutComponent({
-      gap: 4,
+      gap: 8,
       padding: cfg.regionPadding,
       alignItems: "stretch",
       justifyContent: "flex-start",
     });
     this.addChild(this._controls);
+    // Global controls — shell-level toggles that apply to every demo.
+    // Lives at the top of the controls panel and survives `clearControls()`.
+    this._globalControls = new VerticalLayoutComponent({
+      gap: 4,
+      padding: 0,
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+    });
+    this._controls.addChild(this._globalControls);
+    this._globalControls.addChild(this._buildOutlineToggleRow());
+    this._controls.addChild(this._buildControlsDivider());
+    // Per-demo controls — populated by demo controllers via add*Control().
+    this._demoControls = new VerticalLayoutComponent({
+      gap: 4,
+      padding: 0,
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+    });
+    this._controls.addChild(this._demoControls);
 
     this._logBg = new PIXI.Graphics();
     this.addChild(this._logBg);
@@ -115,16 +145,27 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
     const cfg = this._cfg;
 
+    // Three columns: [sidebar | (stage / log) | controls]. Sidebar +
+    // controls are full-height; the centre column is split vertically
+    // between stage (top) and event log (bottom). Every region uses
+    // `position: "absolute"` so Yoga doesn't pull them into the
+    // ScreenView's default flex row — the manual left/top below is the
+    // single source of truth for placement.
     const sidebarW = cfg.sidebarWidth;
-    const mainW = Math.max(200, width - sidebarW);
-    const controlsH = cfg.controlsHeight;
+    const controlsW = cfg.controlsWidth;
+    const centreW = Math.max(200, width - sidebarW - controlsW);
     const logH = cfg.logHeight;
-    const stageH = Math.max(160, height - controlsH - logH);
+    const stageH = Math.max(160, height - logH);
+    const centreX = sidebarW;
+    const controlsX = sidebarW + centreW;
 
+    // Sidebar (left column).
     this._redrawRegion(this._sidebarBg, 0, 0, sidebarW, height, cfg.sidebarBgColor);
     if (this._sidebar) {
-      this._sidebar.position.set(0, cfg.regionPadding);
       this._sidebar.layout = {
+        position: "absolute",
+        left: 0,
+        top: cfg.regionPadding,
         width: sidebarW,
         height: height - cfg.regionPadding * 2,
         flexDirection: "column",
@@ -135,37 +176,56 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       };
     }
 
-    this._redrawRegion(this._stageBg, sidebarW, 0, mainW, stageH, cfg.stageBgColor);
+    // Stage (centre top). `alignItems: "center"` + `justifyContent:
+    // "center"` keep the active demo view centered regardless of its
+    // intrinsic size — fixes the off-screen overflow that demo views
+    // had when their internal "100%" wrappers couldn't resolve against
+    // an unsized parent.
+    this._redrawRegion(this._stageBg, centreX, 0, centreW, stageH, cfg.stageBgColor);
     if (this._stage) {
-      this._stage.position.set(sidebarW, 0);
-      this._stage.layout = { width: mainW, height: stageH };
-    }
-
-    this._redrawRegion(this._controlsBg, sidebarW, stageH, mainW, controlsH, cfg.controlsBgColor);
-    if (this._controls) {
-      this._controls.position.set(sidebarW, stageH);
-      this._controls.layout = {
-        width: mainW,
-        height: controlsH,
-        flexDirection: "column",
-        gap: 4,
-        padding: cfg.regionPadding,
-        alignItems: "stretch",
-        justifyContent: "flex-start",
+      this._stage.layout = {
+        position: "absolute",
+        left: centreX,
+        top: 0,
+        width: centreW,
+        height: stageH,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
       };
     }
 
-    const logY = stageH + controlsH;
-    this._redrawRegion(this._logBg, sidebarW, logY, mainW, logH, cfg.logBgColor);
+    // Event log (centre bottom).
+    const logY = stageH;
+    this._redrawRegion(this._logBg, centreX, logY, centreW, logH, cfg.logBgColor);
     if (this._log) {
-      this._log.position.set(sidebarW, logY);
       this._log.layout = {
-        width: mainW,
+        position: "absolute",
+        left: centreX,
+        top: logY,
+        width: centreW,
         height: logH,
         flexDirection: "column",
         gap: 2,
         padding: cfg.regionPadding,
         alignItems: "flex-start",
+        justifyContent: "flex-start",
+      };
+    }
+
+    // Controls (right column, full height).
+    this._redrawRegion(this._controlsBg, controlsX, 0, controlsW, height, cfg.controlsBgColor);
+    if (this._controls) {
+      this._controls.layout = {
+        position: "absolute",
+        left: controlsX,
+        top: 0,
+        width: controlsW,
+        height,
+        flexDirection: "column",
+        gap: 4,
+        padding: cfg.regionPadding,
+        alignItems: "stretch",
         justifyContent: "flex-start",
       };
     }
@@ -246,8 +306,10 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
   // ── IPlaygroundShellView — controls panel ──────────────────────────
 
   public clearControls(): void {
-    if (!this._controls) return;
-    this._controls.removeChildren().forEach((c) => c.destroy({ children: true }));
+    if (!this._demoControls) return;
+    // Only the per-demo subsection is cleared — the global subsection
+    // (outline toggle etc.) lives above and survives demo switches.
+    this._demoControls.removeChildren().forEach((c) => c.destroy({ children: true }));
   }
 
   public addSliderControl(
@@ -255,7 +317,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     opts: SliderControlOpts,
     onChange: (value: number) => void,
   ): Unsubscribe {
-    if (!this._controls) return () => {};
+    if (!this._demoControls) return () => {};
     const formatValue = opts.format ?? ((v: number) => v.toFixed(1));
     const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "center" });
 
@@ -264,7 +326,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     row.addChild(labelText);
 
     const slider = new SliderComponent({
-      trackWidth: 200,
+      trackWidth: 160,
       min: opts.min,
       max: opts.max,
       step: opts.step ?? 0,
@@ -281,7 +343,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       onChange(value);
     };
     const sliderUnsub = slider.onChange(handleChange);
-    this._controls.addChild(row);
+    this._demoControls.addChild(row);
     return () => this._removeControlRow(row, sliderUnsub);
   }
 
@@ -290,7 +352,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     initial: boolean,
     onChange: (value: boolean) => void,
   ): Unsubscribe {
-    if (!this._controls) return () => {};
+    if (!this._demoControls) return () => {};
     const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "center" });
 
     const labelText = new PIXI.Text({ text: label, style: LABEL_STYLE });
@@ -298,6 +360,10 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     row.addChild(labelText);
 
     const toggle = new ToggleComponent({ value: initial });
+    // ToggleComponent extends PIXI.Graphics and doesn't set its own
+    // `.layout`, so without an explicit size Yoga lays it out at zero
+    // width — the toggle then renders on top of the previous label.
+    toggle.layout = { width: 44, height: 24 };
     row.addChild(toggle);
 
     const readout = new PIXI.Text({ text: initial ? "ON" : "OFF", style: READOUT_STYLE });
@@ -309,7 +375,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       onChange(value);
     };
     const toggleUnsub = toggle.onChange(handleChange);
-    this._controls.addChild(row);
+    this._demoControls.addChild(row);
     return () => this._removeControlRow(row, toggleUnsub);
   }
 
@@ -320,7 +386,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     formatValue: (value: T) => string,
     onChange: (value: T, index: number) => void,
   ): Unsubscribe {
-    if (!this._controls) return () => {};
+    if (!this._demoControls) return () => {};
     const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "center" });
 
     const labelText = new PIXI.Text({ text: label, style: LABEL_STYLE });
@@ -329,7 +395,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
 
     let index = initialIndex;
     const button = new ButtonComponent({
-      width: 200,
+      width: 160,
       height: 28,
       label: `Cycle → ${formatValue(values[index]!)}`,
       labelStyle: { fontSize: 12, fontWeight: "700", fill: 0xe8eef6 },
@@ -345,12 +411,12 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       onChange(values[index]!, index);
     };
     const buttonUnsub = button.onPress(handlePress);
-    this._controls.addChild(row);
+    this._demoControls.addChild(row);
     return () => this._removeControlRow(row, buttonUnsub);
   }
 
   public addActionControl(label: string, onPress: () => void): Unsubscribe {
-    if (!this._controls) return () => {};
+    if (!this._demoControls) return () => {};
     const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "center" });
 
     const spacer = new PIXI.Text({ text: "", style: LABEL_STYLE });
@@ -358,7 +424,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     row.addChild(spacer);
 
     const button = new ButtonComponent({
-      width: 200,
+      width: 160,
       height: 28,
       label,
       labelStyle: { fontSize: 12, fontWeight: "700", fill: 0xffffff },
@@ -369,7 +435,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     row.addChild(button);
 
     const buttonUnsub = button.onPress(onPress);
-    this._controls.addChild(row);
+    this._demoControls.addChild(row);
     return () => this._removeControlRow(row, buttonUnsub);
   }
 
@@ -398,16 +464,30 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     }
   }
 
+  // ── IPlaygroundShellView — outline (debug) ─────────────────────────
+
+  public isOutlineVisible(): boolean {
+    return this._outlineEnabled;
+  }
+
+  public onOutlineChanged(cb: (visible: boolean) => void): Unsubscribe {
+    this._outlineListeners.add(cb);
+    return () => this._outlineListeners.delete(cb);
+  }
+
   public override preDestroy(): void {
     this.unmountDemo();
     this._clearSidebarUnsubs();
     this._selectedListeners.clear();
+    this._outlineListeners.clear();
     this._sidebarButtons.clear();
     this._sidebarAccents.clear();
     this._logLines = [];
     this._sidebar = null;
     this._stage = null;
     this._controls = null;
+    this._globalControls = null;
+    this._demoControls = null;
     this._log = null;
     this._sidebarBg = null;
     this._stageBg = null;
@@ -471,8 +551,14 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     color: number,
   ): void {
     if (!g) return;
+    const safeW = Math.max(1, w);
+    const safeH = Math.max(1, h);
+    // Absolute layout keeps the background fixed at (x, y) and prevents
+    // Yoga from sucking it into the ScreenView's flex flow alongside the
+    // region containers.
+    g.layout = { position: "absolute", left: x, top: y, width: safeW, height: safeH };
     g.clear();
-    g.rect(x, y, Math.max(1, w), Math.max(1, h)).fill({ color });
+    g.rect(0, 0, safeW, safeH).fill({ color });
   }
 
   private _formatTimestamp(date: Date): string {
@@ -491,6 +577,50 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     listenerUnsub();
     row.removeFromParent();
     row.destroy({ children: true });
+  }
+
+  /**
+   * Builds the persistent "outline" toggle row that lives at the top
+   * of the controls panel and survives demo switches.
+   */
+  private _buildOutlineToggleRow(): HorizontalLayoutComponent {
+    const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "center" });
+
+    const labelText = new PIXI.Text({ text: "outline", style: LABEL_STYLE });
+    labelText.layout = { width: LABEL_WIDTH };
+    row.addChild(labelText);
+
+    const toggle = new ToggleComponent({ value: this._outlineEnabled });
+    toggle.layout = { width: 44, height: 24 };
+    row.addChild(toggle);
+
+    const readout = new PIXI.Text({
+      text: this._outlineEnabled ? "ON" : "OFF",
+      style: READOUT_STYLE,
+    });
+    readout.layout = { width: READOUT_WIDTH };
+    row.addChild(readout);
+
+    toggle.onChange((value) => {
+      readout.text = value ? "ON" : "OFF";
+      this._setOutlineEnabled(value);
+    });
+
+    return row;
+  }
+
+  /** Thin horizontal rule between the global and per-demo subsections. */
+  private _buildControlsDivider(): PIXI.Graphics {
+    const divider = new PIXI.Graphics();
+    divider.layout = { width: "100%", height: 1 };
+    divider.rect(0, 0, 1, 1).fill({ color: this._cfg.sidebarItemBorderColor, alpha: 0.6 });
+    return divider;
+  }
+
+  private _setOutlineEnabled(visible: boolean): void {
+    if (this._outlineEnabled === visible) return;
+    this._outlineEnabled = visible;
+    for (const cb of this._outlineListeners) cb(visible);
   }
 
   private get _cfg(): UIPlaygroundConfig {

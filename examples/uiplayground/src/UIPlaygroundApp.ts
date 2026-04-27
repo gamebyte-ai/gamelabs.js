@@ -2,12 +2,14 @@ import { GamelabsApp, LogTypes, UIEvents } from "@gamebyte/gamelabsjs";
 import { UIPlaygroundConfig } from "./UIPlaygroundConfig.js";
 import { UIPlaygroundUIIds } from "./UIPlaygroundUIIds.js";
 import { ButtonDemoViewController } from "./controllers/ButtonDemoViewController.js";
+import { GridLayoutDemoViewController } from "./controllers/GridLayoutDemoViewController.js";
 import { PlaygroundShellViewController } from "./controllers/PlaygroundShellViewController.js";
 import { SliderDemoViewController } from "./controllers/SliderDemoViewController.js";
 import { ToggleDemoViewController } from "./controllers/ToggleDemoViewController.js";
 import { ControlsManager } from "./utilities/ControlsManager.js";
 import { IControlsManager } from "./utilities/IControlsManager.js";
 import { ButtonDemoView } from "./views/ButtonDemoView.pixi.js";
+import { GridLayoutDemoView } from "./views/GridLayoutDemoView.pixi.js";
 import { PlaygroundShellView } from "./views/PlaygroundShellView.pixi.js";
 import { SliderDemoView } from "./views/SliderDemoView.pixi.js";
 import { ToggleDemoView } from "./views/ToggleDemoView.pixi.js";
@@ -63,6 +65,7 @@ export class UIPlaygroundApp extends GamelabsApp {
     this.viewFactory.register(ButtonDemoView, ButtonDemoViewController);
     this.viewFactory.register(SliderDemoView, SliderDemoViewController);
     this.viewFactory.register(ToggleDemoView, ToggleDemoViewController);
+    this.viewFactory.register(GridLayoutDemoView, GridLayoutDemoViewController);
   }
 
   protected override postInitialize(): void {

@@ -7,11 +7,11 @@ import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "@gamebyte/gamela
  */
 export class UIPlaygroundConfig {
   // ─── Region sizing ──────────────────────────────────────────────────
-  /** Sidebar width in pixels. */
+  /** Sidebar width in pixels (left column, full height). */
   public readonly sidebarWidth = 220;
-  /** Controls panel height in pixels. */
-  public readonly controlsHeight = 220;
-  /** Event log height in pixels. */
+  /** Controls panel width in pixels (right column, full height). */
+  public readonly controlsWidth = 380;
+  /** Event log height in pixels (bottom of the centre column). */
   public readonly logHeight = 160;
   /** Inner padding inside every region (sidebar / stage / controls / log). */
   public readonly regionPadding = 14;
@@ -38,6 +38,12 @@ export class UIPlaygroundConfig {
   public readonly logTextColor = 0xa3e635;
   /** Maximum number of log lines kept on screen — older lines are dropped. */
   public readonly logBufferSize = 8;
+
+  // ─── Outline (debug) ───────────────────────────────────────────────
+  /** Color of the debug outline drawn around the active demo's component. */
+  public readonly outlineColor = 0xfacc15;
+  /** Stroke width of the debug outline, in pixels. */
+  public readonly outlineWidth = 2;
 
   public readonly transitions: { readonly screenEnter: ScreenTransition } = {
     screenEnter: {

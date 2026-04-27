@@ -41,3 +41,61 @@ export const TOGGLE_ON_PALETTE: readonly number[] = [
   0x48bb78, 0x3b82f6, 0xef4444, 0xeab308, 0xa855f7,
 ];
 export const TOGGLE_ON_LABELS: readonly string[] = ["green", "blue", "red", "yellow", "purple"];
+
+// ─── GridLayoutDemo ────────────────────────────────────────────────────
+export type GridAlignItems = "flex-start" | "center" | "flex-end" | "stretch";
+export type GridJustifyContent =
+  | "flex-start"
+  | "center"
+  | "flex-end"
+  | "space-between"
+  | "space-around"
+  | "space-evenly";
+export type GridFlexWrap = "wrap" | "nowrap" | "wrap-reverse";
+
+/** Cycle preset for the demo's "itemCount" control. */
+export const GRID_ITEM_COUNTS: readonly number[] = [4, 8, 12, 16];
+
+/** Rotating palette used to color the demo's child squares. */
+export const GRID_ITEM_PALETTE: readonly number[] = [
+  0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x14b8a6, 0x3b82f6, 0x8b5cf6, 0xec4899,
+];
+
+export const GRID_ALIGN_ITEMS: readonly GridAlignItems[] = [
+  "flex-start",
+  "center",
+  "flex-end",
+  "stretch",
+];
+
+export const GRID_JUSTIFY_CONTENT: readonly GridJustifyContent[] = [
+  "flex-start",
+  "center",
+  "flex-end",
+  "space-between",
+  "space-around",
+  "space-evenly",
+];
+
+export const GRID_FLEX_WRAP: readonly GridFlexWrap[] = ["wrap", "nowrap", "wrap-reverse"];
+
+/**
+ * Per-item height pattern. Used by the demo to make `alignItems` visibly
+ * do something — when every item is the same height each row collapses
+ * to that height and cross-axis alignment has no spare room to apply.
+ */
+export type GridItemHeightMode = "uniform" | "alternating" | "ascending" | "random";
+
+export const GRID_ITEM_HEIGHT_MODES: readonly GridItemHeightMode[] = [
+  "uniform",
+  "alternating",
+  "ascending",
+  "random",
+];
+
+export const GRID_ITEM_HEIGHT_MODE_LABELS: Readonly<Record<GridItemHeightMode, string>> = {
+  uniform: "Uniform",
+  alternating: "Alternating",
+  ascending: "Ascending",
+  random: "Random",
+};

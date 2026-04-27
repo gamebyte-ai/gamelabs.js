@@ -16,6 +16,8 @@ export interface IButtonDemoView extends IView {
   setRadius(radius: number): void;
   setFillColor(color: number): void;
   setLabel(label: string): void;
+  /** Toggles the debug outline drawn around the live component's bounds. */
+  setOutlineVisible(visible: boolean): void;
   /** Fires whenever the live button is pressed by the user. */
   onPress(cb: () => void): Unsubscribe;
 }

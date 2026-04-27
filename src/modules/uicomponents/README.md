@@ -11,6 +11,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`SliderComponent`](#slidercomponent) — horizontal slider with min/max/step constraints
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
 - [`HorizontalLayoutComponent`](#horizontallayoutcomponent) — horizontal flex container
+- [`GridLayoutComponent`](#gridlayoutcomponent) — flex container with row-wrap that approximates a CSS grid (no real grid algorithm)
 - [`FullscreenLayoutComponent`](#fullscreenlayoutcomponent) — layout container whose size tracks the canvas via `AppEvents`
 
 Each component exports a matching `parse<Name>Preset(json: string)` helper that parses a JSON string into the preset type.
@@ -255,6 +256,47 @@ const row = new HorizontalLayoutComponent({
 | `top`            | `number`                                                                                        | —              | Absolute offset from top.                                    |
 | `right`          | `number`                                                                                        | —              | Absolute offset from right.                                  |
 | `bottom`         | `number`                                                                                        | —              | Absolute offset from bottom.                                 |
+
+---
+
+## GridLayoutComponent
+
+**Flex-based grid approximation.** Yoga (the layout engine behind `@pixi/layout`) doesn't implement CSS Grid, so this component is a thin preset over a `flexDirection: "row"` + `flexWrap: "wrap"` flex container. Children with explicit dimensions wrap to a new row when the cumulative width exceeds the container — producing N×M-looking grids without an actual grid algorithm. There is no track sizing, row/column spans, named lines, or dense packing. Use it when you want grid-like wrapping; reach for `VerticalLayoutComponent` / `HorizontalLayoutComponent` for plain stacks.
+
+```ts
+const grid = new GridLayoutComponent({
+  width: 320,
+  gap: 8,
+  padding: 12,
+  alignItems: "center",
+  justifyContent: "flex-start",
+});
+for (const child of items) grid.addChild(child);
+```
+
+### `GridLayoutComponentPreset`
+
+| Field            | Type                                                                                            | Default        | Description                                                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `x`              | `number`                                                                                        | —              | X position.                                                                                                                                     |
+| `y`              | `number`                                                                                        | —              | Y position.                                                                                                                                     |
+| `width`          | `number \| string`                                                                              | —              | Fixed width. Accepts a number or a percentage string like `"100%"`.                                                                             |
+| `height`         | `number \| string`                                                                              | —              | Fixed height. Accepts a number or `"100%"`. Usually omitted so the grid grows to fit its rows.                                                  |
+| `gap`            | `number`                                                                                        | `0`            | Gap between children on both axes. Overridden per-axis by `rowGap` / `columnGap`.                                                               |
+| `rowGap`         | `number`                                                                                        | —              | Vertical gap between rows. Falls back to `gap` when omitted.                                                                                    |
+| `columnGap`      | `number`                                                                                        | —              | Horizontal gap between columns. Falls back to `gap` when omitted.                                                                               |
+| `padding`        | `number`                                                                                        | `0`            | Padding on all sides.                                                                                                                           |
+| `alignItems`     | `"flex-start" \| "center" \| "flex-end" \| "stretch"`                                           | `"center"`     | Cross-axis (vertical) alignment of items within a row. Only visible when items in the row vary in height — uniform rows have no spare room.     |
+| `alignContent`   | `"flex-start" \| "center" \| "flex-end" \| "stretch" \| "space-between" \| "space-around"`      | `"flex-start"` | Distribution of whole rows along the cross axis when there's spare vertical space (i.e. when the grid has a fixed height taller than its rows). |
+| `justifyContent` | `"flex-start" \| "center" \| "flex-end" \| "space-between" \| "space-around" \| "space-evenly"` | `"flex-start"` | Main-axis (horizontal) distribution within each row.                                                                                            |
+| `flexWrap`       | `"wrap" \| "nowrap" \| "wrap-reverse"`                                                          | `"wrap"`       | Wrapping behaviour. Wrapping is what makes this act as a grid; `"nowrap"` forces a single row and `"wrap-reverse"` stacks rows bottom-up.       |
+
+Use symmetric `gap` for tidy grids; fall back to `rowGap` + `columnGap` when rows and columns need different spacing.
+
+### Notes
+
+- Children participate in the layout via their own `.layout` (`width` / `height`). Pixi children added without a `.layout` aren't laid out by Yoga and won't take up a grid cell — useful for absolutely-positioned overlays or debug outlines.
+- The grid's height is determined by Yoga _after_ a layout pass. If you need to react to it (e.g. to draw an outline that matches the rendered size), subscribe to the `"layout"` event on the grid container and read `grid.layout.computedLayout.width` / `.height`.
 
 ---
 

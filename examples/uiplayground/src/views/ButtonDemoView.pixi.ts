@@ -1,9 +1,11 @@
+import * as PIXI from "pixi.js";
 import {
   ButtonComponent,
   HudViewBase,
-  VerticalLayoutComponent,
+  type IInstanceResolver,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
+import { UIPlaygroundConfig } from "../UIPlaygroundConfig.js";
 import type { IButtonDemoView } from "./IButtonDemoView.js";
 
 /**
@@ -11,10 +13,22 @@ import type { IButtonDemoView } from "./IButtonDemoView.js";
  * the shell view's stage region as a HUD child view. Created and
  * destroyed by `PlaygroundShellView.mountDemo` via the framework's
  * `viewFactory`.
+ *
+ * Centring: handled by the parent stage container (`PlaygroundShellView`'s
+ * stage region uses `alignItems: "center"` + `justifyContent: "center"`),
+ * so the demo view doesn't need an internal centring wrapper. The live
+ * `ButtonComponent` is added as a direct child of this view.
+ *
+ * Outline: when the global "outline" toggle is ON, a debug rectangle
+ * is drawn at the button's bounds so the user can see the component's
+ * actual layout box. The outline is a child of the button so it
+ * follows position changes for free.
  */
 export class ButtonDemoView extends HudViewBase implements IButtonDemoView {
-  private _wrapper: VerticalLayoutComponent | null = null;
+  private _config: UIPlaygroundConfig | null = null;
   private _button: ButtonComponent | null = null;
+  private _outline: PIXI.Graphics | null = null;
+  private _outlineVisible = false;
   private _pressUnsub: Unsubscribe | null = null;
   private readonly _pressListeners = new Set<() => void>();
 
@@ -25,15 +39,14 @@ export class ButtonDemoView extends HudViewBase implements IButtonDemoView {
   private _radius = 12;
   private _fillColor = 0x3b82f6;
 
+  public override inject(resolver: IInstanceResolver): void {
+    super.inject(resolver);
+    this._config = resolver.getInstance(UIPlaygroundConfig);
+  }
+
   public override postInitialize(): void {
     super.postInitialize();
-    this._wrapper = new VerticalLayoutComponent({
-      width: "100%",
-      height: "100%",
-      justifyContent: "center",
-      alignItems: "center",
-    });
-    this.addChild(this._wrapper);
+    this.layout = {};
     this._rebuildButton();
   }
 
@@ -64,8 +77,12 @@ export class ButtonDemoView extends HudViewBase implements IButtonDemoView {
   public setLabel(label: string): void {
     if (this._label === label) return;
     this._label = label;
-    // Label is the only prop with a runtime setter on `ButtonComponent`.
     this._button?.setLabel(label);
+  }
+
+  public setOutlineVisible(visible: boolean): void {
+    this._outlineVisible = visible;
+    this._refreshOutline();
   }
 
   public onPress(cb: () => void): Unsubscribe {
@@ -77,12 +94,13 @@ export class ButtonDemoView extends HudViewBase implements IButtonDemoView {
     this._pressListeners.clear();
     this._pressUnsub?.();
     this._pressUnsub = null;
+    this._outline?.removeFromParent();
+    this._outline?.destroy();
+    this._outline = null;
     this._button?.removeFromParent();
     this._button?.destroy();
     this._button = null;
-    this._wrapper?.removeFromParent();
-    this._wrapper?.destroy({ children: true });
-    this._wrapper = null;
+    this._config = null;
     super.preDestroy();
   }
 
@@ -91,9 +109,11 @@ export class ButtonDemoView extends HudViewBase implements IButtonDemoView {
   }
 
   private _rebuildButton(): void {
-    if (!this._wrapper) return;
     this._pressUnsub?.();
     this._pressUnsub = null;
+    this._outline?.removeFromParent();
+    this._outline?.destroy();
+    this._outline = null;
     this._button?.removeFromParent();
     this._button?.destroy();
 
@@ -106,6 +126,22 @@ export class ButtonDemoView extends HudViewBase implements IButtonDemoView {
       labelStyle: { fontSize: 16, fontWeight: "700", fill: 0xffffff },
     });
     this._pressUnsub = this._button.onPress(() => this._firePress());
-    this._wrapper.addChild(this._button);
+    this.addChild(this._button);
+    this._refreshOutline();
+  }
+
+  private _refreshOutline(): void {
+    this._outline?.removeFromParent();
+    this._outline?.destroy();
+    this._outline = null;
+    if (!this._outlineVisible || !this._button || !this._config) return;
+
+    const outline = new PIXI.Graphics();
+    outline.eventMode = "none";
+    outline
+      .rect(0, 0, this._width, this._height)
+      .stroke({ color: this._config.outlineColor, width: this._config.outlineWidth });
+    this._button.addChild(outline);
+    this._outline = outline;
   }
 }

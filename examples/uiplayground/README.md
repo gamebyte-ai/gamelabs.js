@@ -6,16 +6,20 @@ mounts into the stage region with a controls panel for live prop
 tweaking and an event log for runtime callbacks.
 
 ```
-┌──────────┬──────────────────────────────────┐
-│ Sidebar  │  Stage  (active demo preview)    │
-│  Button  │                                   │
-│  Slider  │                                   │
-│  Toggle  ├──────────────────────────────────┤
-│   …      │  Controls (live prop tweaking)   │
-│          ├──────────────────────────────────┤
-│          │  Event log (rolling buffer)      │
-└──────────┴──────────────────────────────────┘
+┌────────────┬────────────────────────┬──────────┐
+│ Sidebar    │  Stage (active demo)   │ Controls │
+│  Button    │                        │ (live    │
+│  Slider    │                        │  prop    │
+│  Toggle    ├────────────────────────┤  tweaks) │
+│  GridLayout│  Event log (rolling)   │          │
+│   …        │                        │          │
+└────────────┴────────────────────────┴──────────┘
 ```
+
+Three columns: sidebar (left, fixed width), centre (stage on top + log
+underneath), and the controls panel (right, fixed width). The active
+demo view is centered inside the stage region by the parent's flex
+layout — demo views don't need internal centring wrappers.
 
 ## Architecture
 
@@ -107,12 +111,13 @@ Each returns an `Unsubscribe`. Collect them in your controller's
 ```
 examples/uiplayground/src/
 ├── constants/
-│   ├── DemoPresets.ts                      # palettes / label arrays / range presets
+│   ├── DemoPresets.ts                      # palettes / label arrays / range presets / grid item-height modes
 │   ├── DemoRegistry.ts                     # DEMO_REGISTRY (id, label, category)
 │   ├── PlaygroundTypes.ts                  # DemoCategory, SIDEBAR_CATEGORY_ORDER, DemoEntry, SliderControlOpts
 │   └── Typography.ts                        # FONT_FAMILY, MONO_FAMILY, LABEL_STYLE, READOUT_STYLE
 ├── controllers/
 │   ├── ButtonDemoViewController.ts
+│   ├── GridLayoutDemoViewController.ts
 │   ├── PlaygroundShellViewController.ts    # sidebar selection routing + ControlsManager.bindShell
 │   ├── SliderDemoViewController.ts
 │   └── ToggleDemoViewController.ts
@@ -121,7 +126,9 @@ examples/uiplayground/src/
 │   └── IControlsManager.ts                 # demo-facing interface + InjectionToken
 ├── views/
 │   ├── ButtonDemoView.pixi.ts
+│   ├── GridLayoutDemoView.pixi.ts
 │   ├── IButtonDemoView.ts
+│   ├── IGridLayoutDemoView.ts
 │   ├── IPlaygroundShellView.ts
 │   ├── ISliderDemoView.ts
 │   ├── IToggleDemoView.ts

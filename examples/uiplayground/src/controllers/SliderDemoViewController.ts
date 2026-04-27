@@ -33,6 +33,9 @@ export class SliderDemoViewController implements IViewController<ISliderDemoView
     this._view = view;
     this._controls.clear();
 
+    view.setOutlineVisible(this._controls.isOutlineVisible());
+    this._subs.add(this._controls.onOutlineChanged((visible) => view.setOutlineVisible(visible)));
+
     this._subs.add(
       this._controls.addSliderControl(
         "trackWidth",

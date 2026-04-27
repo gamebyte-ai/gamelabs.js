@@ -55,6 +55,19 @@ export interface IControlsManager {
 
   /** Appends one line to the rolling event log (with a timestamp). */
   appendLog(msg: string): void;
+
+  /**
+   * Current value of the shell-level "show outline" toggle. Demo
+   * controllers read this in `initialize` to seed their view's outline
+   * visibility before the first user interaction.
+   */
+  isOutlineVisible(): boolean;
+  /**
+   * Subscription for shell-level outline-toggle changes. Demo
+   * controllers wire this directly to `view.setOutlineVisible(...)` so
+   * the bounds outline persists across demo switches.
+   */
+  onOutlineChanged(cb: (visible: boolean) => void): Unsubscribe;
 }
 
 /**

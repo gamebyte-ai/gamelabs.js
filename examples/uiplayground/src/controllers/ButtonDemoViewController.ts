@@ -34,6 +34,11 @@ export class ButtonDemoViewController implements IViewController<IButtonDemoView
     this._view = view;
     this._controls.clear();
 
+    // Sync the persistent outline toggle's current state into the
+    // freshly mounted view, then subscribe so future toggles propagate.
+    view.setOutlineVisible(this._controls.isOutlineVisible());
+    this._subs.add(this._controls.onOutlineChanged((visible) => view.setOutlineVisible(visible)));
+
     this._subs.add(
       this._controls.addSliderControl(
         "width",
