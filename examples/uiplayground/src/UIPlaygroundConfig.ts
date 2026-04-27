@@ -1,0 +1,48 @@
+import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "@gamebyte/gamelabsjs";
+
+/**
+ * Tuning surface for the UI Components Playground shell. Pure data —
+ * region sizes and colors used by `PlaygroundShellView`. Demo-specific
+ * tuning lives inside each demo; this file describes only the shell.
+ */
+export class UIPlaygroundConfig {
+  // ─── Region sizing ──────────────────────────────────────────────────
+  /** Sidebar width in pixels. */
+  public readonly sidebarWidth = 220;
+  /** Controls panel height in pixels. */
+  public readonly controlsHeight = 220;
+  /** Event log height in pixels. */
+  public readonly logHeight = 160;
+  /** Inner padding inside every region (sidebar / stage / controls / log). */
+  public readonly regionPadding = 14;
+  /** Vertical gap between sidebar sections (Component / Composition). */
+  public readonly sidebarSectionGap = 6;
+  /** Height of a single sidebar item button. */
+  public readonly sidebarItemHeight = 32;
+
+  // ─── Region backgrounds ─────────────────────────────────────────────
+  public readonly sidebarBgColor = 0x0a0e15;
+  public readonly stageBgColor = 0x111827;
+  public readonly controlsBgColor = 0x0f172a;
+  public readonly logBgColor = 0x05080d;
+
+  // ─── Sidebar item styling ───────────────────────────────────────────
+  public readonly sidebarHeaderColor = 0x64748b;
+  public readonly sidebarItemBgColor = 0x1e293b;
+  public readonly sidebarItemBorderColor = 0x334155;
+  public readonly sidebarItemColor = 0xe8eef6;
+  /** Accent color drawn on the left edge of the active sidebar item. */
+  public readonly sidebarActiveColor = 0x4ade80;
+
+  // ─── Log styling ────────────────────────────────────────────────────
+  public readonly logTextColor = 0xa3e635;
+  /** Maximum number of log lines kept on screen — older lines are dropped. */
+  public readonly logBufferSize = 8;
+
+  public readonly transitions: { readonly screenEnter: ScreenTransition } = {
+    screenEnter: {
+      type: SCREEN_TRANSITION_TYPES.INSTANT,
+      durationMs: 0,
+    },
+  };
+}

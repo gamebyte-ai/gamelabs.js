@@ -1,0 +1,500 @@
+import * as PIXI from "pixi.js";
+import {
+  ButtonComponent,
+  HorizontalLayoutComponent,
+  HudViewBase,
+  ScreenView,
+  SliderComponent,
+  ToggleComponent,
+  VerticalLayoutComponent,
+  type IInstanceResolver,
+  type IView,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
+import { UIPlaygroundConfig } from "../UIPlaygroundConfig.js";
+import type { DemoEntry, SliderControlOpts } from "../constants/PlaygroundTypes.js";
+import { SIDEBAR_CATEGORY_ORDER } from "../constants/PlaygroundTypes.js";
+import { FONT_FAMILY, LABEL_STYLE, LABEL_WIDTH, MONO_FAMILY, READOUT_STYLE, READOUT_WIDTH } from "../constants/Typography.js";
+import { ButtonDemoView } from "./ButtonDemoView.pixi.js";
+import { SliderDemoView } from "./SliderDemoView.pixi.js";
+import { ToggleDemoView } from "./ToggleDemoView.pixi.js";
+import type { IPlaygroundShellView } from "./IPlaygroundShellView.js";
+
+type DemoViewClass = new () => HudViewBase;
+
+/**
+ * Playground shell — a single Pixi `ScreenView` divided into four
+ * regions (sidebar, stage, controls, log).
+ *
+ * The shell hosts every rendering primitive (PIXI containers, layout
+ * boxes, control widget builders) so neither the shell controller nor
+ * any demo controller imports `PIXI.Container`. Demo controllers reach
+ * the controls panel through `IControlsManager`, which forwards
+ * to this view via the `add*Control` / `clearControls` / `appendLog`
+ * methods on `IPlaygroundShellView`.
+ */
+export class PlaygroundShellView extends ScreenView implements IPlaygroundShellView {
+  /**
+   * Map of demo id → demo View class. The only place demo View classes
+   * are referenced — keeps the shell controller free of any rendering
+   * imports. To register a new demo, add an entry here in addition to
+   * `DEMO_REGISTRY` and `viewFactory.register(...)` in the App.
+   */
+  private static readonly _DEMO_VIEW_BY_ID: ReadonlyMap<string, DemoViewClass> = new Map<string, DemoViewClass>([
+    ["button", ButtonDemoView],
+    ["slider", SliderDemoView],
+    ["toggle", ToggleDemoView],
+  ]);
+
+  private _config: UIPlaygroundConfig | null = null;
+
+  // ── Region containers ──────────────────────────────────────────────
+  private _sidebarBg: PIXI.Graphics | null = null;
+  private _sidebar: PIXI.Container | null = null;
+  private _stageBg: PIXI.Graphics | null = null;
+  private _stage: PIXI.Container | null = null;
+  private _controlsBg: PIXI.Graphics | null = null;
+  private _controls: VerticalLayoutComponent | null = null;
+  private _logBg: PIXI.Graphics | null = null;
+  private _log: VerticalLayoutComponent | null = null;
+  private _logLines: PIXI.Text[] = [];
+
+  // ── Sidebar state ──────────────────────────────────────────────────
+  private readonly _selectedListeners = new Set<(id: string) => void>();
+  private readonly _sidebarButtons = new Map<string, ButtonComponent>();
+  private readonly _sidebarAccents = new Map<string, PIXI.Graphics>();
+  private readonly _sidebarUnsubs: Unsubscribe[] = [];
+
+  // ── Stage state ────────────────────────────────────────────────────
+  private _activeDemoView: IView | null = null;
+
+  public override inject(resolver: IInstanceResolver): void {
+    super.inject(resolver);
+    this._config = resolver.getInstance(UIPlaygroundConfig);
+  }
+
+  public override postInitialize(): void {
+    super.postInitialize();
+    const cfg = this._cfg;
+
+    this._sidebarBg = new PIXI.Graphics();
+    this.addChild(this._sidebarBg);
+    this._sidebar = new PIXI.Container();
+    this.addChild(this._sidebar);
+
+    this._stageBg = new PIXI.Graphics();
+    this.addChild(this._stageBg);
+    this._stage = new PIXI.Container();
+    this.addChild(this._stage);
+
+    this._controlsBg = new PIXI.Graphics();
+    this.addChild(this._controlsBg);
+    this._controls = new VerticalLayoutComponent({
+      gap: 4,
+      padding: cfg.regionPadding,
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+    });
+    this.addChild(this._controls);
+
+    this._logBg = new PIXI.Graphics();
+    this.addChild(this._logBg);
+    this._log = new VerticalLayoutComponent({
+      gap: 2,
+      padding: cfg.regionPadding,
+      alignItems: "flex-start",
+      justifyContent: "flex-start",
+    });
+    this.addChild(this._log);
+
+    this.appendLog("Pick a demo from the sidebar →");
+  }
+
+  public override onResize(width: number, height: number, dpr: number): void {
+    super.onResize(width, height, dpr);
+    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
+    const cfg = this._cfg;
+
+    const sidebarW = cfg.sidebarWidth;
+    const mainW = Math.max(200, width - sidebarW);
+    const controlsH = cfg.controlsHeight;
+    const logH = cfg.logHeight;
+    const stageH = Math.max(160, height - controlsH - logH);
+
+    this._redrawRegion(this._sidebarBg, 0, 0, sidebarW, height, cfg.sidebarBgColor);
+    if (this._sidebar) {
+      this._sidebar.position.set(0, cfg.regionPadding);
+      this._sidebar.layout = {
+        width: sidebarW,
+        height: height - cfg.regionPadding * 2,
+        flexDirection: "column",
+        gap: cfg.sidebarSectionGap,
+        padding: cfg.regionPadding,
+        alignItems: "stretch",
+        justifyContent: "flex-start",
+      };
+    }
+
+    this._redrawRegion(this._stageBg, sidebarW, 0, mainW, stageH, cfg.stageBgColor);
+    if (this._stage) {
+      this._stage.position.set(sidebarW, 0);
+      this._stage.layout = { width: mainW, height: stageH };
+    }
+
+    this._redrawRegion(this._controlsBg, sidebarW, stageH, mainW, controlsH, cfg.controlsBgColor);
+    if (this._controls) {
+      this._controls.position.set(sidebarW, stageH);
+      this._controls.layout = {
+        width: mainW,
+        height: controlsH,
+        flexDirection: "column",
+        gap: 4,
+        padding: cfg.regionPadding,
+        alignItems: "stretch",
+        justifyContent: "flex-start",
+      };
+    }
+
+    const logY = stageH + controlsH;
+    this._redrawRegion(this._logBg, sidebarW, logY, mainW, logH, cfg.logBgColor);
+    if (this._log) {
+      this._log.position.set(sidebarW, logY);
+      this._log.layout = {
+        width: mainW,
+        height: logH,
+        flexDirection: "column",
+        gap: 2,
+        padding: cfg.regionPadding,
+        alignItems: "flex-start",
+        justifyContent: "flex-start",
+      };
+    }
+  }
+
+  // ── IPlaygroundShellView — sidebar ─────────────────────────────────
+
+  public setSidebarItems(items: readonly DemoEntry[]): void {
+    if (!this._sidebar) return;
+    this._clearSidebarUnsubs();
+    this._sidebarButtons.clear();
+    this._sidebarAccents.clear();
+    this._sidebar.removeChildren().forEach((c) => c.destroy({ children: true }));
+
+    for (const category of SIDEBAR_CATEGORY_ORDER) {
+      const inCategory = items.filter((it) => it.category === category);
+      if (inCategory.length === 0) continue;
+
+      const header = new PIXI.Text({
+        text: category.toUpperCase() + (inCategory.length === 1 ? "" : "S"),
+        style: {
+          fill: this._cfg.sidebarHeaderColor,
+          fontSize: 11,
+          fontWeight: "800",
+          letterSpacing: 1.5,
+          fontFamily: FONT_FAMILY,
+        },
+      });
+      header.layout = {};
+      this._sidebar.addChild(header);
+
+      for (const item of inCategory) {
+        const button = this._makeSidebarButton(item);
+        this._sidebarButtons.set(item.id, button);
+        this._sidebar.addChild(button);
+      }
+    }
+  }
+
+  public setActiveSidebarItem(id: string): void {
+    for (const [itemId, accent] of this._sidebarAccents) {
+      this._setAccentVisible(accent, itemId === id);
+    }
+  }
+
+  public onSidebarSelected(cb: (id: string) => void): Unsubscribe {
+    this._selectedListeners.add(cb);
+    return () => this._selectedListeners.delete(cb);
+  }
+
+  // ── IPlaygroundShellView — stage / demo lifecycle ──────────────────
+
+  public mountDemo(id: string): void {
+    if (!this._stage) return;
+    this.unmountDemo();
+
+    const ViewClass = PlaygroundShellView._DEMO_VIEW_BY_ID.get(id);
+    if (!ViewClass) {
+      this.appendLog(`▸ unknown demo id "${id}"`);
+      return;
+    }
+
+    // viewFactory.createView builds the view AND injects+initialises
+    // its controller in one shot.
+    const demoView = this.viewFactory.createView(ViewClass);
+    this._activeDemoView = demoView;
+    this._stage.addChild(demoView);
+    this.appendLog(`▸ ${id} mounted`);
+  }
+
+  public unmountDemo(): void {
+    if (!this._activeDemoView) return;
+    this._activeDemoView.destroy();
+    this._activeDemoView = null;
+    if (this._stage) this._stage.removeChildren().forEach((c) => c.destroy({ children: true }));
+  }
+
+  // ── IPlaygroundShellView — controls panel ──────────────────────────
+
+  public clearControls(): void {
+    if (!this._controls) return;
+    this._controls.removeChildren().forEach((c) => c.destroy({ children: true }));
+  }
+
+  public addSliderControl(
+    label: string,
+    opts: SliderControlOpts,
+    onChange: (value: number) => void,
+  ): Unsubscribe {
+    if (!this._controls) return () => {};
+    const formatValue = opts.format ?? ((v: number) => v.toFixed(1));
+    const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "center" });
+
+    const labelText = new PIXI.Text({ text: label, style: LABEL_STYLE });
+    labelText.layout = { width: LABEL_WIDTH };
+    row.addChild(labelText);
+
+    const slider = new SliderComponent({
+      trackWidth: 200,
+      min: opts.min,
+      max: opts.max,
+      step: opts.step ?? 0,
+      value: opts.value,
+    });
+    row.addChild(slider);
+
+    const readout = new PIXI.Text({ text: formatValue(opts.value), style: READOUT_STYLE });
+    readout.layout = { width: READOUT_WIDTH };
+    row.addChild(readout);
+
+    const handleChange = (value: number): void => {
+      readout.text = formatValue(value);
+      onChange(value);
+    };
+    const sliderUnsub = slider.onChange(handleChange);
+    this._controls.addChild(row);
+    return () => this._removeControlRow(row, sliderUnsub);
+  }
+
+  public addToggleControl(
+    label: string,
+    initial: boolean,
+    onChange: (value: boolean) => void,
+  ): Unsubscribe {
+    if (!this._controls) return () => {};
+    const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "center" });
+
+    const labelText = new PIXI.Text({ text: label, style: LABEL_STYLE });
+    labelText.layout = { width: LABEL_WIDTH };
+    row.addChild(labelText);
+
+    const toggle = new ToggleComponent({ value: initial });
+    row.addChild(toggle);
+
+    const readout = new PIXI.Text({ text: initial ? "ON" : "OFF", style: READOUT_STYLE });
+    readout.layout = { width: READOUT_WIDTH };
+    row.addChild(readout);
+
+    const handleChange = (value: boolean): void => {
+      readout.text = value ? "ON" : "OFF";
+      onChange(value);
+    };
+    const toggleUnsub = toggle.onChange(handleChange);
+    this._controls.addChild(row);
+    return () => this._removeControlRow(row, toggleUnsub);
+  }
+
+  public addCycleControl<T>(
+    label: string,
+    values: readonly T[],
+    initialIndex: number,
+    formatValue: (value: T) => string,
+    onChange: (value: T, index: number) => void,
+  ): Unsubscribe {
+    if (!this._controls) return () => {};
+    const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "center" });
+
+    const labelText = new PIXI.Text({ text: label, style: LABEL_STYLE });
+    labelText.layout = { width: LABEL_WIDTH };
+    row.addChild(labelText);
+
+    let index = initialIndex;
+    const button = new ButtonComponent({
+      width: 200,
+      height: 28,
+      label: `Cycle → ${formatValue(values[index]!)}`,
+      labelStyle: { fontSize: 12, fontWeight: "700", fill: 0xe8eef6 },
+      radius: 6,
+      fillColor: 0x1f2937,
+      strokeColor: 0x475569,
+    });
+    row.addChild(button);
+
+    const handlePress = (): void => {
+      index = (index + 1) % values.length;
+      button.setLabel(`Cycle → ${formatValue(values[index]!)}`);
+      onChange(values[index]!, index);
+    };
+    const buttonUnsub = button.onPress(handlePress);
+    this._controls.addChild(row);
+    return () => this._removeControlRow(row, buttonUnsub);
+  }
+
+  public addActionControl(label: string, onPress: () => void): Unsubscribe {
+    if (!this._controls) return () => {};
+    const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "center" });
+
+    const spacer = new PIXI.Text({ text: "", style: LABEL_STYLE });
+    spacer.layout = { width: LABEL_WIDTH };
+    row.addChild(spacer);
+
+    const button = new ButtonComponent({
+      width: 200,
+      height: 28,
+      label,
+      labelStyle: { fontSize: 12, fontWeight: "700", fill: 0xffffff },
+      radius: 6,
+      fillColor: 0x4338ca,
+      strokeColor: 0x312e81,
+    });
+    row.addChild(button);
+
+    const buttonUnsub = button.onPress(onPress);
+    this._controls.addChild(row);
+    return () => this._removeControlRow(row, buttonUnsub);
+  }
+
+  // ── IPlaygroundShellView — log ─────────────────────────────────────
+
+  public appendLog(msg: string): void {
+    if (!this._log) return;
+    const cfg = this._cfg;
+    const timestamp = this._formatTimestamp(new Date());
+    const line = new PIXI.Text({
+      text: `${timestamp}  ${msg}`,
+      style: {
+        fill: cfg.logTextColor,
+        fontSize: 12,
+        fontFamily: MONO_FAMILY,
+      },
+    });
+    line.layout = {};
+    this._log.addChild(line);
+    this._logLines.push(line);
+
+    while (this._logLines.length > cfg.logBufferSize) {
+      const oldest = this._logLines.shift();
+      oldest?.removeFromParent();
+      oldest?.destroy();
+    }
+  }
+
+  public override preDestroy(): void {
+    this.unmountDemo();
+    this._clearSidebarUnsubs();
+    this._selectedListeners.clear();
+    this._sidebarButtons.clear();
+    this._sidebarAccents.clear();
+    this._logLines = [];
+    this._sidebar = null;
+    this._stage = null;
+    this._controls = null;
+    this._log = null;
+    this._sidebarBg = null;
+    this._stageBg = null;
+    this._controlsBg = null;
+    this._logBg = null;
+    this._config = null;
+    super.preDestroy();
+  }
+
+  // ── Internals ──────────────────────────────────────────────────────
+
+  private _makeSidebarButton(item: DemoEntry): ButtonComponent {
+    const cfg = this._cfg;
+    const button = new ButtonComponent({
+      width: cfg.sidebarWidth - cfg.regionPadding * 2,
+      height: cfg.sidebarItemHeight,
+      label: item.label,
+      labelStyle: { fontSize: 13, fontWeight: "600", fill: cfg.sidebarItemColor },
+      radius: 6,
+      fillColor: cfg.sidebarItemBgColor,
+      fillAlpha: 1,
+      strokeColor: cfg.sidebarItemBorderColor,
+      strokeWidth: 1,
+    });
+
+    // Active-state accent: a thin vertical bar pinned to the left edge,
+    // hidden until the controller marks this item active.
+    const accent = new PIXI.Graphics();
+    accent.layout = { position: "absolute", left: 0, top: 0, width: 3, height: "100%" };
+    accent.visible = false;
+    button.addChild(accent);
+    this._sidebarAccents.set(item.id, accent);
+
+    const unsub = button.onPress(() => this._fireSidebarSelected(item.id));
+    this._sidebarUnsubs.push(unsub);
+    return button;
+  }
+
+  private _fireSidebarSelected(id: string): void {
+    for (const cb of this._selectedListeners) cb(id);
+  }
+
+  private _setAccentVisible(accent: PIXI.Graphics, active: boolean): void {
+    if (active) {
+      accent.clear();
+      accent.rect(0, 0, 3, this._cfg.sidebarItemHeight).fill({
+        color: this._cfg.sidebarActiveColor,
+      });
+      accent.visible = true;
+    } else {
+      accent.visible = false;
+    }
+  }
+
+  private _redrawRegion(
+    g: PIXI.Graphics | null,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    color: number,
+  ): void {
+    if (!g) return;
+    g.clear();
+    g.rect(x, y, Math.max(1, w), Math.max(1, h)).fill({ color });
+  }
+
+  private _formatTimestamp(date: Date): string {
+    const hh = date.getHours().toString().padStart(2, "0");
+    const mm = date.getMinutes().toString().padStart(2, "0");
+    const ss = date.getSeconds().toString().padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+  }
+
+  private _clearSidebarUnsubs(): void {
+    for (const u of this._sidebarUnsubs) u();
+    this._sidebarUnsubs.length = 0;
+  }
+
+  private _removeControlRow(row: PIXI.Container, listenerUnsub: Unsubscribe): void {
+    listenerUnsub();
+    row.removeFromParent();
+    row.destroy({ children: true });
+  }
+
+  private get _cfg(): UIPlaygroundConfig {
+    if (!this._config) throw new Error("PlaygroundShellView is not initialized");
+    return this._config;
+  }
+}
