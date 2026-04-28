@@ -20,7 +20,7 @@ export class LevelProgressScreenBinding extends ModuleBinding {
   private readonly model: LevelProgressScreenModel | undefined;
   private _backgroundPreset = '{"bgTextureId":"LevelProgressScreen.Background"}';
   private _backButtonPreset =
-    '{"width":220,"height":88,"label":"BACK","labelStyle":{"fontSize":16,"fontWeight":"800","letterSpacing":1},"fillColor":725536,"fillAlpha":0.75,"bgTextureId":"LevelProgressScreen.BackButtonBg"}';
+    '{"width":220,"height":88,"label":"BACK","labelStyle":{"fontSize":16,"fontWeight":"800","letterSpacing":1},"skin":{"idle":"LevelProgressScreen.BackButtonBg"}}';
   private _levelsColPreset = '{"gap":18}';
 
   //  METHODS

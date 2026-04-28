@@ -175,17 +175,12 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
   }
 
   private createLevelItem(index: number): LevelItemRefs {
-    const isActive = index === this.getCurrentIndex();
-
     const button = new ButtonComponent({
       width: LevelProgressScreenView.itemWidth,
       height: LevelProgressScreenView.itemHeight,
-      radius: 18,
-      fillColor: isActive ? 0x052e16 : 0x0b1220,
-      fillAlpha: isActive ? 0.78 : 0.72,
-      strokeColor: isActive ? 0x22c55e : 0x475569,
-      strokeWidth: 2,
+      skin: { idle: LevelProgressScreenAssetIds.LevelItemBg },
     });
+    button.resolveAssets(this.assetLoader);
 
     const text = new PIXI.Text({
       text: "",
@@ -230,13 +225,11 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     if (!this.items.length) return;
 
     const { currentIndex } = this.computeWindow();
-    const normal = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssetIds.LevelItemBg);
 
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i]!;
       const isActive = i === currentIndex;
 
-      if (normal) it.button.setTexture(normal);
       it.button.tint = isActive ? LevelProgressScreenView.itemActiveTint : 0xffffff;
 
       const baseW = LevelProgressScreenView.itemWidth;

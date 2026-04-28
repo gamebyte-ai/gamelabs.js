@@ -89,17 +89,15 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     };
     panel.addChild(this._rowsContainer);
 
-    // Close button
+    // Close button — uses the framework's default skin (provided by
+    // `UIComponentsBinding`).
     this._closeBtn = new ButtonComponent({
       width: 120,
       height: 38,
       label: "Close",
       labelStyle: { fontSize: 14, fontWeight: "600", fill: 0x4a5568 },
-      radius: 19,
-      fillColor: 0xe2e8f0,
-      fillAlpha: 0.8,
-      strokeColor: 0xcbd5e0,
     });
+    this._closeBtn.resolveAssets(this.assetLoader);
     this._closeBtn.layout = { marginTop: 8 };
     panel.addChild(this._closeBtn);
     this._closeBtn.onPress(() => {
