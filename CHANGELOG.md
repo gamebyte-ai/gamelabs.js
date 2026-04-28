@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### BREAKING CHANGES
+
+- `ButtonComponent` placeholder-graphics props removed: `radius`, `fillColor`, `fillAlpha`, `strokeColor`, `strokeWidth`, `bgTextureId`. Replaced by a four-state skin model — pass `skin: { idle, hover?, pressed?, disabled? }` (each field an asset id) and call `resolveAssets(assetManager)`. Buttons that previously relied on a fillColor for visual identity should keep the default skin and apply `button.tint = 0x...` after `resolveAssets()`.
+- `ButtonComponent.setTexture(texture)` method removed. Use `setSkin(skin, assetManager)` to swap skins at runtime.
+
+### Added
+
+- `UIComponentsBinding` — ships the framework's default button skin (`idle` / `hover` / `pressed` / `disabled` PNGs). Apps that add this binding get fully-textured buttons without supplying any art; consumers can override individual states via `binding.assetRequestList.overrideRequest(id, url)` or pass a custom `skin` per-button.
+- `UIComponentsAssetIds` enum exposing the default-skin asset ids.
+- `ButtonComponent` four-state texture switching driven by `@pixi/ui` `Button` pointer events (idle / hover / pressed / disabled). Pointer-out during a press cancels the `pressed` state.
+- `ButtonComponent` `border` preset field — symmetric 9-slice thickness in source-texture pixels. When `> 0` the background renders via `PIXI.NineSliceSprite`, keeping corners crisp at any size. Defaults to `2` with the framework default skin (whose PNGs ship with a 2px border) and `0` with custom skins.
+- `ButtonComponent.setSkin(skin, assetManager)` — replace the active skin and re-resolve all four state textures.
+- `ButtonComponent.setEnabled(enabled)` — disabling swaps to the `disabled` texture and prevents `onPress` from firing; re-enabling restores the resting state.
+
+### Changed
+
+- `MainScreenBinding` and `LevelProgressScreenBinding` JSON presets — button entries migrated from `bgTextureId` / `fillColor` / `fillAlpha` to `skin.idle`.
+- `SettingsPopupView` close button now uses the framework default skin (the popup's view calls `resolveAssets()` so the texture loads).
+- Every example app (`2048`, `avoidance`, `colorblockjam`, `helloworld`, `hexasort`, `match3`, `towerdefense`, `watersort`, `uiplayground`) registers `UIComponentsBinding` and migrates its buttons to the new API. Buttons that needed colour identity (towerdefense shop cards, "Next Level" CTAs) keep their colour via `.tint` over the default skin. Each example's `vite.config.ts` widens `server.fs.allow` to the repo root so the binding's `dist/assets/uicomponents/button/*.png` URLs serve in dev.
+
 ## [2.0.0] - 2026-04-24
 
 ### BREAKING CHANGES

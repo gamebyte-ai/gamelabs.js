@@ -4,7 +4,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 
 ## Components
 
-- [`ButtonComponent`](#buttoncomponent) — pressable button with optional texture background and centered label
+- [`ButtonComponent`](#buttoncomponent) — pressable button with four-state skin (idle / hover / pressed / disabled) and centered label
 - [`BackgroundComponent`](#backgroundcomponent) — full-screen cover-fit background with overlay and fallback color
 - [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch)
 - [`ToggleComponent`](#togglecomponent) — on/off switch with configurable colors
@@ -25,44 +25,63 @@ Each component exports a matching `parse<Name>Preset(json: string)` helper that 
 
 ## ButtonComponent
 
-Pressable button with a rounded-rect placeholder background that can be replaced by a texture, plus an optional centered label. Wraps `@pixi/ui`'s `Button` internally.
+Pressable button whose background swaps texture on interaction state — `idle` / `hover` / `pressed` / `disabled`. Each state is referenced by an asset id that `resolveAssets()` looks up in the asset manager. The framework's `UIComponentsBinding` ships a default skin so consumers can construct `new ButtonComponent({ label: "PLAY" })` and get a fully-textured button without supplying any art. Wraps `@pixi/ui`'s `Button` internally for press / hover handling.
 
 ```ts
-const btn = new ButtonComponent({
+// Default skin — register UIComponentsBinding in your app and you get
+// a four-state button out of the box.
+const playBtn = new ButtonComponent({
   width: 400,
   height: 200,
   label: "PLAY",
-  bgTextureId: "MainScreen.PlayButtonBg",
 });
-btn.resolveAssets(assetManager);
-btn.onPress(() => {
-  /* ... */
+playBtn.resolveAssets(assetManager);
+playBtn.onPress(() => startGame());
+
+// Custom skin — point the asset ids at your own PNGs.
+const cancelBtn = new ButtonComponent({
+  width: 200,
+  height: 60,
+  label: "Cancel",
+  skin: {
+    idle: MyAssetIds.CancelIdle,
+    hover: MyAssetIds.CancelHover,
+    pressed: MyAssetIds.CancelPressed,
+    disabled: MyAssetIds.CancelDisabled,
+  },
+  border: 2, // 9-slice the four corners so they stay crisp at any size
 });
+cancelBtn.resolveAssets(assetManager);
 ```
 
 ### `ButtonComponentPreset`
 
-| Field         | Type                             | Default    | Description                                                          |
-| ------------- | -------------------------------- | ---------- | -------------------------------------------------------------------- |
-| `x`           | `number`                         | —          | X position.                                                          |
-| `y`           | `number`                         | —          | Y position.                                                          |
-| `width`       | `number`                         | —          | Fixed width. Ignored when the parent layout controls sizing.         |
-| `height`      | `number`                         | —          | Fixed height. Ignored when the parent layout controls sizing.        |
-| `label`       | `string`                         | —          | Label text. Omit for an icon-only button.                            |
-| `labelStyle`  | `Partial<PIXI.TextStyleOptions>` | —          | Label style overrides merged on top of the defaults.                 |
-| `radius`      | `number`                         | `12`       | Corner radius for the placeholder background.                        |
-| `fillColor`   | `number`                         | `0x111827` | Placeholder fill color.                                              |
-| `fillAlpha`   | `number`                         | `0.92`     | Placeholder fill alpha.                                              |
-| `strokeColor` | `number`                         | `0x334155` | Placeholder stroke color.                                            |
-| `strokeWidth` | `number`                         | `1`        | Placeholder stroke width.                                            |
-| `bgTextureId` | `string`                         | —          | Asset ID for the background texture. Resolved via `resolveAssets()`. |
+| Field        | Type                             | Default                            | Description                                                                                                                                                                                                                                                          |
+| ------------ | -------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `x`          | `number`                         | —                                  | X position.                                                                                                                                                                                                                                                          |
+| `y`          | `number`                         | —                                  | Y position.                                                                                                                                                                                                                                                          |
+| `width`      | `number`                         | —                                  | Fixed width. Ignored when the parent layout controls sizing.                                                                                                                                                                                                         |
+| `height`     | `number`                         | —                                  | Fixed height. Ignored when the parent layout controls sizing.                                                                                                                                                                                                        |
+| `label`      | `string`                         | —                                  | Label text. Omit for an icon-only button.                                                                                                                                                                                                                            |
+| `labelStyle` | `Partial<PIXI.TextStyleOptions>` | —                                  | Label style overrides merged on top of the defaults.                                                                                                                                                                                                                 |
+| `skin`       | `ButtonSkin`                     | `UIComponentsBinding` default skin | Asset-id map for the four states. `idle` is required; `hover` / `pressed` / `disabled` fall back to `idle` if unset or unloaded. Omit the field entirely to use the framework default skin.                                                                          |
+| `border`     | `number`                         | `2` with default skin, `0` else    | Symmetric 9-slice border thickness in source-texture pixels. When `> 0`, the background renders via `PIXI.NineSliceSprite` so the four corners stay at their texture size while the middle stretches. The default skin's PNGs ship with a 2px border, so it auto-opts in. |
+
+`ButtonSkin` is `{ idle: string; hover?: string; pressed?: string; disabled?: string }` — each field is an asset id resolved through `IAssetManager`.
 
 ### Methods
 
-- `setTexture(texture)` — replace the placeholder with a texture background.
 - `setLabel(text)` — update the label text (no-op if the button has no label).
-- `onPress(cb): Unsubscribe` — subscribe to press events.
-- `resolveAssets(assetManager)` — look up `bgTextureId` in the asset manager and apply it.
+- `setSkin(skin, assetManager)` — replace the active skin and re-resolve all four state textures.
+- `setEnabled(enabled)` — enable / disable interaction. Disabling swaps to the `disabled` texture and prevents `onPress` from firing; re-enabling restores the resting state (or `hover` if the pointer is still over the button).
+- `onPress(cb): Unsubscribe` — subscribe to press events. Disabled presses are filtered automatically.
+- `resolveAssets(assetManager)` — look up the active skin's asset ids and install the textures. Call after construction (or after `setSkin`) before the button shows.
+
+### Notes
+
+- **Default skin via `UIComponentsBinding`.** Add `UIComponentsBinding` to your app's modules to ship the default-skin PNGs. The binding registers four `HudTexture` requests (`UIComponentsAssetIds.DefaultButton{Idle,Hover,Pressed,Disabled}`); apps can replace any of them with `binding.assetRequestList.overrideRequest(id, url)` before `addModule`, or supply a fully custom skin per-button via the `skin` preset field.
+- **Tinting for colour identity.** When several buttons share a skin but need distinct colours (e.g. tower-defence shop cards, "Next Level" CTA buttons), set `button.tint = 0x...` after `resolveAssets()`. `.tint` multiplies the texture and applies to all four state sprites simultaneously.
+- **State machine.** Pointer events flow through `@pixi/ui` `Button` (`onDown` / `onUp` / `onUpOut` / `onHover` / `onOut`); the component consolidates them into the four-state model and applies the matching texture on each transition. Pointer-out during a press cancels the `pressed` state, matching browser button semantics.
 
 ---
 
