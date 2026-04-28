@@ -1,7 +1,9 @@
 import * as PIXI from "pixi.js";
 import {
+  HorizontalLayoutComponent,
   HudViewBase,
   SliderComponent,
+  VerticalLayoutComponent,
   type IInstanceResolver,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
@@ -10,6 +12,41 @@ import type { ISliderDemoView } from "./ISliderDemoView.js";
 
 /** Default thumb radius matches `SliderComponent`'s constructor default. */
 const SLIDER_THUMB_RADIUS = 10;
+
+// ── RGB-section geometry ──────────────────────────────────────────────
+const RGB_TRACK_WIDTH = 160;
+const RGB_THUMB_RADIUS = 10;
+const RGB_LABEL_WIDTH = 14;
+const RGB_VALUE_WIDTH = 36;
+const RGB_ROW_GAP = 8;
+const RGB_SECTION_GAP = 10;
+const RGB_SWATCH_SIZE = 60;
+
+const RGB_LABEL_STYLE: Partial<PIXI.TextStyleOptions> = {
+  fill: 0xe8eef6,
+  fontSize: 14,
+  fontWeight: "700",
+  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+};
+const RGB_VALUE_STYLE: Partial<PIXI.TextStyleOptions> = {
+  fill: 0xa3e635,
+  fontSize: 13,
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+};
+const RGB_HEX_STYLE: Partial<PIXI.TextStyleOptions> = {
+  fill: 0xe8eef6,
+  fontSize: 14,
+  fontWeight: "700",
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+  lineHeight: 18,
+};
+
+type RgbChannel = "r" | "g" | "b";
+const RGB_CHANNEL_COLOR: Readonly<Record<RgbChannel, number>> = {
+  r: 0xef4444,
+  g: 0x22c55e,
+  b: 0x3b82f6,
+};
 
 /**
  * Live preview for the `SliderComponent` playground demo.
@@ -23,6 +60,12 @@ const SLIDER_THUMB_RADIUS = 10;
  * Outline: drawn at `[0, -thumbRadius] → [trackWidth, +thumbRadius]`,
  * matching the slider's actual visible bounds (the track sits centered
  * on y=0; the thumb extends ±thumbRadius vertically).
+ *
+ * Below the live single slider, a self-contained RGB demo composes
+ * three sliders (R / G / B, each 0–255) into a single colour output:
+ * a swatch updates in real time and the rgb / hex values are shown
+ * beside it. The RGB section is independent of the controls panel —
+ * it's a fixed fixture demonstrating multi-slider composition.
  */
 export class SliderDemoView extends HudViewBase implements ISliderDemoView {
   private _config: UIPlaygroundConfig | null = null;
@@ -40,6 +83,14 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
   private _fillColor = 0x4299e1;
   private _value = 0.5;
 
+  // RGB section (independent of the controls panel).
+  private readonly _rgb: { r: number; g: number; b: number } = { r: 128, g: 128, b: 128 };
+  private _rgbSection: VerticalLayoutComponent | null = null;
+  private _swatch: PIXI.Graphics | null = null;
+  private _hexText: PIXI.Text | null = null;
+  private readonly _rgbValueTexts: Partial<Record<RgbChannel, PIXI.Text>> = {};
+  private readonly _rgbUnsubs: Unsubscribe[] = [];
+
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
     this._config = resolver.getInstance(UIPlaygroundConfig);
@@ -47,8 +98,10 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
 
   public override postInitialize(): void {
     super.postInitialize();
-    this.layout = {};
+    // Stack the live single slider on top, the RGB demo below.
+    this.layout = { flexDirection: "column", gap: 32, alignItems: "center" };
     this._rebuildSlider();
+    this._buildRgbSection();
   }
 
   public setTrackWidth(trackWidth: number): void {
@@ -102,6 +155,16 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
     this._slider?.removeFromParent();
     this._slider?.destroy();
     this._slider = null;
+    for (const u of this._rgbUnsubs) u();
+    this._rgbUnsubs.length = 0;
+    this._rgbSection?.removeFromParent();
+    this._rgbSection?.destroy({ children: true });
+    this._rgbSection = null;
+    this._swatch = null;
+    this._hexText = null;
+    this._rgbValueTexts.r = undefined;
+    this._rgbValueTexts.g = undefined;
+    this._rgbValueTexts.b = undefined;
     this._config = null;
     super.preDestroy();
   }
@@ -130,9 +193,122 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
       fillColor: this._fillColor,
       thumbColor: this._fillColor,
     });
+    // `SliderComponent` doesn't set its own `.layout`, so without
+    // this it would be skipped by `@pixi/layout` and rendered at its
+    // own (0, 0) — same fix used in the controls panel's slider row.
+    this._slider.layout = {
+      width: this._trackWidth + SLIDER_THUMB_RADIUS * 2,
+      height: SLIDER_THUMB_RADIUS * 2,
+    };
+    this._slider.position.set(SLIDER_THUMB_RADIUS, SLIDER_THUMB_RADIUS);
     this._changeUnsub = this._slider.onChange((value) => this._fireChange(value));
     this.addChild(this._slider);
+    // Detach + re-attach the RGB section so it ends up after the
+    // freshly added live slider in flex order. Pixi's `addChild` on
+    // an existing same-parent child reorders the Pixi children list
+    // but doesn't fire `"removed"` / `"added"`, so @pixi/layout's
+    // yoga child indices wouldn't update otherwise.
+    if (this._rgbSection) {
+      this._rgbSection.removeFromParent();
+      this.addChild(this._rgbSection);
+    }
     this._refreshOutline();
+  }
+
+  // ── RGB demo section ───────────────────────────────────────────────
+
+  private _buildRgbSection(): void {
+    const section = new VerticalLayoutComponent({
+      gap: RGB_SECTION_GAP,
+      padding: 0,
+      alignItems: "stretch",
+      justifyContent: "flex-start",
+    });
+
+    section.addChild(this._buildRgbRow("R", "r"));
+    section.addChild(this._buildRgbRow("G", "g"));
+    section.addChild(this._buildRgbRow("B", "b"));
+    section.addChild(this._buildSwatchRow());
+
+    this._rgbSection = section;
+    this.addChild(section);
+    this._refreshSwatch();
+  }
+
+  private _buildRgbRow(label: string, channel: RgbChannel): HorizontalLayoutComponent {
+    const row = new HorizontalLayoutComponent({
+      gap: RGB_ROW_GAP,
+      padding: 0,
+      alignItems: "center",
+    });
+
+    const labelText = new PIXI.Text({ text: label, style: RGB_LABEL_STYLE });
+    labelText.layout = { width: RGB_LABEL_WIDTH };
+    row.addChild(labelText);
+
+    const channelColor = RGB_CHANNEL_COLOR[channel];
+    const slider = new SliderComponent({
+      trackWidth: RGB_TRACK_WIDTH,
+      min: 0,
+      max: 255,
+      step: 1,
+      value: this._rgb[channel],
+      fillColor: channelColor,
+      thumbColor: channelColor,
+    });
+    // Same layout-box + position-shift trick as the live slider.
+    slider.layout = {
+      width: RGB_TRACK_WIDTH + RGB_THUMB_RADIUS * 2,
+      height: RGB_THUMB_RADIUS * 2,
+    };
+    slider.position.set(RGB_THUMB_RADIUS, RGB_THUMB_RADIUS);
+    row.addChild(slider);
+
+    const valueText = new PIXI.Text({ text: `${this._rgb[channel]}`, style: RGB_VALUE_STYLE });
+    valueText.layout = { width: RGB_VALUE_WIDTH };
+    row.addChild(valueText);
+    this._rgbValueTexts[channel] = valueText;
+
+    this._rgbUnsubs.push(
+      slider.onChange((value) => this._onRgbChannelChanged(channel, value)),
+    );
+    return row;
+  }
+
+  private _buildSwatchRow(): HorizontalLayoutComponent {
+    const row = new HorizontalLayoutComponent({ gap: 12, padding: 0, alignItems: "center" });
+
+    this._swatch = new PIXI.Graphics();
+    this._swatch.layout = { width: RGB_SWATCH_SIZE, height: RGB_SWATCH_SIZE };
+    row.addChild(this._swatch);
+
+    this._hexText = new PIXI.Text({ text: "", style: RGB_HEX_STYLE });
+    this._hexText.layout = {};
+    row.addChild(this._hexText);
+
+    return row;
+  }
+
+  private _onRgbChannelChanged(channel: RgbChannel, value: number): void {
+    const v = Math.round(value);
+    if (this._rgb[channel] === v) return;
+    this._rgb[channel] = v;
+    const valueText = this._rgbValueTexts[channel];
+    if (valueText) valueText.text = `${v}`;
+    this._refreshSwatch();
+  }
+
+  private _refreshSwatch(): void {
+    if (!this._swatch || !this._hexText) return;
+    const { r, g, b } = this._rgb;
+    const color = (r << 16) | (g << 8) | b;
+    this._swatch.clear();
+    this._swatch
+      .roundRect(0, 0, RGB_SWATCH_SIZE, RGB_SWATCH_SIZE, 6)
+      .fill({ color })
+      .stroke({ color: 0x475569, width: 1 });
+    const hex = `#${color.toString(16).padStart(6, "0").toUpperCase()}`;
+    this._hexText.text = `${hex}\nrgb(${r}, ${g}, ${b})`;
   }
 
   private _refreshOutline(): void {
