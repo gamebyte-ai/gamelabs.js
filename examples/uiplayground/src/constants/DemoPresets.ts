@@ -185,3 +185,17 @@ export const SCROLL_VIEW_DIRECTIONS: readonly ScrollViewDirectionPreset[] = [
 export const SCROLL_VIEW_ITEM_PALETTE: readonly number[] = [
   0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x14b8a6, 0x3b82f6, 0x8b5cf6, 0xec4899,
 ];
+
+// ─── ListDemo ──────────────────────────────────────────────────────────
+
+export type ListVariantPreset = "text" | "text+image" | "image";
+
+export const LIST_VARIANTS: readonly ListVariantPreset[] = ["text", "text+image", "image"];
+
+export type ListSelectionModePreset = "none" | "single" | "multi";
+
+export const LIST_SELECTION_MODES: readonly ListSelectionModePreset[] = [
+  "none",
+  "single",
+  "multi",
+];

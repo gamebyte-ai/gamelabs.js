@@ -11,3 +11,4 @@ export * from "./views/DropdownComponent.pixi.js";
 export * from "./views/RadioButtonComponent.pixi.js";
 export * from "./views/RadioButtonGroupComponent.pixi.js";
 export * from "./views/ScrollViewComponent.pixi.js";
+export * from "./views/ListComponent.pixi.js";

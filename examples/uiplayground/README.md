@@ -16,6 +16,7 @@ tweaking and an event log for runtime callbacks.
 │  RadioButton   │                    │          │
 │  RadioGroup    │                    │          │
 │  ScrollView    │                    │          │
+│  List          │                    │          │
 │   …            │                    │          │
 └────────────────┴────────────────────┴──────────┘
 ```
@@ -123,6 +124,7 @@ examples/uiplayground/src/
 │   ├── ButtonDemoViewController.ts
 │   ├── DropdownDemoViewController.ts
 │   ├── GridLayoutDemoViewController.ts
+│   ├── ListDemoViewController.ts
 │   ├── PlaygroundShellViewController.ts    # sidebar selection routing + ControlsManager.bindShell
 │   ├── RadioButtonDemoViewController.ts
 │   ├── RadioButtonGroupDemoViewController.ts
@@ -139,12 +141,14 @@ examples/uiplayground/src/
 │   ├── IButtonDemoView.ts
 │   ├── IDropdownDemoView.ts
 │   ├── IGridLayoutDemoView.ts
+│   ├── IListDemoView.ts
 │   ├── IPlaygroundShellView.ts
 │   ├── IRadioButtonDemoView.ts
 │   ├── IRadioButtonGroupDemoView.ts
 │   ├── IScrollViewDemoView.ts
 │   ├── ISliderDemoView.ts
 │   ├── IToggleDemoView.ts
+│   ├── ListDemoView.pixi.ts
 │   ├── PlaygroundShellView.pixi.ts          # sidebar + stage + controls + log layout, hosts demo views
 │   ├── RadioButtonDemoView.pixi.ts
 │   ├── RadioButtonGroupDemoView.pixi.ts

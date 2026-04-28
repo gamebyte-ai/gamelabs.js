@@ -4,6 +4,7 @@ import { UIPlaygroundUIIds } from "./UIPlaygroundUIIds.js";
 import { ButtonDemoViewController } from "./controllers/ButtonDemoViewController.js";
 import { DropdownDemoViewController } from "./controllers/DropdownDemoViewController.js";
 import { GridLayoutDemoViewController } from "./controllers/GridLayoutDemoViewController.js";
+import { ListDemoViewController } from "./controllers/ListDemoViewController.js";
 import { PlaygroundShellViewController } from "./controllers/PlaygroundShellViewController.js";
 import { RadioButtonDemoViewController } from "./controllers/RadioButtonDemoViewController.js";
 import { RadioButtonGroupDemoViewController } from "./controllers/RadioButtonGroupDemoViewController.js";
@@ -15,6 +16,7 @@ import { IControlsManager } from "./utilities/IControlsManager.js";
 import { ButtonDemoView } from "./views/ButtonDemoView.pixi.js";
 import { DropdownDemoView } from "./views/DropdownDemoView.pixi.js";
 import { GridLayoutDemoView } from "./views/GridLayoutDemoView.pixi.js";
+import { ListDemoView } from "./views/ListDemoView.pixi.js";
 import { PlaygroundShellView } from "./views/PlaygroundShellView.pixi.js";
 import { RadioButtonDemoView } from "./views/RadioButtonDemoView.pixi.js";
 import { RadioButtonGroupDemoView } from "./views/RadioButtonGroupDemoView.pixi.js";
@@ -78,6 +80,7 @@ export class UIPlaygroundApp extends GamelabsApp {
     this.viewFactory.register(RadioButtonDemoView, RadioButtonDemoViewController);
     this.viewFactory.register(RadioButtonGroupDemoView, RadioButtonGroupDemoViewController);
     this.viewFactory.register(ScrollViewDemoView, ScrollViewDemoViewController);
+    this.viewFactory.register(ListDemoView, ListDemoViewController);
   }
 
   protected override postInitialize(): void {

@@ -18,6 +18,7 @@ import { FONT_FAMILY, LABEL_STYLE, LABEL_WIDTH, MONO_FAMILY, READOUT_STYLE, READ
 import { ButtonDemoView } from "./ButtonDemoView.pixi.js";
 import { DropdownDemoView } from "./DropdownDemoView.pixi.js";
 import { GridLayoutDemoView } from "./GridLayoutDemoView.pixi.js";
+import { ListDemoView } from "./ListDemoView.pixi.js";
 import { RadioButtonDemoView } from "./RadioButtonDemoView.pixi.js";
 import { RadioButtonGroupDemoView } from "./RadioButtonGroupDemoView.pixi.js";
 import { ScrollViewDemoView } from "./ScrollViewDemoView.pixi.js";
@@ -54,6 +55,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     ["radio-button", RadioButtonDemoView],
     ["radio-group", RadioButtonGroupDemoView],
     ["scroll-view", ScrollViewDemoView],
+    ["list", ListDemoView],
   ]);
 
   private _config: UIPlaygroundConfig | null = null;

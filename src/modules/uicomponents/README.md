@@ -13,6 +13,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator with optional label; designed to compose into a group
 - [`RadioButtonGroupComponent`](#radiobuttongroupcomponent) — mutually exclusive set of radio buttons stacked in a column or row
 - [`ScrollViewComponent`](#scrollviewcomponent) — clipped scrollable viewport with mouse-wheel + drag panning and an optional scrollbar
+- [`ListComponent`](#listcomponent) — single-column list with text / text+image / image rows and optional single- or multi-select
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
 - [`HorizontalLayoutComponent`](#horizontallayoutcomponent) — horizontal flex container
 - [`GridLayoutComponent`](#gridlayoutcomponent) — flex container with row-wrap that approximates a CSS grid (no real grid algorithm)
@@ -415,6 +416,76 @@ scroll.onScroll((x, y) => console.log("scrolled to", x, y));
 - **Wheel propagation.** The component only swallows wheel events that actually scrolled — once the view is pinned at an edge, further wheel ticks fall through to the page (or to a parent scroll view), matching browser behavior.
 - **Interactive scrollbar.** Drag the thumb to scroll directly, or click on the track outside the thumb to jump-scroll (the thumb centers on the click, then continues as a drag from the new position so you can keep adjusting). Each axis is one `Graphics` that draws a near-transparent track rect (for hit-testing) plus the visible thumb on top.
 - **Yoga inside content.** `content` has no `.layout` by default — children are positioned manually. To use `@pixi/layout` flex inside, set `scroll.content.layout = { flexDirection: "column", flexShrink: 0, ... }` yourself; otherwise yoga won't propagate through the unsized intermediary.
+
+---
+
+## ListComponent
+
+Single-column list. Each row uses one of three layout variants — `"text"`, `"text+image"`, or `"image"` — picked up front so the row geometry stays stable. Selection is opt-in via `selectionMode`: a list can be a non-selectable button group (`"none"`), a single-select picker (`"single"`), or a multi-select set (`"multi"`).
+
+```ts
+const list = new ListComponent({
+  width: 240,
+  variant: "text+image",
+  selectionMode: "single",
+  items: [
+    { id: "sword", label: "Iron Sword", textureId: "Inventory.IronSword" },
+    { id: "shield", label: "Wood Shield", textureId: "Inventory.WoodShield" },
+    { id: "potion", label: "Health Potion", textureId: "Inventory.HealthPotion" },
+  ],
+  selectedIds: ["sword"],
+});
+list.resolveAssets(assetManager);
+list.onChange((ids, items) => console.log("selected:", ids, items));
+list.onItemPress((id, item) => console.log("pressed:", id, item.label));
+```
+
+The component does NOT scroll on its own. Wrap it in a `ScrollViewComponent` when the row count exceeds the visible area.
+
+### `ListComponentPreset`
+
+| Field           | Type                                | Default    | Description                                                                                                       |
+| --------------- | ----------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| `x`             | `number`                            | —          | X position.                                                                                                       |
+| `y`             | `number`                            | —          | Y position.                                                                                                       |
+| `width`         | `number`                            | `240`      | Total list width.                                                                                                 |
+| `itemHeight`    | `number`                            | `36`       | Per-row height.                                                                                                   |
+| `itemGap`       | `number`                            | `0`        | Vertical gap between rows.                                                                                        |
+| `padding`       | `number`                            | `0`        | Padding around the rows on all sides.                                                                             |
+| `variant`       | `"text" \| "text+image" \| "image"` | `"text"`   | Item layout variant.                                                                                              |
+| `selectionMode` | `"none" \| "single" \| "multi"`     | `"none"`   | Selection model. `"none"` = clickable rows, no selection. `"single"` = mutual exclusion. `"multi"` = toggle each. |
+| `items`         | `readonly ListItem[]`               | `[]`       | Rows to render. May be replaced later with `setItems()`.                                                          |
+| `selectedIds`   | `readonly string[]`                 | `[]`       | Initial selection. Filtered to known ids and the active mode.                                                     |
+| `radius`        | `number`                            | `0`        | Row corner radius.                                                                                                |
+| `fillColor`     | `number`                            | `0x111827` | Resting row background.                                                                                           |
+| `fillAlpha`     | `number`                            | `1`        | Row background alpha (applied to resting / hover / selected).                                                     |
+| `hoverColor`    | `number`                            | `0x374151` | Hover row background.                                                                                             |
+| `selectedColor` | `number`                            | `0x4338ca` | Selected row background.                                                                                          |
+| `borderColor`   | `number`                            | `0x475569` | Row border color (only drawn when `borderWidth > 0`).                                                             |
+| `borderWidth`   | `number`                            | `0`        | Row border width.                                                                                                 |
+| `imageSize`     | `number`                            | `24`       | Square image size (used by `"image"` and `"text+image"` variants).                                                |
+| `imagePadding`  | `number`                            | `8`        | Padding around the image inside its row slot.                                                                     |
+| `labelStyle`    | `Partial<PIXI.TextStyleOptions>`    | —          | Label style overrides merged on top of the defaults.                                                              |
+| `textPadding`   | `number`                            | `12`       | Left padding for the label in the `"text"` variant.                                                               |
+
+`ListItem` is `{ id: string; label?: string; textureId?: string; texture?: PIXI.Texture }`. `id` is the value emitted by `onChange` / `onItemPress` and accepted by `setSelectedIds`. `label` is required for the `"text"` and `"text+image"` variants. Image variants take either a pre-resolved `texture` or a `textureId` resolved via `resolveAssets()` — when both are present, `texture` wins.
+
+### Methods
+
+- `items` / `selectedIds` / `selectedItems` / `selectionMode` / `variant` — getters.
+- `setItems(items)` — replace the rows. Selection is filtered to ids that still exist; matching ids keep their selected state. No `onChange` is fired.
+- `setSelectedIds(ids)` — set the selection programmatically. Normalized for the active mode (clamped to one id in `"single"`, forced empty in `"none"`) and filtered to known ids. Does **not** fire `onChange`.
+- `resolveAssets(assetManager)` — look up each item's `textureId` and apply the loaded texture. Items with a pre-resolved `texture` are left alone. Safe to call repeatedly.
+- `onChange(cb): Unsubscribe` — fires only on user-driven selection changes (single / multi modes only). In `"none"` mode this never fires.
+- `onItemPress(cb): Unsubscribe` — fires on every user tap, regardless of mode.
+
+### Notes
+
+- **Selection is opt-in.** The same component covers a "list of buttons" (`"none"`), a single-select picker (`"single"`), and a multi-select check-list (`"multi"`). Pick the mode at construction; it's not a runtime mutation.
+- **Tap semantics.** In `"single"` mode, re-tapping the already-selected row is a no-op (matches `RadioButtonGroupComponent` and `DropdownComponent`). In `"multi"` mode, re-tapping a selected row removes it from the set. `onItemPress` fires for every tap regardless.
+- **Layout-aware.** The list sets its own `.layout` (a flex column with the configured `width`, `padding`, `itemGap`, `alignItems: "stretch"`, `justifyContent: "flex-start"`) so it nests inside other `@pixi/layout` flex flows. Each row also carries `.layout = { width, height }` so it participates in the column's flex sizing.
+- **No internal scrolling.** Compose with `ScrollViewComponent` for long lists — the list keeps its full height, the scroll view clips and scrolls.
+- **Texture resolution timing.** `setItems()` rebuilds rows with whatever `texture` each item carries; if items use `textureId`, follow up with `resolveAssets(am)`. Re-resolving is idempotent for already-resolved sprites.
 
 ---
 
