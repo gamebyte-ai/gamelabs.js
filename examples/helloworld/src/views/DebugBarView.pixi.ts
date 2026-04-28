@@ -27,7 +27,6 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     height: DebugBarView.barButtonHeight,
     label: "Grid:Off",
     labelStyle: { fontSize: 13 },
-    radius: 10,
   });
 
   private readonly statsButton = new ButtonComponent({
@@ -35,7 +34,6 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     height: DebugBarView.barButtonHeight,
     label: "Stats:Off",
     labelStyle: { fontSize: 13 },
-    radius: 10,
   });
 
   private readonly logButton = new ButtonComponent({
@@ -43,12 +41,15 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     height: DebugBarView.barButtonHeight,
     label: "Log:Off",
     labelStyle: { fontSize: 13 },
-    radius: 10,
   });
 
   public override postInitialize(): void {
     super.postInitialize();
     this.layout = { width: "100%", padding: 16 };
+
+    this.gridButton.resolveAssets(this.assetLoader);
+    this.statsButton.resolveAssets(this.assetLoader);
+    this.logButton.resolveAssets(this.assetLoader);
 
     this.bar.addChild(this.barBg);
     this.bar.addChild(this.gridButton);

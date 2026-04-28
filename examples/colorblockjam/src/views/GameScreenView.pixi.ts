@@ -45,11 +45,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       height: 44,
       label: "⚙", // ⚙ — cog glyph
       labelStyle: { fontSize: 22, fill: 0xe8eef6 },
-      radius: 12,
-      fillColor: 0x1e293b,
-      fillAlpha: 0.75,
-      strokeColor: 0x475569,
     });
+    this._settingsBtn.resolveAssets(this.assetLoader);
     this.addChild(this._settingsBtn);
     this._settingsBtn.onPress(() => {
       for (const cb of this._settingsListeners) cb();

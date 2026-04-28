@@ -1,5 +1,5 @@
 import { vector } from "@js-basics/vector";
-import { AssetTypes, GamelabsApp, GameCameraBinding, GameCameraManager, GridsModel, LogTypes, Topdown2dCameraController, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField, SettingsManager } from "@gamebyte/gamelabsjs";
+import { AssetTypes, GamelabsApp, GameCameraBinding, GameCameraManager, GridsModel, LogTypes, Topdown2dCameraController, UIComponentsBinding, UIEvents, SettingsBinding, SettingsBooleanField, SettingsNumberField, SettingsManager } from "@gamebyte/gamelabsjs";
 import { Match3AssetIds } from "./Match3AssetIds.js";
 import { Match3Config } from "./Match3Config.js";
 import { Match3GameGridBinding } from "./modules/gamegrid/Match3GameGridBinding.js";
@@ -17,6 +17,7 @@ export class Match3App extends GamelabsApp {
   private readonly _gameGridBinding = new Match3GameGridBinding();
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _settingsBinding = new SettingsBinding();
+  private readonly _uiComponentsBinding = new UIComponentsBinding();
   private readonly _gameEvents = new GameEvents();
   private _cameraController: Topdown2dCameraController | null = null;
   private _cameraManager: GameCameraManager | null = null;
@@ -29,6 +30,7 @@ export class Match3App extends GamelabsApp {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._gameGridBinding);
     this.addModule(this._settingsBinding);
+    this.addModule(this._uiComponentsBinding);
   }
 
   protected override configureDI(): void {

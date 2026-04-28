@@ -18,11 +18,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       height: 44,
       label: "\u2699",
       labelStyle: { fontSize: 22, fill: 0xcbd5e0 },
-      radius: 12,
-      fillColor: 0x1e293b,
-      fillAlpha: 0.7,
-      strokeColor: 0x475569,
     });
+    this._settingsBtn.resolveAssets(this.assetLoader);
     this.addChild(this._settingsBtn);
     this._settingsBtn.onPress(() => {
       for (const cb of this._settingsListeners) cb();

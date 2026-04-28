@@ -1,4 +1,4 @@
-import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, GameCameraManager, Topdown2dCameraController, OnScreenControlsBinding } from "@gamebyte/gamelabsjs";
+import { GamelabsApp, UIComponentsBinding, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, GameCameraManager, Topdown2dCameraController, OnScreenControlsBinding } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
@@ -23,6 +23,7 @@ export class AvoidanceApp extends GamelabsApp {
   private readonly _gameEvents = new GameEvents();
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _onScreenControlsBinding = new OnScreenControlsBinding();
+  private readonly _uiComponentsBinding = new UIComponentsBinding();
 
   private _gameAreaView: GameAreaView | null = null;
   private _cameraController: Topdown2dCameraController | null = null;
@@ -35,6 +36,7 @@ export class AvoidanceApp extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._onScreenControlsBinding);
+    this.addModule(this._uiComponentsBinding);
   }
 
   protected override configureDI(): void {

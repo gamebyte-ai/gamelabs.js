@@ -1,4 +1,4 @@
-import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, GameCameraManager, Orbital3dCameraController, UIEvents } from "@gamebyte/gamelabsjs";
+import { AssetRequest, AssetTypes, AssetRequestList, GamelabsApp, LogTypes, GameCameraBinding, GameCameraManager, Orbital3dCameraController, UIComponentsBinding, UIEvents } from "@gamebyte/gamelabsjs";
 
 import { CubeView } from "./views/CubeView.three";
 import { CubeViewController } from "./controllers/CubeViewController";
@@ -25,6 +25,7 @@ export class HelloWorldApp extends GamelabsApp {
   private readonly _gameEvents = new GameEvents();
   private readonly _debugEvents = new DebugEvents();
   private readonly _gameCameraBinding = new GameCameraBinding();
+  private readonly _uiComponentsBinding = new UIComponentsBinding();
 
   private _cubeView: CubeView | null = null;
   private _orbitalController: Orbital3dCameraController | null = null;
@@ -36,6 +37,7 @@ export class HelloWorldApp extends GamelabsApp {
 
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
+    this.addModule(this._uiComponentsBinding);
   }
 
   protected override configureDI(): void {

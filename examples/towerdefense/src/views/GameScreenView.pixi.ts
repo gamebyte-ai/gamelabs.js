@@ -95,10 +95,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       height: GameScreenView.BTN_H,
       label: "Generate Level",
       labelStyle: { fontSize: 14, fontWeight: "600", fill: 0xffffff },
-      radius: 6,
-      fillColor: 0x4488cc,
-      strokeColor: 0x5599dd,
     });
+    generateBtn.resolveAssets(this.assetLoader);
     generateBtn.onPress(() => this._generateHandler?.());
     row.addChild(generateBtn);
 
@@ -122,11 +120,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       height: 36,
       label: "\u2699",
       labelStyle: { fontSize: 20, fill: 0xcbd5e0 },
-      radius: 8,
-      fillColor: 0x1e293b,
-      fillAlpha: 0.7,
-      strokeColor: 0x475569,
     });
+    settingsBtn.resolveAssets(this.assetLoader);
     settingsBtn.onPress(() => {
       for (const cb of this._settingsListeners) cb();
     });
@@ -158,15 +153,14 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private _makeTowerCard(typeId: TowerTypeId, name: string, cost: number, color: number): ButtonComponent {
     const { SHOP_CARD_W, SHOP_CARD_H } = GameScreenView;
 
+    // Each tower type carries its own color identity, so tint the default
+    // skin per-card to preserve the visual distinction between tower types.
     const card = new ButtonComponent({
       width: SHOP_CARD_W,
       height: SHOP_CARD_H,
-      radius: 6,
-      fillColor: color,
-      fillAlpha: 0.85,
-      strokeColor: 0x000000,
-      strokeWidth: 0,
     });
+    card.resolveAssets(this.assetLoader);
+    card.tint = color;
 
     const nameText = new PIXI.Text({
       text: name,

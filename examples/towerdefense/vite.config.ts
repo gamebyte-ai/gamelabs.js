@@ -19,6 +19,7 @@ export default defineConfig({
   },
   server: {
     port: 5174,
-    strictPort: true
+    strictPort: true,
+    fs: { allow: [resolve(__dirname, "../..")] }
   }
 });

@@ -63,12 +63,9 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._restartBtn = new ButtonComponent({
       width: 100, height: 36,
       label: "Restart",
-      labelStyle: { fontSize: 14, fill: 0x4a5568 },
-      radius: 18,
-      fillColor: 0xffffff,
-      fillAlpha: 0.6,
-      strokeColor: 0xcbd5e0,
+      labelStyle: { fontSize: 14, fill: 0xe8eef6 },
     });
+    this._restartBtn.resolveAssets(this.assetLoader);
     this.addChild(this._restartBtn);
     this._restartBtn.onPress(() => {
       for (const cb of this._restartListeners) cb();

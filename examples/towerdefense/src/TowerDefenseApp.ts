@@ -15,6 +15,7 @@ import {
   SettingsBooleanField,
   SettingsManager,
   SettingsNumberField,
+  UIComponentsBinding,
   UIEvents,
   UnsubscribeBag,
   World,
@@ -56,6 +57,7 @@ export class TowerDefenseApp extends GamelabsApp {
   private readonly _gameGridBinding = new TowerDefenseGameGridBinding(this._config, this._level);
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _settingsBinding = new SettingsBinding();
+  private readonly _uiComponentsBinding = new UIComponentsBinding();
   private readonly _events = new GameEvents();
   private readonly _gameState: GameState;
   private _orbitalController: Orbital3dCameraController | null = null;
@@ -89,6 +91,7 @@ export class TowerDefenseApp extends GamelabsApp {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._gameGridBinding);
     this.addModule(this._settingsBinding);
+    this.addModule(this._uiComponentsBinding);
   }
 
   protected override configureDI(): void {

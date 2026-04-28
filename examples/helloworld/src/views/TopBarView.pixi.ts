@@ -42,8 +42,6 @@ export class TopBarView extends HudViewBase implements ITopBarView {
     height: TopBarView.buttonHeight,
     label: "Toggle cube color",
     labelStyle: { fontSize: 14, fontWeight: "400" },
-    radius: 12,
-    fillAlpha: 0.85,
   });
 
   private readonly toggleRotationButton = new ButtonComponent({
@@ -51,8 +49,6 @@ export class TopBarView extends HudViewBase implements ITopBarView {
     height: TopBarView.buttonHeight,
     label: "Toggle cube rotation",
     labelStyle: { fontSize: 14, fontWeight: "400" },
-    radius: 12,
-    fillAlpha: 0.85,
   });
 
   private readonly debugButton = new ButtonComponent({
@@ -60,13 +56,15 @@ export class TopBarView extends HudViewBase implements ITopBarView {
     height: TopBarView.buttonHeight,
     label: "Debug",
     labelStyle: { fontSize: 14 },
-    radius: 12,
-    fillAlpha: 0.85,
   });
 
   public override postInitialize(): void {
     super.postInitialize();
     this.layout = { width: "100%", padding: 16 };
+
+    this.toggleColorButton.resolveAssets(this.assetLoader);
+    this.toggleRotationButton.resolveAssets(this.assetLoader);
+    this.debugButton.resolveAssets(this.assetLoader);
 
     this.bar.addChild(this.barBg);
 

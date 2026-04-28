@@ -14,6 +14,7 @@ import {
   SettingsEvents,
   SettingsManager,
   SettingsNumberField,
+  UIComponentsBinding,
   UIEvents,
   UnsubscribeBag,
   World,
@@ -65,6 +66,7 @@ export class HexaSortApp extends GamelabsApp {
   private readonly _config = new HexaSortConfig();
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _settingsBinding = new SettingsBinding();
+  private readonly _uiComponentsBinding = new UIComponentsBinding();
   private readonly _events = new GameEvents();
   private readonly _stackOps = new BlockStackOperations(this._config);
   private _grid: HexGrid | null = null;
@@ -81,6 +83,7 @@ export class HexaSortApp extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._settingsBinding);
+    this.addModule(this._uiComponentsBinding);
   }
 
   protected override configureDI(): void {

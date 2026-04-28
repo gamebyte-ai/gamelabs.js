@@ -60,16 +60,16 @@ export class WinPopupView extends PopupView implements IWinPopupView {
     this._detailText.layout = {};
     panel.addChild(this._detailText);
 
+    // Win popup's CTA — green for the "next level" affordance, kept on
+    // top of the default skin via tint.
     this._nextBtn = new ButtonComponent({
       width: 160,
       height: 44,
       label: "Next Level",
       labelStyle: { fontSize: 15, fontWeight: "700", fill: 0xffffff },
-      radius: 22,
-      fillColor: 0x48bb78,
-      fillAlpha: 1,
-      strokeColor: 0x38a169,
     });
+    this._nextBtn.resolveAssets(this.assetLoader);
+    this._nextBtn.tint = 0x48bb78;
     panel.addChild(this._nextBtn);
 
     this._nextBtn.onPress(() => {

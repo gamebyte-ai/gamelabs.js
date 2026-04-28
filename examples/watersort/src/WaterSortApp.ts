@@ -1,4 +1,4 @@
-import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList } from "@gamebyte/gamelabsjs";
+import { GamelabsApp, UIComponentsBinding, UIEvents, AssetRequest, AssetTypes, AssetRequestList } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
@@ -17,9 +17,14 @@ export class WaterSortApp extends GamelabsApp {
   private readonly _config = new WaterSortConfig();
   private readonly _gameEvents = new GameEvents();
   private readonly _assetRequestList = new AssetRequestList();
+  private readonly _uiComponentsBinding = new UIComponentsBinding();
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
+  }
+
+  protected override registerModules(): void {
+    this.addModule(this._uiComponentsBinding);
   }
 
   protected override configureDI(): void {

@@ -57,10 +57,8 @@ export class GameOverPopupView extends PopupView implements IGameOverPopupView {
       height: 44,
       label: "Play Again",
       labelStyle: { fontSize: 16, fontWeight: "600" },
-      radius: 10,
-      fillColor: 0x1a3a24,
-      strokeColor: 0x2a5a3a,
     });
+    this._playAgainBtn.resolveAssets(this.assetLoader);
     panel.addChild(this._playAgainBtn);
 
     this._playAgainBtn.onPress(() => {
