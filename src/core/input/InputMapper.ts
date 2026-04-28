@@ -76,4 +76,32 @@ export class InputMapper {
       for (const u of unsubs) u();
     };
   }
+
+  /**
+   * Bind two analog axis ranges to a named direction action.
+   *
+   * Use for joysticks (`<id>.x` / `<id>.y`) and gamepad sticks where
+   * preserving the float value matters. The action fires with the
+   * device's raw normalized values (typically in `[-1, 1]`); apps
+   * that want a dead zone or clamping should apply it inside the
+   * action callback.
+   *
+   * Each axis is subscribed independently, so changes on either axis
+   * fire the action with the latest pair read from `getRangeValue`.
+   */
+  public mapRangesToDirection(deviceId: string, xCode: string, yCode: string, actionName: string): Unsubscribe {
+    const listener = this._deviceListeners.get(deviceId);
+    if (!listener) throw new Error(`Device listener not found: ${deviceId}`);
+
+    const emit = (): void => {
+      const action = this._directionActions.get(actionName);
+      if (!action) return;
+      action(listener.getRangeValue(xCode), listener.getRangeValue(yCode));
+    };
+
+    const unsubs = [listener.addRangeHandler(xCode, emit), listener.addRangeHandler(yCode, emit)];
+    return () => {
+      for (const u of unsubs) u();
+    };
+  }
 }

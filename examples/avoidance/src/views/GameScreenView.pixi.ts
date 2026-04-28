@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { ScreenView, OnScreenControlsView } from "@gamebyte/gamelabsjs";
+import { OnScreenControlsView, ScreenView } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView";
 
 export class GameScreenView extends ScreenView implements IGameScreenView {
@@ -25,7 +25,9 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._waveAnnounce.visible = false;
     this.addChild(this._waveAnnounce);
 
-    // On-screen controls as a sub-view
+    // On-screen controls as a sub-view — hosts the joystick AND the
+    // slow-time button (registered via OnScreenControlManager in
+    // PlayerInputManager). The screen view stays focused on HUD chrome.
     this._onScreenControls = this.viewFactory.createView(OnScreenControlsView);
     this.addChild(this._onScreenControls);
 

@@ -59,6 +59,7 @@ export class AvoidanceApp extends GamelabsApp {
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, AvoidanceAssetIds.Background, new URL("../assets/background.png", import.meta.url).href));
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, AvoidanceAssetIds.Player, new URL("../assets/player.png", import.meta.url).href));
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, AvoidanceAssetIds.Enemy, new URL("../assets/enemy.png", import.meta.url).href));
+    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, AvoidanceAssetIds.SlowIcon, new URL("../assets/slow-icon.png", import.meta.url).href));
     this.assetManager.loadAll(this._assetRequestList.getRequests());
   }
 
