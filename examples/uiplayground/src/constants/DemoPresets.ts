@@ -167,3 +167,21 @@ export const RADIO_GROUP_ITEM_LIBRARY: readonly RadioGroupItemPreset[] = [
 export type RadioGroupDirection = "column" | "row";
 
 export const RADIO_GROUP_DIRECTIONS: readonly RadioGroupDirection[] = ["column", "row"];
+
+// ─── ScrollViewDemo ────────────────────────────────────────────────────
+
+export type ScrollViewDirectionPreset = "vertical" | "horizontal" | "both";
+
+export const SCROLL_VIEW_DIRECTIONS: readonly ScrollViewDirectionPreset[] = [
+  "vertical",
+  "horizontal",
+  "both",
+];
+
+/**
+ * Color palette used to colour each scrollable demo item — index
+ * modulo length so an arbitrary item count keeps cycling through.
+ */
+export const SCROLL_VIEW_ITEM_PALETTE: readonly number[] = [
+  0xef4444, 0xf97316, 0xeab308, 0x22c55e, 0x14b8a6, 0x3b82f6, 0x8b5cf6, 0xec4899,
+];

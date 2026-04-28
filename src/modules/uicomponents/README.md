@@ -12,6 +12,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`DropdownComponent`](#dropdowncomponent) — select-style dropdown with overlay-rendered option list
 - [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator with optional label; designed to compose into a group
 - [`RadioButtonGroupComponent`](#radiobuttongroupcomponent) — mutually exclusive set of radio buttons stacked in a column or row
+- [`ScrollViewComponent`](#scrollviewcomponent) — clipped scrollable viewport with mouse-wheel + drag panning and an optional scrollbar
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
 - [`HorizontalLayoutComponent`](#horizontallayoutcomponent) — horizontal flex container
 - [`GridLayoutComponent`](#gridlayoutcomponent) — flex container with row-wrap that approximates a CSS grid (no real grid algorithm)
@@ -359,6 +360,61 @@ group.onChange((id, item) => {
 
 - **The group is the single source of truth.** Each child `RadioButtonComponent` exposes `onPress` (decoupled by design) and only updates its visual when the group calls `setSelected`. This keeps the mutual-exclusion logic in one place and makes programmatic vs. user-driven changes distinguishable (`setSelectedId` is silent; user taps fire `onChange`).
 - **Layout-aware.** The group sets its own `.layout` (a flex container with the configured `direction`, `spacing`, and `padding`, plus `alignItems: "flex-start"` and `justifyContent: "flex-start"`) so it nests inside other `@pixi/layout` flex flows.
+
+---
+
+## ScrollViewComponent
+
+Clipped scrollable viewport. Exposes a public `content` container — add scrollable children to it directly. Mouse-wheel anywhere over the viewport scrolls; pointer-down on the viewport background pans (interactive children inside content keep their normal taps). The scrollbar is interactive: drag the thumb to scroll directly, or click the track to jump-scroll.
+
+```ts
+const scroll = new ScrollViewComponent({
+  width: 240,
+  height: 320,
+  direction: "vertical",
+});
+for (const item of items) scroll.content.addChild(item);
+// Tell the view how big the content is so scroll bounds match.
+scroll.refresh();
+scroll.onScroll((x, y) => console.log("scrolled to", x, y));
+```
+
+### `ScrollViewComponentPreset`
+
+| Field                | Type                                   | Default      | Description                                                          |
+| -------------------- | -------------------------------------- | ------------ | -------------------------------------------------------------------- |
+| `x`                  | `number`                               | —            | X position.                                                          |
+| `y`                  | `number`                               | —            | Y position.                                                          |
+| `width`              | `number`                               | **required** | Viewport width.                                                      |
+| `height`             | `number`                               | **required** | Viewport height.                                                     |
+| `direction`          | `"vertical" \| "horizontal" \| "both"` | `"vertical"` | Allowed scroll axis. The disabled axis is forced to `0`.             |
+| `fillColor`          | `number`                               | `0x000000`   | Background fill color (only drawn when `fillAlpha > 0`).             |
+| `fillAlpha`          | `number`                               | `0`          | Background fill alpha. `0` skips the background entirely.            |
+| `showScrollbar`      | `boolean`                              | `true`       | Whether to draw the interactive scrollbar (thumb-drag + track-jump). |
+| `scrollbarColor`     | `number`                               | `0x94a3b8`   | Scrollbar thumb color.                                               |
+| `scrollbarAlpha`     | `number`                               | `0.6`        | Scrollbar thumb alpha.                                               |
+| `scrollbarThickness` | `number`                               | `4`          | Scrollbar thumb thickness in pixels.                                 |
+| `scrollbarMargin`    | `number`                               | `2`          | Distance from the viewport edge to the scrollbar.                    |
+| `wheelSpeed`         | `number`                               | `50`         | Pixels scrolled per wheel notch (browser delta is divided by 100).   |
+| `dragEnabled`        | `boolean`                              | `true`       | Whether dragging on the viewport background pans the content.        |
+
+### Methods
+
+- `content` — public `PIXI.Container` that hosts the scrollable children.
+- `scrollX` / `scrollY` / `viewportWidth` / `viewportHeight` / `contentWidth` / `contentHeight` / `scrollableWidth` / `scrollableHeight` — getters.
+- `scrollTo(x, y)` — set the scroll offset (clamped; fires `onScroll` when the effective offset changes).
+- `scrollBy(dx, dy)` — relative scroll.
+- `refresh()` — recompute content size from `content.getLocalBounds()`. Call after adding, removing, or resizing children.
+- `setContentSize(width, height)` — explicit override that skips the bounds measurement.
+- `onScroll(cb): Unsubscribe` — fires whenever the scroll offset changes (user-driven OR programmatic).
+
+### Notes
+
+- **Content size is opt-in.** The component does not watch `content` for changes; call `refresh()` after mutating children, or call `setContentSize` directly if you already know the dimensions. Scroll offsets are clamped against the current content size — shrinking content automatically brings scroll back into bounds.
+- **Drag from background only.** Pointer-down only starts a pan when the hit target is the viewport itself, so taps on interactive children (buttons, list rows, etc.) aren't intercepted. To support drag-from-anywhere (mobile-list style), gate it externally on a movement threshold and call `scrollBy` yourself.
+- **Wheel propagation.** The component only swallows wheel events that actually scrolled — once the view is pinned at an edge, further wheel ticks fall through to the page (or to a parent scroll view), matching browser behavior.
+- **Interactive scrollbar.** Drag the thumb to scroll directly, or click on the track outside the thumb to jump-scroll (the thumb centers on the click, then continues as a drag from the new position so you can keep adjusting). Each axis is one `Graphics` that draws a near-transparent track rect (for hit-testing) plus the visible thumb on top.
+- **Yoga inside content.** `content` has no `.layout` by default — children are positioned manually. To use `@pixi/layout` flex inside, set `scroll.content.layout = { flexDirection: "column", flexShrink: 0, ... }` yourself; otherwise yoga won't propagate through the unsized intermediary.
 
 ---
 
