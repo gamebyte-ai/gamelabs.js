@@ -184,11 +184,18 @@ export class DropdownDemoView extends HudViewBase implements IDropdownDemoView {
     this._dropdown.layout = { width: this._width, height: DEFAULT_HEIGHT };
     this._changeUnsub = this._dropdown.onChange((id, item) => this._fireChange(id, item));
     this.addChild(this._dropdown);
-    // Move the persistent test button back to the end of the children
-    // list so it stays AFTER the freshly added dropdown in flex order
-    // (Pixi's `addChild` on an existing child moves it). The button
-    // itself isn't recreated — it lives independently of the dropdown.
-    if (this._testButton) this.addChild(this._testButton);
+    // Move the persistent test button back to the end so it stays
+    // AFTER the freshly added dropdown in flex order. Pixi's
+    // `addChild` on an existing child only reorders the Pixi
+    // children list and doesn't fire `"removed"` / `"added"`, which
+    // means @pixi/layout's yoga-node tracking is left at the old
+    // index — yoga then renders the button above the dropdown.
+    // Detaching first guarantees both events fire and yoga rebuilds
+    // its child order from the new Pixi order.
+    if (this._testButton) {
+      this._testButton.removeFromParent();
+      this.addChild(this._testButton);
+    }
     this._refreshOutline();
   }
 
