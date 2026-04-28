@@ -7,7 +7,7 @@ export type ListSelectionMode = "none" | "single" | "multi";
 
 export type ListItemVariant = "text" | "text+image" | "image";
 
-export type ListItem = {
+export type ListItem<T = unknown> = {
   /** Unique identifier for this row. Used by `selectedIds` / `setSelectedIds`. */
   readonly id: string;
   /** Label text. Used by the `"text"` and `"text+image"` variants. */
@@ -22,9 +22,17 @@ export type ListItem = {
    * present, `texture` wins so callers can override resolution.
    */
   readonly texture?: PIXI.Texture;
+  /**
+   * Caller-defined payload carried with the row. The type parameter
+   * `T` threads through `setItems` / `selectedItems` / `onChange` /
+   * `onItemPress` so games can attach typed data (inventory metadata,
+   * difficulty tier, etc.) without external bookkeeping. The list
+   * never reads or renders `data` — it's opaque to the component.
+   */
+  readonly data?: T;
 };
 
-export type ListComponentPreset = {
+export type ListComponentPreset<T = unknown> = {
   /** X position. */
   x?: number;
   /** Y position. */
@@ -49,7 +57,7 @@ export type ListComponentPreset = {
    */
   selectionMode?: ListSelectionMode;
   /** Items to render. May be replaced later with `setItems()`. */
-  items?: readonly ListItem[];
+  items?: readonly ListItem<T>[];
   /** Initial selection. Filtered to known item ids and the active selection mode. */
   selectedIds?: readonly string[];
 
@@ -84,9 +92,14 @@ export type ListComponentPreset = {
 
 /**
  * Parse a JSON string into ListComponentPreset.
+ *
+ * The optional generic parameter is purely a TypeScript convenience —
+ * JSON has no payload type info, so the caller is asserting the shape.
+ * Use `parseListComponentPreset<MyData>(json)` to thread the type
+ * through, or run a runtime validator if the JSON is untrusted.
  */
-export function parseListComponentPreset(json: string): ListComponentPreset {
-  return JSON.parse(json) as ListComponentPreset;
+export function parseListComponentPreset<T = unknown>(json: string): ListComponentPreset<T> {
+  return JSON.parse(json) as ListComponentPreset<T>;
 }
 
 const DEFAULT_LABEL_STYLE: Partial<PIXI.TextStyleOptions> = {
@@ -96,8 +109,8 @@ const DEFAULT_LABEL_STYLE: Partial<PIXI.TextStyleOptions> = {
   fontWeight: "600",
 };
 
-type RowEntry = {
-  item: ListItem;
+type RowEntry<T> = {
+  item: ListItem<T>;
   row: PIXI.Container;
   bg: PIXI.Graphics;
   sprite: PIXI.Sprite | null;
@@ -129,7 +142,7 @@ type RowEntry = {
  * `setItems()`, call `resolveAssets(assetManager)` to look up any
  * textureIds; pre-resolved `texture`s are always honored verbatim.
  */
-export class ListComponent extends PIXI.Container {
+export class ListComponent<T = unknown> extends PIXI.Container {
   private readonly _width: number;
   private readonly _itemHeight: number;
   private readonly _padding: number;
@@ -147,14 +160,14 @@ export class ListComponent extends PIXI.Container {
   private readonly _labelStyle: Partial<PIXI.TextStyleOptions>;
   private readonly _textPadding: number;
 
-  private readonly _changeListeners = new Set<(selectedIds: readonly string[], selectedItems: readonly ListItem[]) => void>();
-  private readonly _pressListeners = new Set<(id: string, item: ListItem) => void>();
-  private readonly _entries: RowEntry[] = [];
+  private readonly _changeListeners = new Set<(selectedIds: readonly string[], selectedItems: readonly ListItem<T>[]) => void>();
+  private readonly _pressListeners = new Set<(id: string, item: ListItem<T>) => void>();
+  private readonly _entries: RowEntry<T>[] = [];
 
-  private _items: readonly ListItem[];
+  private _items: readonly ListItem<T>[];
   private _selectedIds: readonly string[];
 
-  public constructor(opts: ListComponentPreset = {}) {
+  public constructor(opts: ListComponentPreset<T> = {}) {
     super();
 
     this._width = opts.width ?? 240;
@@ -194,7 +207,7 @@ export class ListComponent extends PIXI.Container {
   }
 
   /** Current items list. */
-  public get items(): readonly ListItem[] {
+  public get items(): readonly ListItem<T>[] {
     return this._items;
   }
 
@@ -204,7 +217,7 @@ export class ListComponent extends PIXI.Container {
   }
 
   /** Items currently in the selection set, in items order. */
-  public get selectedItems(): readonly ListItem[] {
+  public get selectedItems(): readonly ListItem<T>[] {
     if (this._selectedIds.length === 0) return [];
     const idSet = new Set(this._selectedIds);
     return this._items.filter((it) => idSet.has(it.id));
@@ -225,7 +238,7 @@ export class ListComponent extends PIXI.Container {
    * exist; removed-then-re-added items keep their selection state if
    * the id matches. No `onChange` is fired.
    */
-  public setItems(items: readonly ListItem[]): void {
+  public setItems(items: readonly ListItem<T>[]): void {
     this._items = items;
     this._selectedIds = this._normalizeSelection(this._filterKnownIds(this._selectedIds, items));
     this._rebuildRows();
@@ -263,13 +276,13 @@ export class ListComponent extends PIXI.Container {
   }
 
   /** Subscribe to user-driven selection changes (single / multi modes only). */
-  public onChange(cb: (selectedIds: readonly string[], selectedItems: readonly ListItem[]) => void): Unsubscribe {
+  public onChange(cb: (selectedIds: readonly string[], selectedItems: readonly ListItem<T>[]) => void): Unsubscribe {
     this._changeListeners.add(cb);
     return () => this._changeListeners.delete(cb);
   }
 
   /** Subscribe to user taps on any row. Fires for every mode, including `"none"`. */
-  public onItemPress(cb: (id: string, item: ListItem) => void): Unsubscribe {
+  public onItemPress(cb: (id: string, item: ListItem<T>) => void): Unsubscribe {
     this._pressListeners.add(cb);
     return () => this._pressListeners.delete(cb);
   }
@@ -283,7 +296,7 @@ export class ListComponent extends PIXI.Container {
 
   // ── Internals ──────────────────────────────────────────────────────
 
-  private _filterKnownIds(ids: readonly string[], items: readonly ListItem[]): readonly string[] {
+  private _filterKnownIds(ids: readonly string[], items: readonly ListItem<T>[]): readonly string[] {
     if (ids.length === 0) return ids;
     const known = new Set(items.map((it) => it.id));
     return ids.filter((id) => known.has(id));
@@ -317,7 +330,7 @@ export class ListComponent extends PIXI.Container {
     this._syncRowVisuals();
   }
 
-  private _createRow(item: ListItem): RowEntry {
+  private _createRow(item: ListItem<T>): RowEntry<T> {
     const w = this._width - this._padding * 2;
     const h = this._itemHeight;
     const row = new PIXI.Container();
@@ -363,14 +376,14 @@ export class ListComponent extends PIXI.Container {
     return { item, row, bg, sprite, text };
   }
 
-  private _onRowPointerOver(item: ListItem): void {
+  private _onRowPointerOver(item: ListItem<T>): void {
     if (this._isSelected(item.id)) return;
     const entry = this._entries.find((e) => e.item.id === item.id);
     if (!entry) return;
     this._paintRow(entry.bg, this._hoverColor);
   }
 
-  private _onRowPointerOut(item: ListItem): void {
+  private _onRowPointerOut(item: ListItem<T>): void {
     const entry = this._entries.find((e) => e.item.id === item.id);
     if (!entry) return;
     const color = this._isSelected(item.id) ? this._selectedColor : this._fillColor;
@@ -404,7 +417,7 @@ export class ListComponent extends PIXI.Container {
     }
   }
 
-  private _handleItemTap(item: ListItem): void {
+  private _handleItemTap(item: ListItem<T>): void {
     let nextSelection: readonly string[] = this._selectedIds;
     let changed = false;
 
