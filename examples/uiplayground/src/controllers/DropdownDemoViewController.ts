@@ -96,6 +96,7 @@ export class DropdownDemoViewController implements IViewController<IDropdownDemo
     );
 
     this._subs.add(view.onChange((id, item) => this._onLiveChange(id, item)));
+    this._subs.add(view.onTestButtonPress(() => this._onTestButtonPressed()));
   }
 
   public destroy(): void {
@@ -151,6 +152,10 @@ export class DropdownDemoViewController implements IViewController<IDropdownDemo
     const idx = items.findIndex((it) => it.id === id);
     this._selectionCycleIndex = idx === -1 ? 0 : idx + 1;
     this._controls?.appendLog(`Dropdown → onChange id="${id}" label="${item.label}"`);
+  }
+
+  private _onTestButtonPressed(): void {
+    this._controls?.appendLog("Dropdown demo → button-below pressed");
   }
 
   private _currentItems(): readonly DropdownItem[] {

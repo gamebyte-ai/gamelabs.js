@@ -18,4 +18,11 @@ export interface IDropdownDemoView extends IView {
   setOutlineVisible(visible: boolean): void;
   /** Fires whenever the user picks an option. */
   onChange(cb: (id: string, item: DropdownItem) => void): Unsubscribe;
+  /**
+   * Fires when the test button rendered below the dropdown is pressed.
+   * The button exists as a fixture for verifying overlay z-order: the
+   * dropdown's open list should paint over this button, and the button
+   * should be clickable once the list closes.
+   */
+  onTestButtonPress(cb: () => void): Unsubscribe;
 }
