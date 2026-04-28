@@ -1,4 +1,5 @@
-import { GamelabsApp, LogTypes, UIEvents } from "@gamebyte/gamelabsjs";
+import { AssetTypes, GamelabsApp, LogTypes, UIComponentsBinding, UIEvents } from "@gamebyte/gamelabsjs";
+import { UIPlaygroundAssetIds } from "./UIPlaygroundAssetIds.js";
 import { UIPlaygroundConfig } from "./UIPlaygroundConfig.js";
 import { UIPlaygroundUIIds } from "./UIPlaygroundUIIds.js";
 import { ButtonDemoViewController } from "./controllers/ButtonDemoViewController.js";
@@ -47,9 +48,43 @@ import { ToggleDemoView } from "./views/ToggleDemoView.pixi.js";
 export class UIPlaygroundApp extends GamelabsApp {
   private readonly _config = new UIPlaygroundConfig();
   private readonly _controlsManager = new ControlsManager();
+  private readonly _uiComponentsBinding = new UIComponentsBinding();
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
+  }
+
+  protected override registerModules(): void {
+    // Ships the framework default button skin (idle/hover/pressed/disabled)
+    // so the Button demo's "default" button has art without us providing any.
+    this.addModule(this._uiComponentsBinding);
+  }
+
+  protected override loadAssets(): void {
+    // Custom skin used by the second button in the Button demo. Demonstrates
+    // the override flow: the skin's asset ids point at example-owned PNGs
+    // registered here, distinct from the default-skin ids shipped by
+    // UIComponentsBinding.
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomButtonIdle,
+      new URL("../assets/button/idle.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomButtonHover,
+      new URL("../assets/button/hover.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomButtonPressed,
+      new URL("../assets/button/pressed.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomButtonDisabled,
+      new URL("../assets/button/disabled.png", import.meta.url).href,
+    );
   }
 
   protected override configureDI(): void {

@@ -1,23 +1,19 @@
 import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
 
 /**
- * Live preview surface for the Button demo. The view owns the
- * `ButtonComponent` instance; the controller reshapes it via these
- * setters and listens for press events.
+ * View interface for the Button demo. Drives two buttons:
+ *   - one using the framework default skin (subject to the enabled toggle)
+ *   - one using a playground-owned custom skin via asset-id override
  *
- * Because `ButtonComponent` only exposes runtime setters for
- * `label` + `texture`, every other prop change rebuilds the underlying
- * component internally — that's a view-side concern hidden behind this
- * interface.
+ * Width / height / label changes apply to both. The enabled toggle
+ * applies only to the default button so the user can see a button that
+ * shows the `disabled` texture next to one that doesn't.
  */
 export interface IButtonDemoView extends IView {
   setWidth(width: number): void;
   setHeight(height: number): void;
-  setRadius(radius: number): void;
-  setFillColor(color: number): void;
   setLabel(label: string): void;
-  /** Toggles the debug outline drawn around the live component's bounds. */
   setOutlineVisible(visible: boolean): void;
-  /** Fires whenever the live button is pressed by the user. */
-  onPress(cb: () => void): Unsubscribe;
+  setDefaultButtonEnabled(enabled: boolean): void;
+  onPress(cb: (which: "default" | "custom") => void): Unsubscribe;
 }

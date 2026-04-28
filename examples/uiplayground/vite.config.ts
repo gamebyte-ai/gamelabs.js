@@ -29,5 +29,12 @@ export default defineConfig({
   server: {
     port: 5184,
     strictPort: true,
+    fs: {
+      // The framework default button skin lives in the parent repo's
+      // `dist/assets/uicomponents/button/` (shipped by `UIComponentsBinding`).
+      // Allow Vite to serve files from the gamelabs.js root so the lib can
+      // resolve those texture URLs from `import.meta.url` at dev time.
+      allow: [resolve(__dirname, "../..")],
+    },
   },
 });

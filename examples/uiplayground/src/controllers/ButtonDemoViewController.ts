@@ -3,24 +3,24 @@ import {
   type IInstanceResolver,
   type IViewController,
 } from "@gamebyte/gamelabsjs";
-import {
-  BUTTON_FILL_LABELS,
-  BUTTON_FILL_PALETTE,
-  BUTTON_TEXT_PRESETS,
-} from "../constants/DemoPresets.js";
+import { BUTTON_TEXT_PRESETS } from "../constants/DemoPresets.js";
 import { IControlsManager } from "../utilities/IControlsManager.js";
 import type { IButtonDemoView } from "../views/IButtonDemoView.js";
 
 /**
- * Controller for `ButtonDemoView`. Populates the shared controls panel
- * with width / height / radius / fill-color / label tweaks and pipes
- * the live button's `onPress` events into the event log.
+ * Controller for `ButtonDemoView`. Drives the two stacked buttons —
+ * a default-skinned one and a custom-skinned one fetched by asset id —
+ * and pipes their `onPress` events into the event log.
+ *
+ * The "default-button enabled" cycle flips only the default button so
+ * users can see the `disabled` texture state side-by-side with an
+ * always-enabled button.
  */
 export class ButtonDemoViewController implements IViewController<IButtonDemoView> {
   private _controls: IControlsManager | null = null;
   private _view: IButtonDemoView | null = null;
-  private _fillIndex = 0;
   private _labelIndex = 0;
+  private _defaultEnabled = true;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
@@ -34,42 +34,22 @@ export class ButtonDemoViewController implements IViewController<IButtonDemoView
     this._view = view;
     this._controls.clear();
 
-    // Sync the persistent outline toggle's current state into the
-    // freshly mounted view, then subscribe so future toggles propagate.
     view.setOutlineVisible(this._controls.isOutlineVisible());
     this._subs.add(this._controls.onOutlineChanged((visible) => view.setOutlineVisible(visible)));
 
     this._subs.add(
       this._controls.addSliderControl(
         "width",
-        { min: 80, max: 280, step: 10, value: 160, format: (v) => `${Math.round(v)}px` },
-        (v) => this._onWidthChanged(v),
+        { min: 120, max: 320, step: 10, value: 220, format: (v) => `${Math.round(v)}px` },
+        (v) => this._view?.setWidth(Math.round(v)),
       ),
     );
 
     this._subs.add(
       this._controls.addSliderControl(
         "height",
-        { min: 28, max: 64, step: 2, value: 44, format: (v) => `${Math.round(v)}px` },
-        (v) => this._onHeightChanged(v),
-      ),
-    );
-
-    this._subs.add(
-      this._controls.addSliderControl(
-        "radius",
-        { min: 0, max: 30, step: 1, value: 12, format: (v) => `${Math.round(v)}px` },
-        (v) => this._onRadiusChanged(v),
-      ),
-    );
-
-    this._subs.add(
-      this._controls.addCycleControl(
-        "fillColor",
-        BUTTON_FILL_PALETTE,
-        this._fillIndex,
-        (color) => this._formatFillColor(color),
-        (_color, index) => this._onFillCycled(index),
+        { min: 32, max: 80, step: 2, value: 56, format: (v) => `${Math.round(v)}px` },
+        (v) => this._view?.setHeight(Math.round(v)),
       ),
     );
 
@@ -84,12 +64,22 @@ export class ButtonDemoViewController implements IViewController<IButtonDemoView
     );
 
     this._subs.add(
-      this._controls.addActionControl("Trigger onPress (programmatic)", () =>
-        this._onProgrammaticPress(),
+      this._controls.addCycleControl(
+        "default enabled",
+        [true, false],
+        0,
+        (v) => (v ? "on" : "off"),
+        (v) => this._onDefaultEnabledCycled(v),
       ),
     );
 
-    this._subs.add(view.onPress(() => this._onLivePress()));
+    this._subs.add(
+      this._controls.addActionControl("Trigger onPress (programmatic)", () =>
+        this._controls?.appendLog("Button → onPress (programmatic)"),
+      ),
+    );
+
+    this._subs.add(view.onPress((which) => this._controls?.appendLog(`Button[${which}] → onPress`)));
   }
 
   public destroy(): void {
@@ -98,40 +88,13 @@ export class ButtonDemoViewController implements IViewController<IButtonDemoView
     this._controls = null;
   }
 
-  // ── Control handlers ────────────────────────────────────────────────
-
-  private _onWidthChanged(v: number): void {
-    this._view?.setWidth(Math.round(v));
-  }
-
-  private _onHeightChanged(v: number): void {
-    this._view?.setHeight(Math.round(v));
-  }
-
-  private _onRadiusChanged(v: number): void {
-    this._view?.setRadius(Math.round(v));
-  }
-
-  private _onFillCycled(index: number): void {
-    this._fillIndex = index;
-    this._view?.setFillColor(BUTTON_FILL_PALETTE[index]!);
-  }
-
   private _onLabelCycled(text: string): void {
     this._labelIndex = BUTTON_TEXT_PRESETS.indexOf(text);
     this._view?.setLabel(text);
   }
 
-  private _onProgrammaticPress(): void {
-    this._controls?.appendLog("Button → onPress (programmatic)");
-  }
-
-  private _onLivePress(): void {
-    this._controls?.appendLog("Button → onPress");
-  }
-
-  private _formatFillColor(color: number): string {
-    const idx = BUTTON_FILL_PALETTE.indexOf(color);
-    return BUTTON_FILL_LABELS[idx] ?? `#${color.toString(16)}`;
+  private _onDefaultEnabledCycled(enabled: boolean): void {
+    this._defaultEnabled = enabled;
+    this._view?.setDefaultButtonEnabled(enabled);
   }
 }

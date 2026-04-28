@@ -429,10 +429,8 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       height: 28,
       label: `Cycle → ${formatValue(values[index]!)}`,
       labelStyle: { fontSize: 12, fontWeight: "700", fill: 0xe8eef6 },
-      radius: 6,
-      fillColor: 0x1f2937,
-      strokeColor: 0x475569,
     });
+    button.resolveAssets(this.assetLoader);
     row.addChild(button);
 
     const handlePress = (): void => {
@@ -459,10 +457,8 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       height: 28,
       label,
       labelStyle: { fontSize: 12, fontWeight: "700", fill: 0xffffff },
-      radius: 6,
-      fillColor: 0x4338ca,
-      strokeColor: 0x312e81,
     });
+    button.resolveAssets(this.assetLoader);
     row.addChild(button);
 
     const buttonUnsub = button.onPress(onPress);
@@ -538,12 +534,8 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       height: cfg.sidebarItemHeight,
       label: item.label,
       labelStyle: { fontSize: 13, fontWeight: "600", fill: cfg.sidebarItemColor },
-      radius: 6,
-      fillColor: cfg.sidebarItemBgColor,
-      fillAlpha: 1,
-      strokeColor: cfg.sidebarItemBorderColor,
-      strokeWidth: 1,
     });
+    button.resolveAssets(this.assetLoader);
 
     // Active-state accent: a thin vertical bar pinned to the left edge,
     // hidden until the controller marks this item active.

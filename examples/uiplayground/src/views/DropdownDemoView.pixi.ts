@@ -212,12 +212,9 @@ export class DropdownDemoView extends HudViewBase implements IDropdownDemoView {
       width: TEST_BUTTON_WIDTH,
       height: TEST_BUTTON_HEIGHT,
       label: "Click me (overlay test)",
-      radius: 6,
-      fillColor: 0x16a34a,
-      strokeColor: 0x14532d,
-      strokeWidth: 1,
       labelStyle: { fontSize: 13, fontWeight: "700", fill: 0xffffff },
     });
+    this._testButton.resolveAssets(this.assetLoader);
     this._testButtonUnsub = this._testButton.onPress(() => this._fireTestButtonPress());
     this.addChild(this._testButton);
   }
