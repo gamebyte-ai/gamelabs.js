@@ -1,3 +1,5 @@
+export * from "./UIComponentsAssetIds.js";
+export * from "./UIComponentsBinding.js";
 export * from "./views/ButtonComponent.pixi.js";
 export * from "./views/BackgroundComponent.pixi.js";
 export * from "./views/VerticalLayoutComponent.pixi.js";

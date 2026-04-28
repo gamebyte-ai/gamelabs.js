@@ -12,9 +12,15 @@ const mainOutDir = resolve(repoRoot, "dist/assets/mainscreen");
 const levelProgressSrcDir = resolve(repoRoot, "src/modules/levelprogressscreen/assets");
 const levelProgressOutDir = resolve(repoRoot, "dist/assets/levelprogress");
 
+const uiComponentsSrcDir = resolve(repoRoot, "src/modules/uicomponents/assets");
+const uiComponentsOutDir = resolve(repoRoot, "dist/assets/uicomponents");
+
 await mkdir(mainOutDir, { recursive: true });
 await cp(mainSrcDir, mainOutDir, { recursive: true });
 
 await mkdir(levelProgressOutDir, { recursive: true });
 await cp(levelProgressSrcDir, levelProgressOutDir, { recursive: true });
+
+await mkdir(uiComponentsOutDir, { recursive: true });
+await cp(uiComponentsSrcDir, uiComponentsOutDir, { recursive: true });
 
