@@ -196,6 +196,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
       step,
       value,
     });
+    slider.resolveAssets(this.assetLoader);
     slider.position.set(W - SettingsPopupView.TRACK_WIDTH - 45, SettingsPopupView.ROW_HEIGHT / 2);
     row.addChild(slider);
 
