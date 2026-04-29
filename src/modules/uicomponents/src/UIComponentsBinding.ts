@@ -1,7 +1,14 @@
 import { ModuleBinding } from "../../../core/ModuleBinding.js";
 import { AssetRequest } from "../../../core/assets/AssetRequest.js";
 import { AssetTypes } from "../../../core/assets/AssetTypes.js";
+import type { DIContainer } from "../../../core/di/DIContainer.js";
+import { StyleManager } from "../../../core/styles/StyleManager.js";
 import { UIComponentsAssetIds } from "./UIComponentsAssetIds.js";
+import {
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type SliderComponentStyle,
+} from "./UIComponentsStyleTypes.js";
 
 /**
  * Ships the framework's default skins for `ButtonComponent`
@@ -76,5 +83,43 @@ export class UIComponentsBinding extends ModuleBinding {
         new URL("./assets/uicomponents/slider/thumb.png", import.meta.url).href,
       ),
     );
+  }
+
+  /**
+   * Registers default style entries on the view-DI `StyleManager`.
+   * Mirrors `OnScreenControlsBinding.configureDI` — apps `modify` these
+   * entries to retheme every Button / Slider at once, or pass per-
+   * component overrides via the matching component preset fields which
+   * deep-merge on top.
+   *
+   * Each `bg`-class slot opts into nine-slice rendering with `border: 2`
+   * because the default-skin PNGs ship with a 2px black border. The
+   * thumb slot keeps `border: 0` since the thumb is a plain stretched
+   * sprite. Colours / alphas default to `0xffffff` / `1` so the textures
+   * render untinted; per-component colour identity flows through
+   * `Container.tint` on the component itself.
+   */
+  public override configureDI(_diContainer: DIContainer, viewDiContainer: DIContainer): void {
+    const styleManager = viewDiContainer.getInstance(StyleManager);
+
+    styleManager.add<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      idle: { textureId: UIComponentsAssetIds.DefaultButtonIdle, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 2 },
+      hover: { textureId: UIComponentsAssetIds.DefaultButtonHover, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 2 },
+      pressed: { textureId: UIComponentsAssetIds.DefaultButtonPressed, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 2 },
+      disabled: { textureId: UIComponentsAssetIds.DefaultButtonDisabled, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 2 },
+      label: {
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontSize: 16,
+        fontWeight: "600",
+        color: 0xffffff,
+        alpha: 1,
+      },
+    });
+
+    styleManager.add<SliderComponentStyle>(UIComponentsStyleIds.Slider, {
+      track: { textureId: UIComponentsAssetIds.DefaultSliderTrack, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 2 },
+      fill: { textureId: UIComponentsAssetIds.DefaultSliderFill, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 2 },
+      thumb: { textureId: UIComponentsAssetIds.DefaultSliderThumb, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+    });
   }
 }
