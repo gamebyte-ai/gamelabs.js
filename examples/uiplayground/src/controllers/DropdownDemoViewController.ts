@@ -95,7 +95,7 @@ export class DropdownDemoViewController implements IViewController<IDropdownDemo
       this._controls.addActionControl("Clear selection", () => this._onClearSelectionPressed()),
     );
 
-    this._subs.add(view.onChange((id, item) => this._onLiveChange(id, item)));
+    this._subs.add(view.onChange((which, id, item) => this._onLiveChange(which, id, item)));
     this._subs.add(view.onTestButtonPress(() => this._onTestButtonPressed()));
   }
 
@@ -145,13 +145,13 @@ export class DropdownDemoViewController implements IViewController<IDropdownDemo
     this._controls?.appendLog("Dropdown → setSelectedId=null");
   }
 
-  private _onLiveChange(id: string, item: DropdownItem): void {
+  private _onLiveChange(which: "default" | "custom", id: string, item: DropdownItem): void {
     // Keep the local cycle index aligned with whatever the user chose
     // so the next "Cycle selection" press advances from there.
     const items = this._currentItems();
     const idx = items.findIndex((it) => it.id === id);
     this._selectionCycleIndex = idx === -1 ? 0 : idx + 1;
-    this._controls?.appendLog(`Dropdown → onChange id="${id}" label="${item.label}"`);
+    this._controls?.appendLog(`Dropdown (${which}) → onChange id="${id}" label="${item.label}"`);
   }
 
   private _onTestButtonPressed(): void {

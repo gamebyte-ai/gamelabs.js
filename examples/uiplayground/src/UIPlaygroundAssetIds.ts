@@ -12,4 +12,10 @@ export enum UIPlaygroundAssetIds {
   CustomToggleTrackOff = "UIPlayground.CustomToggle.TrackOff",
   CustomToggleThumb = "UIPlayground.CustomToggle.Thumb",
   CustomBackground = "UIPlayground.CustomBackground",
+  CustomDropdownHeader = "UIPlayground.CustomDropdown.Header",
+  CustomDropdownList = "UIPlayground.CustomDropdown.List",
+  CustomDropdownItemIdle = "UIPlayground.CustomDropdown.ItemIdle",
+  CustomDropdownItemHover = "UIPlayground.CustomDropdown.ItemHover",
+  CustomDropdownItemSelected = "UIPlayground.CustomDropdown.ItemSelected",
+  CustomDropdownChevron = "UIPlayground.CustomDropdown.Chevron",
 }

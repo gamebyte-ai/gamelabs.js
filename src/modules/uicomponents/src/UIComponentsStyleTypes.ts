@@ -132,6 +132,36 @@ export type BackgroundComponentStyle = {
   bg?: SpriteStyle;
 };
 
+/**
+ * Visual style for `DropdownComponent`. Six sprite slots covering the
+ * header / list containers, the three item-row states, and the chevron
+ * icon — plus a shared label `TextStyle` used by both the header label
+ * and per-item labels.
+ *
+ * Slot defaults (applied for any field omitted in the registered style
+ * and the per-component override):
+ * - `textureId`: the six PNGs shipped by `UIComponentsBinding`
+ *   (`DefaultDropdown{Header,List,ItemIdle,ItemHover,ItemSelected,Chevron}`).
+ *   `header` and `list` use 9-slice (border 6) so the rounded corners
+ *   stay crisp at any width; the three item-row variants are flat
+ *   stretched sprites; the chevron is a small icon rotated 180° at
+ *   runtime when the list opens.
+ * - `color` / `alpha`: `0xffffff` / `1`. Per-component tinting flows
+ *   through `Container.tint` and applies to every sub-sprite.
+ * - `scaleX` / `scaleY`: `1`.
+ * - `border`: `6` for `header` + `list` (rounded-corner inset),
+ *   `0` for the three item slots and the chevron.
+ */
+export type DropdownComponentStyle = {
+  header?: SpriteStyle;
+  list?: SpriteStyle;
+  itemIdle?: SpriteStyle;
+  itemHover?: SpriteStyle;
+  itemSelected?: SpriteStyle;
+  chevron?: SpriteStyle;
+  label?: TextStyle;
+};
+
 /** Style ids registered by the uicomponents module. */
 export const UIComponentsStyleIds = {
   Button: "uicomponents.button",
@@ -139,4 +169,5 @@ export const UIComponentsStyleIds = {
   RadioButton: "uicomponents.radiobutton",
   Toggle: "uicomponents.toggle",
   Background: "uicomponents.background",
+  Dropdown: "uicomponents.dropdown",
 } as const;

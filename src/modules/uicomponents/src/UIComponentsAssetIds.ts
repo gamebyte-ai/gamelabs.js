@@ -12,4 +12,10 @@ export enum UIComponentsAssetIds {
   DefaultToggleTrackOff = "UIComponents.DefaultToggle.TrackOff",
   DefaultToggleThumb = "UIComponents.DefaultToggle.Thumb",
   DefaultBackground = "UIComponents.DefaultBackground",
+  DefaultDropdownHeader = "UIComponents.DefaultDropdown.Header",
+  DefaultDropdownList = "UIComponents.DefaultDropdown.List",
+  DefaultDropdownItemIdle = "UIComponents.DefaultDropdown.ItemIdle",
+  DefaultDropdownItemHover = "UIComponents.DefaultDropdown.ItemHover",
+  DefaultDropdownItemSelected = "UIComponents.DefaultDropdown.ItemSelected",
+  DefaultDropdownChevron = "UIComponents.DefaultDropdown.Chevron",
 }

@@ -165,6 +165,40 @@ export class UIPlaygroundApp extends GamelabsApp {
       UIPlaygroundAssetIds.CustomBackground,
       new URL("../assets/background/custom.png", import.meta.url).href,
     );
+
+    // Custom dropdown skin for the DropdownDemo's "custom" example —
+    // violet / amber palette to contrast with the default slate /
+    // indigo skin shipped by `UIComponentsBinding`.
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomDropdownHeader,
+      new URL("../assets/dropdown/header.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomDropdownList,
+      new URL("../assets/dropdown/list.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomDropdownItemIdle,
+      new URL("../assets/dropdown/item-idle.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomDropdownItemHover,
+      new URL("../assets/dropdown/item-hover.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomDropdownItemSelected,
+      new URL("../assets/dropdown/item-selected.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomDropdownChevron,
+      new URL("../assets/dropdown/chevron.png", import.meta.url).href,
+    );
   }
 
   protected override configureDI(): void {

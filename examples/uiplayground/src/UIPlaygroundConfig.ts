@@ -21,9 +21,9 @@ export class UIPlaygroundConfig {
   public readonly sidebarItemHeight = 32;
 
   // ─── Region backgrounds ─────────────────────────────────────────────
-  public readonly sidebarBgColor = 0x0a0e15;
-  public readonly stageBgColor = 0x111827;
-  public readonly controlsBgColor = 0x0f172a;
+  public readonly sidebarBgColor = 0x172533;
+  public readonly stageBgColor = 0x3d3d3d;
+  public readonly controlsBgColor = 0x1c2a38;
   public readonly logBgColor = 0x05080d;
 
   // ─── Sidebar item styling ───────────────────────────────────────────

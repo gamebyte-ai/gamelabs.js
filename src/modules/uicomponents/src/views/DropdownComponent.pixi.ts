@@ -1,5 +1,11 @@
 import * as PIXI from "pixi.js";
+import type { AssetManager } from "../../../../core/assets/AssetManager.js";
+import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
+import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
+import type { TextStyle } from "../../../../core/styles/TextStyle.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
+import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
+import type { DropdownComponentStyle } from "../UIComponentsStyleTypes.js";
 
 export type DropdownItem = {
   /** Unique identifier for this option. Used by `selectedId` / `setSelectedId`. */
@@ -8,7 +14,12 @@ export type DropdownItem = {
   readonly label: string;
 };
 
-export type DropdownComponentPreset = {
+/**
+ * Geometry / content options for a {@link DropdownComponent}. Visual
+ * styling lives on the {@link DropdownComponentStyle} passed alongside
+ * the asset manager and is owned by the framework's `StyleManager`.
+ */
+export type DropdownComponentOpts = {
   /** X position. */
   x?: number;
   /** Y position. */
@@ -17,53 +28,35 @@ export type DropdownComponentPreset = {
   width?: number;
   /** Header height. @default 36 */
   height?: number;
-  /** Corner radius for the header rectangle. @default 6 */
-  radius?: number;
-  /** Header fill color. @default 0x1f2937 */
-  fillColor?: number;
-  /** Header fill alpha. @default 1 */
-  fillAlpha?: number;
-  /** Header stroke color (also used for the open list's outline). @default 0x475569 */
-  strokeColor?: number;
-  /** Header stroke width. @default 1 */
-  strokeWidth?: number;
-  /** Label / item text style overrides merged on top of the defaults. */
-  labelStyle?: Partial<PIXI.TextStyleOptions>;
   /** Text shown in the header when nothing is selected. @default "Select…" */
   placeholder?: string;
   /** Items to choose from. May also be set later with `setItems()`. */
   items?: readonly DropdownItem[];
   /** Initial selection. Must match an item id; ignored otherwise. */
   selectedId?: string;
-  /** Chevron tint. @default 0xe8eef6 */
-  chevronColor?: number;
   /** Per-item row height. @default 32 */
   itemHeight?: number;
-  /** Item background color in the resting state. @default 0x111827 */
-  itemFillColor?: number;
-  /** Item background color when the pointer hovers over the row. @default 0x374151 */
-  itemHoverColor?: number;
-  /** Item background color for the currently selected row. @default 0x4338ca */
-  itemSelectedColor?: number;
-  /** Item label color. @default 0xe8eef6 */
-  itemTextColor?: number;
   /** Vertical gap between header bottom and list top, in pixels. @default 4 */
   listOffset?: number;
 };
 
-/**
- * Parse a JSON string into DropdownComponentPreset.
- */
-export function parseDropdownComponentPreset(json: string): DropdownComponentPreset {
-  return JSON.parse(json) as DropdownComponentPreset;
-}
+const DEFAULT_WIDTH = 160;
+const DEFAULT_HEIGHT = 36;
+const DEFAULT_ITEM_HEIGHT = 32;
+const DEFAULT_LIST_OFFSET = 4;
+const DEFAULT_PLACEHOLDER = "Select…";
 
-const DEFAULT_LABEL_STYLE: Partial<PIXI.TextStyleOptions> = {
-  fill: 0xe8eef6,
-  fontSize: 14,
-  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-  fontWeight: "600",
-};
+const DEFAULT_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
+const DEFAULT_LABEL_FONT_SIZE = 14;
+const DEFAULT_LABEL_FONT_WEIGHT = "600";
+const DEFAULT_LABEL_COLOR = 0xe8eef6;
+const DEFAULT_LABEL_ALPHA = 1;
+
+const DEFAULT_BG_COLOR = 0xffffff;
+const DEFAULT_BG_ALPHA = 1;
+const DEFAULT_BG_SCALE = 1;
+const DEFAULT_BG_BORDER_HEADER_LIST = 6;
+const DEFAULT_BG_BORDER_FLAT = 0;
 
 const SCRIM_EXTENT = 1_000_000;
 /**
@@ -74,54 +67,74 @@ const SCRIM_EXTENT = 1_000_000;
  */
 const OVERLAY_Z_INDEX = 1_000_000;
 
+/** Padding from header / item left edge to the label text. */
+const LABEL_PADDING = 12;
+/** Padding from the header right edge to the chevron. */
+const CHEVRON_PADDING = 12;
+/** Square render size of the chevron icon. */
+const CHEVRON_SIZE = 12;
+
+type ItemState = "idle" | "hover" | "selected";
+
 /**
- * Reusable dropdown / select component.
+ * Reusable dropdown / select component, themed via the framework's
+ * style system. Construction takes an `AssetManager`, a fully-resolved
+ * {@link DropdownComponentStyle}, and geometry / content opts:
  *
- * - The header shows the currently selected label (or the placeholder)
- *   plus a chevron that flips when the list is open. Tap the header to
- *   toggle.
+ * ```ts
+ * const dropdownStyle = this.styleManager.resolve<DropdownComponentStyle>(
+ *   UIComponentsStyleIds.Dropdown,
+ * );
+ * const dropdown = new DropdownComponent(this.assetLoader, dropdownStyle, {
+ *   width: 200,
+ *   items: [{ id: "easy", label: "Easy" }, { id: "hard", label: "Hard" }],
+ * });
+ * dropdown.onChange((id, item) => console.log("picked:", id, item.label));
+ * ```
+ *
+ * - The header is a textured sprite (resolved `header` slot) carrying
+ *   the selected label (or placeholder) plus a chevron icon. Tap the
+ *   header to toggle the list.
+ * - The chevron is a single texture rotated 180° at runtime when the
+ *   list is open — designers ship a baseline downward arrow, the
+ *   component handles the open-state flip.
+ * - The list bg is a separate textured sprite (`list` slot) that wraps
+ *   stacked item rows; each row's background is the resolved
+ *   `itemIdle` / `itemHover` / `itemSelected` sprite — texture swaps
+ *   on hover and on selection.
  * - When opened, the option list is re-parented to the scene root,
  *   given a high `zIndex`, and the root is forced to
- *   `sortableChildren = true` so the list paints above any HUD layers
- *   or other zIndex-based stacking. A transparent scrim sits between
- *   the list and the rest of the scene to capture taps-outside and
- *   close the dropdown. Each item row uses an explicit hit rect so
- *   the entire row reacts to hover / tap (not just the text), and the
- *   list background absorbs pointer events so taps at the rounded
- *   corners don't fall through to the scrim.
+ *   `sortableChildren = true` so the list paints above any HUD layers.
+ *   A transparent scrim sits between the list and the rest of the
+ *   scene to capture taps-outside and close the dropdown.
  * - `onChange(cb)` returns an `Unsubscribe` and fires only on user
  *   selections — programmatic `setSelectedId` is silent.
  *
- * Limitations: the list is positioned once at open time using the
+ * Limitation: the list is positioned once at open time using the
  * dropdown's current global transform. Moving the dropdown while open
- * will not reposition the list — close and re-open if the dropdown's
- * world transform changes during interaction. Parent scale / rotation
- * is not propagated to the re-parented list.
+ * does not reposition the list — close and re-open if the dropdown's
+ * world transform changes. Parent scale / rotation is not propagated
+ * to the re-parented list.
  */
-export class DropdownComponent extends PIXI.Container {
-  private readonly _header: PIXI.Graphics;
+export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
+  private readonly _header: PIXI.Sprite | PIXI.NineSliceSprite;
   private readonly _label: PIXI.Text;
-  private readonly _chevron: PIXI.Graphics;
+  private readonly _chevron: PIXI.Sprite | PIXI.NineSliceSprite;
   private readonly _list: PIXI.Container;
-  private readonly _listBg: PIXI.Graphics;
-  private readonly _itemRows: PIXI.Container[] = [];
+  private readonly _listBg: PIXI.Sprite | PIXI.NineSliceSprite;
+  private readonly _itemRows: Array<{ container: PIXI.Container; bg: PIXI.Sprite | PIXI.NineSliceSprite; text: PIXI.Text }> = [];
   private readonly _changeListeners = new Set<(id: string, item: DropdownItem) => void>();
+
+  private readonly _headerStyle: Required<SpriteStyle>;
+  private readonly _listStyle: Required<SpriteStyle>;
+  private readonly _itemStyles: Record<ItemState, Required<SpriteStyle>>;
+  private readonly _chevronStyle: Required<SpriteStyle>;
+  private readonly _labelStyle: Required<TextStyle>;
 
   private readonly _width: number;
   private readonly _height: number;
-  private readonly _radius: number;
-  private readonly _fillColor: number;
-  private readonly _fillAlpha: number;
-  private readonly _strokeColor: number;
-  private readonly _strokeWidth: number;
-  private readonly _labelStyle: Partial<PIXI.TextStyleOptions>;
   private readonly _placeholder: string;
-  private readonly _chevronColor: number;
   private readonly _itemHeight: number;
-  private readonly _itemFillColor: number;
-  private readonly _itemHoverColor: number;
-  private readonly _itemSelectedColor: number;
-  private readonly _itemTextColor: number;
   private readonly _listOffset: number;
 
   private _items: readonly DropdownItem[];
@@ -130,58 +143,128 @@ export class DropdownComponent extends PIXI.Container {
   private _scrim: PIXI.Graphics | null = null;
   private _listOverlayParent: PIXI.Container | null = null;
 
-  public constructor(opts: DropdownComponentPreset = {}) {
-    super();
+  public constructor(assetManager: AssetManager, style: DropdownComponentStyle, opts: DropdownComponentOpts = {}) {
+    super(assetManager, style);
 
-    this._width = opts.width ?? 160;
-    this._height = opts.height ?? 36;
-    this._radius = opts.radius ?? 6;
-    this._fillColor = opts.fillColor ?? 0x1f2937;
-    this._fillAlpha = opts.fillAlpha ?? 1;
-    this._strokeColor = opts.strokeColor ?? 0x475569;
-    this._strokeWidth = opts.strokeWidth ?? 1;
-    this._labelStyle = { ...DEFAULT_LABEL_STYLE, ...opts.labelStyle };
-    this._placeholder = opts.placeholder ?? "Select…";
-    this._chevronColor = opts.chevronColor ?? 0xe8eef6;
-    this._itemHeight = opts.itemHeight ?? 32;
-    this._itemFillColor = opts.itemFillColor ?? 0x111827;
-    this._itemHoverColor = opts.itemHoverColor ?? 0x374151;
-    this._itemSelectedColor = opts.itemSelectedColor ?? 0x4338ca;
-    this._itemTextColor = opts.itemTextColor ?? 0xe8eef6;
-    this._listOffset = opts.listOffset ?? 4;
+    this._width = opts.width ?? DEFAULT_WIDTH;
+    this._height = opts.height ?? DEFAULT_HEIGHT;
+    this._placeholder = opts.placeholder ?? DEFAULT_PLACEHOLDER;
+    this._itemHeight = opts.itemHeight ?? DEFAULT_ITEM_HEIGHT;
+    this._listOffset = opts.listOffset ?? DEFAULT_LIST_OFFSET;
     this._items = opts.items ?? [];
     this._selectedId = this._resolveInitialSelection(opts.selectedId, this._items);
+
+    this._headerStyle = this._resolveSpriteStyle(
+      style.header,
+      UIComponentsAssetIds.DefaultDropdownHeader,
+      DEFAULT_BG_COLOR,
+      DEFAULT_BG_ALPHA,
+      DEFAULT_BG_SCALE,
+      DEFAULT_BG_SCALE,
+      DEFAULT_BG_BORDER_HEADER_LIST,
+    );
+    this._listStyle = this._resolveSpriteStyle(
+      style.list,
+      UIComponentsAssetIds.DefaultDropdownList,
+      DEFAULT_BG_COLOR,
+      DEFAULT_BG_ALPHA,
+      DEFAULT_BG_SCALE,
+      DEFAULT_BG_SCALE,
+      DEFAULT_BG_BORDER_HEADER_LIST,
+    );
+    this._itemStyles = {
+      idle: this._resolveSpriteStyle(
+        style.itemIdle,
+        UIComponentsAssetIds.DefaultDropdownItemIdle,
+        DEFAULT_BG_COLOR,
+        DEFAULT_BG_ALPHA,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_BORDER_FLAT,
+      ),
+      hover: this._resolveSpriteStyle(
+        style.itemHover,
+        UIComponentsAssetIds.DefaultDropdownItemHover,
+        DEFAULT_BG_COLOR,
+        DEFAULT_BG_ALPHA,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_BORDER_FLAT,
+      ),
+      selected: this._resolveSpriteStyle(
+        style.itemSelected,
+        UIComponentsAssetIds.DefaultDropdownItemSelected,
+        DEFAULT_BG_COLOR,
+        DEFAULT_BG_ALPHA,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_BORDER_FLAT,
+      ),
+    };
+    this._chevronStyle = this._resolveSpriteStyle(
+      style.chevron,
+      UIComponentsAssetIds.DefaultDropdownChevron,
+      DEFAULT_BG_COLOR,
+      DEFAULT_BG_ALPHA,
+      DEFAULT_BG_SCALE,
+      DEFAULT_BG_SCALE,
+      DEFAULT_BG_BORDER_FLAT,
+    );
+    this._labelStyle = this._resolveTextStyle(
+      style.label,
+      DEFAULT_LABEL_FONT_FAMILY,
+      DEFAULT_LABEL_FONT_SIZE,
+      DEFAULT_LABEL_FONT_WEIGHT,
+      DEFAULT_LABEL_COLOR,
+      DEFAULT_LABEL_ALPHA,
+    );
 
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
 
-    this._header = new PIXI.Graphics();
+    // Header bg (texture-driven) — replaces the legacy roundRect Graphics.
+    this._header = this._buildSprite(this._headerStyle, this._width, this._height);
+    this._header.anchor.set(0, 0);
+    this._header.position.set(0, 0);
     this._header.eventMode = "static";
     this._header.cursor = "pointer";
     this._header.on("pointertap", () => this.toggle());
     this.addChild(this._header);
 
-    this._label = new PIXI.Text({ text: this._computeHeaderLabel(), style: this._labelStyle });
+    // Header label.
+    this._label = this._buildText(this._computeHeaderLabel(), this._labelStyle);
     this._label.anchor.set(0, 0.5);
+    this._label.position.set(LABEL_PADDING, this._height / 2);
     this.addChild(this._label);
 
-    this._chevron = new PIXI.Graphics();
+    // Chevron sprite — anchored at centre so 180° rotation pivots in
+    // place when the list opens / closes.
+    this._chevron = this._buildSprite(this._chevronStyle, CHEVRON_SIZE, CHEVRON_SIZE);
+    this._chevron.anchor.set(0.5, 0.5);
+    this._chevron.position.set(this._width - CHEVRON_PADDING - CHEVRON_SIZE / 2, this._height / 2);
     this._chevron.eventMode = "none";
     this.addChild(this._chevron);
 
+    // List container (hidden by default).
     this._list = new PIXI.Container();
     this._list.visible = false;
     this._list.eventMode = "static";
     this.addChild(this._list);
 
-    this._listBg = new PIXI.Graphics();
+    // List bg — placeholder size; resized in `_rebuildList` once the
+    // item count is known. Using slot dim 1 here would feed
+    // `_buildSprite` a degenerate size; pre-feed the header width so
+    // the texture is at least correctly proportioned even if the list
+    // is empty.
+    this._listBg = this._buildSprite(this._listStyle, this._width, this._itemHeight);
+    this._listBg.anchor.set(0, 0);
+    this._listBg.position.set(0, 0);
     // Absorb pointer events so clicks at the rounded corners (where no
     // item row sits) don't fall through to the scrim and close the
     // dropdown unexpectedly.
     this._listBg.eventMode = "static";
     this._list.addChild(this._listBg);
 
-    this._redrawHeader();
     this._rebuildList();
   }
 
@@ -238,7 +321,7 @@ export class DropdownComponent extends PIXI.Container {
     this._isOpen = true;
     this._list.visible = true;
     this._installOverlay();
-    this._redrawHeader();
+    this._refreshChevronRotation();
   }
 
   /** Close the option list. No-op if already closed. */
@@ -247,7 +330,7 @@ export class DropdownComponent extends PIXI.Container {
     this._isOpen = false;
     this._list.visible = false;
     this._removeOverlay();
-    this._redrawHeader();
+    this._refreshChevronRotation();
   }
 
   /** Flip open ↔ closed. */
@@ -280,46 +363,16 @@ export class DropdownComponent extends PIXI.Container {
     return sel ? sel.label : this._placeholder;
   }
 
-  private _redrawHeader(): void {
-    const w = this._width;
-    const h = this._height;
-    const r = this._radius;
-
-    this._header.clear();
-    this._header
-      .roundRect(0, 0, w, h, r)
-      .fill({ color: this._fillColor, alpha: this._fillAlpha })
-      .stroke({ color: this._strokeColor, width: this._strokeWidth });
-
-    const labelPad = 12;
-    this._label.position.set(labelPad, h / 2);
-
-    const chevronSize = 6;
-    const chevronX = w - 12 - chevronSize;
-    const chevronY = h / 2;
-    this._chevron.clear();
-    if (this._isOpen) {
-      this._chevron
-        .moveTo(0, chevronSize / 2)
-        .lineTo(chevronSize, chevronSize / 2)
-        .lineTo(chevronSize / 2, -chevronSize / 2)
-        .closePath()
-        .fill({ color: this._chevronColor });
-    } else {
-      this._chevron
-        .moveTo(0, -chevronSize / 2)
-        .lineTo(chevronSize, -chevronSize / 2)
-        .lineTo(chevronSize / 2, chevronSize / 2)
-        .closePath()
-        .fill({ color: this._chevronColor });
-    }
-    this._chevron.position.set(chevronX, chevronY);
+  private _refreshChevronRotation(): void {
+    // Chevron's baseline texture points down. Flip 180° when the list
+    // opens so it points up — single asset covers both states.
+    this._chevron.rotation = this._isOpen ? Math.PI : 0;
   }
 
   private _rebuildList(): void {
     for (const row of this._itemRows) {
-      row.removeFromParent();
-      row.destroy({ children: true });
+      row.container.removeFromParent();
+      row.container.destroy({ children: true });
     }
     this._itemRows.length = 0;
 
@@ -327,59 +380,57 @@ export class DropdownComponent extends PIXI.Container {
     const ih = this._itemHeight;
     const totalH = this._items.length * ih;
 
-    this._listBg.clear();
-    if (totalH > 0) {
-      this._listBg
-        .roundRect(0, 0, w, totalH, this._radius)
-        .fill({ color: this._itemFillColor, alpha: 1 })
-        .stroke({ color: this._strokeColor, width: this._strokeWidth });
-    }
+    // Resize the list bg to the new total height. NineSliceSprite (or
+    // plain Sprite) handles the resize cleanly via _applySpriteStyle.
+    this._applySpriteStyle(this._listBg, this._listStyle, w, Math.max(1, totalH));
 
     for (let i = 0; i < this._items.length; i++) {
       const item = this._items[i]!;
       const row = this._createItemRow(item, i);
-      this._list.addChild(row);
+      this._list.addChild(row.container);
       this._itemRows.push(row);
     }
   }
 
-  private _createItemRow(item: DropdownItem, index: number): PIXI.Container {
+  private _createItemRow(item: DropdownItem, index: number): { container: PIXI.Container; bg: PIXI.Sprite | PIXI.NineSliceSprite; text: PIXI.Text } {
     const w = this._width;
     const ih = this._itemHeight;
-    const row = new PIXI.Container();
-    row.position.set(0, index * ih);
-    row.eventMode = "static";
-    row.cursor = "pointer";
+    const container = new PIXI.Container();
+    container.position.set(0, index * ih);
+    container.eventMode = "static";
+    container.cursor = "pointer";
     // A bare Container with `eventMode: static` but no `hitArea`
     // defers hit testing to interactive children — the row's bg has
     // `eventMode: none`, so without this only the text bounds catch
     // pointer events. Defining the hit rect here makes the entire
     // row react to hover and tap.
-    row.hitArea = new PIXI.Rectangle(0, 0, w, ih);
+    container.hitArea = new PIXI.Rectangle(0, 0, w, ih);
 
     const isSelected = this._selectedId === item.id;
-    const bg = new PIXI.Graphics();
+    const initialState: ItemState = isSelected ? "selected" : "idle";
+    const bg = this._buildSprite(this._itemStyles[initialState], w, ih);
+    bg.anchor.set(0, 0);
+    bg.position.set(0, 0);
     bg.eventMode = "none";
-    const paintBg = (color: number): void => {
-      bg.clear();
-      bg.roundRect(0, 0, w, ih, 0).fill({ color, alpha: 1 });
-    };
-    paintBg(isSelected ? this._itemSelectedColor : this._itemFillColor);
-    row.addChild(bg);
+    container.addChild(bg);
 
-    const text = new PIXI.Text({
-      text: item.label,
-      style: { ...this._labelStyle, fill: this._itemTextColor },
-    });
+    const text = this._buildText(item.label, this._labelStyle);
     text.anchor.set(0, 0.5);
-    text.position.set(12, ih / 2);
-    row.addChild(text);
+    text.position.set(LABEL_PADDING, ih / 2);
+    container.addChild(text);
 
-    row.on("pointerover", () => this._selectedId !== item.id && paintBg(this._itemHoverColor));
-    row.on("pointerout", () => paintBg(this._selectedId === item.id ? this._itemSelectedColor : this._itemFillColor));
-    row.on("pointertap", () => this._handleItemSelect(item));
+    const setState = (state: ItemState): void => {
+      this._applySpriteStyle(bg, this._itemStyles[state], w, ih);
+    };
+    container.on("pointerover", () => {
+      if (this._selectedId !== item.id) setState("hover");
+    });
+    container.on("pointerout", () => {
+      setState(this._selectedId === item.id ? "selected" : "idle");
+    });
+    container.on("pointertap", () => this._handleItemSelect(item));
 
-    return row;
+    return { container, bg, text };
   }
 
   private _handleItemSelect(item: DropdownItem): void {

@@ -9,7 +9,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch)
 - [`ToggleComponent`](#togglecomponent) — on/off switch driven by the framework `StyleManager` with track + thumb skin
 - [`SliderComponent`](#slidercomponent) — horizontal slider driven by the framework `StyleManager` with track / fill / thumb skin and min/max/step constraints
-- [`DropdownComponent`](#dropdowncomponent) — select-style dropdown with overlay-rendered option list
+- [`DropdownComponent`](#dropdowncomponent) — select-style dropdown driven by the framework `StyleManager` with overlay-rendered option list
 - [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator driven by the framework `StyleManager` with optional label; designed to compose into a group
 - [`RadioButtonGroupComponent`](#radiobuttongroupcomponent) — mutually exclusive set of `RadioButtonComponent`s stacked in a column or row, all sharing one resolved style
 - [`ScrollViewComponent`](#scrollviewcomponent) — clipped scrollable viewport with mouse-wheel + drag panning and an optional scrollbar
@@ -315,10 +315,14 @@ Bundle of three `SpriteStyle` slots. Defaults registered under `UIComponentsStyl
 
 ## DropdownComponent
 
-Select-style dropdown. The header shows the current selection (or a placeholder) plus a chevron; tapping it toggles a list of options that's anchored beneath the header. Tapping an option selects it and closes the list. A scrim catches taps outside the list and closes the dropdown.
+Select-style dropdown themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `DropdownComponentStyle`, and geometry / content opts. The header is a textured sprite carrying the selected label (or placeholder) plus a chevron icon (a single texture rotated 180° at runtime when the list opens). Tapping the header toggles the list — a separate textured sprite container holding stacked item rows whose backgrounds swap between the resolved `itemIdle` / `itemHover` / `itemSelected` slots. The framework's `UIComponentsBinding` registers a default style entry (legacy slate / indigo palette baked into the shipped PNGs) so apps that add the binding get a usable dropdown without supplying any art.
 
 ```ts
-const dropdown = new DropdownComponent({
+// In a HudViewBase / ScreenView / PopupView subclass:
+const dropdownStyle = this.styleManager.resolve<DropdownComponentStyle>(
+  UIComponentsStyleIds.Dropdown,
+);
+const dropdown = new DropdownComponent(this.assetLoader, dropdownStyle, {
   width: 200,
   items: [
     { id: "easy", label: "Easy" },
@@ -327,37 +331,51 @@ const dropdown = new DropdownComponent({
   ],
   selectedId: "normal",
 });
-dropdown.onChange((id, item) => {
-  console.log("selected:", id, item.label);
+dropdown.onChange((id, item) => console.log("selected:", id, item.label));
+
+// Custom skin — point each sprite slot at your own PNGs:
+const themedStyle = this.styleManager.resolve<DropdownComponentStyle>(UIComponentsStyleIds.Dropdown, {
+  header: { textureId: MyAssetIds.DropdownHeader },
+  list: { textureId: MyAssetIds.DropdownList },
+  itemIdle: { textureId: MyAssetIds.DropdownItemIdle },
+  itemHover: { textureId: MyAssetIds.DropdownItemHover },
+  itemSelected: { textureId: MyAssetIds.DropdownItemSelected },
+  chevron: { textureId: MyAssetIds.DropdownChevron },
 });
+const themed = new DropdownComponent(this.assetLoader, themedStyle, { width: 200 });
 ```
 
-### `DropdownComponentPreset`
+### `DropdownComponentOpts`
 
-| Field               | Type                             | Default     | Description                                                |
-| ------------------- | -------------------------------- | ----------- | ---------------------------------------------------------- |
-| `x`                 | `number`                         | —           | X position.                                                |
-| `y`                 | `number`                         | —           | Y position.                                                |
-| `width`             | `number`                         | `160`       | Header width (also list width).                            |
-| `height`            | `number`                         | `36`        | Header height.                                             |
-| `radius`            | `number`                         | `6`         | Header / list corner radius.                               |
-| `fillColor`         | `number`                         | `0x1f2937`  | Header fill color.                                         |
-| `fillAlpha`         | `number`                         | `1`         | Header fill alpha.                                         |
-| `strokeColor`       | `number`                         | `0x475569`  | Header stroke color, also used for the list outline.       |
-| `strokeWidth`       | `number`                         | `1`         | Header stroke width.                                       |
-| `labelStyle`        | `Partial<PIXI.TextStyleOptions>` | —           | Style overrides for header label and item labels.          |
-| `placeholder`       | `string`                         | `"Select…"` | Header text shown when no selection.                       |
-| `items`             | `readonly DropdownItem[]`        | `[]`        | Option list. May be replaced later with `setItems()`.      |
-| `selectedId`        | `string`                         | —           | Initial selection. Ignored if it doesn't match an item id. |
-| `chevronColor`      | `number`                         | `0xe8eef6`  | Chevron tint.                                              |
-| `itemHeight`        | `number`                         | `32`        | Per-row height in the option list.                         |
-| `itemFillColor`     | `number`                         | `0x111827`  | Resting row background.                                    |
-| `itemHoverColor`    | `number`                         | `0x374151`  | Hover row background.                                      |
-| `itemSelectedColor` | `number`                         | `0x4338ca`  | Background of the currently selected row.                  |
-| `itemTextColor`     | `number`                         | `0xe8eef6`  | Item label color.                                          |
-| `listOffset`        | `number`                         | `4`         | Vertical gap between header bottom and list top.           |
+Geometry / content. Visual fields are owned by the style.
+
+| Field         | Type                      | Default     | Description                                                |
+| ------------- | ------------------------- | ----------- | ---------------------------------------------------------- |
+| `x`           | `number`                  | —           | X position.                                                |
+| `y`           | `number`                  | —           | Y position.                                                |
+| `width`       | `number`                  | `160`       | Header width (also list width).                            |
+| `height`      | `number`                  | `36`        | Header height.                                             |
+| `placeholder` | `string`                  | `"Select…"` | Header text shown when no selection.                       |
+| `items`       | `readonly DropdownItem[]` | `[]`        | Option list. May be replaced later with `setItems()`.      |
+| `selectedId`  | `string`                  | —           | Initial selection. Ignored if it doesn't match an item id. |
+| `itemHeight`  | `number`                  | `32`        | Per-row height in the option list.                         |
+| `listOffset`  | `number`                  | `4`         | Vertical gap between header bottom and list top.           |
 
 `DropdownItem` is `{ id: string; label: string }`. The `id` is the value emitted by `onChange` and accepted by `setSelectedId`; the `label` is what's drawn.
+
+### `DropdownComponentStyle`
+
+Bundle of six `SpriteStyle` slots plus an optional `TextStyle` for the shared label. Apps re-theme every dropdown at once with `styleManager.modify(UIComponentsStyleIds.Dropdown, { … })`; per-component overrides flow through `styleManager.resolve(...)` at the call site.
+
+| Slot           | Type          | Notes                                                                                                                  |
+| -------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `header`       | `SpriteStyle` | Header bg. The default skin uses 9-slice (`border: 6`) so the rounded corners stay crisp at any width.                 |
+| `list`         | `SpriteStyle` | List container bg behind the option rows. Same 9-slice convention as `header`.                                         |
+| `itemIdle`     | `SpriteStyle` | Resting row bg. Plain stretched sprite.                                                                                |
+| `itemHover`    | `SpriteStyle` | Pointer-over row bg. Texture swaps onto the same row sprite — no rebuild.                                              |
+| `itemSelected` | `SpriteStyle` | Currently-selected row bg. Texture swaps onto the same row sprite.                                                     |
+| `chevron`      | `SpriteStyle` | Header chevron icon. The texture should point downward at baseline; the component rotates it 180° when the list opens. |
+| `label`        | `TextStyle`   | Font / size / weight / colour / alpha / letterSpacing for the header label and per-item labels (shared).               |
 
 ### Methods
 
@@ -369,10 +387,14 @@ dropdown.onChange((id, item) => {
 
 ### Notes
 
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers six `DefaultDropdown{Header,List,ItemIdle,ItemHover,ItemSelected,Chevron}` `HudTexture` asset requests *and* the `UIComponentsStyleIds.Dropdown` style entry. Apps re-theme via `styleManager.modify(...)` or `binding.assetRequestList.overrideRequest(id, url)` at boot.
+- **Single chevron texture, runtime rotation.** The component ships a downward-pointing chevron and flips it 180° in code when the list opens. Custom skins follow the same convention — design the asset pointing down and the component handles open-state. (No separate `chevronOpen` slot.)
+- **Tinting.** `Container.tint` propagates to every sub-sprite (header, list, item rows, chevron) simultaneously.
 - **Overlay rendering.** When opened, the option list is re-parented to the scene root, given a very large `zIndex`, and the root is set to `sortableChildren = true` so the list paints above any HUD layers or other zIndex-based stacking. A near-transparent scrim sits behind the list and closes the dropdown when tapped. On `close()` (and on `destroy()`) the list returns to the dropdown.
 - **Hit handling inside the list.** Each row has an explicit hit rect covering its full bounds, so hover and tap fire on the entire row — not just the text. The list background also absorbs pointer events so taps at the rounded corners (where no row sits) don't fall through to the scrim and close the dropdown unexpectedly.
 - **Static placement.** The list's position is computed once on `open()` from the dropdown's current global transform. Moving the dropdown while open won't reposition the list — close and re-open instead. Parent scale / rotation is not propagated to the re-parented list.
 - **Detached scenarios.** When the dropdown has no parent at `open()` time, the list stays inline as a child of the dropdown — placement and z-order then follow standard Pixi rules.
+- **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects every referenced texture to be loaded in the asset manager. Construct dropdowns in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
 ---
 
@@ -780,9 +802,9 @@ const updated = UIUtils.updateFields(originalJson, '{"overlayAlpha":0.3}');
 
 ### Themed components do **not** use JSON presets
 
-`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, and `BackgroundComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
+`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, `BackgroundComponent`, and `DropdownComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
 
-- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, and `.Background`.
+- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, `.Background`, and `.Dropdown`.
 - **Per-component override** — the call site passes a deep-merge override to `styleManager.resolve(UIComponentsStyleIds.<Id>, { … })` and forwards the resolved style to the constructor. See the component sections above for the canonical pattern.
 
-The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` components without supplying any art.
+The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` / `Dropdown` components without supplying any art.

@@ -8,6 +8,7 @@ import {
   UIComponentsStyleIds,
   type BackgroundComponentStyle,
   type ButtonComponentStyle,
+  type DropdownComponentStyle,
   type RadioButtonComponentStyle,
   type SliderComponentStyle,
   type ToggleComponentStyle,
@@ -131,6 +132,49 @@ export class UIComponentsBinding extends ModuleBinding {
         new URL("./assets/uicomponents/background/default.png", import.meta.url).href,
       ),
     );
+
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultDropdownHeader,
+        new URL("./assets/uicomponents/dropdown/header.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultDropdownList,
+        new URL("./assets/uicomponents/dropdown/list.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultDropdownItemIdle,
+        new URL("./assets/uicomponents/dropdown/item-idle.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultDropdownItemHover,
+        new URL("./assets/uicomponents/dropdown/item-hover.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultDropdownItemSelected,
+        new URL("./assets/uicomponents/dropdown/item-selected.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultDropdownChevron,
+        new URL("./assets/uicomponents/dropdown/chevron.png", import.meta.url).href,
+      ),
+    );
   }
 
   /**
@@ -190,6 +234,22 @@ export class UIComponentsBinding extends ModuleBinding {
 
     styleManager.add<BackgroundComponentStyle>(UIComponentsStyleIds.Background, {
       bg: { textureId: UIComponentsAssetIds.DefaultBackground, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+    });
+
+    styleManager.add<DropdownComponentStyle>(UIComponentsStyleIds.Dropdown, {
+      header: { textureId: UIComponentsAssetIds.DefaultDropdownHeader, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 6 },
+      list: { textureId: UIComponentsAssetIds.DefaultDropdownList, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 6 },
+      itemIdle: { textureId: UIComponentsAssetIds.DefaultDropdownItemIdle, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      itemHover: { textureId: UIComponentsAssetIds.DefaultDropdownItemHover, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      itemSelected: { textureId: UIComponentsAssetIds.DefaultDropdownItemSelected, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      chevron: { textureId: UIComponentsAssetIds.DefaultDropdownChevron, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      label: {
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontSize: 14,
+        fontWeight: "600",
+        color: 0xe8eef6,
+        alpha: 1,
+      },
     });
   }
 }

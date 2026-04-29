@@ -8,6 +8,7 @@ import {
   UIComponentsStyleIds,
   type BackgroundComponentStyle,
   type ButtonComponentStyle,
+  type DropdownComponentStyle,
   type RadioButtonComponentStyle,
   type SliderComponentStyle,
   type ToggleComponentStyle,
@@ -19,7 +20,7 @@ const noopLogger: ILogger = {
 };
 
 describe("UIComponentsBinding", () => {
-  it("registers the default button + slider + radio + toggle + background skin asset requests in its constructor", () => {
+  it("registers the default button + slider + radio + toggle + background + dropdown skin asset requests in its constructor", () => {
     const binding = new UIComponentsBinding();
     const requests = [...binding.assetRequestList.getRequests()];
     const ids = requests.map((r) => r.id).sort();
@@ -29,6 +30,12 @@ describe("UIComponentsBinding", () => {
       UIComponentsAssetIds.DefaultButtonHover,
       UIComponentsAssetIds.DefaultButtonIdle,
       UIComponentsAssetIds.DefaultButtonPressed,
+      UIComponentsAssetIds.DefaultDropdownChevron,
+      UIComponentsAssetIds.DefaultDropdownHeader,
+      UIComponentsAssetIds.DefaultDropdownItemHover,
+      UIComponentsAssetIds.DefaultDropdownItemIdle,
+      UIComponentsAssetIds.DefaultDropdownItemSelected,
+      UIComponentsAssetIds.DefaultDropdownList,
       UIComponentsAssetIds.DefaultRadioSelected,
       UIComponentsAssetIds.DefaultRadioUnselected,
       UIComponentsAssetIds.DefaultSliderFill,
@@ -43,7 +50,7 @@ describe("UIComponentsBinding", () => {
     }
   });
 
-  it("configureDI registers ButtonComponent + SliderComponent + RadioButtonComponent + ToggleComponent + BackgroundComponent styles on the view DI's StyleManager", () => {
+  it("configureDI registers ButtonComponent + SliderComponent + RadioButtonComponent + ToggleComponent + BackgroundComponent + DropdownComponent styles on the view DI's StyleManager", () => {
     const binding = new UIComponentsBinding();
     const diContainer = new DIContainer(noopLogger);
     const viewDiContainer = new DIContainer(noopLogger);
@@ -94,5 +101,20 @@ describe("UIComponentsBinding", () => {
     const backgroundStyle = styleManager.resolve<BackgroundComponentStyle>(UIComponentsStyleIds.Background);
     expect(backgroundStyle.bg?.textureId).toBe(UIComponentsAssetIds.DefaultBackground);
     expect(backgroundStyle.bg?.border).toBe(0);
+
+    // Dropdown style — six sprite slots + label. header / list use
+    // 9-slice (rounded corners); item rows + chevron are plain Sprites.
+    const dropdownStyle = styleManager.resolve<DropdownComponentStyle>(UIComponentsStyleIds.Dropdown);
+    expect(dropdownStyle.header?.textureId).toBe(UIComponentsAssetIds.DefaultDropdownHeader);
+    expect(dropdownStyle.header?.border).toBe(6);
+    expect(dropdownStyle.list?.textureId).toBe(UIComponentsAssetIds.DefaultDropdownList);
+    expect(dropdownStyle.list?.border).toBe(6);
+    expect(dropdownStyle.itemIdle?.textureId).toBe(UIComponentsAssetIds.DefaultDropdownItemIdle);
+    expect(dropdownStyle.itemIdle?.border).toBe(0);
+    expect(dropdownStyle.itemHover?.textureId).toBe(UIComponentsAssetIds.DefaultDropdownItemHover);
+    expect(dropdownStyle.itemSelected?.textureId).toBe(UIComponentsAssetIds.DefaultDropdownItemSelected);
+    expect(dropdownStyle.chevron?.textureId).toBe(UIComponentsAssetIds.DefaultDropdownChevron);
+    expect(dropdownStyle.chevron?.border).toBe(0);
+    expect(dropdownStyle.label?.fontSize).toBe(14);
   });
 });
