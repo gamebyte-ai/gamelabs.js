@@ -21,6 +21,7 @@ import { UIPlaygroundConfig } from "../UIPlaygroundConfig.js";
 import type { DemoEntry, SliderControlOpts } from "../constants/PlaygroundTypes.js";
 import { SIDEBAR_CATEGORY_ORDER } from "../constants/PlaygroundTypes.js";
 import { FONT_FAMILY, LABEL_STYLE, LABEL_WIDTH, MONO_FAMILY, READOUT_STYLE, READOUT_WIDTH } from "../constants/Typography.js";
+import { BackgroundDemoView } from "./BackgroundDemoView.pixi.js";
 import { ButtonDemoView } from "./ButtonDemoView.pixi.js";
 import { DropdownDemoView } from "./DropdownDemoView.pixi.js";
 import { GridLayoutDemoView } from "./GridLayoutDemoView.pixi.js";
@@ -62,6 +63,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     ["radio-group", RadioButtonGroupDemoView],
     ["scroll-view", ScrollViewDemoView],
     ["list", ListDemoView],
+    ["background", BackgroundDemoView],
   ]);
 
   private _config: UIPlaygroundConfig | null = null;

@@ -1,7 +1,18 @@
-import { AssetTypes, GamelabsApp, LogTypes, UIComponentsBinding, UIEvents } from "@gamebyte/gamelabsjs";
+import {
+  AssetTypes,
+  GamelabsApp,
+  LogTypes,
+  SettingsBinding,
+  SettingsBooleanField,
+  SettingsManager,
+  SettingsNumberField,
+  UIComponentsBinding,
+  UIEvents,
+} from "@gamebyte/gamelabsjs";
 import { UIPlaygroundAssetIds } from "./UIPlaygroundAssetIds.js";
 import { UIPlaygroundConfig } from "./UIPlaygroundConfig.js";
 import { UIPlaygroundUIIds } from "./UIPlaygroundUIIds.js";
+import { BackgroundDemoViewController } from "./controllers/BackgroundDemoViewController.js";
 import { ButtonDemoViewController } from "./controllers/ButtonDemoViewController.js";
 import { DropdownDemoViewController } from "./controllers/DropdownDemoViewController.js";
 import { GridLayoutDemoViewController } from "./controllers/GridLayoutDemoViewController.js";
@@ -14,6 +25,7 @@ import { SliderDemoViewController } from "./controllers/SliderDemoViewController
 import { ToggleDemoViewController } from "./controllers/ToggleDemoViewController.js";
 import { ControlsManager } from "./utilities/ControlsManager.js";
 import { IControlsManager } from "./utilities/IControlsManager.js";
+import { BackgroundDemoView } from "./views/BackgroundDemoView.pixi.js";
 import { ButtonDemoView } from "./views/ButtonDemoView.pixi.js";
 import { DropdownDemoView } from "./views/DropdownDemoView.pixi.js";
 import { GridLayoutDemoView } from "./views/GridLayoutDemoView.pixi.js";
@@ -49,6 +61,10 @@ export class UIPlaygroundApp extends GamelabsApp {
   private readonly _config = new UIPlaygroundConfig();
   private readonly _controlsManager = new ControlsManager();
   private readonly _uiComponentsBinding = new UIComponentsBinding();
+  // SettingsBinding is registered so the Background demo can open the
+  // framework settings popup — the playground is otherwise a pure
+  // component catalog and wouldn't need it.
+  private readonly _settingsBinding = new SettingsBinding();
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -58,6 +74,10 @@ export class UIPlaygroundApp extends GamelabsApp {
     // Ships the framework default button skin (idle/hover/pressed/disabled)
     // so the Button demo's "default" button has art without us providing any.
     this.addModule(this._uiComponentsBinding);
+    // Registers SettingsManager + SettingsPopupView/Controller. The
+    // Background demo's "Open settings" button creates the popup via
+    // `UIEvents.createPopup(SettingsUIIds.SettingsPopup)`.
+    this.addModule(this._settingsBinding);
   }
 
   protected override loadAssets(): void {
@@ -136,6 +156,15 @@ export class UIPlaygroundApp extends GamelabsApp {
       UIPlaygroundAssetIds.CustomToggleThumb,
       new URL("../assets/toggle/thumb.png", import.meta.url).href,
     );
+
+    // Custom background for the BackgroundDemo's "custom" example —
+    // dark slate vignette so the cover-fit + overlay alpha controls
+    // read clearly against the white framework default.
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomBackground,
+      new URL("../assets/background/custom.png", import.meta.url).href,
+    );
   }
 
   protected override configureDI(): void {
@@ -167,6 +196,7 @@ export class UIPlaygroundApp extends GamelabsApp {
     this.viewFactory.register(RadioButtonGroupDemoView, RadioButtonGroupDemoViewController);
     this.viewFactory.register(ScrollViewDemoView, ScrollViewDemoViewController);
     this.viewFactory.register(ListDemoView, ListDemoViewController);
+    this.viewFactory.register(BackgroundDemoView, BackgroundDemoViewController);
   }
 
   protected override postInitialize(): void {
@@ -174,6 +204,17 @@ export class UIPlaygroundApp extends GamelabsApp {
       this.logger.log("HUD is not initialized", LogTypes.Error);
       throw new Error("HUD is not initialized");
     }
+
+    // Sample fields exercised by the Background demo's "Open settings"
+    // popup. Mirrors how game examples wire up SettingsBinding — apps
+    // call `addField` on the resolved SettingsManager once the binding
+    // has been initialised.
+    const settings = this.diContainer.getInstance(SettingsManager);
+    settings.addField(new SettingsBooleanField("notifications", "Notifications", true));
+    settings.addField(new SettingsBooleanField("sfxEnabled", "Sound Effects", true));
+    settings.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 0.8, 0, 1, 0.1));
+    settings.addField(new SettingsNumberField("brightness", "Brightness", 0.7, 0, 1, 0.05));
+
     this.diContainer
       .getInstance(UIEvents)
       .createScreen(UIPlaygroundUIIds.PlaygroundShell, this._config.transitions.screenEnter);

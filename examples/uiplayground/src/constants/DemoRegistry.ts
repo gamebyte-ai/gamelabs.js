@@ -24,4 +24,5 @@ export const DEMO_REGISTRY: readonly DemoEntry[] = [
   { id: "radio-group", label: "RadioButtonGroup", category: "Component" },
   { id: "scroll-view", label: "ScrollView", category: "Component" },
   { id: "list", label: "List", category: "Component" },
+  { id: "background", label: "Background", category: "Component" },
 ];

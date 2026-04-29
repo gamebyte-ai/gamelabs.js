@@ -11,4 +11,5 @@ export enum UIPlaygroundAssetIds {
   CustomToggleTrackOn = "UIPlayground.CustomToggle.TrackOn",
   CustomToggleTrackOff = "UIPlayground.CustomToggle.TrackOff",
   CustomToggleThumb = "UIPlayground.CustomToggle.Thumb",
+  CustomBackground = "UIPlayground.CustomBackground",
 }

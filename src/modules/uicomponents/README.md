@@ -5,7 +5,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 ## Components
 
 - [`ButtonComponent`](#buttoncomponent) — pressable button driven by the framework `StyleManager` with four-state skin (idle / hover / pressed / disabled) and centered label
-- [`BackgroundComponent`](#backgroundcomponent) — full-screen cover-fit background with overlay and fallback color
+- [`BackgroundComponent`](#backgroundcomponent) — full-screen cover-fit background driven by the framework `StyleManager` with overlay + fallback colour
 - [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch)
 - [`ToggleComponent`](#togglecomponent) — on/off switch driven by the framework `StyleManager` with track + thumb skin
 - [`SliderComponent`](#slidercomponent) — horizontal slider driven by the framework `StyleManager` with track / fill / thumb skin and min/max/step constraints
@@ -101,29 +101,46 @@ Bundle of four `SpriteStyle` slots plus an optional `TextStyle` label. Apps re-t
 
 ## BackgroundComponent
 
-Full-screen background that fills its parent (absolute layout), scales its texture to "cover" the viewport without distortion, draws an overlay on top for UI readability, and falls back to a solid color when the texture isn't loaded.
+Full-screen background themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `BackgroundComponentStyle`, and overlay / fallback opts. Fills its parent (absolute layout), scales the resolved bg texture to "cover" the viewport without distortion (preserves aspect ratio, centres + crops along the over-sized axis), and draws a semi-transparent overlay on top for UI readability. The framework's `UIComponentsBinding` registers a default style entry (white texture) so apps that add the binding get a usable fallback without supplying any art; real screens override the bg slot.
 
 ```ts
-const bg = new BackgroundComponent({
-  bgTextureId: "MainScreen.Background",
-  overlayAlpha: 0.2,
+// In a HudViewBase / ScreenView / PopupView subclass:
+const backgroundStyle = this.styleManager.resolve<BackgroundComponentStyle>(
+  UIComponentsStyleIds.Background,
+  // Override the bg slot with the screen's own backdrop:
+  { bg: { textureId: MyAppAssetIds.MainScreenBg } },
+);
+const background = new BackgroundComponent(this.assetLoader, backgroundStyle, {
+  overlayAlpha: 0.18,
 });
-bg.resolveAssets(assetManager);
+this.addChild(background);
 ```
 
-### `BackgroundComponentPreset`
+### `BackgroundComponentOpts`
 
-| Field           | Type     | Default    | Description                                 |
-| --------------- | -------- | ---------- | ------------------------------------------- |
-| `bgTextureId`   | `string` | —          | Asset ID for the background texture.        |
-| `overlayColor`  | `number` | `0x000000` | Overlay color drawn on top of the texture.  |
-| `overlayAlpha`  | `number` | `0.12`     | Overlay alpha when the texture is present.  |
-| `fallbackColor` | `number` | `0x020617` | Solid color used when no texture is loaded. |
-| `fallbackAlpha` | `number` | `0.55`     | Fallback alpha.                             |
+Overlay + fallback colours are per-screen UI tuning rather than themable skin data, so they live on the opts and not the style.
 
-### Methods
+| Field           | Type     | Default    | Description                                                  |
+| --------------- | -------- | ---------- | ------------------------------------------------------------ |
+| `overlayColor`  | `number` | `0x000000` | Overlay colour drawn on top of the texture.                  |
+| `overlayAlpha`  | `number` | `0.12`     | Overlay alpha when the texture is present.                   |
+| `fallbackColor` | `number` | `0x020617` | Solid colour used when no texture is loaded (defensive only — eager construction throws on missing assets). |
+| `fallbackAlpha` | `number` | `0.55`     | Fallback alpha.                                              |
 
-- `resolveAssets(assetManager)` — look up `bgTextureId` in the asset manager and apply it.
+### `BackgroundComponentStyle`
+
+A single `SpriteStyle` slot. Apps re-theme every background at once with `styleManager.modify(UIComponentsStyleIds.Background, { bg: { textureId: "..." } })`; per-screen overrides flow through `styleManager.resolve(...)` at the call site.
+
+| Slot | Type          | Notes                                                                                                                 |
+| ---- | ------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `bg` | `SpriteStyle` | The cover-scaled background texture. The component bypasses `_buildSprite` for cover-fit math, so `border` / `scaleX` / `scaleY` on this slot are informational only. |
+
+### Notes
+
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers the `DefaultBackground` `HudTexture` asset request *and* the `UIComponentsStyleIds.Background` style entry. The default texture is plain white — meant as a placeholder; real screens override the `bg` slot with their own backdrop.
+- **Cover-fit math.** The component scales the bg sprite by `Math.max(width / textureWidth, height / textureHeight)` so the smaller axis overflows + crops, matching CSS `background-size: cover`. This is custom logic — the base `_buildSprite` helper would stretch instead and distort the texture along the over-sized axis.
+- **Tinting.** `Container.tint` propagates to the bg sprite; the overlay/fallback Graphics layers also respect Container.tint, so a single `bg.tint = 0xff0000` reddens the whole composite.
+- **Eager construction.** The constructor calls `_getTexture` from the base `StyledHudObject`, which throws if the resolved bg texture isn't loaded in the asset manager. Construct backgrounds in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
 ---
 
@@ -763,9 +780,9 @@ const updated = UIUtils.updateFields(originalJson, '{"overlayAlpha":0.3}');
 
 ### Themed components do **not** use JSON presets
 
-`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, and `ToggleComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parseButtonComponentPreset` / `parseSliderComponentPreset` / `parseRadioButton*Preset` / `parseToggleComponentPreset`. To re-theme:
+`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, and `BackgroundComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
 
-- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, and `.Toggle`.
+- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, and `.Background`.
 - **Per-component override** — the call site passes a deep-merge override to `styleManager.resolve(UIComponentsStyleIds.<Id>, { … })` and forwards the resolved style to the constructor. See the component sections above for the canonical pattern.
 
-The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` components without supplying any art.
+The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` components without supplying any art.

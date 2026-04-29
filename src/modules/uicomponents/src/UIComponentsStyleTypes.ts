@@ -104,10 +104,39 @@ export type ToggleComponentStyle = {
   thumb?: SpriteStyle;
 };
 
+/**
+ * Visual style for `BackgroundComponent`. A single sprite slot — the
+ * full-screen `bg` texture cover-scaled to the host's layout box.
+ *
+ * Slot defaults (applied for any field omitted in the registered style
+ * and the per-component override):
+ * - `textureId`: the PNG shipped by `UIComponentsBinding`
+ *   (`DefaultBackground` — a plain white texture). Apps that render a
+ *   real backdrop override this via `styleManager.modify(...)` or per-
+ *   call `styleManager.resolve(UIComponentsStyleIds.Background, { bg: { textureId: "..." } })`.
+ * - `color` / `alpha`: `0xffffff` / `1`. Per-component tinting flows
+ *   through `Container.tint`.
+ * - `scaleX` / `scaleY`: `1`. The component does **not** use the
+ *   resolved scaleX/scaleY for sprite size (cover-fit math drives that
+ *   based on the layout box); the fields stay for `SpriteStyle` shape
+ *   compatibility.
+ * - `border`: `0`. Backgrounds are full-screen cover-scaled — 9-slice
+ *   would distort the texture. The component bypasses the base
+ *   `_buildSprite` helper for its own cover-fit positioning, so this
+ *   field is informational only.
+ *
+ * Overlay and fallback colours are not part of the style — they are
+ * per-screen UI tuning and live on the `BackgroundComponentOpts`.
+ */
+export type BackgroundComponentStyle = {
+  bg?: SpriteStyle;
+};
+
 /** Style ids registered by the uicomponents module. */
 export const UIComponentsStyleIds = {
   Button: "uicomponents.button",
   Slider: "uicomponents.slider",
   RadioButton: "uicomponents.radiobutton",
   Toggle: "uicomponents.toggle",
+  Background: "uicomponents.background",
 } as const;

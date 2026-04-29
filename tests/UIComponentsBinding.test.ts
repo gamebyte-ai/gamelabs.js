@@ -6,6 +6,7 @@ import { UIComponentsAssetIds } from "../src/modules/uicomponents/src/UIComponen
 import { UIComponentsBinding } from "../src/modules/uicomponents/src/UIComponentsBinding.js";
 import {
   UIComponentsStyleIds,
+  type BackgroundComponentStyle,
   type ButtonComponentStyle,
   type RadioButtonComponentStyle,
   type SliderComponentStyle,
@@ -18,11 +19,12 @@ const noopLogger: ILogger = {
 };
 
 describe("UIComponentsBinding", () => {
-  it("registers the default button + slider + radio + toggle skin asset requests in its constructor", () => {
+  it("registers the default button + slider + radio + toggle + background skin asset requests in its constructor", () => {
     const binding = new UIComponentsBinding();
     const requests = [...binding.assetRequestList.getRequests()];
     const ids = requests.map((r) => r.id).sort();
     expect(ids).toEqual([
+      UIComponentsAssetIds.DefaultBackground,
       UIComponentsAssetIds.DefaultButtonDisabled,
       UIComponentsAssetIds.DefaultButtonHover,
       UIComponentsAssetIds.DefaultButtonIdle,
@@ -41,7 +43,7 @@ describe("UIComponentsBinding", () => {
     }
   });
 
-  it("configureDI registers ButtonComponent + SliderComponent + RadioButtonComponent + ToggleComponent styles on the view DI's StyleManager", () => {
+  it("configureDI registers ButtonComponent + SliderComponent + RadioButtonComponent + ToggleComponent + BackgroundComponent styles on the view DI's StyleManager", () => {
     const binding = new UIComponentsBinding();
     const diContainer = new DIContainer(noopLogger);
     const viewDiContainer = new DIContainer(noopLogger);
@@ -86,5 +88,11 @@ describe("UIComponentsBinding", () => {
     expect(toggleStyle.trackOff?.border).toBe(0);
     expect(toggleStyle.thumb?.textureId).toBe(UIComponentsAssetIds.DefaultToggleThumb);
     expect(toggleStyle.thumb?.border).toBe(0);
+
+    // Background style — single bg slot. Component does its own cover-
+    // fit math, so border/scale fields are informational only.
+    const backgroundStyle = styleManager.resolve<BackgroundComponentStyle>(UIComponentsStyleIds.Background);
+    expect(backgroundStyle.bg?.textureId).toBe(UIComponentsAssetIds.DefaultBackground);
+    expect(backgroundStyle.bg?.border).toBe(0);
   });
 });

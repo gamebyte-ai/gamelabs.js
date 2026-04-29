@@ -11,4 +11,5 @@ export enum UIComponentsAssetIds {
   DefaultToggleTrackOn = "UIComponents.DefaultToggle.TrackOn",
   DefaultToggleTrackOff = "UIComponents.DefaultToggle.TrackOff",
   DefaultToggleThumb = "UIComponents.DefaultToggle.Thumb",
+  DefaultBackground = "UIComponents.DefaultBackground",
 }

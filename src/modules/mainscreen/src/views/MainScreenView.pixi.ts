@@ -1,6 +1,6 @@
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import { ButtonComponent } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
-import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/views/BackgroundComponent.pixi.js";
+import { BackgroundComponent } from "../../../uicomponents/src/views/BackgroundComponent.pixi.js";
 import {
   VerticalLayoutComponent,
   parseVerticalLayoutComponentPreset,
@@ -9,6 +9,7 @@ import { HorizontalLayoutComponent } from "../../../uicomponents/src/views/Horiz
 import { ImageComponent } from "../../../uicomponents/src/views/ImageComponent.pixi.js";
 import {
   UIComponentsStyleIds,
+  type BackgroundComponentStyle,
   type ButtonComponentStyle,
 } from "../../../uicomponents/src/UIComponentsStyleTypes.js";
 import type { IMainScreenView } from "./IMainScreenView.js";
@@ -49,10 +50,14 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
 
   public override postInitialize(): void {
     super.postInitialize();
-    // Create components from presets stored in asset manager.
-    const bgPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.BackgroundPreset) ?? "{}";
-    this.background = new BackgroundComponent(parseBackgroundComponentPreset(bgPresetJson));
-    this.background.resolveAssets(this.assetLoader);
+
+    // Background — override the framework default's bg slot to point at
+    // the screen's own backdrop texture. Apps re-theme via
+    // `styleManager.modify(UIComponentsStyleIds.Background, …)`.
+    const backgroundStyle = this.styleManager.resolve<BackgroundComponentStyle>(UIComponentsStyleIds.Background, {
+      bg: { textureId: MainScreenAssetIds.Background },
+    });
+    this.background = new BackgroundComponent(this.assetLoader, backgroundStyle);
 
     // Play button — full-screen-style image button with no label. Each
     // pointer state shares the same texture id; runtime tinting flows

@@ -1,13 +1,14 @@
 import * as PIXI from "pixi.js";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import { ButtonComponent } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
-import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/views/BackgroundComponent.pixi.js";
+import { BackgroundComponent } from "../../../uicomponents/src/views/BackgroundComponent.pixi.js";
 import {
   VerticalLayoutComponent,
   parseVerticalLayoutComponentPreset,
 } from "../../../uicomponents/src/views/VerticalLayoutComponent.pixi.js";
 import {
   UIComponentsStyleIds,
+  type BackgroundComponentStyle,
   type ButtonComponentStyle,
 } from "../../../uicomponents/src/UIComponentsStyleTypes.js";
 import type { ILevelProgressScreenView } from "./ILevelProgressScreenView.js";
@@ -67,10 +68,13 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       this.currentLevel = Math.max(1, Math.floor(this.initialCurrentLevel));
     }
 
-    // Background component.
-    const bgPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackgroundPreset) ?? "{}";
-    this.background = new BackgroundComponent(parseBackgroundComponentPreset(bgPresetJson));
-    this.background.resolveAssets(this.assetLoader);
+    // Background component — override the framework default's bg slot
+    // with the screen's own backdrop texture. Apps re-theme via
+    // `styleManager.modify(UIComponentsStyleIds.Background, …)`.
+    const backgroundStyle = this.styleManager.resolve<BackgroundComponentStyle>(UIComponentsStyleIds.Background, {
+      bg: { textureId: LevelProgressScreenAssetIds.Background },
+    });
+    this.background = new BackgroundComponent(this.assetLoader, backgroundStyle);
     this.addChild(this.background);
 
     // Top-right back button — all four pointer states share the

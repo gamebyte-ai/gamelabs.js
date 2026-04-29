@@ -6,6 +6,7 @@ import { StyleManager } from "../../../core/styles/StyleManager.js";
 import { UIComponentsAssetIds } from "./UIComponentsAssetIds.js";
 import {
   UIComponentsStyleIds,
+  type BackgroundComponentStyle,
   type ButtonComponentStyle,
   type RadioButtonComponentStyle,
   type SliderComponentStyle,
@@ -122,6 +123,14 @@ export class UIComponentsBinding extends ModuleBinding {
         new URL("./assets/uicomponents/toggle/thumb.png", import.meta.url).href,
       ),
     );
+
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultBackground,
+        new URL("./assets/uicomponents/background/default.png", import.meta.url).href,
+      ),
+    );
   }
 
   /**
@@ -177,6 +186,10 @@ export class UIComponentsBinding extends ModuleBinding {
       trackOn: { textureId: UIComponentsAssetIds.DefaultToggleTrackOn, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
       trackOff: { textureId: UIComponentsAssetIds.DefaultToggleTrackOff, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
       thumb: { textureId: UIComponentsAssetIds.DefaultToggleThumb, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+    });
+
+    styleManager.add<BackgroundComponentStyle>(UIComponentsStyleIds.Background, {
+      bg: { textureId: UIComponentsAssetIds.DefaultBackground, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
     });
   }
 }
