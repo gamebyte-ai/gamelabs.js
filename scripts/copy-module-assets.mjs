@@ -15,6 +15,9 @@ const levelProgressOutDir = resolve(repoRoot, "dist/assets/levelprogress");
 const onscreenControlsSrcDir = resolve(repoRoot, "src/modules/onscreencontrols/assets");
 const onscreenControlsOutDir = resolve(repoRoot, "dist/assets/onscreencontrols");
 
+const uiComponentsSrcDir = resolve(repoRoot, "src/modules/uicomponents/assets");
+const uiComponentsOutDir = resolve(repoRoot, "dist/assets/uicomponents");
+
 await mkdir(mainOutDir, { recursive: true });
 await cp(mainSrcDir, mainOutDir, { recursive: true });
 
@@ -23,4 +26,7 @@ await cp(levelProgressSrcDir, levelProgressOutDir, { recursive: true });
 
 await mkdir(onscreenControlsOutDir, { recursive: true });
 await cp(onscreenControlsSrcDir, onscreenControlsOutDir, { recursive: true });
+
+await mkdir(uiComponentsOutDir, { recursive: true });
+await cp(uiComponentsSrcDir, uiComponentsOutDir, { recursive: true });
 
