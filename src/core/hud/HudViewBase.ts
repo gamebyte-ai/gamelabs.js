@@ -8,6 +8,7 @@ import { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
 import { IApp } from "../app/IApp.js";
 import { AppEvents } from "../app/AppEvents.js";
+import { StyleManager } from "../styles/StyleManager.js";
 import { UnsubscribeBag } from "../events/subscriptions.js";
 
 /**
@@ -29,6 +30,7 @@ export class HudViewBase extends PIXI.Container implements IView {
   private _controller: IViewController | null = null;
   private _app: IApp | null = null;
   private _appEvents: AppEvents | null = null;
+  private _styleManager: StyleManager | null = null;
   protected readonly _subs = new UnsubscribeBag();
 
   //  PROPERTIES
@@ -55,12 +57,21 @@ export class HudViewBase extends PIXI.Container implements IView {
     return this._logger;
   }
 
+  protected get styleManager(): StyleManager {
+    if (!this._styleManager) {
+      this._logger?.log("HudViewBase is not initialized", LogTypes.Error);
+      throw new Error("HudViewBase is not initialized");
+    }
+    return this._styleManager;
+  }
+
   //  METHODS
   public inject(resolver: IInstanceResolver): void {
     this._assetLoader = resolver.getInstance(AssetManager);
     this._logger = resolver.getInstance(ILogger);
     this._app = resolver.getInstance(IApp);
     this._appEvents = resolver.getInstance(AppEvents);
+    this._styleManager = resolver.getInstance(StyleManager);
   }
 
   public setViewFactory(viewFactory: IViewFactory, addedForFactory: () => void, removedForFactory: () => void): void {
@@ -121,6 +132,7 @@ export class HudViewBase extends PIXI.Container implements IView {
     this._logger = null;
     this._app = null;
     this._appEvents = null;
+    this._styleManager = null;
 
     this.removeAllListeners();
     this.removeFromParent();

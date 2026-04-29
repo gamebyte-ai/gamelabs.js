@@ -6,6 +6,10 @@
  * `color` is the fill colour as a hex number (e.g. `0xffffff`). Stroke
  * and shadow are intentionally not exposed here yet — add when a real
  * use case lands.
+ *
+ * `letterSpacing` is in pixels; positive values widen tracking, negative
+ * tighten. Used by display labels that need extra tracking (e.g. all-
+ * caps menu buttons).
  */
 export type TextStyle = {
   fontFamily?: string;
@@ -14,4 +18,5 @@ export type TextStyle = {
   fontWeight?: string;
   color?: number;
   alpha?: number;
+  letterSpacing?: number;
 };

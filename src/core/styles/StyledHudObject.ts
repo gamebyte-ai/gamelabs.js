@@ -127,7 +127,9 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
 
   /**
    * Fills missing fields on a partial {@link TextStyle} with the
-   * supplied defaults, returning a fully-resolved style.
+   * supplied defaults, returning a fully-resolved style. `defaultLetterSpacing`
+   * is optional and defaults to `0`; pre-existing callers do not need
+   * to pass it.
    */
   protected _resolveTextStyle(
     style: TextStyle | undefined,
@@ -136,6 +138,7 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
     defaultFontWeight: string,
     defaultColor: number,
     defaultAlpha: number,
+    defaultLetterSpacing: number = 0,
   ): Required<TextStyle> {
     return {
       fontFamily: style?.fontFamily ?? defaultFontFamily,
@@ -143,6 +146,7 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
       fontWeight: style?.fontWeight ?? defaultFontWeight,
       color: style?.color ?? defaultColor,
       alpha: style?.alpha ?? defaultAlpha,
+      letterSpacing: style?.letterSpacing ?? defaultLetterSpacing,
     };
   }
 
@@ -158,6 +162,7 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
         fontSize: style.fontSize,
         fontWeight: style.fontWeight as PIXI.TextStyleFontWeight,
         fill: style.color,
+        letterSpacing: style.letterSpacing,
       },
     });
     text.alpha = style.alpha;
@@ -174,6 +179,7 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
     text.style.fontSize = style.fontSize;
     text.style.fontWeight = style.fontWeight as PIXI.TextStyleFontWeight;
     text.style.fill = style.color;
+    text.style.letterSpacing = style.letterSpacing;
     text.alpha = style.alpha;
   }
 }
