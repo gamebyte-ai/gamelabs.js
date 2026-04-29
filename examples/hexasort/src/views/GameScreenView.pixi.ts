@@ -1,4 +1,10 @@
-import { ScreenView, ButtonComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  ScreenView,
+  ButtonComponent,
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView.js";
 
 /**
@@ -13,13 +19,14 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   public override postInitialize(): void {
     super.postInitialize();
 
-    this._settingsBtn = new ButtonComponent({
+    const settingsBtnStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 22, color: 0xcbd5e0 },
+    });
+    this._settingsBtn = new ButtonComponent(this.assetLoader, settingsBtnStyle, {
       width: 44,
       height: 44,
       label: "\u2699",
-      labelStyle: { fontSize: 22, fill: 0xcbd5e0 },
     });
-    this._settingsBtn.resolveAssets(this.assetLoader);
     this.addChild(this._settingsBtn);
     this._settingsBtn.onPress(() => {
       for (const cb of this._settingsListeners) cb();

@@ -3,7 +3,9 @@ import {
   ButtonComponent,
   HorizontalLayoutComponent,
   PopupView,
+  UIComponentsStyleIds,
   VerticalLayoutComponent,
+  type ButtonComponentStyle,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
 import type { IWinPopupView } from "./IWinPopupView.js";
@@ -83,13 +85,14 @@ export class WinPopupView extends PopupView implements IWinPopupView {
 
     // CTA — blue tint over the default skin to keep the "next level"
     // affordance feeling primary.
-    this._advanceBtn = new ButtonComponent({
+    const advanceBtnStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 15, fontWeight: "700", color: 0xffffff },
+    });
+    this._advanceBtn = new ButtonComponent(this.assetLoader, advanceBtnStyle, {
       width: 200,
       height: 44,
       label: "Next Level",
-      labelStyle: { fontSize: 15, fontWeight: "700", fill: 0xffffff },
     });
-    this._advanceBtn.resolveAssets(this.assetLoader);
     this._advanceBtn.tint = 0x3b82f6;
     panel.addChild(this._advanceBtn);
     this._advanceBtn.onPress(() => {

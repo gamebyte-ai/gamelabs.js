@@ -1,5 +1,13 @@
 import * as PIXI from "pixi.js";
-import { PopupView, ButtonComponent, VerticalLayoutComponent, HorizontalLayoutComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  PopupView,
+  ButtonComponent,
+  VerticalLayoutComponent,
+  HorizontalLayoutComponent,
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { IWinPopupView } from "./IWinPopupView";
 import { WaterSortAssetIds } from "../WaterSortAssetIds.js";
 
@@ -62,13 +70,14 @@ export class WinPopupView extends PopupView implements IWinPopupView {
 
     // Win popup's CTA — green for the "next level" affordance, kept on
     // top of the default skin via tint.
-    this._nextBtn = new ButtonComponent({
+    const nextBtnStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 15, fontWeight: "700", color: 0xffffff },
+    });
+    this._nextBtn = new ButtonComponent(this.assetLoader, nextBtnStyle, {
       width: 160,
       height: 44,
       label: "Next Level",
-      labelStyle: { fontSize: 15, fontWeight: "700", fill: 0xffffff },
     });
-    this._nextBtn.resolveAssets(this.assetLoader);
     this._nextBtn.tint = 0x48bb78;
     panel.addChild(this._nextBtn);
 

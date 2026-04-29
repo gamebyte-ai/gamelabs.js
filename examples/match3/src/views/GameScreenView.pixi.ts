@@ -1,5 +1,11 @@
 import * as PIXI from "pixi.js";
-import { ScreenView, ButtonComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  ScreenView,
+  ButtonComponent,
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView.js";
 
 export class GameScreenView extends ScreenView implements IGameScreenView {
@@ -18,12 +24,13 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this.addChild(this._scoreText);
 
     // Settings button (top-right gear icon)
-    this._settingsBtn = new ButtonComponent({
+    const settingsBtnStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 20 },
+    });
+    this._settingsBtn = new ButtonComponent(this.assetLoader, settingsBtnStyle, {
       width: 36, height: 36,
       label: "\u2699",
-      labelStyle: { fontSize: 20 },
     });
-    this._settingsBtn.resolveAssets(this.assetLoader);
     this.addChild(this._settingsBtn);
     this._settingsBtn.onPress(() => {
       for (const cb of this._settingsListeners) cb();

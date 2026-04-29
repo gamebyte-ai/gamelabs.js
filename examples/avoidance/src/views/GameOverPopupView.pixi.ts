@@ -1,5 +1,13 @@
 import * as PIXI from "pixi.js";
-import { PopupView, ButtonComponent, VerticalLayoutComponent, HorizontalLayoutComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  PopupView,
+  ButtonComponent,
+  VerticalLayoutComponent,
+  HorizontalLayoutComponent,
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { IGameOverPopupView } from "./IGameOverPopupView";
 
 export class GameOverPopupView extends PopupView implements IGameOverPopupView {
@@ -52,13 +60,14 @@ export class GameOverPopupView extends PopupView implements IGameOverPopupView {
     panel.addChild(this._waveText);
 
     // Play Again button
-    this._playAgainBtn = new ButtonComponent({
+    const playAgainBtnStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 16, fontWeight: "600" },
+    });
+    this._playAgainBtn = new ButtonComponent(this.assetLoader, playAgainBtnStyle, {
       width: 180,
       height: 44,
       label: "Play Again",
-      labelStyle: { fontSize: 16, fontWeight: "600" },
     });
-    this._playAgainBtn.resolveAssets(this.assetLoader);
     panel.addChild(this._playAgainBtn);
 
     this._playAgainBtn.onPress(() => {
