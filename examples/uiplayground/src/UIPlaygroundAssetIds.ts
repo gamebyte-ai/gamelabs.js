@@ -3,4 +3,7 @@ export enum UIPlaygroundAssetIds {
   CustomButtonHover = "UIPlayground.CustomButton.Hover",
   CustomButtonPressed = "UIPlayground.CustomButton.Pressed",
   CustomButtonDisabled = "UIPlayground.CustomButton.Disabled",
+  CustomSliderTrack = "UIPlayground.CustomSlider.Track",
+  CustomSliderFill = "UIPlayground.CustomSlider.Fill",
+  CustomSliderThumb = "UIPlayground.CustomSlider.Thumb",
 }

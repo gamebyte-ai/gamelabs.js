@@ -4,7 +4,6 @@ export interface ISliderDemoView extends IView {
   setTrackWidth(trackWidth: number): void;
   setRange(min: number, max: number): void;
   setStepped(stepped: boolean): void;
-  setFillColor(color: number): void;
   /** Force the slider's value programmatically (for the "Reset" action). */
   setValue(value: number): void;
   /** Toggles the debug outline drawn around the live component's bounds. */

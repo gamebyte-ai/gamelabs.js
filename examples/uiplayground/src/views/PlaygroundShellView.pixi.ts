@@ -358,6 +358,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
       step: opts.step ?? 0,
       value: opts.value,
     });
+    slider.resolveAssets(this.assetLoader);
     slider.layout = { width: trackWidth + thumbRadius * 2, height: thumbRadius * 2 };
     slider.position.set(thumbRadius, thumbRadius);
     row.addChild(slider);

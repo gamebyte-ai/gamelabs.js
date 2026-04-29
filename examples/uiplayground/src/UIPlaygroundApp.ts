@@ -85,6 +85,24 @@ export class UIPlaygroundApp extends GamelabsApp {
       UIPlaygroundAssetIds.CustomButtonDisabled,
       new URL("../assets/button/disabled.png", import.meta.url).href,
     );
+
+    // Custom slider skin for the SliderDemo's RGB section. Neutral white
+    // textures so per-channel `.tint` (R/G/B) multiplies cleanly.
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomSliderTrack,
+      new URL("../assets/slider/track.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomSliderFill,
+      new URL("../assets/slider/fill.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomSliderThumb,
+      new URL("../assets/slider/thumb.png", import.meta.url).href,
+    );
   }
 
   protected override configureDI(): void {

@@ -7,6 +7,7 @@ import {
   type IInstanceResolver,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
+import { UIPlaygroundAssetIds } from "../UIPlaygroundAssetIds.js";
 import { UIPlaygroundConfig } from "../UIPlaygroundConfig.js";
 import type { ISliderDemoView } from "./ISliderDemoView.js";
 
@@ -80,7 +81,6 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
   private _min = 0;
   private _max = 1;
   private _stepped = false;
-  private _fillColor = 0x4299e1;
   private _value = 0.5;
 
   // RGB section (independent of the controls panel).
@@ -121,12 +121,6 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
   public setStepped(stepped: boolean): void {
     if (this._stepped === stepped) return;
     this._stepped = stepped;
-    this._rebuildSlider();
-  }
-
-  public setFillColor(color: number): void {
-    if (this._fillColor === color) return;
-    this._fillColor = color;
     this._rebuildSlider();
   }
 
@@ -184,15 +178,17 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
     this._slider?.destroy();
 
     const stepSize = this._stepped ? (this._max - this._min) / 10 : 0;
+    // Live demo slider intentionally uses the framework default skin
+    // — no `skin` override — so the demo demonstrates what apps get
+    // out of the box from `UIComponentsBinding`.
     this._slider = new SliderComponent({
       trackWidth: this._trackWidth,
       min: this._min,
       max: this._max,
       step: stepSize,
       value: this._value,
-      fillColor: this._fillColor,
-      thumbColor: this._fillColor,
     });
+    this._slider.resolveAssets(this.assetLoader);
     // `SliderComponent` doesn't set its own `.layout`, so without
     // this it would be skipped by `@pixi/layout` and rendered at its
     // own (0, 0) — same fix used in the controls panel's slider row.
@@ -247,15 +243,26 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
     row.addChild(labelText);
 
     const channelColor = RGB_CHANNEL_COLOR[channel];
+    // Custom skin (neutral white textures) — Container.tint multiplies
+    // it down to the channel colour without touching the lib defaults,
+    // so all three rows share one skin and differ only by tint.
     const slider = new SliderComponent({
       trackWidth: RGB_TRACK_WIDTH,
       min: 0,
       max: 255,
       step: 1,
       value: this._rgb[channel],
-      fillColor: channelColor,
-      thumbColor: channelColor,
+      skin: {
+        track: UIPlaygroundAssetIds.CustomSliderTrack,
+        fill: UIPlaygroundAssetIds.CustomSliderFill,
+        thumb: UIPlaygroundAssetIds.CustomSliderThumb,
+      },
+      // Custom-skin PNGs ship with a 2px black border, so opt into
+      // 9-slice with the same inset to keep edges crisp.
+      border: 2,
     });
+    slider.resolveAssets(this.assetLoader);
+    slider.tint = channelColor;
     // Same layout-box + position-shift trick as the live slider.
     slider.layout = {
       width: RGB_TRACK_WIDTH + RGB_THUMB_RADIUS * 2,

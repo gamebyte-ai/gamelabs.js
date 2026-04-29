@@ -3,23 +3,22 @@ import {
   type IInstanceResolver,
   type IViewController,
 } from "@gamebyte/gamelabsjs";
-import {
-  SLIDER_FILL_LABELS,
-  SLIDER_FILL_PALETTE,
-  SLIDER_RANGE_PRESETS,
-} from "../constants/DemoPresets.js";
+import { SLIDER_RANGE_PRESETS } from "../constants/DemoPresets.js";
 import { IControlsManager } from "../utilities/IControlsManager.js";
 import type { ISliderDemoView } from "../views/ISliderDemoView.js";
 
 /**
  * Controller for `SliderDemoView`. Populates controls for trackWidth,
- * range preset, stepped/continuous, fill color, and a "reset" action.
+ * range preset, stepped/continuous, and a "reset" action. Skin colour
+ * is no longer configurable from controls — the live slider always
+ * shows the framework default skin so the demo demonstrates the
+ * out-of-the-box look. The RGB section below the live slider remains
+ * a fixed fixture demonstrating per-channel tinted custom skins.
  */
 export class SliderDemoViewController implements IViewController<ISliderDemoView> {
   private _controls: IControlsManager | null = null;
   private _view: ISliderDemoView | null = null;
   private _rangeIndex = 0;
-  private _fillIndex = 0;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
@@ -58,16 +57,6 @@ export class SliderDemoViewController implements IViewController<ISliderDemoView
       this._controls.addToggleControl("stepped", false, (v) => this._onSteppedChanged(v)),
     );
 
-    this._subs.add(
-      this._controls.addCycleControl(
-        "fillColor",
-        SLIDER_FILL_PALETTE,
-        this._fillIndex,
-        (color) => this._formatFillColor(color),
-        (_color, index) => this._onFillCycled(index),
-      ),
-    );
-
     this._subs.add(this._controls.addActionControl("Reset to min", () => this._onResetPressed()));
 
     this._subs.add(view.onChange((v) => this._onLiveChange(v)));
@@ -95,11 +84,6 @@ export class SliderDemoViewController implements IViewController<ISliderDemoView
     this._view?.setStepped(v);
   }
 
-  private _onFillCycled(index: number): void {
-    this._fillIndex = index;
-    this._view?.setFillColor(SLIDER_FILL_PALETTE[index]!);
-  }
-
   private _onResetPressed(): void {
     const range = SLIDER_RANGE_PRESETS[this._rangeIndex]!;
     this._view?.setValue(range.min);
@@ -108,10 +92,5 @@ export class SliderDemoViewController implements IViewController<ISliderDemoView
 
   private _onLiveChange(value: number): void {
     this._controls?.appendLog(`Slider → onChange ${value.toFixed(3)}`);
-  }
-
-  private _formatFillColor(color: number): string {
-    const idx = SLIDER_FILL_PALETTE.indexOf(color);
-    return SLIDER_FILL_LABELS[idx] ?? `#${color.toString(16)}`;
   }
 }

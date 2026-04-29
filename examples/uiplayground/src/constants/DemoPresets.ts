@@ -18,11 +18,6 @@ export const BUTTON_TEXT_PRESETS: readonly string[] = [
 ];
 
 // ─── SliderDemo ────────────────────────────────────────────────────────
-export const SLIDER_FILL_PALETTE: readonly number[] = [
-  0x4299e1, 0x22c55e, 0xef4444, 0xeab308, 0xa855f7,
-];
-export const SLIDER_FILL_LABELS: readonly string[] = ["blue", "green", "red", "yellow", "purple"];
-
 export interface SliderRangePreset {
   readonly min: number;
   readonly max: number;
