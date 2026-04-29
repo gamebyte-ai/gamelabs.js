@@ -5,12 +5,14 @@ import type { ViewFactory } from "../../../core/views/ViewFactory.js";
 
 import { AssetRequest } from "../../../core/assets/AssetRequest.js";
 import { AssetTypes } from "../../../core/assets/AssetTypes.js";
+import { StyleManager } from "../../../core/styles/StyleManager.js";
 
 import { OnScreenControlManager } from "./utilities/OnScreenControlManager.js";
 import { OnScreenControlEvents } from "./events/OnScreenControlEvents.js";
 import { OnScreenControlsView } from "./views/OnScreenControlsView.pixi.js";
 import { OnScreenControlsViewController } from "./controllers/OnScreenControlsViewController.js";
 import { OnScreenControlsAssetIds } from "./OnScreenControlsAssetIds.js";
+import { OscStyleIds, type OscButtonStyle, type OscJoystickStyle } from "./OnScreenControlTypes.js";
 
 /**
  * Module binding for the on-screen controls (touch-friendly virtual
@@ -24,14 +26,14 @@ import { OnScreenControlsAssetIds } from "./OnScreenControlsAssetIds.js";
  * `ButtonProgress`). The defaults are loaded automatically by
  * `GamelabsApp`; apps override either by replacing the URL via
  * `assetRequestList.overrideRequest(id, url)` or by passing a
- * different `textureId` per `OscVisual` slot.
+ * different `textureId` per `SpriteStyle` slot.
  */
 export class OnScreenControlsBinding extends ModuleBinding {
   public constructor() {
     super();
 
     // White-with-alpha defaults — runtime tints apply via
-    // `OscVisual.color` on each slot. The `isSourceModule` switch keeps
+    // `SpriteStyle.color` on each slot. The `isSourceModule` switch keeps
     // the dev path (`../assets/...` next to source) and the published
     // path (`dist/assets/onscreencontrols/...`) in lockstep.
     const isSourceModule = import.meta.url.includes("/src/modules/onscreencontrols/src/");
@@ -65,10 +67,27 @@ export class OnScreenControlsBinding extends ModuleBinding {
     );
   }
 
-  public configureDI(diContainer: DIContainer, _viewDiContainer: DIContainer): void {
+  public configureDI(diContainer: DIContainer, viewDiContainer: DIContainer): void {
     const manager = new OnScreenControlManager();
     diContainer.bindInstance(OnScreenControlManager, manager);
     diContainer.bindInstance(OnScreenControlEvents, manager.events);
+
+    // Default visual style for on-screen buttons. Apps modify this
+    // entry to retheme every button at once; per-control overrides on
+    // `addControl({ up, down, ... })` deep-merge on top.
+    const styleManager = viewDiContainer.getInstance(StyleManager);
+    styleManager.add<OscButtonStyle>(OscStyleIds.Button, {
+      up: { textureId: OnScreenControlsAssetIds.ButtonBg, color: 0x222222, alpha: 0.5, scaleX: 1, scaleY: 1 },
+      down: { textureId: OnScreenControlsAssetIds.ButtonBg, color: 0x444444, alpha: 0.8, scaleX: 1, scaleY: 1 },
+      disabled: { textureId: OnScreenControlsAssetIds.ButtonBg, color: 0x4a5a4a, alpha: 0.55, scaleX: 1, scaleY: 1 },
+      icon: { color: 0xffffff, alpha: 1, scaleX: 0.6, scaleY: 0.6 },
+      progress: { textureId: OnScreenControlsAssetIds.ButtonProgress, color: 0xffffff, alpha: 0.85, scaleX: 1.1, scaleY: 1.1 },
+    });
+
+    styleManager.add<OscJoystickStyle>(OscStyleIds.Joystick, {
+      base: { textureId: OnScreenControlsAssetIds.JoystickBase, color: 0xffffff, alpha: 0.85, scaleX: 1, scaleY: 1 },
+      knob: { textureId: OnScreenControlsAssetIds.JoystickHandle, color: 0xffffff, alpha: 0.95, scaleX: 1, scaleY: 1 },
+    });
   }
 
   public configureViews(viewFactory: ViewFactory<IInstanceResolver>): void {

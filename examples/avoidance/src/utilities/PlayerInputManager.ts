@@ -37,9 +37,10 @@ export class PlayerInputManager {
       knob: { color: 0x44cc66, alpha: 0.95 },
     });
 
-    // Slow-time ability button — bottom-left, framework circle bg
-    // tinted green per state, clock icon overlay. Pressing asks the
-    // game operations to start the slow effect; the ability state
+    // Slow-time ability button — bottom-left, with a clock icon
+    // overlay. Visual colors come from the `osc.button` StyleManager
+    // entry (re-themed in `AvoidanceApp.configureDI`). Pressing asks
+    // the game operations to start the slow effect; the ability state
     // event drives the disabled visual.
     onScreenControls.addControl({
       type: ControlType.Button,
@@ -48,10 +49,7 @@ export class PlayerInputManager {
       offsetX: 120,
       offsetY: 120,
       size: 88,
-      up: { color: 0x44cc66, alpha: 0.85 },
-      down: { color: 0x88ee88, alpha: 0.95 },
-      disabled: { color: 0x4a5a4a, alpha: 0.55 },
-      icon: { textureId: AvoidanceAssetIds.SlowIcon, scale: 0.55 },
+      icon: { textureId: AvoidanceAssetIds.SlowIcon, scaleX: 0.55, scaleY: 0.55 },
     });
 
     gameEvents.onSlowAbilityChanged((enabled) => {

@@ -21,6 +21,7 @@ import { KeyboardListener } from "./input/KeyboardListener.js";
 import { AudioService } from "./services/AudioService.js";
 import { IApp } from "./app/IApp.js";
 import { AppEvents } from "./app/AppEvents.js";
+import { StyleManager } from "./styles/StyleManager.js";
 
 export class GamelabsApp implements IApp {
   //  MEMBERS
@@ -159,6 +160,8 @@ export class GamelabsApp implements IApp {
     this.viewDiContainer.bindInstance(AppEvents, this._appEvents);
     this.diContainer.bindInstance(ILogger, this._logger, [Logger]);
     this.viewDiContainer.bindInstance(ILogger, this._logger, [Logger]);
+
+    this.viewDiContainer.bindInstance(StyleManager, new StyleManager());
   }
 
   //  METHODS

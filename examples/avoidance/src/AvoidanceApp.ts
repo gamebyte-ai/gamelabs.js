@@ -1,4 +1,4 @@
-import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, GameCameraManager, Topdown2dCameraController, OnScreenControlsBinding } from "@gamebyte/gamelabsjs";
+import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, GameCameraManager, Topdown2dCameraController, OnScreenControlsBinding, OscStyleIds, type OscButtonStyle, StyleManager } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
@@ -44,6 +44,14 @@ export class AvoidanceApp extends GamelabsApp {
     this.diContainer.bindInstance(GameModel, new GameModel(), [IGameModel]);
     this.diContainer.bindSingleton(WaveManager, () => new WaveManager());
     this.diContainer.bindSingleton(GameOperations, () => new GameOperations());
+
+    // Re-theme on-screen buttons to the avoidance green palette before
+    // any control is registered. The view picks this up the first time
+    // it renders the slow button.
+    this.viewDiContainer.getInstance(StyleManager).modify<OscButtonStyle>(OscStyleIds.Button, {
+      up: { color: 0x44cc66, alpha: 0.85 },
+      down: { color: 0x88ee88, alpha: 0.95 },
+    });
 
     const playerInput = new PlayerInputManager();
     playerInput.inject(this.diContainer);
