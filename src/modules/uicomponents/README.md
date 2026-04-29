@@ -8,7 +8,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`BackgroundComponent`](#backgroundcomponent) — full-screen cover-fit background with overlay and fallback color
 - [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch)
 - [`ToggleComponent`](#togglecomponent) — on/off switch with configurable colors
-- [`SliderComponent`](#slidercomponent) — horizontal slider with min/max/step constraints
+- [`SliderComponent`](#slidercomponent) — horizontal slider with track / fill / thumb skin and min/max/step constraints
 - [`DropdownComponent`](#dropdowncomponent) — select-style dropdown with overlay-rendered option list
 - [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator with optional label; designed to compose into a group
 - [`RadioButtonGroupComponent`](#radiobuttongroupcomponent) — mutually exclusive set of radio buttons stacked in a column or row
@@ -181,44 +181,68 @@ toggle.onChange((value) => {
 
 ## SliderComponent
 
-Horizontal slider with a track, filled portion, and draggable thumb. Supports min/max/step value constraints. Tap on track or drag thumb to change value.
+Horizontal slider whose track, filled portion, and thumb each render from a textured sprite — referenced by asset id through a `SliderSkin` map. The framework's `UIComponentsBinding` ships a default skin so `new SliderComponent({ min: 0, max: 100, value: 50 })` renders fully-textured without any consumer art. Tap the track or drag the thumb to change value; subscribers via `onChange` receive the clamped (and step-snapped) numeric value.
 
 ```ts
-const slider = new SliderComponent({
+// Default skin — register UIComponentsBinding and you get the
+// stock track + fill + thumb without any custom art.
+const volume = new SliderComponent({
   min: 0,
   max: 100,
   step: 1,
   value: 50,
   trackWidth: 200,
 });
-slider.onChange((value) => {
-  console.log("value:", value);
+volume.resolveAssets(assetManager);
+volume.onChange((v) => console.log("volume:", v));
+
+// Custom skin — point each part at your own asset id and tint at runtime.
+const channel = new SliderComponent({
+  min: 0,
+  max: 255,
+  step: 1,
+  value: 128,
+  skin: {
+    track: MyAssetIds.NeutralTrack,
+    fill: MyAssetIds.NeutralFill,
+    thumb: MyAssetIds.NeutralThumb,
+  },
+  border: 2, // 9-slice the track + fill so corners stay crisp
 });
+channel.resolveAssets(assetManager);
+channel.tint = 0xff0000; // Container.tint propagates to the three sprites
 ```
 
 ### `SliderComponentPreset`
 
-| Field             | Type     | Default    | Description                  |
-| ----------------- | -------- | ---------- | ---------------------------- |
-| `trackWidth`      | `number` | `140`      | Track width.                 |
-| `trackHeight`     | `number` | `6`        | Track height.                |
-| `thumbRadius`     | `number` | `10`       | Thumb radius.                |
-| `trackColor`      | `number` | `0xcbd5e0` | Track background color.      |
-| `fillColor`       | `number` | `0x4299e1` | Filled portion color.        |
-| `thumbColor`      | `number` | `0x4299e1` | Thumb outer ring color.      |
-| `thumbInnerColor` | `number` | `0xffffff` | Thumb inner circle color.    |
-| `thumbInset`      | `number` | `3`        | Thumb inner inset.           |
-| `min`             | `number` | `0`        | Minimum value.               |
-| `max`             | `number` | `1`        | Maximum value.               |
-| `step`            | `number` | `0`        | Step size. 0 for continuous. |
-| `value`           | `number` | `0`        | Initial value.               |
+| Field         | Type           | Default                            | Description                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------- | -------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `trackWidth`  | `number`       | `140`                              | Track width in pixels.                                                                                                                                                                                                                                                                                                                                                               |
+| `trackHeight` | `number`       | `6`                                | Track height in pixels.                                                                                                                                                                                                                                                                                                                                                              |
+| `thumbRadius` | `number`       | `10`                               | Thumb radius in pixels (the thumb sprite renders at `2 × radius` square).                                                                                                                                                                                                                                                                                                            |
+| `min`         | `number`       | `0`                                | Minimum value.                                                                                                                                                                                                                                                                                                                                                                       |
+| `max`         | `number`       | `1`                                | Maximum value.                                                                                                                                                                                                                                                                                                                                                                       |
+| `step`        | `number`       | `0`                                | Step size. `0` means continuous.                                                                                                                                                                                                                                                                                                                                                     |
+| `value`       | `number`       | `min`                              | Initial value (clamped to `[min, max]`).                                                                                                                                                                                                                                                                                                                                             |
+| `skin`        | `SliderSkin`   | `UIComponentsBinding` default skin | Asset-id map for the three parts (`track`, `fill`, `thumb`). All three fields are required when overriding so no part silently falls back. Omit the field entirely to use the framework default skin.                                                                                                                                                                               |
+| `border`      | `number`       | `2` with default skin, `0` else    | Symmetric 9-slice border thickness for the track and fill sprites, in source-texture pixels. When `> 0`, track and fill render via `PIXI.NineSliceSprite` so a skin's border stays crisp at any track length. The thumb is always a plain stretched sprite (its rendered size matches `thumbRadius` regardless). The default skin's PNGs ship with a 2px border, so it auto-opts in. |
+
+`SliderSkin` is `{ track: string; fill: string; thumb: string }` — each field is an asset id resolved through `IAssetManager`.
 
 ### Methods
 
 - `value` — current numeric value (getter).
 - `min`, `max`, `step` — constraint values (getters).
-- `setValue(value)` — set the value programmatically (does not fire `onChange`).
-- `onChange(cb): Unsubscribe` — subscribe to value changes.
+- `setValue(value)` — set the value programmatically (does **not** fire `onChange`).
+- `setSkin(skin, assetManager)` — replace the active skin and re-resolve all three textures.
+- `resolveAssets(assetManager)` — look up the active skin's asset ids and install the textures. Call after construction (or after `setSkin`) before the slider shows.
+- `onChange(cb): Unsubscribe` — subscribe to value changes (drag, track tap, or any other user-driven update). `setValue` is silent on purpose — programmatic updates don't echo back.
+
+### Notes
+
+- **Default skin via `UIComponentsBinding`.** Add `UIComponentsBinding` to your app's modules to ship the default track/fill/thumb PNGs. The binding registers three `HudTexture` requests (`UIComponentsAssetIds.DefaultSlider{Track,Fill,Thumb}`); apps can replace any of them with `binding.assetRequestList.overrideRequest(id, url)` before `addModule`, or supply a fully custom skin per-slider via the `skin` preset field.
+- **Tinting for colour identity.** When several sliders share a skin but need distinct colours (e.g. R / G / B sliders driving an RGB swatch), set `slider.tint = 0x...` after `resolveAssets()`. `Container.tint` propagates to all three sub-sprites, so a single neutral-white skin covers every channel.
+- **Geometry.** Track sits centred on `y = 0` (top edge at `-trackHeight/2`); thumb rides `y = 0` at `(filledWidth, 0)` with anchor `(0.5, 0.5)`. The visible bounds are `[-thumbRadius, thumbRadius] × [-thumbRadius, thumbRadius]` extended horizontally by `trackWidth`. Wrap the slider in a layout box of `(trackWidth + 2·thumbRadius) × (2·thumbRadius)` and offset by `(thumbRadius, thumbRadius)` if you embed it in a Yoga flex flow.
 
 ---
 
