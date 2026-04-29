@@ -4,6 +4,11 @@ import { PopupView } from "../../../../core/ui/PopupView.pixi.js";
 import { ButtonComponent } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
 import { ToggleComponent } from "../../../uicomponents/src/views/ToggleComponent.pixi.js";
 import { SliderComponent } from "../../../uicomponents/src/views/SliderComponent.pixi.js";
+import {
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type SliderComponentStyle,
+} from "../../../uicomponents/src/UIComponentsStyleTypes.js";
 import type { ISettingsPopupView } from "./ISettingsPopupView.js";
 
 type FieldRow = {
@@ -90,14 +95,15 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     panel.addChild(this._rowsContainer);
 
     // Close button — uses the framework's default skin (provided by
-    // `UIComponentsBinding`).
-    this._closeBtn = new ButtonComponent({
+    // `UIComponentsBinding`) with a label-only colour override.
+    const closeButtonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 14, fontWeight: "600", color: 0x4a5568 },
+    });
+    this._closeBtn = new ButtonComponent(this.assetLoader, closeButtonStyle, {
       width: 120,
       height: 38,
       label: "Close",
-      labelStyle: { fontSize: 14, fontWeight: "600", fill: 0x4a5568 },
     });
-    this._closeBtn.resolveAssets(this.assetLoader);
     this._closeBtn.layout = { marginTop: 8 };
     panel.addChild(this._closeBtn);
     this._closeBtn.onPress(() => {
@@ -187,7 +193,8 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     valueText.position.set(W, SettingsPopupView.ROW_HEIGHT / 2);
     row.addChild(valueText);
 
-    const slider = new SliderComponent({
+    const sliderStyle = this.styleManager.resolve<SliderComponentStyle>(UIComponentsStyleIds.Slider);
+    const slider = new SliderComponent(this.assetLoader, sliderStyle, {
       trackWidth: SettingsPopupView.TRACK_WIDTH,
       trackHeight: SettingsPopupView.TRACK_HEIGHT,
       thumbRadius: SettingsPopupView.THUMB_RADIUS,
@@ -196,7 +203,6 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
       step,
       value,
     });
-    slider.resolveAssets(this.assetLoader);
     slider.position.set(W - SettingsPopupView.TRACK_WIDTH - 45, SettingsPopupView.ROW_HEIGHT / 2);
     row.addChild(slider);
 

@@ -1,23 +1,19 @@
 import type { Layout, LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import type * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
+import type { AssetManager } from "../../../../core/assets/AssetManager.js";
+import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
+import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
 import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
+import type { ButtonComponentStyle } from "../UIComponentsStyleTypes.js";
 
 /**
- * Asset-id map for a button's visual states. `idle` is required; the
- * other three states fall back to `idle` if their texture is unset or
- * has not been loaded into the asset manager.
+ * Geometry / content options for a {@link ButtonComponent}. Visual
+ * styling lives on the {@link ButtonComponentStyle} passed alongside
+ * the asset manager and is owned by the framework's `StyleManager`.
  */
-export type ButtonSkin = {
-  idle: string;
-  hover?: string;
-  pressed?: string;
-  disabled?: string;
-};
-
-export type ButtonComponentPreset = {
+export type ButtonComponentOpts = {
   /** X position. */
   x?: number;
   /** Y position. */
@@ -28,119 +24,145 @@ export type ButtonComponentPreset = {
   height?: number;
   /** Label text. Omit for an icon-only button. */
   label?: string;
-  /** Label style overrides merged on top of the defaults. */
-  labelStyle?: Partial<PIXI.TextStyleOptions>;
-  /**
-   * Skin override. Each field is an asset id resolved through `IAssetManager`.
-   * Omit to use the framework's default skin (provided by `UIComponentsBinding`).
-   */
-  skin?: ButtonSkin;
-  /**
-   * Symmetric 9-slice border thickness, in source-texture pixels. When
-   * greater than 0 the background renders via `PIXI.NineSliceSprite` —
-   * the four corners stay at this size while the middle stretches, so a
-   * skin's border stays crisp at any button size.
-   *
-   * Defaults to 2 with the framework default skin (whose PNGs ship with a
-   * 2px black border) and 0 with custom skins. Set explicitly to opt in
-   * or out for a custom skin.
-   */
-  border?: number;
 };
 
-/**
- * Parse a JSON string into ButtonComponentPreset.
- * All fields are JSON-safe primitives (numbers, strings, nested objects).
- */
-export function parseButtonComponentPreset(json: string): ButtonComponentPreset {
-  return JSON.parse(json) as ButtonComponentPreset;
-}
+const DEFAULT_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
+const DEFAULT_LABEL_FONT_SIZE = 16;
+const DEFAULT_LABEL_FONT_WEIGHT = "600";
+const DEFAULT_LABEL_COLOR = 0xe8eef6;
+const DEFAULT_LABEL_ALPHA = 1;
 
-const DEFAULT_LABEL_STYLE: Partial<PIXI.TextStyleOptions> = {
-  fill: 0xe8eef6,
-  fontSize: 16,
-  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-  fontWeight: "600",
-};
+const DEFAULT_BG_COLOR = 0xffffff;
+const DEFAULT_BG_ALPHA = 1;
+const DEFAULT_BG_SCALE = 1;
+const DEFAULT_BG_BORDER = 0;
 
-const DEFAULT_SKIN: ButtonSkin = {
+type ButtonState = "idle" | "hover" | "pressed" | "disabled";
+
+const DEFAULT_TEXTURE_BY_STATE: Record<ButtonState, string> = {
   idle: UIComponentsAssetIds.DefaultButtonIdle,
   hover: UIComponentsAssetIds.DefaultButtonHover,
   pressed: UIComponentsAssetIds.DefaultButtonPressed,
   disabled: UIComponentsAssetIds.DefaultButtonDisabled,
 };
 
-type ButtonState = "idle" | "hover" | "pressed" | "disabled";
-
 /**
- * Reusable Pixi button component.
+ * Reusable Pixi button component, themed via the framework's style
+ * system.
  *
- * Renders a single background whose texture is swapped on interaction
- * state (idle / hover / pressed / disabled). When `border > 0`, the
- * background is a `PIXI.NineSliceSprite` so corners stay crisp; otherwise
- * it's a plain `PIXI.Sprite` that stretches the texture.
+ * Construction takes an `AssetManager`, a fully-resolved
+ * {@link ButtonComponentStyle}, and geometry / label options. The
+ * idiomatic call site looks like:
  *
- * Skin textures are referenced by asset id; the framework's
- * `UIComponentsBinding` provides default art so apps don't have to.
- * Override per-button via the `skin` preset field, or at runtime via
- * `setSkin()`.
+ * ```ts
+ * const style = this.styleManager.resolve<ButtonComponentStyle>(
+ *   UIComponentsStyleIds.Button,
+ *   // optional per-button override
+ * );
+ * const button = new ButtonComponent(this.assetLoader, style, {
+ *   width: 120, height: 40, label: "Close",
+ * });
+ * ```
+ *
+ * Renders a single background sprite whose texture / tint / alpha are
+ * swapped based on pointer state (idle / hover / pressed / disabled).
+ * When the resolved idle-state style has `border > 0` the bg renders
+ * via `PIXI.NineSliceSprite` so the four corners stay crisp at any
+ * size; otherwise it's a plain `PIXI.Sprite`. The bg type is fixed at
+ * construction (driven by the idle state) so all four states share the
+ * same NineSliceSprite / Sprite instance.
  *
  * Pointer / keyboard interaction is delegated to `@pixi/ui` `Button`;
  * `onPress(cb)` returns an `Unsubscribe`. Disabling stops `onPress`
- * from firing and swaps to the `disabled` texture.
+ * from firing and swaps to the `disabled` state.
+ *
+ * Per-button colour identity (e.g. tower-defence shop cards, "Next
+ * Level" CTAs) flows through `Container.tint` on the component itself,
+ * which propagates to the bg sprite — no per-state override required.
  */
-export class ButtonComponent extends PIXI.Container {
-  private readonly _bgSprite: PIXI.Sprite | PIXI.NineSliceSprite;
+export class ButtonComponent extends StyledHudObject<ButtonComponentStyle> {
+  private readonly _bg: PIXI.Sprite | PIXI.NineSliceSprite;
   private readonly _label: PIXI.Text | null;
   private readonly _button: Button;
-
-  private _skin: ButtonSkin;
-  private readonly _textures: Record<ButtonState, PIXI.Texture> = {
-    idle: PIXI.Texture.EMPTY,
-    hover: PIXI.Texture.EMPTY,
-    pressed: PIXI.Texture.EMPTY,
-    disabled: PIXI.Texture.EMPTY,
-  };
+  private readonly _stateStyles: Record<ButtonState, Required<SpriteStyle>>;
 
   private _state: ButtonState = "idle";
   private _enabled = true;
   private _pointerOver = false;
 
-  private _layoutWidth = 0;
-  private _layoutHeight = 0;
+  private _layoutWidth = 1;
+  private _layoutHeight = 1;
 
-  public constructor(opts: ButtonComponentPreset = {}) {
-    super();
+  public constructor(assetManager: AssetManager, style: ButtonComponentStyle, opts: ButtonComponentOpts = {}) {
+    super(assetManager, style);
 
-    this._skin = opts.skin ?? DEFAULT_SKIN;
-    // Default-skin PNGs ship with a 2px black border; opt them into 9-slice
-    // automatically so the border stays crisp at any size. Custom skins
-    // default to 0 (plain stretch); the consumer opts in by setting `border`.
-    const border = opts.border ?? (opts.skin ? 0 : 2);
+    // Pre-resolve all four per-state styles once. The base helper fills
+    // any unset field from the supplied defaults; the registered style
+    // already populates everything via UIComponentsBinding, so this is
+    // mostly a no-op but stays robust against partial overrides.
+    this._stateStyles = {
+      idle: this._resolveSpriteStyle(
+        style.idle,
+        DEFAULT_TEXTURE_BY_STATE.idle,
+        DEFAULT_BG_COLOR,
+        DEFAULT_BG_ALPHA,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_BORDER,
+      ),
+      hover: this._resolveSpriteStyle(
+        style.hover,
+        DEFAULT_TEXTURE_BY_STATE.hover,
+        DEFAULT_BG_COLOR,
+        DEFAULT_BG_ALPHA,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_BORDER,
+      ),
+      pressed: this._resolveSpriteStyle(
+        style.pressed,
+        DEFAULT_TEXTURE_BY_STATE.pressed,
+        DEFAULT_BG_COLOR,
+        DEFAULT_BG_ALPHA,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_BORDER,
+      ),
+      disabled: this._resolveSpriteStyle(
+        style.disabled,
+        DEFAULT_TEXTURE_BY_STATE.disabled,
+        DEFAULT_BG_COLOR,
+        DEFAULT_BG_ALPHA,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_BORDER,
+      ),
+    };
 
-    // The sprite size is driven manually from `handleLayout` via
-    // `applySpriteSize`. We deliberately do NOT give the sprite a `layout`
-    // property: `width: "100%"` would either divide by 0 against an EMPTY
-    // texture (Infinity scale → invisible) or resolve against the wrong
-    // positioned ancestor (sprite swallows the screen). Plain `position`
-    // + manual `width`/`height` is more predictable.
-    this._bgSprite =
-      border > 0
-        ? new PIXI.NineSliceSprite({
-            texture: PIXI.Texture.EMPTY,
-            leftWidth: border,
-            topHeight: border,
-            rightWidth: border,
-            bottomHeight: border,
-          })
-        : new PIXI.Sprite(PIXI.Texture.EMPTY);
-    this._bgSprite.position.set(0, 0);
-    this._bgSprite.visible = false;
-    this.addChild(this._bgSprite);
+    // Build the bg sprite from the idle state — its `border` decides
+    // whether we end up with a Sprite or NineSliceSprite. Slot dim 1
+    // is a placeholder; the real width/height come from the layout
+    // event below via `_applyState`. The base helper centers the
+    // sprite (anchor 0.5, 0.5) — override to (0, 0) so it fills the
+    // layout box from the top-left.
+    this._bg = this._buildSprite(this._stateStyles.idle, 1, 1);
+    this._bg.anchor.set(0, 0);
+    this._bg.position.set(0, 0);
+    this.addChild(this._bg);
 
+    // Label: built only when both opts.label and a registered label
+    // style exist (the framework default does, so this normally just
+    // gates on the user passing `label`).
     if (opts.label !== undefined) {
-      const mergedStyle = { ...DEFAULT_LABEL_STYLE, ...opts.labelStyle };
-      this._label = new PIXI.Text({ text: opts.label, style: mergedStyle });
+      const labelStyle = this._resolveTextStyle(
+        style.label,
+        DEFAULT_LABEL_FONT_FAMILY,
+        DEFAULT_LABEL_FONT_SIZE,
+        DEFAULT_LABEL_FONT_WEIGHT,
+        DEFAULT_LABEL_COLOR,
+        DEFAULT_LABEL_ALPHA,
+      );
+      this._label = this._buildText(opts.label, labelStyle);
       this._label.anchor.set(0.5, 0.5);
       this._label.layout = {};
       this.addChild(this._label);
@@ -164,12 +186,6 @@ export class ButtonComponent extends PIXI.Container {
     this._button.onUpOut.connect(() => this.onPointerUpOut());
     this._button.onHover.connect(() => this.onPointerHover());
     this._button.onOut.connect(() => this.onPointerOut());
-  }
-
-  /** Replace the active skin and re-resolve via the asset manager. */
-  public setSkin(skin: ButtonSkin, assetManager: IAssetManager): void {
-    this._skin = skin;
-    this.resolveAssets(assetManager);
   }
 
   /** Update the label text. No-op if the button was created without a label. */
@@ -200,19 +216,6 @@ export class ButtonComponent extends PIXI.Container {
     };
     this._button.onPress.connect(guarded);
     return () => this._button.onPress.disconnect(guarded);
-  }
-
-  /** Resolve the active skin's asset ids into textures and apply the current state. */
-  public resolveAssets(assetManager: IAssetManager): void {
-    const idle = assetManager.getAsset<PIXI.Texture>(this._skin.idle) ?? PIXI.Texture.EMPTY;
-    const hover = (this._skin.hover && assetManager.getAsset<PIXI.Texture>(this._skin.hover)) || idle;
-    const pressed = (this._skin.pressed && assetManager.getAsset<PIXI.Texture>(this._skin.pressed)) || idle;
-    const disabled = (this._skin.disabled && assetManager.getAsset<PIXI.Texture>(this._skin.disabled)) || idle;
-    this._textures.idle = idle;
-    this._textures.hover = hover;
-    this._textures.pressed = pressed;
-    this._textures.disabled = disabled;
-    this._applyTexture();
   }
 
   // ── Internal: state machine ────────────────────────────────────────
@@ -247,16 +250,12 @@ export class ButtonComponent extends PIXI.Container {
   private _setState(state: ButtonState): void {
     if (this._state === state) return;
     this._state = state;
-    this._applyTexture();
+    this._applyState();
   }
 
-  private _applyTexture(): void {
-    const tex = this._textures[this._state];
-    this._bgSprite.texture = tex;
-    this._bgSprite.visible = tex !== PIXI.Texture.EMPTY;
-    if (this._layoutWidth > 0 && this._layoutHeight > 0) {
-      this.applySpriteSize(this._layoutWidth, this._layoutHeight);
-    }
+  private _applyState(): void {
+    if (this._layoutWidth <= 0 || this._layoutHeight <= 0) return;
+    this._applySpriteStyle(this._bg, this._stateStyles[this._state], this._layoutWidth, this._layoutHeight);
   }
 
   // ── Internal: layout ──────────────────────────────────────────────
@@ -266,21 +265,6 @@ export class ButtonComponent extends PIXI.Container {
     const h = Math.max(1, Math.floor(l.computedLayout.height));
     this._layoutWidth = w;
     this._layoutHeight = h;
-    this.applySpriteSize(w, h);
-  }
-
-  private applySpriteSize(w: number, h: number): void {
-    // EMPTY's source has size 0; setting `.width` here would divide by 0 and
-    // leave the sprite with `Infinity` scale even after a real texture lands.
-    // Skip until `_applyTexture` has installed a non-empty texture.
-    if (this._bgSprite.texture === PIXI.Texture.EMPTY) return;
-    // `NineSliceSprite.width/height` set rendered geometry directly (corners
-    // stay at their texture size, middle stretches). `Sprite.width` instead
-    // sets `scale.x = w / texture.width`; reset scale defensively first.
-    if (this._bgSprite instanceof PIXI.Sprite) {
-      this._bgSprite.scale.set(1, 1);
-    }
-    this._bgSprite.width = w;
-    this._bgSprite.height = h;
+    this._applyState();
   }
 }

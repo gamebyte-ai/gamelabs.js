@@ -1,5 +1,5 @@
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
-import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
+import { ButtonComponent } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
 import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/views/BackgroundComponent.pixi.js";
 import {
   VerticalLayoutComponent,
@@ -7,6 +7,10 @@ import {
 } from "../../../uicomponents/src/views/VerticalLayoutComponent.pixi.js";
 import { HorizontalLayoutComponent } from "../../../uicomponents/src/views/HorizontalLayoutComponent.pixi.js";
 import { ImageComponent } from "../../../uicomponents/src/views/ImageComponent.pixi.js";
+import {
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+} from "../../../uicomponents/src/UIComponentsStyleTypes.js";
 import type { IMainScreenView } from "./IMainScreenView.js";
 import { MainScreenAssetIds } from "../MainScreenAssetIds.js";
 
@@ -50,13 +54,30 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     this.background = new BackgroundComponent(parseBackgroundComponentPreset(bgPresetJson));
     this.background.resolveAssets(this.assetLoader);
 
-    const playPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.PlayButtonPreset) ?? "{}";
-    this.playButton = new ButtonComponent(parseButtonComponentPreset(playPresetJson));
-    this.playButton.resolveAssets(this.assetLoader);
+    // Play button — full-screen-style image button with no label. Each
+    // pointer state shares the same texture id; runtime tinting flows
+    // through `Container.tint` if apps want hover/pressed feedback.
+    const playButtonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      idle: { textureId: MainScreenAssetIds.PlayButtonBg },
+      hover: { textureId: MainScreenAssetIds.PlayButtonBg },
+      pressed: { textureId: MainScreenAssetIds.PlayButtonBg },
+      disabled: { textureId: MainScreenAssetIds.PlayButtonBg },
+    });
+    this.playButton = new ButtonComponent(this.assetLoader, playButtonStyle, { width: 400, height: 200 });
 
-    const settingsPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.SettingsButtonPreset) ?? "{}";
-    this.settingsButton = new ButtonComponent(parseButtonComponentPreset(settingsPresetJson));
-    this.settingsButton.resolveAssets(this.assetLoader);
+    // Settings button — labelled, all states share the same texture.
+    const settingsButtonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      idle: { textureId: MainScreenAssetIds.SettingsButtonBg },
+      hover: { textureId: MainScreenAssetIds.SettingsButtonBg },
+      pressed: { textureId: MainScreenAssetIds.SettingsButtonBg },
+      disabled: { textureId: MainScreenAssetIds.SettingsButtonBg },
+      label: { fontSize: 24, fontWeight: "800", letterSpacing: 1.5 },
+    });
+    this.settingsButton = new ButtonComponent(this.assetLoader, settingsButtonStyle, {
+      width: 400,
+      height: 100,
+      label: "SETTINGS",
+    });
 
     const buttonsColPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.ButtonsColPreset) ?? "{}";
     this.buttonsCol = new VerticalLayoutComponent(parseVerticalLayoutComponentPreset(buttonsColPresetJson));
