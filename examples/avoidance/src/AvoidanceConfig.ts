@@ -20,6 +20,11 @@ export class AvoidanceConfig {
   // Collision
   readonly collisionShrink = 0.7;
 
+  // Slow ability
+  readonly slowAbilityDurationMs = 3000;
+  readonly slowAbilityCooldownMs = 10000;
+  readonly slowAbilityFactor = 0.5;
+
   // Waves
   readonly waveAnnounceDurationMs = 1500;
   readonly waveBaseEnemyCount = 10;

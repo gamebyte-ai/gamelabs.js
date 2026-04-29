@@ -51,4 +51,32 @@ export class GameEvents {
   public emitDirectionInput(dx: number, dy: number): void {
     for (const cb of this._directionInputListeners) cb(dx, dy);
   }
+
+  private readonly _slowAbilityChangedListeners = new Set<(enabled: boolean) => void>();
+
+  /** Fires when the slow ability becomes ready (true) or unavailable (false — active or cooling down). */
+  public onSlowAbilityChanged(cb: (enabled: boolean) => void): Unsubscribe {
+    this._slowAbilityChangedListeners.add(cb);
+    return () => this._slowAbilityChangedListeners.delete(cb);
+  }
+
+  public emitSlowAbilityChanged(enabled: boolean): void {
+    for (const cb of this._slowAbilityChangedListeners) cb(enabled);
+  }
+
+  private readonly _slowAbilityProgressListeners = new Set<(t: number) => void>();
+
+  /**
+   * Fires while the slow ability is recharging (active + cooldown).
+   * `t` ramps 0 → 1 across the disabled period — 0 right after
+   * activation, 1 the moment the ability returns to ready.
+   */
+  public onSlowAbilityProgressChanged(cb: (t: number) => void): Unsubscribe {
+    this._slowAbilityProgressListeners.add(cb);
+    return () => this._slowAbilityProgressListeners.delete(cb);
+  }
+
+  public emitSlowAbilityProgressChanged(t: number): void {
+    for (const cb of this._slowAbilityProgressListeners) cb(t);
+  }
 }
