@@ -2,7 +2,9 @@ import * as PIXI from "pixi.js";
 import {
   ButtonComponent,
   HudViewBase,
+  UIComponentsStyleIds,
   VerticalLayoutComponent,
+  type ButtonComponentStyle,
   type IInstanceResolver,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
@@ -172,29 +174,26 @@ export class ButtonDemoView extends HudViewBase implements IButtonDemoView {
     caption.layout = {};
     section.addChild(caption);
 
-    const button = isCustom
-      ? new ButtonComponent({
-          width: this._width,
-          height: this._height,
-          label: this._label,
-          labelStyle: { fontSize: 16, fontWeight: "700", fill: 0xffffff },
-          skin: {
-            idle: UIPlaygroundAssetIds.CustomButtonIdle,
-            hover: UIPlaygroundAssetIds.CustomButtonHover,
-            pressed: UIPlaygroundAssetIds.CustomButtonPressed,
-            disabled: UIPlaygroundAssetIds.CustomButtonDisabled,
-          },
-          // Custom-skin PNGs also ship with a 2px black border, so opt
-          // into 9-slice with the same inset to keep edges crisp.
-          border: 2,
+    // Both buttons share label-style overrides; only the custom one
+    // points each pointer-state slot at the playground's CustomButton*
+    // PNGs (which also ship with a 2px black border, so they keep
+    // border: 2 from the registered default).
+    const buttonStyle = isCustom
+      ? this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+          idle: { textureId: UIPlaygroundAssetIds.CustomButtonIdle, border: 2 },
+          hover: { textureId: UIPlaygroundAssetIds.CustomButtonHover, border: 2 },
+          pressed: { textureId: UIPlaygroundAssetIds.CustomButtonPressed, border: 2 },
+          disabled: { textureId: UIPlaygroundAssetIds.CustomButtonDisabled, border: 2 },
+          label: { fontSize: 16, fontWeight: "700", color: 0xffffff },
         })
-      : new ButtonComponent({
-          width: this._width,
-          height: this._height,
-          label: this._label,
-          labelStyle: { fontSize: 16, fontWeight: "700", fill: 0xffffff },
+      : this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+          label: { fontSize: 16, fontWeight: "700", color: 0xffffff },
         });
-    button.resolveAssets(this.assetLoader);
+    const button = new ButtonComponent(this.assetLoader, buttonStyle, {
+      width: this._width,
+      height: this._height,
+      label: this._label,
+    });
 
     if (isCustom) {
       this._customButton = button;

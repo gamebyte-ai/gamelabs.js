@@ -3,8 +3,10 @@ import {
   HorizontalLayoutComponent,
   HudViewBase,
   SliderComponent,
+  UIComponentsStyleIds,
   VerticalLayoutComponent,
   type IInstanceResolver,
+  type SliderComponentStyle,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
 import { UIPlaygroundAssetIds } from "../UIPlaygroundAssetIds.js";
@@ -179,16 +181,16 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
 
     const stepSize = this._stepped ? (this._max - this._min) / 10 : 0;
     // Live demo slider intentionally uses the framework default skin
-    // — no `skin` override — so the demo demonstrates what apps get
-    // out of the box from `UIComponentsBinding`.
-    this._slider = new SliderComponent({
+    // — no per-call style override — so the demo demonstrates what
+    // apps get out of the box from `UIComponentsBinding`.
+    const sliderStyle = this.styleManager.resolve<SliderComponentStyle>(UIComponentsStyleIds.Slider);
+    this._slider = new SliderComponent(this.assetLoader, sliderStyle, {
       trackWidth: this._trackWidth,
       min: this._min,
       max: this._max,
       step: stepSize,
       value: this._value,
     });
-    this._slider.resolveAssets(this.assetLoader);
     // `SliderComponent` doesn't set its own `.layout`, so without
     // this it would be skipped by `@pixi/layout` and rendered at its
     // own (0, 0) — same fix used in the controls panel's slider row.
@@ -246,22 +248,18 @@ export class SliderDemoView extends HudViewBase implements ISliderDemoView {
     // Custom skin (neutral white textures) — Container.tint multiplies
     // it down to the channel colour without touching the lib defaults,
     // so all three rows share one skin and differ only by tint.
-    const slider = new SliderComponent({
+    const customStyle = this.styleManager.resolve<SliderComponentStyle>(UIComponentsStyleIds.Slider, {
+      track: { textureId: UIPlaygroundAssetIds.CustomSliderTrack, border: 2 },
+      fill: { textureId: UIPlaygroundAssetIds.CustomSliderFill, border: 2 },
+      thumb: { textureId: UIPlaygroundAssetIds.CustomSliderThumb, border: 0 },
+    });
+    const slider = new SliderComponent(this.assetLoader, customStyle, {
       trackWidth: RGB_TRACK_WIDTH,
       min: 0,
       max: 255,
       step: 1,
       value: this._rgb[channel],
-      skin: {
-        track: UIPlaygroundAssetIds.CustomSliderTrack,
-        fill: UIPlaygroundAssetIds.CustomSliderFill,
-        thumb: UIPlaygroundAssetIds.CustomSliderThumb,
-      },
-      // Custom-skin PNGs ship with a 2px black border, so opt into
-      // 9-slice with the same inset to keep edges crisp.
-      border: 2,
     });
-    slider.resolveAssets(this.assetLoader);
     slider.tint = channelColor;
     // Same layout-box + position-shift trick as the live slider.
     slider.layout = {

@@ -3,6 +3,8 @@ import {
   ButtonComponent,
   DropdownComponent,
   HudViewBase,
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
   type DropdownItem,
   type IInstanceResolver,
   type Unsubscribe,
@@ -208,13 +210,14 @@ export class DropdownDemoView extends HudViewBase implements IDropdownDemoView {
     // Width / colour / label are fixed constants — this fixture is
     // intentionally untouched by the dropdown's controls so the
     // overlay test isn't disturbed by `setWidth` etc.
-    this._testButton = new ButtonComponent({
+    const testButtonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 13, fontWeight: "700", color: 0xffffff },
+    });
+    this._testButton = new ButtonComponent(this.assetLoader, testButtonStyle, {
       width: TEST_BUTTON_WIDTH,
       height: TEST_BUTTON_HEIGHT,
       label: "Click me (overlay test)",
-      labelStyle: { fontSize: 13, fontWeight: "700", fill: 0xffffff },
     });
-    this._testButton.resolveAssets(this.assetLoader);
     this._testButtonUnsub = this._testButton.onPress(() => this._fireTestButtonPress());
     this.addChild(this._testButton);
   }

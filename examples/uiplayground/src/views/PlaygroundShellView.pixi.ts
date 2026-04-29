@@ -6,9 +6,12 @@ import {
   ScreenView,
   SliderComponent,
   ToggleComponent,
+  UIComponentsStyleIds,
   VerticalLayoutComponent,
+  type ButtonComponentStyle,
   type IInstanceResolver,
   type IView,
+  type SliderComponentStyle,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
 import { UIPlaygroundConfig } from "../UIPlaygroundConfig.js";
@@ -351,14 +354,14 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     //   centered drawing fits inside the box.
     const trackWidth = 140;
     const thumbRadius = 10;
-    const slider = new SliderComponent({
+    const sliderStyle = this.styleManager.resolve<SliderComponentStyle>(UIComponentsStyleIds.Slider);
+    const slider = new SliderComponent(this.assetLoader, sliderStyle, {
       trackWidth,
       min: opts.min,
       max: opts.max,
       step: opts.step ?? 0,
       value: opts.value,
     });
-    slider.resolveAssets(this.assetLoader);
     slider.layout = { width: trackWidth + thumbRadius * 2, height: thumbRadius * 2 };
     slider.position.set(thumbRadius, thumbRadius);
     row.addChild(slider);
@@ -425,13 +428,14 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     row.addChild(labelText);
 
     let index = initialIndex;
-    const button = new ButtonComponent({
+    const cycleButtonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 12, fontWeight: "700", color: 0xe8eef6 },
+    });
+    const button = new ButtonComponent(this.assetLoader, cycleButtonStyle, {
       width: 160,
       height: 28,
       label: `Cycle → ${formatValue(values[index]!)}`,
-      labelStyle: { fontSize: 12, fontWeight: "700", fill: 0xe8eef6 },
     });
-    button.resolveAssets(this.assetLoader);
     row.addChild(button);
 
     const handlePress = (): void => {
@@ -453,13 +457,14 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     spacer.layout = { width: LABEL_WIDTH };
     row.addChild(spacer);
 
-    const button = new ButtonComponent({
+    const actionButtonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 12, fontWeight: "700", color: 0xffffff },
+    });
+    const button = new ButtonComponent(this.assetLoader, actionButtonStyle, {
       width: 160,
       height: 28,
       label,
-      labelStyle: { fontSize: 12, fontWeight: "700", fill: 0xffffff },
     });
-    button.resolveAssets(this.assetLoader);
     row.addChild(button);
 
     const buttonUnsub = button.onPress(onPress);
@@ -530,13 +535,14 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
 
   private _makeSidebarButton(item: DemoEntry): ButtonComponent {
     const cfg = this._cfg;
-    const button = new ButtonComponent({
+    const sidebarButtonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 13, fontWeight: "600", color: cfg.sidebarItemColor },
+    });
+    const button = new ButtonComponent(this.assetLoader, sidebarButtonStyle, {
       width: cfg.sidebarWidth - cfg.regionPadding * 2,
       height: cfg.sidebarItemHeight,
       label: item.label,
-      labelStyle: { fontSize: 13, fontWeight: "600", fill: cfg.sidebarItemColor },
     });
-    button.resolveAssets(this.assetLoader);
 
     // Active-state accent: a thin vertical bar pinned to the left edge,
     // hidden until the controller marks this item active.
