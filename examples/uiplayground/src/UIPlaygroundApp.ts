@@ -218,6 +218,21 @@ export class UIPlaygroundApp extends GamelabsApp {
       UIPlaygroundAssetIds.CustomListItemSelected,
       new URL("../assets/list/item-selected.png", import.meta.url).href,
     );
+
+    // Custom scroll view skin for the ScrollViewDemo's "custom" example —
+    // light-gray rounded thumb with a hamburger grip, sitting visually
+    // wider than its track. Contrasts with the default skin's invisible
+    // track + slate-blue rounded thumb.
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomScrollViewTrack,
+      new URL("../assets/scrollview/track.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomScrollViewThumb,
+      new URL("../assets/scrollview/thumb.png", import.meta.url).href,
+    );
   }
 
   protected override configureDI(): void {

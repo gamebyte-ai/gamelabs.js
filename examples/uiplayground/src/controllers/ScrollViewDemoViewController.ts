@@ -74,7 +74,7 @@ export class ScrollViewDemoViewController implements IViewController<IScrollView
       this._controls.addActionControl("Scroll to end", () => this._onScrollToEndPressed()),
     );
 
-    this._subs.add(view.onScroll((x, y) => this._onLiveScroll(x, y)));
+    this._subs.add(view.onScroll((which, x, y) => this._onLiveScroll(which, x, y)));
   }
 
   public destroy(): void {
@@ -115,9 +115,9 @@ export class ScrollViewDemoViewController implements IViewController<IScrollView
     this._controls?.appendLog("ScrollView → scrollTo(end)");
   }
 
-  private _onLiveScroll(x: number, y: number): void {
+  private _onLiveScroll(which: "default" | "custom", x: number, y: number): void {
     // Sparse log: only round positions and skip noisy redundant lines
     // when the offset hasn't crossed an integer pixel boundary.
-    this._controls?.appendLog(`ScrollView → onScroll x=${Math.round(x)} y=${Math.round(y)}`);
+    this._controls?.appendLog(`ScrollView(${which}) → onScroll x=${Math.round(x)} y=${Math.round(y)}`);
   }
 }

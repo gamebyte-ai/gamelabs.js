@@ -21,4 +21,6 @@ export enum UIPlaygroundAssetIds {
   CustomListItemIdle = "UIPlayground.CustomList.ItemIdle",
   CustomListItemHover = "UIPlayground.CustomList.ItemHover",
   CustomListItemSelected = "UIPlayground.CustomList.ItemSelected",
+  CustomScrollViewTrack = "UIPlayground.CustomScrollView.Track",
+  CustomScrollViewThumb = "UIPlayground.CustomScrollView.Thumb",
 }

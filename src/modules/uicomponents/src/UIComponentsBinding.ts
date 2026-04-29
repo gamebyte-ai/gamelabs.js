@@ -11,6 +11,7 @@ import {
   type DropdownComponentStyle,
   type ListComponentStyle,
   type RadioButtonComponentStyle,
+  type ScrollViewComponentStyle,
   type SliderComponentStyle,
   type ToggleComponentStyle,
 } from "./UIComponentsStyleTypes.js";
@@ -198,6 +199,21 @@ export class UIComponentsBinding extends ModuleBinding {
         new URL("./assets/uicomponents/list/item-selected.png", import.meta.url).href,
       ),
     );
+
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultScrollViewTrack,
+        new URL("./assets/uicomponents/scrollview/track.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultScrollViewThumb,
+        new URL("./assets/uicomponents/scrollview/thumb.png", import.meta.url).href,
+      ),
+    );
   }
 
   /**
@@ -293,6 +309,15 @@ export class UIComponentsBinding extends ModuleBinding {
         color: 0xe8eef6,
         alpha: 1,
       },
+    });
+
+    // Default ScrollView skin matches the legacy look — invisible track
+    // (alpha 0, hit-tested only) + slate-400 rounded thumb at 0.6 alpha.
+    // Both slots use 9-slice border 4 so the rounded ends stay crisp at
+    // any thumb / track length.
+    styleManager.add<ScrollViewComponentStyle>(UIComponentsStyleIds.ScrollView, {
+      track: { textureId: UIComponentsAssetIds.DefaultScrollViewTrack, color: 0xffffff, alpha: 0, scaleX: 1, scaleY: 1, border: 4 },
+      thumb: { textureId: UIComponentsAssetIds.DefaultScrollViewThumb, color: 0xffffff, alpha: 0.6, scaleX: 1, scaleY: 1, border: 4 },
     });
   }
 }

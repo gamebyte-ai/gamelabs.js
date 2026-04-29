@@ -21,4 +21,6 @@ export enum UIComponentsAssetIds {
   DefaultListItemIdle = "UIComponents.DefaultList.ItemIdle",
   DefaultListItemHover = "UIComponents.DefaultList.ItemHover",
   DefaultListItemSelected = "UIComponents.DefaultList.ItemSelected",
+  DefaultScrollViewTrack = "UIComponents.DefaultScrollView.Track",
+  DefaultScrollViewThumb = "UIComponents.DefaultScrollView.Thumb",
 }

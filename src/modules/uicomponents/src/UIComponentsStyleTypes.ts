@@ -189,6 +189,36 @@ export type ListComponentStyle = {
   label?: TextStyle;
 };
 
+/**
+ * Visual style for `ScrollViewComponent`'s scrollbars. Two sprite slots —
+ * `track` (full-length background, hit-tested for jump-to-position taps)
+ * and `thumb` (the draggable handle drawn on top of the track). Both
+ * slots cover both vertical and horizontal scrollbars; the textures are
+ * stretched to the runtime axis with 9-slice rounded ends if `border > 0`.
+ *
+ * Slot defaults (applied for any field omitted in the registered style
+ * and the per-component override):
+ * - `textureId`: the two PNGs shipped by `UIComponentsBinding`
+ *   (`DefaultScrollView{Track,Thumb}`). The default skin uses an invisible
+ *   track (alpha 0 — only the thumb shows, matching legacy look) plus a
+ *   slate-400 rounded thumb at 60 % alpha.
+ * - `color` / `alpha`: `0xffffff` / `1` for `thumb`; `0xffffff` / `0` for
+ *   `track` (invisible by default — set a positive `track.alpha` in a
+ *   skin override to reveal a styled rail). Per-component tinting flows
+ *   through `Container.tint` and applies to both sprites.
+ * - `scaleX` / `scaleY`: `1`.
+ * - `border`: `4` for both — the shipped PNGs are rounded-rect with
+ *   ~6px corners; 9-slice keeps them crisp as the thumb / track stretch.
+ *
+ * The thumb's cross-axis size lives on `ScrollViewComponentOpts.thumbThickness`
+ * (defaults to `scrollbarThickness`); set it larger than the track for a
+ * thumb that visually sits on top of the rail.
+ */
+export type ScrollViewComponentStyle = {
+  track?: SpriteStyle;
+  thumb?: SpriteStyle;
+};
+
 /** Style ids registered by the uicomponents module. */
 export const UIComponentsStyleIds = {
   Button: "uicomponents.button",
@@ -198,4 +228,5 @@ export const UIComponentsStyleIds = {
   Background: "uicomponents.background",
   Dropdown: "uicomponents.dropdown",
   List: "uicomponents.list",
+  ScrollView: "uicomponents.scrollview",
 } as const;

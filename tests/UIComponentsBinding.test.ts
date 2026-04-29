@@ -11,6 +11,7 @@ import {
   type DropdownComponentStyle,
   type ListComponentStyle,
   type RadioButtonComponentStyle,
+  type ScrollViewComponentStyle,
   type SliderComponentStyle,
   type ToggleComponentStyle,
 } from "../src/modules/uicomponents/src/UIComponentsStyleTypes.js";
@@ -21,7 +22,7 @@ const noopLogger: ILogger = {
 };
 
 describe("UIComponentsBinding", () => {
-  it("registers the default button + slider + radio + toggle + background + dropdown + list skin asset requests in its constructor", () => {
+  it("registers the default button + slider + radio + toggle + background + dropdown + list + scrollview skin asset requests in its constructor", () => {
     const binding = new UIComponentsBinding();
     const requests = [...binding.assetRequestList.getRequests()];
     const ids = requests.map((r) => r.id).sort();
@@ -42,6 +43,8 @@ describe("UIComponentsBinding", () => {
       UIComponentsAssetIds.DefaultListItemSelected,
       UIComponentsAssetIds.DefaultRadioSelected,
       UIComponentsAssetIds.DefaultRadioUnselected,
+      UIComponentsAssetIds.DefaultScrollViewThumb,
+      UIComponentsAssetIds.DefaultScrollViewTrack,
       UIComponentsAssetIds.DefaultSliderFill,
       UIComponentsAssetIds.DefaultSliderThumb,
       UIComponentsAssetIds.DefaultSliderTrack,
@@ -128,5 +131,16 @@ describe("UIComponentsBinding", () => {
     expect(listStyle.itemHover?.textureId).toBe(UIComponentsAssetIds.DefaultListItemHover);
     expect(listStyle.itemSelected?.textureId).toBe(UIComponentsAssetIds.DefaultListItemSelected);
     expect(listStyle.label?.fontSize).toBe(14);
+
+    // ScrollView style — track + thumb. Default skin keeps the track
+    // invisible (alpha 0) so the legacy "thumb-only" look is preserved;
+    // both slots opt into 9-slice border 4 for crisp rounded ends.
+    const scrollViewStyle = styleManager.resolve<ScrollViewComponentStyle>(UIComponentsStyleIds.ScrollView);
+    expect(scrollViewStyle.track?.textureId).toBe(UIComponentsAssetIds.DefaultScrollViewTrack);
+    expect(scrollViewStyle.track?.alpha).toBe(0);
+    expect(scrollViewStyle.track?.border).toBe(4);
+    expect(scrollViewStyle.thumb?.textureId).toBe(UIComponentsAssetIds.DefaultScrollViewThumb);
+    expect(scrollViewStyle.thumb?.alpha).toBe(0.6);
+    expect(scrollViewStyle.thumb?.border).toBe(4);
   });
 });

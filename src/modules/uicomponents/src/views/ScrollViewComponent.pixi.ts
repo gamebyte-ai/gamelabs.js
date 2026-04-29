@@ -1,10 +1,21 @@
 import type { LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
+import type { AssetManager } from "../../../../core/assets/AssetManager.js";
+import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
+import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
+import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
+import type { ScrollViewComponentStyle } from "../UIComponentsStyleTypes.js";
 
 export type ScrollViewDirection = "vertical" | "horizontal" | "both";
 
-export type ScrollViewComponentPreset = {
+/**
+ * Geometry / behaviour options for a {@link ScrollViewComponent}. Visual
+ * styling for the scrollbar (track + thumb textures, tints, alphas, 9-slice
+ * border) lives on the {@link ScrollViewComponentStyle} passed alongside the
+ * asset manager and is owned by the framework's `StyleManager`.
+ */
+export type ScrollViewComponentOpts = {
   /** X position. */
   x?: number;
   /** Y position. */
@@ -24,12 +35,23 @@ export type ScrollViewComponentPreset = {
    * jump-to-position). @default true
    */
   showScrollbar?: boolean;
-  /** Scrollbar thumb color. @default 0x94a3b8 */
-  scrollbarColor?: number;
-  /** Scrollbar thumb alpha. @default 0.6 */
-  scrollbarAlpha?: number;
-  /** Scrollbar thumb thickness in pixels. @default 4 */
+  /** Track thickness in pixels (cross-axis). @default 4 */
   scrollbarThickness?: number;
+  /**
+   * Thumb thickness in pixels (cross-axis). Defaults to the track
+   * thickness; set it larger than the track for a thumb that visually
+   * sits on top of the rail (the centre of the thumb stays aligned with
+   * the centre of the track, so the overflow is split evenly).
+   */
+  thumbThickness?: number;
+  /**
+   * Fixed thumb length in pixels (main-axis). When set, the thumb keeps
+   * this length regardless of the visible/total content ratio — useful
+   * for "knob" style scrollbars where the thumb is a small fixed square
+   * dragged along a long track. When omitted, the thumb sizes itself
+   * proportionally to the visible/total ratio (legacy behaviour).
+   */
+  thumbLength?: number;
   /** Distance between scrollbar and viewport edge, in pixels. @default 2 */
   scrollbarMargin?: number;
   /** Pixels scrolled per wheel notch (browser delta is divided by 100). @default 50 */
@@ -39,14 +61,21 @@ export type ScrollViewComponentPreset = {
 };
 
 /**
- * Parse a JSON string into ScrollViewComponentPreset.
- */
-export function parseScrollViewComponentPreset(json: string): ScrollViewComponentPreset {
-  return JSON.parse(json) as ScrollViewComponentPreset;
-}
-
-/**
- * Reusable scrollable container.
+ * Reusable scrollable container, themed via the framework's style system.
+ *
+ * Construction takes an `AssetManager`, a fully-resolved
+ * {@link ScrollViewComponentStyle}, and geometry / behaviour options:
+ *
+ * ```ts
+ * const style = this.styleManager.resolve<ScrollViewComponentStyle>(
+ *   UIComponentsStyleIds.ScrollView,
+ * );
+ * const scroll = new ScrollViewComponent(this.assetLoader, style, {
+ *   width: 320, height: 240, direction: "vertical",
+ * });
+ * scroll.content.addChild(myList);
+ * scroll.refresh();
+ * ```
  *
  * - Exposes a public {@link content} container — add scrollable children
  *   directly to it.
@@ -60,15 +89,16 @@ export function parseScrollViewComponentPreset(json: string): ScrollViewComponen
  *   on top of `onScroll` themselves.
  * - Scrollbar is interactive: drag the thumb to scroll, or click on the
  *   track to jump-scroll (the thumb centers on the click, then drag
- *   continues from the new position). Implemented with a single
- *   Graphics per axis that draws a near-transparent track rect (for
- *   hit-testing) plus the visible thumb on top.
+ *   continues from the new position). Each axis is a `Container` with
+ *   two textured sprites (track + thumb) — the parent carries the hit
+ *   area covering both, so the user can grab the thumb even when its
+ *   thickness exceeds the track's.
  * - Content size is determined by {@link refresh} (reads
  *   `content.getLocalBounds()`) or {@link setContentSize}. Call after
  *   adding/removing children so scroll bounds and the scrollbar
  *   reflect the new layout.
  */
-export class ScrollViewComponent extends PIXI.Container {
+export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyle> {
   /**
    * Public content container — add scrollable children here. The
    * container is translated as the user scrolls; its own children
@@ -82,13 +112,19 @@ export class ScrollViewComponent extends PIXI.Container {
   private readonly _wheelSpeed: number;
   private readonly _dragEnabled: boolean;
   private readonly _scrollbarThickness: number;
+  private readonly _thumbThickness: number;
+  private readonly _thumbLength: number | null;
   private readonly _scrollbarMargin: number;
-  private readonly _scrollbarColor: number;
-  private readonly _scrollbarAlpha: number;
+  private readonly _trackStyle: Required<SpriteStyle>;
+  private readonly _thumbStyle: Required<SpriteStyle>;
   private readonly _bg: PIXI.Graphics;
   private readonly _mask: PIXI.Graphics;
-  private readonly _scrollbarV: PIXI.Graphics | null;
-  private readonly _scrollbarH: PIXI.Graphics | null;
+  private readonly _scrollbarV: PIXI.Container | null;
+  private readonly _scrollbarH: PIXI.Container | null;
+  private readonly _trackV: PIXI.Sprite | PIXI.NineSliceSprite | null;
+  private readonly _thumbV: PIXI.Sprite | PIXI.NineSliceSprite | null;
+  private readonly _trackH: PIXI.Sprite | PIXI.NineSliceSprite | null;
+  private readonly _thumbH: PIXI.Sprite | PIXI.NineSliceSprite | null;
   private readonly _scrollListeners = new Set<(x: number, y: number) => void>();
 
   private _scrollX = 0;
@@ -107,8 +143,8 @@ export class ScrollViewComponent extends PIXI.Container {
   private _dragStartScrollX = 0;
   private _dragStartScrollY = 0;
 
-  public constructor(opts: ScrollViewComponentPreset) {
-    super();
+  public constructor(assetManager: AssetManager, style: ScrollViewComponentStyle, opts: ScrollViewComponentOpts) {
+    super(assetManager, style);
 
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
@@ -119,10 +155,13 @@ export class ScrollViewComponent extends PIXI.Container {
     this._wheelSpeed = opts.wheelSpeed ?? 50;
     this._dragEnabled = opts.dragEnabled ?? true;
     this._scrollbarThickness = opts.scrollbarThickness ?? 4;
+    this._thumbThickness = opts.thumbThickness ?? this._scrollbarThickness;
+    this._thumbLength = opts.thumbLength ?? null;
     this._scrollbarMargin = opts.scrollbarMargin ?? 2;
-    this._scrollbarColor = opts.scrollbarColor ?? 0x94a3b8;
-    this._scrollbarAlpha = opts.scrollbarAlpha ?? 0.6;
     const showScrollbar = opts.showScrollbar ?? true;
+
+    this._trackStyle = this._resolveSpriteStyle(style.track, UIComponentsAssetIds.DefaultScrollViewTrack, 0xffffff, 0, 1, 1, 4);
+    this._thumbStyle = this._resolveSpriteStyle(style.thumb, UIComponentsAssetIds.DefaultScrollViewThumb, 0xffffff, 0.6, 1, 1, 4);
 
     this._bg = new PIXI.Graphics();
     this._bg.eventMode = "none";
@@ -144,8 +183,26 @@ export class ScrollViewComponent extends PIXI.Container {
     this.content.mask = this._mask;
     this.addChild(this.content);
 
-    this._scrollbarV = showScrollbar && this._direction !== "horizontal" ? this._makeScrollbar("v") : null;
-    this._scrollbarH = showScrollbar && this._direction !== "vertical" ? this._makeScrollbar("h") : null;
+    if (showScrollbar && this._direction !== "horizontal") {
+      const built = this._buildScrollbar("v");
+      this._scrollbarV = built.container;
+      this._trackV = built.track;
+      this._thumbV = built.thumb;
+    } else {
+      this._scrollbarV = null;
+      this._trackV = null;
+      this._thumbV = null;
+    }
+    if (showScrollbar && this._direction !== "vertical") {
+      const built = this._buildScrollbar("h");
+      this._scrollbarH = built.container;
+      this._trackH = built.track;
+      this._thumbH = built.thumb;
+    } else {
+      this._scrollbarH = null;
+      this._trackH = null;
+      this._thumbH = null;
+    }
 
     const layout: Omit<LayoutOptions, "target"> = {
       width: this._viewportWidth,
@@ -161,7 +218,7 @@ export class ScrollViewComponent extends PIXI.Container {
     this.on("pointerupoutside", () => this._endDrag());
     this.on("wheel", (e: PIXI.FederatedWheelEvent) => this._onWheel(e));
 
-    this._redrawScrollbars();
+    this._refreshScrollbars();
   }
 
   /** Current horizontal scroll offset in pixels (0 = leftmost). */
@@ -214,7 +271,7 @@ export class ScrollViewComponent extends PIXI.Container {
     this._scrollX = sx;
     this._scrollY = sy;
     this.content.position.set(-sx, -sy);
-    this._redrawScrollbars();
+    this._refreshScrollbars();
     for (const cb of this._scrollListeners) cb(sx, sy);
   }
 
@@ -243,7 +300,7 @@ export class ScrollViewComponent extends PIXI.Container {
     this._contentHeight = Math.max(0, height);
     // Re-clamp current scroll in case content shrank past it.
     this.scrollTo(this._scrollX, this._scrollY);
-    this._redrawScrollbars();
+    this._refreshScrollbars();
   }
 
   /** Subscribe to scroll-offset changes. Returns an unsubscribe function. */
@@ -259,16 +316,33 @@ export class ScrollViewComponent extends PIXI.Container {
 
   // ── Internals ──────────────────────────────────────────────────────
 
-  private _makeScrollbar(axis: "v" | "h"): PIXI.Graphics {
-    const bar = new PIXI.Graphics();
-    // Each bar draws an invisible (alpha 0.001) full-track rect plus
-    // the visible thumb, so the entire track region is hit-testable.
-    // pointerdown distinguishes thumb (drag) from track (jump-to).
-    bar.eventMode = "static";
-    bar.cursor = "pointer";
-    bar.on("pointerdown", (e: PIXI.FederatedPointerEvent) => (axis === "v" ? this._onScrollbarPressedV(e) : this._onScrollbarPressedH(e)));
-    this.addChild(bar);
-    return bar;
+  private _buildScrollbar(axis: "v" | "h"): {
+    container: PIXI.Container;
+    track: PIXI.Sprite | PIXI.NineSliceSprite;
+    thumb: PIXI.Sprite | PIXI.NineSliceSprite;
+  } {
+    const container = new PIXI.Container();
+    container.eventMode = "static";
+    container.cursor = "pointer";
+    // Build the track + thumb sprites using `_buildSprite` so 9-slice
+    // border kicks in when configured. The slot dimensions passed here
+    // are placeholder 1×1 sizes; `_layoutVerticalScrollbar` /
+    // `_layoutHorizontalScrollbar` resize them on every redraw.
+    const track = this._buildSprite(this._trackStyle, 1);
+    track.anchor.set(0, 0);
+    track.eventMode = "none";
+    container.addChild(track);
+
+    const thumb = this._buildSprite(this._thumbStyle, 1);
+    thumb.anchor.set(0, 0);
+    thumb.eventMode = "none";
+    container.addChild(thumb);
+
+    container.on("pointerdown", (e: PIXI.FederatedPointerEvent) =>
+      axis === "v" ? this._onScrollbarPressedV(e) : this._onScrollbarPressedH(e),
+    );
+    this.addChild(container);
+    return { container, track, thumb };
   }
 
   private _clamp(value: number, max: number): number {
@@ -281,7 +355,7 @@ export class ScrollViewComponent extends PIXI.Container {
     // Only drag when the pointer hits the viewport background — child
     // containers (buttons, list rows, etc.) keep their normal taps.
     // Scrollbar presses set their own drag mode and don't reach here
-    // because their `e.target` is the scrollbar Graphics, not `this`.
+    // because their `e.target` is a scrollbar Container / sprite, not `this`.
     if (e.target !== this) return;
     this._beginDrag("viewport", e);
   }
@@ -374,8 +448,21 @@ export class ScrollViewComponent extends PIXI.Container {
   }
 
   private _onWheel(e: PIXI.FederatedWheelEvent): void {
-    const dx = this._direction === "vertical" ? 0 : (e.deltaX * this._wheelSpeed) / 100;
-    const dy = this._direction === "horizontal" ? 0 : (e.deltaY * this._wheelSpeed) / 100;
+    let dx: number;
+    let dy: number;
+    if (this._direction === "horizontal") {
+      // Map both wheel axes onto horizontal scroll — a standard mouse's
+      // vertical wheel would otherwise feel frozen on a horizontal-only
+      // view. Trackpad horizontal swipes (deltaX) still work too.
+      dx = ((e.deltaX + e.deltaY) * this._wheelSpeed) / 100;
+      dy = 0;
+    } else if (this._direction === "vertical") {
+      dx = 0;
+      dy = (e.deltaY * this._wheelSpeed) / 100;
+    } else {
+      dx = (e.deltaX * this._wheelSpeed) / 100;
+      dy = (e.deltaY * this._wheelSpeed) / 100;
+    }
     if (dx === 0 && dy === 0) return;
     const beforeX = this._scrollX;
     const beforeY = this._scrollY;
@@ -388,51 +475,77 @@ export class ScrollViewComponent extends PIXI.Container {
     }
   }
 
-  private _redrawScrollbars(): void {
-    if (this._scrollbarV) this._drawVerticalScrollbar();
-    if (this._scrollbarH) this._drawHorizontalScrollbar();
+  private _refreshScrollbars(): void {
+    this._layoutVerticalScrollbar();
+    this._layoutHorizontalScrollbar();
   }
 
-  private _drawVerticalScrollbar(): void {
-    const bar = this._scrollbarV;
-    if (!bar) return;
-    bar.clear();
-    if (this.scrollableHeight <= 0) return;
+  private _layoutVerticalScrollbar(): void {
+    const container = this._scrollbarV;
+    const track = this._trackV;
+    const thumb = this._thumbV;
+    if (!container || !track || !thumb) return;
+
+    if (this.scrollableHeight <= 0) {
+      container.visible = false;
+      return;
+    }
+    container.visible = true;
 
     const trackHeight = this._verticalTrackHeight();
     const thumbHeight = this._verticalThumbHeight();
     const travel = trackHeight - thumbHeight;
     const thumbY = this._scrollbarMargin + (travel > 0 ? travel * (this._scrollY / this.scrollableHeight) : 0);
-    const thumbX = this._viewportWidth - this._scrollbarThickness - this._scrollbarMargin;
+    const trackX = this._viewportWidth - this._scrollbarThickness - this._scrollbarMargin;
+    // Thumb is centred on the track centreline so a thumbThickness >
+    // scrollbarThickness overflows symmetrically on both sides.
+    const thumbX = trackX + (this._scrollbarThickness - this._thumbThickness) / 2;
 
-    // Invisible track rect — fills the full track region with a near-
-    // zero alpha so it's hit-testable without being visible. Lets the
-    // user click the track to jump-scroll without obscuring content.
-    bar.rect(thumbX, this._scrollbarMargin, this._scrollbarThickness, trackHeight).fill({ color: 0x000000, alpha: 0.001 });
+    // Sprites use top-left anchor (set in `_buildScrollbar`); position
+    // is the top-left corner, not the centre.
+    this._applySpriteStyle(track, this._trackStyle, this._scrollbarThickness, trackHeight);
+    track.position.set(trackX, this._scrollbarMargin);
 
-    // Visible thumb on top.
-    bar
-      .roundRect(thumbX, thumbY, this._scrollbarThickness, thumbHeight, this._scrollbarThickness / 2)
-      .fill({ color: this._scrollbarColor, alpha: this._scrollbarAlpha });
+    this._applySpriteStyle(thumb, this._thumbStyle, this._thumbThickness, thumbHeight);
+    thumb.position.set(thumbX, thumbY);
+
+    // Hit area covers the union of track + thumb on the cross-axis so
+    // the protruding parts of a wider thumb stay grabbable.
+    const hitX = Math.min(trackX, thumbX);
+    const hitW = Math.max(this._scrollbarThickness, this._thumbThickness);
+    container.hitArea = new PIXI.Rectangle(hitX, this._scrollbarMargin, hitW, trackHeight);
   }
 
-  private _drawHorizontalScrollbar(): void {
-    const bar = this._scrollbarH;
-    if (!bar) return;
-    bar.clear();
-    if (this.scrollableWidth <= 0) return;
+  private _layoutHorizontalScrollbar(): void {
+    const container = this._scrollbarH;
+    const track = this._trackH;
+    const thumb = this._thumbH;
+    if (!container || !track || !thumb) return;
+
+    if (this.scrollableWidth <= 0) {
+      container.visible = false;
+      return;
+    }
+    container.visible = true;
 
     const trackWidth = this._horizontalTrackWidth();
     const thumbWidth = this._horizontalThumbWidth();
     const travel = trackWidth - thumbWidth;
     const thumbX = this._scrollbarMargin + (travel > 0 ? travel * (this._scrollX / this.scrollableWidth) : 0);
-    const thumbY = this._viewportHeight - this._scrollbarThickness - this._scrollbarMargin;
+    const trackY = this._viewportHeight - this._scrollbarThickness - this._scrollbarMargin;
+    const thumbY = trackY + (this._scrollbarThickness - this._thumbThickness) / 2;
 
-    bar.rect(this._scrollbarMargin, thumbY, trackWidth, this._scrollbarThickness).fill({ color: 0x000000, alpha: 0.001 });
+    // Sprites use top-left anchor (set in `_buildScrollbar`); position
+    // is the top-left corner, not the centre.
+    this._applySpriteStyle(track, this._trackStyle, trackWidth, this._scrollbarThickness);
+    track.position.set(this._scrollbarMargin, trackY);
 
-    bar
-      .roundRect(thumbX, thumbY, thumbWidth, this._scrollbarThickness, this._scrollbarThickness / 2)
-      .fill({ color: this._scrollbarColor, alpha: this._scrollbarAlpha });
+    this._applySpriteStyle(thumb, this._thumbStyle, thumbWidth, this._thumbThickness);
+    thumb.position.set(thumbX, thumbY);
+
+    const hitY = Math.min(trackY, thumbY);
+    const hitH = Math.max(this._scrollbarThickness, this._thumbThickness);
+    container.hitArea = new PIXI.Rectangle(this._scrollbarMargin, hitY, trackWidth, hitH);
   }
 
   private _verticalTrackHeight(): number {
@@ -441,8 +554,13 @@ export class ScrollViewComponent extends PIXI.Container {
 
   private _verticalThumbHeight(): number {
     if (this._contentHeight <= 0) return 0;
+    const trackHeight = this._verticalTrackHeight();
+    if (this._thumbLength !== null) {
+      // Fixed length, clamped so the thumb still fits inside the track.
+      return Math.min(trackHeight, this._thumbLength);
+    }
     const ratio = this._viewportHeight / this._contentHeight;
-    return Math.max(20, this._verticalTrackHeight() * ratio);
+    return Math.max(20, trackHeight * ratio);
   }
 
   private _verticalThumbTravel(): number {
@@ -455,8 +573,12 @@ export class ScrollViewComponent extends PIXI.Container {
 
   private _horizontalThumbWidth(): number {
     if (this._contentWidth <= 0) return 0;
+    const trackWidth = this._horizontalTrackWidth();
+    if (this._thumbLength !== null) {
+      return Math.min(trackWidth, this._thumbLength);
+    }
     const ratio = this._viewportWidth / this._contentWidth;
-    return Math.max(20, this._horizontalTrackWidth() * ratio);
+    return Math.max(20, trackWidth * ratio);
   }
 
   private _horizontalThumbTravel(): number {

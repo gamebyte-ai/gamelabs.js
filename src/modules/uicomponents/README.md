@@ -12,7 +12,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`DropdownComponent`](#dropdowncomponent) — select-style dropdown driven by the framework `StyleManager` with overlay-rendered option list
 - [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator driven by the framework `StyleManager` with optional label; designed to compose into a group
 - [`RadioButtonGroupComponent`](#radiobuttongroupcomponent) — mutually exclusive set of `RadioButtonComponent`s stacked in a column or row, all sharing one resolved style
-- [`ScrollViewComponent`](#scrollviewcomponent) — clipped scrollable viewport with mouse-wheel + drag panning and an optional scrollbar
+- [`ScrollViewComponent`](#scrollviewcomponent) — clipped scrollable viewport driven by the framework `StyleManager` with mouse-wheel + drag panning and a textured scrollbar (track + thumb)
 - [`ListComponent`](#listcomponent) — single-column list driven by the framework `StyleManager` with text / text+image / image rows and optional single- or multi-select
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
 - [`HorizontalLayoutComponent`](#horizontallayoutcomponent) — horizontal flex container
@@ -521,10 +521,13 @@ The group hands the same `RadioButtonComponentStyle` to every child. If you want
 
 ## ScrollViewComponent
 
-Clipped scrollable viewport. Exposes a public `content` container — add scrollable children to it directly. Mouse-wheel anywhere over the viewport scrolls; pointer-down on the viewport background pans (interactive children inside content keep their normal taps). The scrollbar is interactive: drag the thumb to scroll directly, or click the track to jump-scroll.
+Clipped scrollable viewport themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `ScrollViewComponentStyle`, and geometry / behaviour opts. The scrollbar is two textured sprites per axis — a `track` (full-length rail) and a `thumb` (draggable handle drawn on top). Both sprites use 9-slice rendering when their resolved `border > 0` so rounded ends stay crisp at any thumb / track length. The framework's `UIComponentsBinding` registers a default style entry that matches the legacy look — invisible track (alpha 0, hit-tested only) plus a slate-blue rounded thumb at 0.6 alpha — so apps that add the binding get a familiar scrollbar without supplying any art.
 
 ```ts
-const scroll = new ScrollViewComponent({
+// In a HudViewBase / ScreenView / PopupView subclass — the base class
+// exposes `styleManager` and `assetLoader` getters for free:
+const scrollStyle = this.styleManager.resolve<ScrollViewComponentStyle>(UIComponentsStyleIds.ScrollView);
+const scroll = new ScrollViewComponent(this.assetLoader, scrollStyle, {
   width: 240,
   height: 320,
   direction: "vertical",
@@ -533,26 +536,55 @@ for (const item of items) scroll.content.addChild(item);
 // Tell the view how big the content is so scroll bounds match.
 scroll.refresh();
 scroll.onScroll((x, y) => console.log("scrolled to", x, y));
+
+// Custom skin — point the slots at your own PNGs and (optionally) make
+// the thumb thicker than the track so it visually sits "on top of" the
+// rail:
+const customStyle = this.styleManager.resolve<ScrollViewComponentStyle>(UIComponentsStyleIds.ScrollView, {
+  track: { textureId: MyAssetIds.ScrollTrack, alpha: 1 },
+  thumb: { textureId: MyAssetIds.ScrollThumb, alpha: 1 },
+});
+const customScroll = new ScrollViewComponent(this.assetLoader, customStyle, {
+  width: 240,
+  height: 320,
+  scrollbarThickness: 6,
+  thumbThickness: 14, // > scrollbarThickness → thumb overflows the track
+});
 ```
 
-### `ScrollViewComponentPreset`
+The bg sprite type (`PIXI.Sprite` vs `PIXI.NineSliceSprite`) is fixed at construction by each slot's `border`. The shipped default-skin PNGs are rounded-rect with `border: 4` so 9-slice keeps the corners crisp as the thumb / track stretch.
 
-| Field                | Type                                   | Default      | Description                                                          |
-| -------------------- | -------------------------------------- | ------------ | -------------------------------------------------------------------- |
-| `x`                  | `number`                               | —            | X position.                                                          |
-| `y`                  | `number`                               | —            | Y position.                                                          |
-| `width`              | `number`                               | **required** | Viewport width.                                                      |
-| `height`             | `number`                               | **required** | Viewport height.                                                     |
-| `direction`          | `"vertical" \| "horizontal" \| "both"` | `"vertical"` | Allowed scroll axis. The disabled axis is forced to `0`.             |
-| `fillColor`          | `number`                               | `0x000000`   | Background fill color (only drawn when `fillAlpha > 0`).             |
-| `fillAlpha`          | `number`                               | `0`          | Background fill alpha. `0` skips the background entirely.            |
-| `showScrollbar`      | `boolean`                              | `true`       | Whether to draw the interactive scrollbar (thumb-drag + track-jump). |
-| `scrollbarColor`     | `number`                               | `0x94a3b8`   | Scrollbar thumb color.                                               |
-| `scrollbarAlpha`     | `number`                               | `0.6`        | Scrollbar thumb alpha.                                               |
-| `scrollbarThickness` | `number`                               | `4`          | Scrollbar thumb thickness in pixels.                                 |
-| `scrollbarMargin`    | `number`                               | `2`          | Distance from the viewport edge to the scrollbar.                    |
-| `wheelSpeed`         | `number`                               | `50`         | Pixels scrolled per wheel notch (browser delta is divided by 100).   |
-| `dragEnabled`        | `boolean`                              | `true`       | Whether dragging on the viewport background pans the content.        |
+### `ScrollViewComponentOpts`
+
+Geometry / behaviour. Visual fields (track / thumb texture, tint, alpha, 9-slice border) live on the style — pass them through `StyleManager.resolve(...)`.
+
+| Field                | Type                                   | Default              | Description                                                                                                                                                                                                    |
+| -------------------- | -------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `x`                  | `number`                               | —                    | X position.                                                                                                                                                                                                    |
+| `y`                  | `number`                               | —                    | Y position.                                                                                                                                                                                                    |
+| `width`              | `number`                               | **required**         | Viewport width.                                                                                                                                                                                                |
+| `height`             | `number`                               | **required**         | Viewport height.                                                                                                                                                                                               |
+| `direction`          | `"vertical" \| "horizontal" \| "both"` | `"vertical"`         | Allowed scroll axis. The disabled axis is forced to `0`.                                                                                                                                                       |
+| `fillColor`          | `number`                               | `0x000000`           | Background fill color (only drawn when `fillAlpha > 0`).                                                                                                                                                       |
+| `fillAlpha`          | `number`                               | `0`                  | Background fill alpha. `0` skips the background entirely.                                                                                                                                                      |
+| `showScrollbar`      | `boolean`                              | `true`               | Whether to draw the interactive scrollbar (thumb-drag + track-jump).                                                                                                                                           |
+| `scrollbarThickness` | `number`                               | `4`                  | Track thickness in pixels (cross-axis).                                                                                                                                                                        |
+| `thumbThickness`     | `number`                               | `scrollbarThickness` | Thumb thickness in pixels. Set larger than the track for a thumb that sits on top of the rail (overflow split evenly).                                                                                         |
+| `thumbLength`        | `number`                               | proportional         | Fixed thumb length (main-axis). When omitted, the thumb sizes itself proportionally to the visible / total ratio. Use this for "knob" style scrollbars where the thumb is a small fixed shape (e.g. a square). |
+| `scrollbarMargin`    | `number`                               | `2`                  | Distance from the viewport edge to the scrollbar.                                                                                                                                                              |
+| `wheelSpeed`         | `number`                               | `50`                 | Pixels scrolled per wheel notch (browser delta is divided by 100).                                                                                                                                             |
+| `dragEnabled`        | `boolean`                              | `true`               | Whether dragging on the viewport background pans the content.                                                                                                                                                  |
+
+### `ScrollViewComponentStyle`
+
+Bundle of two `SpriteStyle` slots. Apps re-theme every scroll view at once with `styleManager.modify(UIComponentsStyleIds.ScrollView, { … })`; per-component overrides flow through `styleManager.resolve(...)` at the call site.
+
+| Slot    | Type          | Notes                                                                                                                                                        |
+| ------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `track` | `SpriteStyle` | Full-length scrollbar rail. The default registers `alpha: 0` so the track is invisible (legacy look) — set a positive alpha in a skin override to reveal it. |
+| `thumb` | `SpriteStyle` | Draggable handle drawn over the track. The default registers `alpha: 0.6` (matches the legacy slate-blue thumb).                                             |
+
+`SpriteStyle` is `{ textureId?, color?, alpha?, scaleX?, scaleY?, border? }`. The framework default registers `border: 4` for both slots — the shipped PNGs are rounded-rect, and 9-slice keeps the corners crisp at any size.
 
 ### Methods
 
@@ -566,10 +598,14 @@ scroll.onScroll((x, y) => console.log("scrolled to", x, y));
 
 ### Notes
 
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers the two `DefaultScrollView{Track,Thumb}` `HudTexture` asset requests _and_ the `UIComponentsStyleIds.ScrollView` style entry. Apps re-theme via `styleManager.modify(...)` or `binding.assetRequestList.overrideRequest(id, url)` at boot.
+- **Invisible default track.** The default registers `track.alpha = 0` so the legacy "thumb only" look is preserved — the track sprite still fills the rail region for hit-testing. Reveal it by passing `track: { alpha: 1 }` in the per-component override.
+- **Thumb wider than track.** Set `thumbThickness > scrollbarThickness` for a thumb that visually sits on top of the rail. The thumb is centred on the track so the overflow is split evenly on both sides; the parent container's hit area covers both, so the user can grab the protruding thumb edges directly.
+- **Tinting.** `Container.tint` propagates to both sub-sprites simultaneously — set `scroll.tint` on the component for colour identity.
 - **Content size is opt-in.** The component does not watch `content` for changes; call `refresh()` after mutating children, or call `setContentSize` directly if you already know the dimensions. Scroll offsets are clamped against the current content size — shrinking content automatically brings scroll back into bounds.
 - **Drag from background only.** Pointer-down only starts a pan when the hit target is the viewport itself, so taps on interactive children (buttons, list rows, etc.) aren't intercepted. To support drag-from-anywhere (mobile-list style), gate it externally on a movement threshold and call `scrollBy` yourself.
 - **Wheel propagation.** The component only swallows wheel events that actually scrolled — once the view is pinned at an edge, further wheel ticks fall through to the page (or to a parent scroll view), matching browser behavior.
-- **Interactive scrollbar.** Drag the thumb to scroll directly, or click on the track outside the thumb to jump-scroll (the thumb centers on the click, then continues as a drag from the new position so you can keep adjusting). Each axis is one `Graphics` that draws a near-transparent track rect (for hit-testing) plus the visible thumb on top.
+- **Interactive scrollbar.** Drag the thumb to scroll directly, or click on the track outside the thumb to jump-scroll (the thumb centers on the click, then continues as a drag from the new position so you can keep adjusting). Each axis is a `Container` carrying the track + thumb sprites; the parent's `hitArea` covers both so even thumbs that overflow the track stay grabbable.
 - **Yoga inside content.** `content` has no `.layout` by default — children are positioned manually. To use `@pixi/layout` flex inside, set `scroll.content.layout = { flexDirection: "column", flexShrink: 0, ... }` yourself; otherwise yoga won't propagate through the unsized intermediary.
 
 ---
@@ -813,9 +849,9 @@ const updated = UIUtils.updateFields(originalJson, '{"overlayAlpha":0.3}');
 
 ### Themed components do **not** use JSON presets
 
-`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, `BackgroundComponent`, `DropdownComponent`, and `ListComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
+`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, `BackgroundComponent`, `DropdownComponent`, `ListComponent`, and `ScrollViewComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
 
-- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, `.Background`, `.Dropdown`, and `.List`.
+- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, `.Background`, `.Dropdown`, `.List`, and `.ScrollView`.
 - **Per-component override** — the call site passes a deep-merge override to `styleManager.resolve(UIComponentsStyleIds.<Id>, { … })` and forwards the resolved style to the constructor. See the component sections above for the canonical pattern.
 
-The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` / `Dropdown` / `List` components without supplying any art.
+The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` / `Dropdown` / `List` / `ScrollView` components without supplying any art.
