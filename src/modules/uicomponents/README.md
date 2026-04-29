@@ -10,8 +10,8 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`ToggleComponent`](#togglecomponent) — on/off switch with configurable colors
 - [`SliderComponent`](#slidercomponent) — horizontal slider driven by the framework `StyleManager` with track / fill / thumb skin and min/max/step constraints
 - [`DropdownComponent`](#dropdowncomponent) — select-style dropdown with overlay-rendered option list
-- [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator with optional label; designed to compose into a group
-- [`RadioButtonGroupComponent`](#radiobuttongroupcomponent) — mutually exclusive set of radio buttons stacked in a column or row
+- [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator driven by the framework `StyleManager` with optional label; designed to compose into a group
+- [`RadioButtonGroupComponent`](#radiobuttongroupcomponent) — mutually exclusive set of `RadioButtonComponent`s stacked in a column or row, all sharing one resolved style
 - [`ScrollViewComponent`](#scrollviewcomponent) — clipped scrollable viewport with mouse-wheel + drag panning and an optional scrollbar
 - [`ListComponent`](#listcomponent) — single-column list with text / text+image / image rows and optional single- or multi-select
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
@@ -331,10 +331,16 @@ dropdown.onChange((id, item) => {
 
 ## RadioButtonComponent
 
-Single radio indicator (outer ring + inner dot when selected) with an optional label. Designed to be composed into a `RadioButtonGroupComponent` — the button reports user taps via `onPress`, and the group calls `setSelected(true/false)` on each button to enforce mutual exclusion.
+Single radio indicator with an optional label, themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `RadioButtonComponentStyle`, and geometry / content opts. The two indicator states (`unselected` / `selected`) each carry an independent `SpriteStyle` (texture / tint / alpha / scale); `setSelected(value)` swaps the texture between them. The framework's `UIComponentsBinding` registers a default style entry under `UIComponentsStyleIds.RadioButton` with the two PNGs it ships, so apps that add the binding get a fully-textured radio without supplying any art.
+
+Designed to be composed into a `RadioButtonGroupComponent` — the button reports user taps via `onPress`, and the group calls `setSelected(true/false)` on each button to enforce mutual exclusion.
 
 ```ts
-const option = new RadioButtonComponent({
+// In a HudViewBase / ScreenView / PopupView subclass:
+const radioStyle = this.styleManager.resolve<RadioButtonComponentStyle>(
+  UIComponentsStyleIds.RadioButton,
+);
+const option = new RadioButtonComponent(this.assetLoader, radioStyle, {
   label: "Easy",
   selected: true,
 });
@@ -342,26 +348,39 @@ option.onPress(() => {
   // Group decides what to do; standalone consumers can do:
   // option.setSelected(true);
 });
+
+// Custom skin — point the indicator slots at your own PNGs:
+const customStyle = this.styleManager.resolve<RadioButtonComponentStyle>(UIComponentsStyleIds.RadioButton, {
+  unselected: { textureId: MyAssetIds.RadioOff },
+  selected: { textureId: MyAssetIds.RadioOn },
+});
+const altOption = new RadioButtonComponent(this.assetLoader, customStyle, { label: "Hard" });
 ```
 
-### `RadioButtonComponentPreset`
+### `RadioButtonComponentOpts`
 
-| Field           | Type                             | Default    | Description                                                      |
-| --------------- | -------------------------------- | ---------- | ---------------------------------------------------------------- |
-| `x`             | `number`                         | —          | X position.                                                      |
-| `y`             | `number`                         | —          | Y position.                                                      |
-| `width`         | `number`                         | —          | Fixed width. When omitted, sized to fit indicator + gap + label. |
-| `height`        | `number`                         | —          | Fixed height. When omitted, matches the indicator diameter.      |
-| `label`         | `string`                         | —          | Optional label drawn to the right of the indicator.              |
-| `labelStyle`    | `Partial<PIXI.TextStyleOptions>` | —          | Label style overrides merged on top of the defaults.             |
-| `radius`        | `number`                         | `9`        | Outer ring radius.                                               |
-| `innerRadius`   | `number`                         | `4`        | Inner dot radius drawn when selected.                            |
-| `borderWidth`   | `number`                         | `2`        | Outer ring border width.                                         |
-| `borderColor`   | `number`                         | `0x475569` | Outer ring border color.                                         |
-| `fillColor`     | `number`                         | `0x111827` | Indicator background fill (interior of the ring).                |
-| `selectedColor` | `number`                         | `0x4338ca` | Inner dot color when selected.                                   |
-| `gap`           | `number`                         | `8`        | Gap between the indicator and the label.                         |
-| `selected`      | `boolean`                        | `false`    | Initial selected state.                                          |
+Geometry / content. Visual fields are owned by the style.
+
+| Field      | Type      | Default       | Description                                                                                |
+| ---------- | --------- | ------------- | ------------------------------------------------------------------------------------------ |
+| `x`        | `number`  | —             | X position.                                                                                |
+| `y`        | `number`  | —             | Y position.                                                                                |
+| `width`    | `number`  | auto          | Fixed width. When omitted, sized to fit indicator + gap + label.                           |
+| `height`   | `number`  | auto          | Fixed height. When omitted, matches the indicator diameter.                                |
+| `label`    | `string`  | —             | Optional label drawn to the right of the indicator. Omit for an icon-only indicator.       |
+| `radius`   | `number`  | `9`           | Outer ring radius. The indicator sprite renders at `2 * radius` square.                    |
+| `gap`      | `number`  | `8`           | Gap between indicator and label, in pixels.                                                |
+| `selected` | `boolean` | `false`       | Initial selected state.                                                                    |
+
+### `RadioButtonComponentStyle`
+
+Bundle of two `SpriteStyle` indicator slots plus an optional `TextStyle` label. Apps re-theme every radio at once with `styleManager.modify(UIComponentsStyleIds.RadioButton, { … })`; per-radio overrides flow through `styleManager.resolve(...)` at the call site.
+
+| Slot         | Type          | Notes                                                                                                          |
+| ------------ | ------------- | -------------------------------------------------------------------------------------------------------------- |
+| `unselected` | `SpriteStyle` | Resting outer-ring visual. Plain `PIXI.Sprite` (the framework default registers `border: 0`).                  |
+| `selected`   | `SpriteStyle` | Outer ring + inner dot — the dot is baked into the texture rather than drawn at runtime.                       |
+| `label`      | `TextStyle`   | Font / size / weight / color / alpha / letterSpacing for the label.                                            |
 
 ### Methods
 
@@ -372,16 +391,24 @@ option.onPress(() => {
 ### Notes
 
 - **State is decoupled from input.** The button does not auto-toggle on tap. This lets a group own the mutual-exclusion model and keeps the standalone-button case explicit. For a single button used outside a group, wire `btn.onPress(() => btn.setSelected(true))`.
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers the two `DefaultRadio{Unselected,Selected}` `HudTexture` asset requests *and* the `UIComponentsStyleIds.RadioButton` style entry. Re-theme every radio at once with `styleManager.modify(...)`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
+- **Tinting for colour identity.** Set `radio.tint = 0x...` after construction; `Container.tint` propagates to the indicator sprite. The label's colour comes from `style.label.color` and is unaffected by container tint.
 - **Layout-aware.** The component sets its own `.layout = { width, height }` so it participates in `@pixi/layout` flex flows. The whole bounding box (indicator + gap + label) is the click target via an explicit `hitArea`.
+- **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects the referenced indicator textures to be loaded in the asset manager. Construct radios in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
 ---
 
 ## RadioButtonGroupComponent
 
-Mutually exclusive set of `RadioButtonComponent`s arranged in a column or row. The group owns the selection model: tapping a button updates `selectedId`, calls `setSelected()` on every other button to deselect them, and fires `onChange` with the new id + item.
+Mutually exclusive set of `RadioButtonComponent`s arranged in a column or row, all sharing one resolved `RadioButtonComponentStyle`. The group owns the selection model: tapping a button updates `selectedId`, calls `setSelected()` on every other button to deselect them, and fires `onChange` with the new id + item.
+
+Construction takes an `AssetManager`, the `RadioButtonComponentStyle` to hand to every child, and group geometry / content opts:
 
 ```ts
-const group = new RadioButtonGroupComponent({
+const radioStyle = this.styleManager.resolve<RadioButtonComponentStyle>(
+  UIComponentsStyleIds.RadioButton,
+);
+const group = new RadioButtonGroupComponent(this.assetLoader, radioStyle, {
   items: [
     { id: "easy", label: "Easy" },
     { id: "normal", label: "Normal" },
@@ -396,22 +423,25 @@ group.onChange((id, item) => {
 });
 ```
 
-### `RadioButtonGroupComponentPreset`
+### `RadioButtonGroupComponentOpts`
 
-| Field         | Type                              | Default    | Description                                                                                            |
-| ------------- | --------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------ |
-| `x`           | `number`                          | —          | X position.                                                                                            |
-| `y`           | `number`                          | —          | Y position.                                                                                            |
-| `items`       | `readonly RadioButtonGroupItem[]` | `[]`       | Options the group exposes. May be replaced later with `setItems()`.                                    |
-| `selectedId`  | `string`                          | —          | Initial selection. Ignored if it doesn't match an item id.                                             |
-| `direction`   | `"column" \| "row"`               | `"column"` | Stack direction for the buttons.                                                                       |
-| `spacing`     | `number`                          | `8`        | Gap between adjacent buttons.                                                                          |
-| `padding`     | `number`                          | `0`        | Padding around the group.                                                                              |
-| `buttonStyle` | `RadioButtonGroupButtonStyle`     | —          | Style overrides forwarded to every child button (`labelStyle`, `radius`, `innerRadius`, colors, etc.). |
+Geometry / content. Visual styling for the child radios lives on the `RadioButtonComponentStyle` passed alongside the asset manager.
+
+| Field         | Type                              | Default    | Description                                                                  |
+| ------------- | --------------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| `x`           | `number`                          | —          | X position.                                                                  |
+| `y`           | `number`                          | —          | Y position.                                                                  |
+| `items`       | `readonly RadioButtonGroupItem[]` | `[]`       | Options the group exposes. May be replaced later with `setItems()`.          |
+| `selectedId`  | `string`                          | —          | Initial selection. Ignored if it doesn't match an item id.                   |
+| `direction`   | `"column" \| "row"`               | `"column"` | Stack direction for the buttons.                                             |
+| `spacing`     | `number`                          | `8`        | Gap between adjacent buttons.                                                |
+| `padding`     | `number`                          | `0`        | Padding around the group.                                                    |
+| `radius`      | `number`                          | `9`        | Outer ring radius forwarded to every child (children render `2 * radius` square). |
+| `gap`         | `number`                          | `8`        | Gap between indicator and label inside each child.                           |
 
 `RadioButtonGroupItem` is `{ id: string; label: string }`.
 
-`buttonStyle` is a `Pick` of `RadioButtonComponentPreset` excluding the fields the group manages itself (`x`, `y`, `width`, `height`, `label`, `selected`). Concretely it accepts `labelStyle`, `radius`, `innerRadius`, `borderWidth`, `borderColor`, `fillColor`, `selectedColor`, and `gap`.
+The group hands the same `RadioButtonComponentStyle` to every child. If you want different colours per option, render multiple groups (or override at the `RadioButtonComponent` level outside the group). Apps re-theme every radio at once with `styleManager.modify(UIComponentsStyleIds.RadioButton, …)`.
 
 ### Methods
 
@@ -703,9 +733,9 @@ const updated = UIUtils.updateFields(originalJson, '{"overlayAlpha":0.3}');
 
 ### Themed components do **not** use JSON presets
 
-`ButtonComponent` and `SliderComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parseButtonComponentPreset` / `parseSliderComponentPreset`. To re-theme:
+`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, and `RadioButtonGroupComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parseButtonComponentPreset` / `parseSliderComponentPreset` / `parseRadioButton*Preset`. To re-theme:
 
-- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change.
-- **Per-component override** — the call site passes a deep-merge override to `styleManager.resolve(UIComponentsStyleIds.Button, { … })` and forwards the resolved style to the constructor. See the `ButtonComponent` and `SliderComponent` sections above for the canonical pattern.
+- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider` and `.RadioButton`.
+- **Per-component override** — the call site passes a deep-merge override to `styleManager.resolve(UIComponentsStyleIds.<Id>, { … })` and forwards the resolved style to the constructor. See the component sections above for the canonical pattern.
 
-The framework default style and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button`/`Slider` components without supplying any art.
+The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` components without supplying any art.

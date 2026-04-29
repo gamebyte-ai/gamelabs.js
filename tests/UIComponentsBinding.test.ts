@@ -7,6 +7,7 @@ import { UIComponentsBinding } from "../src/modules/uicomponents/src/UIComponent
 import {
   UIComponentsStyleIds,
   type ButtonComponentStyle,
+  type RadioButtonComponentStyle,
   type SliderComponentStyle,
 } from "../src/modules/uicomponents/src/UIComponentsStyleTypes.js";
 
@@ -16,7 +17,7 @@ const noopLogger: ILogger = {
 };
 
 describe("UIComponentsBinding", () => {
-  it("registers the default button + slider skin asset requests in its constructor", () => {
+  it("registers the default button + slider + radio skin asset requests in its constructor", () => {
     const binding = new UIComponentsBinding();
     const requests = [...binding.assetRequestList.getRequests()];
     const ids = requests.map((r) => r.id).sort();
@@ -25,6 +26,8 @@ describe("UIComponentsBinding", () => {
       UIComponentsAssetIds.DefaultButtonHover,
       UIComponentsAssetIds.DefaultButtonIdle,
       UIComponentsAssetIds.DefaultButtonPressed,
+      UIComponentsAssetIds.DefaultRadioSelected,
+      UIComponentsAssetIds.DefaultRadioUnselected,
       UIComponentsAssetIds.DefaultSliderFill,
       UIComponentsAssetIds.DefaultSliderThumb,
       UIComponentsAssetIds.DefaultSliderTrack,
@@ -34,7 +37,7 @@ describe("UIComponentsBinding", () => {
     }
   });
 
-  it("configureDI registers ButtonComponent + SliderComponent styles on the view DI's StyleManager", () => {
+  it("configureDI registers ButtonComponent + SliderComponent + RadioButtonComponent styles on the view DI's StyleManager", () => {
     const binding = new UIComponentsBinding();
     const diContainer = new DIContainer(noopLogger);
     const viewDiContainer = new DIContainer(noopLogger);
@@ -60,5 +63,13 @@ describe("UIComponentsBinding", () => {
     expect(sliderStyle.fill?.border).toBe(2);
     expect(sliderStyle.thumb?.textureId).toBe(UIComponentsAssetIds.DefaultSliderThumb);
     expect(sliderStyle.thumb?.border).toBe(0);
+
+    // Radio style — two indicator slots + label; both slots plain Sprite (border 0).
+    const radioStyle = styleManager.resolve<RadioButtonComponentStyle>(UIComponentsStyleIds.RadioButton);
+    expect(radioStyle.unselected?.textureId).toBe(UIComponentsAssetIds.DefaultRadioUnselected);
+    expect(radioStyle.unselected?.border).toBe(0);
+    expect(radioStyle.selected?.textureId).toBe(UIComponentsAssetIds.DefaultRadioSelected);
+    expect(radioStyle.selected?.border).toBe(0);
+    expect(radioStyle.label?.fontSize).toBe(14);
   });
 });

@@ -7,8 +7,6 @@ import {
 import {
   RADIO_GROUP_DIRECTIONS,
   RADIO_GROUP_ITEM_LIBRARY,
-  RADIO_SELECTED_LABELS,
-  RADIO_SELECTED_PALETTE,
   type RadioGroupDirection,
 } from "../constants/DemoPresets.js";
 import { IControlsManager } from "../utilities/IControlsManager.js";
@@ -16,10 +14,12 @@ import type { IRadioButtonGroupDemoView } from "../views/IRadioButtonGroupDemoVi
 
 /**
  * Controller for `RadioButtonGroupDemoView`. Drives item count,
- * direction, spacing, per-button radius and selectedColor through the
- * controls panel and exposes programmatic actions for cycling and
- * clearing the selection. Live `onChange` events from the group are
- * piped into the shell's event log.
+ * direction, spacing, and per-button radius through the controls
+ * panel and exposes programmatic actions for cycling and clearing
+ * the selection. Visual styling lives on the registered
+ * RadioButtonComponentStyle now, so the old selectedColor control is
+ * gone — re-theme via `styleManager.modify(...)`. Live `onChange`
+ * events from the group are piped into the shell's event log.
  */
 export class RadioButtonGroupDemoViewController
   implements IViewController<IRadioButtonGroupDemoView>
@@ -28,7 +28,6 @@ export class RadioButtonGroupDemoViewController
   private _view: IRadioButtonGroupDemoView | null = null;
   private _itemCount = 3; // default: 3 items
   private _directionIndex = 0; // default: "column"
-  private _selectedColorIndex = 0;
   private _selectionCycleIndex = 0; // 0 = null, 1..N = items
   private readonly _subs = new UnsubscribeBag();
 
@@ -89,16 +88,6 @@ export class RadioButtonGroupDemoViewController
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
-        "selectedColor",
-        RADIO_SELECTED_PALETTE,
-        this._selectedColorIndex,
-        (color) => this._formatSelectedColor(color),
-        (_color, index) => this._onSelectedColorCycled(index),
-      ),
-    );
-
-    this._subs.add(
       this._controls.addActionControl("Cycle selection (programmatic)", () =>
         this._onCycleSelectionPressed(),
       ),
@@ -142,12 +131,6 @@ export class RadioButtonGroupDemoViewController
     this._view?.setRadius(Math.round(v));
   }
 
-  private _onSelectedColorCycled(index: number): void {
-    this._selectedColorIndex = index;
-    this._view?.setSelectedColor(RADIO_SELECTED_PALETTE[index]!);
-    this._controls?.appendLog(`RadioGroup → selectedColor=${RADIO_SELECTED_LABELS[index]}`);
-  }
-
   private _onCycleSelectionPressed(): void {
     const items = this._currentItems();
     this._selectionCycleIndex = (this._selectionCycleIndex + 1) % (items.length + 1);
@@ -175,10 +158,5 @@ export class RadioButtonGroupDemoViewController
 
   private _currentItems(): readonly RadioButtonGroupItem[] {
     return RADIO_GROUP_ITEM_LIBRARY.slice(0, this._itemCount);
-  }
-
-  private _formatSelectedColor(color: number): string {
-    const idx = RADIO_SELECTED_PALETTE.indexOf(color);
-    return RADIO_SELECTED_LABELS[idx] ?? `#${color.toString(16)}`;
   }
 }

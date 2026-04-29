@@ -103,6 +103,20 @@ export class UIPlaygroundApp extends GamelabsApp {
       UIPlaygroundAssetIds.CustomSliderThumb,
       new URL("../assets/slider/thumb.png", import.meta.url).href,
     );
+
+    // Custom radio skin for the RadioButtonDemo's "custom" example.
+    // Two indicator textures with a different palette than the default
+    // skin so the side-by-side comparison is visually distinct.
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomRadioUnselected,
+      new URL("../assets/radio/unselected.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomRadioSelected,
+      new URL("../assets/radio/selected.png", import.meta.url).href,
+    );
   }
 
   protected override configureDI(): void {

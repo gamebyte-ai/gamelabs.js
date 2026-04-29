@@ -1,22 +1,22 @@
 import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
 
 /**
- * Live preview surface for the RadioButton demo. The view owns the
- * `RadioButtonComponent` instance and rebuilds it on every constructor-only
- * tweak (radius / innerRadius / gap / selectedColor / label /
- * borderWidth — i.e. nearly all of them); only `selected` mutates
- * through the live instance via `setSelected`.
+ * Live preview surface for the RadioButton demo. Renders two radios
+ * side-by-side — one using the framework default skin, one using a
+ * custom skin pointing at the playground's own asset ids — so the
+ * StyleManager-driven theming flow is visible in a single shot.
+ *
+ * Geometry tweaks (radius / gap) and label changes rebuild both
+ * radios. The selected state is local to each radio and toggled
+ * programmatically via `toggleSelected` (which targets both).
  */
 export interface IRadioButtonDemoView extends IView {
   setRadius(radius: number): void;
-  setInnerRadius(innerRadius: number): void;
-  setBorderWidth(width: number): void;
   setGap(gap: number): void;
-  setSelectedColor(color: number): void;
   setLabel(label: string): void;
-  /** Flip the selected state programmatically (uses the component's `setSelected`). */
+  /** Flip both radios' selected state (uses the component's `setSelected`). */
   toggleSelected(): void;
   setOutlineVisible(visible: boolean): void;
-  /** Fires whenever the user taps the radio button's hit area. */
-  onPress(cb: () => void): Unsubscribe;
+  /** Fires whenever the user taps either radio's hit area. */
+  onPress(cb: (which: "default" | "custom") => void): Unsubscribe;
 }

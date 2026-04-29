@@ -6,4 +6,6 @@ export enum UIComponentsAssetIds {
   DefaultSliderTrack = "UIComponents.DefaultSlider.Track",
   DefaultSliderFill = "UIComponents.DefaultSlider.Fill",
   DefaultSliderThumb = "UIComponents.DefaultSlider.Thumb",
+  DefaultRadioUnselected = "UIComponents.DefaultRadio.Unselected",
+  DefaultRadioSelected = "UIComponents.DefaultRadio.Selected",
 }

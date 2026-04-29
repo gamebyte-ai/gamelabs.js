@@ -82,7 +82,7 @@ export class ListDemoViewController implements IViewController<IListDemoView> {
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addRadioGroupControl(
         "selectedColor",
         RADIO_SELECTED_PALETTE,
         this._selectedColorIndex,

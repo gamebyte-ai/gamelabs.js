@@ -1,7 +1,9 @@
 import type { LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
+import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import { RadioButtonComponent, type RadioButtonComponentPreset } from "./RadioButtonComponent.pixi.js";
+import { RadioButtonComponent } from "./RadioButtonComponent.pixi.js";
+import type { RadioButtonComponentStyle } from "../UIComponentsStyleTypes.js";
 
 export type RadioButtonGroupItem = {
   /** Unique identifier for this option. Used by `selectedId` / `setSelectedId`. */
@@ -11,16 +13,12 @@ export type RadioButtonGroupItem = {
 };
 
 /**
- * Subset of `RadioButtonComponentPreset` that can be forwarded to every
- * child button. The group manages `width` / `height` / `label` /
- * `selected` itself, so those are excluded.
+ * Geometry / content options for a {@link RadioButtonGroupComponent}.
+ * Visual styling for the child radios lives on the
+ * {@link RadioButtonComponentStyle} passed alongside the asset manager
+ * — the group hands that style to every child uniformly.
  */
-export type RadioButtonGroupButtonStyle = Pick<
-  RadioButtonComponentPreset,
-  "labelStyle" | "radius" | "innerRadius" | "borderWidth" | "borderColor" | "fillColor" | "selectedColor" | "gap"
->;
-
-export type RadioButtonGroupComponentPreset = {
+export type RadioButtonGroupComponentOpts = {
   /** X position. */
   x?: number;
   /** Y position. */
@@ -36,40 +34,51 @@ export type RadioButtonGroupComponentPreset = {
   /** Padding around the group. @default 0 */
   padding?: number;
   /**
-   * Style overrides applied to every child `RadioButtonComponent`.
-   * `label` / `selected` / `width` / `height` are managed by the
-   * group and cannot be overridden here.
+   * Outer ring radius forwarded to every child. @default 9
+   * (Children render at `2 * radius` square per their own opts.)
    */
-  buttonStyle?: RadioButtonGroupButtonStyle;
+  radius?: number;
+  /** Gap between indicator and label inside each child. @default 8 */
+  gap?: number;
 };
 
 /**
- * Parse a JSON string into RadioButtonGroupComponentPreset.
- */
-export function parseRadioButtonGroupComponentPreset(json: string): RadioButtonGroupComponentPreset {
-  return JSON.parse(json) as RadioButtonGroupComponentPreset;
-}
-
-/**
- * Reusable radio-button group.
+ * Reusable radio-button group, themed via the framework's style system.
  *
- * - Renders one `RadioButtonComponent` per item, arranged in a column
- *   or row via `@pixi/layout`'s flex.
- * - Owns the mutual-exclusion model: when a user taps a button the
- *   group records the new selection, calls `setSelected(false)` on
- *   every other button + `setSelected(true)` on the tapped one, and
- *   emits `onChange`.
+ * Construction takes an `AssetManager`, a fully-resolved
+ * {@link RadioButtonComponentStyle} that the group hands to every child
+ * radio, and group geometry / content opts:
+ *
+ * ```ts
+ * const radioStyle = this.styleManager.resolve<RadioButtonComponentStyle>(
+ *   UIComponentsStyleIds.RadioButton,
+ * );
+ * const group = new RadioButtonGroupComponent(this.assetLoader, radioStyle, {
+ *   items: [{ id: "easy", label: "Easy" }, { id: "hard", label: "Hard" }],
+ *   selectedId: "easy",
+ *   direction: "column",
+ * });
+ * group.onChange((id, item) => console.log("picked:", id));
+ * ```
+ *
+ * - Renders one `RadioButtonComponent` per item, arranged via flex.
+ * - Owns the mutual-exclusion model — tapping a button records the new
+ *   selection, calls `setSelected(false)` on every other button +
+ *   `setSelected(true)` on the tapped one, and fires `onChange`.
  * - `setSelectedId(id | null)` is silent — selection updates flow to
- *   the buttons but `onChange` is NOT fired (matches the rest of the
- *   module: programmatic state changes don't notify).
- * - Re-tapping the already-selected button is a no-op (no `onChange`).
+ *   the buttons but `onChange` is not fired (programmatic state changes
+ *   don't notify, matching the rest of the module).
+ * - Re-tapping the already-selected button is a no-op.
  */
 export class RadioButtonGroupComponent extends PIXI.Container {
+  private readonly _assetManager: AssetManager;
+  private readonly _style: RadioButtonComponentStyle;
   private readonly _changeListeners = new Set<(id: string, item: RadioButtonGroupItem) => void>();
   private readonly _direction: "column" | "row";
   private readonly _spacing: number;
   private readonly _padding: number;
-  private readonly _buttonStyle: RadioButtonGroupButtonStyle;
+  private readonly _radius: number;
+  private readonly _gap: number;
   private readonly _entries: Array<{
     item: RadioButtonGroupItem;
     button: RadioButtonComponent;
@@ -79,13 +88,20 @@ export class RadioButtonGroupComponent extends PIXI.Container {
   private _items: readonly RadioButtonGroupItem[];
   private _selectedId: string | null;
 
-  public constructor(opts: RadioButtonGroupComponentPreset = {}) {
+  public constructor(
+    assetManager: AssetManager,
+    style: RadioButtonComponentStyle,
+    opts: RadioButtonGroupComponentOpts = {},
+  ) {
     super();
 
+    this._assetManager = assetManager;
+    this._style = style;
     this._direction = opts.direction ?? "column";
     this._spacing = opts.spacing ?? 8;
     this._padding = opts.padding ?? 0;
-    this._buttonStyle = opts.buttonStyle ?? {};
+    this._radius = opts.radius ?? 9;
+    this._gap = opts.gap ?? 8;
     this._items = opts.items ?? [];
     this._selectedId = this._resolveInitialSelection(opts.selectedId, this._items);
 
@@ -173,9 +189,10 @@ export class RadioButtonGroupComponent extends PIXI.Container {
     this._entries.length = 0;
 
     for (const item of this._items) {
-      const button = new RadioButtonComponent({
-        ...this._buttonStyle,
+      const button = new RadioButtonComponent(this._assetManager, this._style, {
         label: item.label,
+        radius: this._radius,
+        gap: this._gap,
         selected: item.id === this._selectedId,
       });
       const unsubPress = button.onPress(() => this._handleButtonPressed(item));

@@ -50,6 +50,20 @@ export interface IControlsManager {
     onChange: (value: T, index: number) => void,
   ): Unsubscribe;
 
+  /**
+   * Appends a "label `RadioButtonGroup`" row. Renders one radio per
+   * value so all options are visible at once — useful for short
+   * mutually-exclusive choice sets (e.g. colour palettes) where the
+   * cycle-button form would hide the alternatives behind a single tap.
+   */
+  addRadioGroupControl<T>(
+    label: string,
+    values: readonly T[],
+    initialIndex: number,
+    formatValue: (value: T) => string,
+    onChange: (value: T, index: number) => void,
+  ): Unsubscribe;
+
   /** Appends a "[action button]" row for one-shot commands. */
   addActionControl(label: string, onPress: () => void): Unsubscribe;
 

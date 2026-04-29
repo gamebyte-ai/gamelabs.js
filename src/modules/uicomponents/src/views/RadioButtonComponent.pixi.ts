@@ -1,8 +1,18 @@
 import type { LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
+import type { AssetManager } from "../../../../core/assets/AssetManager.js";
+import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
+import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
+import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
+import type { RadioButtonComponentStyle } from "../UIComponentsStyleTypes.js";
 
-export type RadioButtonComponentPreset = {
+/**
+ * Geometry / content options for a {@link RadioButtonComponent}. Visual
+ * styling lives on the {@link RadioButtonComponentStyle} passed alongside
+ * the asset manager and is owned by the framework's `StyleManager`.
+ */
+export type RadioButtonComponentOpts = {
   /** X position. */
   x?: number;
   /** Y position. */
@@ -11,94 +21,115 @@ export type RadioButtonComponentPreset = {
   width?: number;
   /** Fixed height. When omitted, matches the indicator diameter. */
   height?: number;
-  /** Optional label drawn to the right of the indicator. Omit for an icon-only button. */
+  /** Optional label drawn to the right of the indicator. */
   label?: string;
-  /** Label style overrides merged on top of the defaults. */
-  labelStyle?: Partial<PIXI.TextStyleOptions>;
-  /** Outer ring radius. @default 9 */
+  /** Outer ring radius — drives the indicator sprite size (`2 * radius` square). @default 9 */
   radius?: number;
-  /** Inner dot radius drawn when selected. @default 4 */
-  innerRadius?: number;
-  /** Outer ring border width. @default 2 */
-  borderWidth?: number;
-  /** Outer ring border color. @default 0x475569 */
-  borderColor?: number;
-  /** Indicator background fill (interior of the outer ring). @default 0x111827 */
-  fillColor?: number;
-  /** Inner dot color used when selected. @default 0x4338ca */
-  selectedColor?: number;
-  /** Gap between the indicator and the label, in pixels. @default 8 */
+  /** Gap between indicator and label, in pixels. @default 8 */
   gap?: number;
   /** Initial selected state. @default false */
   selected?: boolean;
 };
 
-/**
- * Parse a JSON string into RadioButtonComponentPreset.
- */
-export function parseRadioButtonComponentPreset(json: string): RadioButtonComponentPreset {
-  return JSON.parse(json) as RadioButtonComponentPreset;
-}
+const DEFAULT_RADIUS = 9;
+const DEFAULT_GAP = 8;
 
-const DEFAULT_LABEL_STYLE: Partial<PIXI.TextStyleOptions> = {
-  fill: 0xe8eef6,
-  fontSize: 14,
-  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-  fontWeight: "600",
+const DEFAULT_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
+const DEFAULT_LABEL_FONT_SIZE = 14;
+const DEFAULT_LABEL_FONT_WEIGHT = "600";
+const DEFAULT_LABEL_COLOR = 0xe8eef6;
+const DEFAULT_LABEL_ALPHA = 1;
+
+const DEFAULT_INDICATOR_COLOR = 0xffffff;
+const DEFAULT_INDICATOR_ALPHA = 1;
+const DEFAULT_INDICATOR_SCALE = 1;
+const DEFAULT_INDICATOR_BORDER = 0;
+
+type RadioState = "unselected" | "selected";
+
+const DEFAULT_TEXTURE_BY_STATE: Record<RadioState, string> = {
+  unselected: UIComponentsAssetIds.DefaultRadioUnselected,
+  selected: UIComponentsAssetIds.DefaultRadioSelected,
 };
 
 /**
- * Reusable radio-button indicator with optional label.
+ * Reusable radio-button indicator with optional label, themed via the
+ * framework's style system.
  *
- * - Renders an outer ring plus an inner dot when selected. The whole
- *   bounding box (indicator + gap + label) is the click target.
- * - State is decoupled from the click: tapping the button fires
- *   `onPress` but does NOT auto-set `selected`. Callers (typically a
- *   `RadioButtonGroupComponent`) decide what selection change happens
- *   and call `setSelected()` accordingly. Standalone consumers can
- *   wire `btn.onPress(() => btn.setSelected(true))` themselves.
- * - `setSelected()` is silent — it only updates the visual.
+ * Construction takes an `AssetManager`, a fully-resolved
+ * {@link RadioButtonComponentStyle}, and geometry / content opts. The
+ * indicator is a single textured sprite whose texture swaps between the
+ * resolved `unselected` / `selected` slots when the state changes.
+ *
+ * State is decoupled from the click — tapping the button fires
+ * `onPress` but does **not** auto-set `selected`. Callers (typically a
+ * {@link RadioButtonGroupComponent}) decide what selection change
+ * happens and call `setSelected()` accordingly. Standalone consumers
+ * can wire `btn.onPress(() => btn.setSelected(true))` themselves.
  *
  * The component sets its own `.layout` so it participates in
- * `@pixi/layout` flex flows alongside other layout-aware children.
- * Pass `width` / `height` in the preset to override the intrinsic
- * size derived from the indicator + label.
+ * `@pixi/layout` flex flows. Pass `width` / `height` in the opts to
+ * override the intrinsic size derived from indicator + label.
  */
-export class RadioButtonComponent extends PIXI.Container {
-  private readonly _indicator: PIXI.Graphics;
+export class RadioButtonComponent extends StyledHudObject<RadioButtonComponentStyle> {
+  private readonly _indicator: PIXI.Sprite | PIXI.NineSliceSprite;
   private readonly _label: PIXI.Text | null;
   private readonly _radius: number;
-  private readonly _innerRadius: number;
-  private readonly _borderWidth: number;
-  private readonly _borderColor: number;
-  private readonly _fillColor: number;
-  private readonly _selectedColor: number;
+  private readonly _stateStyles: Record<RadioState, Required<SpriteStyle>>;
   private readonly _pressListeners = new Set<() => void>();
 
   private _selected: boolean;
 
-  public constructor(opts: RadioButtonComponentPreset = {}) {
-    super();
+  public constructor(assetManager: AssetManager, style: RadioButtonComponentStyle, opts: RadioButtonComponentOpts = {}) {
+    super(assetManager, style);
 
-    this._radius = opts.radius ?? 9;
-    this._innerRadius = opts.innerRadius ?? 4;
-    this._borderWidth = opts.borderWidth ?? 2;
-    this._borderColor = opts.borderColor ?? 0x475569;
-    this._fillColor = opts.fillColor ?? 0x111827;
-    this._selectedColor = opts.selectedColor ?? 0x4338ca;
+    this._radius = opts.radius ?? DEFAULT_RADIUS;
     this._selected = opts.selected ?? false;
-    const gap = opts.gap ?? 8;
+    const gap = opts.gap ?? DEFAULT_GAP;
 
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
 
-    this._indicator = new PIXI.Graphics();
+    this._stateStyles = {
+      unselected: this._resolveSpriteStyle(
+        style.unselected,
+        DEFAULT_TEXTURE_BY_STATE.unselected,
+        DEFAULT_INDICATOR_COLOR,
+        DEFAULT_INDICATOR_ALPHA,
+        DEFAULT_INDICATOR_SCALE,
+        DEFAULT_INDICATOR_SCALE,
+        DEFAULT_INDICATOR_BORDER,
+      ),
+      selected: this._resolveSpriteStyle(
+        style.selected,
+        DEFAULT_TEXTURE_BY_STATE.selected,
+        DEFAULT_INDICATOR_COLOR,
+        DEFAULT_INDICATOR_ALPHA,
+        DEFAULT_INDICATOR_SCALE,
+        DEFAULT_INDICATOR_SCALE,
+        DEFAULT_INDICATOR_BORDER,
+      ),
+    };
+
+    const indicatorSize = 2 * this._radius;
+    // Build the indicator from the initial state. Subsequent state
+    // changes call `_applySpriteStyle` on the same sprite (texture +
+    // tint + alpha swap) — no rebuild.
+    const initialState: RadioState = this._selected ? "selected" : "unselected";
+    this._indicator = this._buildSprite(this._stateStyles[initialState], indicatorSize, indicatorSize);
     this._indicator.eventMode = "none";
     this.addChild(this._indicator);
 
     if (opts.label !== undefined) {
-      const mergedStyle = { ...DEFAULT_LABEL_STYLE, ...opts.labelStyle };
-      this._label = new PIXI.Text({ text: opts.label, style: mergedStyle });
+      const labelStyle = this._resolveTextStyle(
+        style.label,
+        DEFAULT_LABEL_FONT_FAMILY,
+        DEFAULT_LABEL_FONT_SIZE,
+        DEFAULT_LABEL_FONT_WEIGHT,
+        DEFAULT_LABEL_COLOR,
+        DEFAULT_LABEL_ALPHA,
+      );
+      this._label = this._buildText(opts.label, labelStyle);
       this._label.anchor.set(0, 0.5);
       this._label.eventMode = "none";
       this.addChild(this._label);
@@ -106,7 +137,6 @@ export class RadioButtonComponent extends PIXI.Container {
       this._label = null;
     }
 
-    const indicatorSize = 2 * this._radius;
     const labelWidth = this._label?.width ?? 0;
     const totalWidth = opts.width ?? indicatorSize + (this._label ? gap + labelWidth : 0);
     const totalHeight = opts.height ?? indicatorSize;
@@ -114,8 +144,8 @@ export class RadioButtonComponent extends PIXI.Container {
     const layout: Omit<LayoutOptions, "target"> = { width: totalWidth, height: totalHeight };
     this.layout = layout;
 
-    // Indicator is drawn as concentric circles centered on its
-    // origin, so position the indicator's origin at the centerline.
+    // `_buildSprite` centers the sprite at (0, 0); position its origin
+    // at the indicator's centerline so concentric rendering lines up.
     this._indicator.position.set(this._radius, totalHeight / 2);
     if (this._label) {
       this._label.position.set(indicatorSize + gap, totalHeight / 2);
@@ -127,8 +157,6 @@ export class RadioButtonComponent extends PIXI.Container {
     // the gap between indicator and label) register as a press.
     this.hitArea = new PIXI.Rectangle(0, 0, totalWidth, totalHeight);
     this.on("pointertap", () => this._firePress());
-
-    this._redraw();
   }
 
   /** Whether the radio is currently rendered as selected. */
@@ -144,7 +172,9 @@ export class RadioButtonComponent extends PIXI.Container {
   public setSelected(value: boolean): void {
     if (this._selected === value) return;
     this._selected = value;
-    this._redraw();
+    const state: RadioState = value ? "selected" : "unselected";
+    const indicatorSize = 2 * this._radius;
+    this._applySpriteStyle(this._indicator, this._stateStyles[state], indicatorSize, indicatorSize);
   }
 
   /** Subscribe to user taps on the radio button. Returns an unsubscribe function. */
@@ -160,16 +190,5 @@ export class RadioButtonComponent extends PIXI.Container {
 
   private _firePress(): void {
     for (const cb of this._pressListeners) cb();
-  }
-
-  private _redraw(): void {
-    this._indicator.clear();
-    this._indicator
-      .circle(0, 0, this._radius)
-      .fill({ color: this._fillColor })
-      .stroke({ color: this._borderColor, width: this._borderWidth });
-    if (this._selected) {
-      this._indicator.circle(0, 0, this._innerRadius).fill({ color: this._selectedColor });
-    }
   }
 }

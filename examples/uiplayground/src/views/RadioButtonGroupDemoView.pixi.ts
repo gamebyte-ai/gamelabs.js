@@ -2,7 +2,9 @@ import * as PIXI from "pixi.js";
 import {
   HudViewBase,
   RadioButtonGroupComponent,
+  UIComponentsStyleIds,
   type IInstanceResolver,
+  type RadioButtonComponentStyle,
   type RadioButtonGroupItem,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
@@ -47,7 +49,6 @@ export class RadioButtonGroupDemoView
   private _direction: RadioGroupDirection = "column";
   private _spacing = 10;
   private _radius = 9;
-  private _selectedColor = 0x4338ca;
   private _items: readonly RadioButtonGroupItem[] = [];
   private _selectedId: string | null = null;
 
@@ -95,12 +96,6 @@ export class RadioButtonGroupDemoView
     this._rebuildGroup();
   }
 
-  public setSelectedColor(color: number): void {
-    if (this._selectedColor === color) return;
-    this._selectedColor = color;
-    this._rebuildGroup();
-  }
-
   public setSelectedId(id: string | null): void {
     this._selectedId = id;
     this._group?.setSelectedId(id);
@@ -144,15 +139,13 @@ export class RadioButtonGroupDemoView
     this._group?.removeFromParent();
     this._group?.destroy();
 
-    this._group = new RadioButtonGroupComponent({
+    const groupStyle = this.styleManager.resolve<RadioButtonComponentStyle>(UIComponentsStyleIds.RadioButton);
+    this._group = new RadioButtonGroupComponent(this.assetLoader, groupStyle, {
       items: this._items,
       selectedId: this._selectedId ?? undefined,
       direction: this._direction,
       spacing: this._spacing,
-      buttonStyle: {
-        radius: this._radius,
-        selectedColor: this._selectedColor,
-      },
+      radius: this._radius,
     });
     this._changeUnsub = this._group.onChange((id, item) => this._fireChange(id, item));
     this.addChild(this._group);

@@ -7,6 +7,7 @@ import { UIComponentsAssetIds } from "./UIComponentsAssetIds.js";
 import {
   UIComponentsStyleIds,
   type ButtonComponentStyle,
+  type RadioButtonComponentStyle,
   type SliderComponentStyle,
 } from "./UIComponentsStyleTypes.js";
 
@@ -83,6 +84,21 @@ export class UIComponentsBinding extends ModuleBinding {
         new URL("./assets/uicomponents/slider/thumb.png", import.meta.url).href,
       ),
     );
+
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultRadioUnselected,
+        new URL("./assets/uicomponents/radio/unselected.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultRadioSelected,
+        new URL("./assets/uicomponents/radio/selected.png", import.meta.url).href,
+      ),
+    );
   }
 
   /**
@@ -120,6 +136,18 @@ export class UIComponentsBinding extends ModuleBinding {
       track: { textureId: UIComponentsAssetIds.DefaultSliderTrack, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 2 },
       fill: { textureId: UIComponentsAssetIds.DefaultSliderFill, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 2 },
       thumb: { textureId: UIComponentsAssetIds.DefaultSliderThumb, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+    });
+
+    styleManager.add<RadioButtonComponentStyle>(UIComponentsStyleIds.RadioButton, {
+      unselected: { textureId: UIComponentsAssetIds.DefaultRadioUnselected, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      selected: { textureId: UIComponentsAssetIds.DefaultRadioSelected, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      label: {
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontSize: 14,
+        fontWeight: "600",
+        color: 0xe8eef6,
+        alpha: 1,
+      },
     });
   }
 }

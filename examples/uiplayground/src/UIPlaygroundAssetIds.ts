@@ -6,4 +6,6 @@ export enum UIPlaygroundAssetIds {
   CustomSliderTrack = "UIPlayground.CustomSlider.Track",
   CustomSliderFill = "UIPlayground.CustomSlider.Fill",
   CustomSliderThumb = "UIPlayground.CustomSlider.Thumb",
+  CustomRadioUnselected = "UIPlayground.CustomRadio.Unselected",
+  CustomRadioSelected = "UIPlayground.CustomRadio.Selected",
 }

@@ -3,6 +3,7 @@ import {
   ButtonComponent,
   HorizontalLayoutComponent,
   HudViewBase,
+  RadioButtonGroupComponent,
   ScreenView,
   SliderComponent,
   ToggleComponent,
@@ -11,6 +12,7 @@ import {
   type ButtonComponentStyle,
   type IInstanceResolver,
   type IView,
+  type RadioButtonComponentStyle,
   type SliderComponentStyle,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
@@ -447,6 +449,50 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     const section = this._wrapInSection(row);
     this._demoControls.addChild(section);
     return () => this._removeControlSection(section, buttonUnsub);
+  }
+
+  public addRadioGroupControl<T>(
+    label: string,
+    values: readonly T[],
+    initialIndex: number,
+    formatValue: (value: T) => string,
+    onChange: (value: T, index: number) => void,
+  ): Unsubscribe {
+    if (!this._demoControls) return () => {};
+    // Top-aligned because the radio column grows downward and we want
+    // the row's label to sit next to the first option, not vertically
+    // centered against a tall radio column.
+    const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "flex-start" });
+
+    const labelText = new PIXI.Text({ text: label, style: LABEL_STYLE });
+    labelText.layout = { width: LABEL_WIDTH };
+    row.addChild(labelText);
+
+    // Map each value to a radio item. The id encodes the index so the
+    // onChange callback can recover the original `T` cleanly.
+    const items = values.map((v, i) => ({ id: String(i), label: formatValue(v) }));
+    const radioStyle = this.styleManager.resolve<RadioButtonComponentStyle>(UIComponentsStyleIds.RadioButton, {
+      label: { fontSize: 13, fontWeight: "600", color: 0xe8eef6 },
+    });
+    const group = new RadioButtonGroupComponent(this.assetLoader, radioStyle, {
+      items,
+      selectedId: items[initialIndex]?.id,
+      direction: "column",
+      spacing: 4,
+      radius: 7,
+      gap: 6,
+    });
+    row.addChild(group);
+
+    const groupUnsub = group.onChange((id) => {
+      const index = Number.parseInt(id, 10);
+      if (Number.isInteger(index) && index >= 0 && index < values.length) {
+        onChange(values[index]!, index);
+      }
+    });
+    const section = this._wrapInSection(row);
+    this._demoControls.addChild(section);
+    return () => this._removeControlSection(section, groupUnsub);
   }
 
   public addActionControl(label: string, onPress: () => void): Unsubscribe {

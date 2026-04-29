@@ -49,7 +49,7 @@ export class ToggleDemoViewController implements IViewController<IToggleDemoView
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addRadioGroupControl(
         "onColor",
         TOGGLE_ON_PALETTE,
         this._onColorIndex,

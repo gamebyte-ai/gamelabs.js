@@ -54,8 +54,34 @@ export type SliderComponentStyle = {
   thumb?: SpriteStyle;
 };
 
+/**
+ * Visual style for `RadioButtonComponent`. Two mutually-exclusive
+ * indicator slots — `unselected` (resting outer ring) and `selected`
+ * (outer ring + inner dot) — plus an optional `label` text style. The
+ * indicator is a single `PIXI.Sprite` whose texture swaps when the
+ * selected state changes; the inner-dot rendering is baked into the
+ * `selected` texture rather than drawn at runtime.
+ *
+ * Slot defaults (applied for any field omitted in the registered style
+ * and the per-button override):
+ * - `textureId`: the two PNGs shipped by `UIComponentsBinding`
+ *   (`DefaultRadio{Unselected,Selected}`).
+ * - `color` / `alpha`: `0xffffff` / `1`. Per-button tinting flows
+ *   through `Container.tint`.
+ * - `scaleX` / `scaleY`: `1`.
+ * - `border`: `0` (radios are circular sprites with anti-aliased edges
+ *   — nine-slice would clip the curve, so the indicator always renders
+ *   as a plain stretched `PIXI.Sprite`).
+ */
+export type RadioButtonComponentStyle = {
+  unselected?: SpriteStyle;
+  selected?: SpriteStyle;
+  label?: TextStyle;
+};
+
 /** Style ids registered by the uicomponents module. */
 export const UIComponentsStyleIds = {
   Button: "uicomponents.button",
   Slider: "uicomponents.slider",
+  RadioButton: "uicomponents.radiobutton",
 } as const;
