@@ -162,6 +162,33 @@ export type DropdownComponentStyle = {
   label?: TextStyle;
 };
 
+/**
+ * Visual style for `ListComponent`. Three sprite slots covering the
+ * three row-bg states (`itemIdle` / `itemHover` / `itemSelected`) plus
+ * a shared `label` text style. Per-item content textures (variants
+ * `"image"` / `"text+image"`) live on the items themselves and are
+ * resolved through the asset manager — they are *content*, not style,
+ * and are not part of this bundle.
+ *
+ * Slot defaults (applied for any field omitted in the registered style
+ * and the per-component override):
+ * - `textureId`: the three PNGs shipped by `UIComponentsBinding`
+ *   (`DefaultListItem{Idle,Hover,Selected}`). Plain stretched sprites
+ *   (legacy palette: slate-900 / slate-700 / indigo-700).
+ * - `color` / `alpha`: `0xffffff` / `1`. Per-component tinting flows
+ *   through `Container.tint` and applies to every row sprite.
+ * - `scaleX` / `scaleY`: `1`.
+ * - `border`: `0`. Row backgrounds tile vertically inside the list and
+ *   typically don't need 9-slice. Custom skins with a corner radius
+ *   can opt into nine-slice via the style override.
+ */
+export type ListComponentStyle = {
+  itemIdle?: SpriteStyle;
+  itemHover?: SpriteStyle;
+  itemSelected?: SpriteStyle;
+  label?: TextStyle;
+};
+
 /** Style ids registered by the uicomponents module. */
 export const UIComponentsStyleIds = {
   Button: "uicomponents.button",
@@ -170,4 +197,5 @@ export const UIComponentsStyleIds = {
   Toggle: "uicomponents.toggle",
   Background: "uicomponents.background",
   Dropdown: "uicomponents.dropdown",
+  List: "uicomponents.list",
 } as const;

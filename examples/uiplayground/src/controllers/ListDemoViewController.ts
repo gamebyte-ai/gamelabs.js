@@ -82,8 +82,8 @@ export class ListDemoViewController implements IViewController<IListDemoView> {
       this._controls.addActionControl("Clear selection", () => this._onClearSelectionPressed()),
     );
 
-    this._subs.add(view.onChange((ids, items) => this._onLiveChange(ids, items)));
-    this._subs.add(view.onItemPress((id, item) => this._onLivePress(id, item)));
+    this._subs.add(view.onChange((which, ids, items) => this._onLiveChange(which, ids, items)));
+    this._subs.add(view.onItemPress((which, id, item) => this._onLivePress(which, id, item)));
   }
 
   public destroy(): void {
@@ -119,11 +119,15 @@ export class ListDemoViewController implements IViewController<IListDemoView> {
     this._controls?.appendLog("List → setSelectedIds=[] (programmatic)");
   }
 
-  private _onLiveChange(ids: readonly string[], _items: readonly ListItem[]): void {
-    this._controls?.appendLog(`List → onChange selected=[${ids.join(", ")}]`);
+  private _onLiveChange(
+    which: "default" | "custom",
+    ids: readonly string[],
+    _items: readonly ListItem[],
+  ): void {
+    this._controls?.appendLog(`List(${which}) → onChange selected=[${ids.join(", ")}]`);
   }
 
-  private _onLivePress(id: string, item: ListItem): void {
-    this._controls?.appendLog(`List → onItemPress id="${id}" label="${item.label ?? ""}"`);
+  private _onLivePress(which: "default" | "custom", id: string, item: ListItem): void {
+    this._controls?.appendLog(`List(${which}) → onItemPress id="${id}" label="${item.label ?? ""}"`);
   }
 }

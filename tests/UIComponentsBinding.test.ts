@@ -9,6 +9,7 @@ import {
   type BackgroundComponentStyle,
   type ButtonComponentStyle,
   type DropdownComponentStyle,
+  type ListComponentStyle,
   type RadioButtonComponentStyle,
   type SliderComponentStyle,
   type ToggleComponentStyle,
@@ -20,7 +21,7 @@ const noopLogger: ILogger = {
 };
 
 describe("UIComponentsBinding", () => {
-  it("registers the default button + slider + radio + toggle + background + dropdown skin asset requests in its constructor", () => {
+  it("registers the default button + slider + radio + toggle + background + dropdown + list skin asset requests in its constructor", () => {
     const binding = new UIComponentsBinding();
     const requests = [...binding.assetRequestList.getRequests()];
     const ids = requests.map((r) => r.id).sort();
@@ -36,6 +37,9 @@ describe("UIComponentsBinding", () => {
       UIComponentsAssetIds.DefaultDropdownItemIdle,
       UIComponentsAssetIds.DefaultDropdownItemSelected,
       UIComponentsAssetIds.DefaultDropdownList,
+      UIComponentsAssetIds.DefaultListItemHover,
+      UIComponentsAssetIds.DefaultListItemIdle,
+      UIComponentsAssetIds.DefaultListItemSelected,
       UIComponentsAssetIds.DefaultRadioSelected,
       UIComponentsAssetIds.DefaultRadioUnselected,
       UIComponentsAssetIds.DefaultSliderFill,
@@ -50,7 +54,7 @@ describe("UIComponentsBinding", () => {
     }
   });
 
-  it("configureDI registers ButtonComponent + SliderComponent + RadioButtonComponent + ToggleComponent + BackgroundComponent + DropdownComponent styles on the view DI's StyleManager", () => {
+  it("configureDI registers ButtonComponent + SliderComponent + RadioButtonComponent + ToggleComponent + BackgroundComponent + DropdownComponent + ListComponent styles on the view DI's StyleManager", () => {
     const binding = new UIComponentsBinding();
     const diContainer = new DIContainer(noopLogger);
     const viewDiContainer = new DIContainer(noopLogger);
@@ -116,5 +120,13 @@ describe("UIComponentsBinding", () => {
     expect(dropdownStyle.chevron?.textureId).toBe(UIComponentsAssetIds.DefaultDropdownChevron);
     expect(dropdownStyle.chevron?.border).toBe(0);
     expect(dropdownStyle.label?.fontSize).toBe(14);
+
+    // List style — three row-state slots + label; all plain Sprites.
+    const listStyle = styleManager.resolve<ListComponentStyle>(UIComponentsStyleIds.List);
+    expect(listStyle.itemIdle?.textureId).toBe(UIComponentsAssetIds.DefaultListItemIdle);
+    expect(listStyle.itemIdle?.border).toBe(0);
+    expect(listStyle.itemHover?.textureId).toBe(UIComponentsAssetIds.DefaultListItemHover);
+    expect(listStyle.itemSelected?.textureId).toBe(UIComponentsAssetIds.DefaultListItemSelected);
+    expect(listStyle.label?.fontSize).toBe(14);
   });
 });

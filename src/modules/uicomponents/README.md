@@ -13,7 +13,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator driven by the framework `StyleManager` with optional label; designed to compose into a group
 - [`RadioButtonGroupComponent`](#radiobuttongroupcomponent) — mutually exclusive set of `RadioButtonComponent`s stacked in a column or row, all sharing one resolved style
 - [`ScrollViewComponent`](#scrollviewcomponent) — clipped scrollable viewport with mouse-wheel + drag panning and an optional scrollbar
-- [`ListComponent`](#listcomponent) — single-column list with text / text+image / image rows and optional single- or multi-select
+- [`ListComponent`](#listcomponent) — single-column list driven by the framework `StyleManager` with text / text+image / image rows and optional single- or multi-select
 - [`VerticalLayoutComponent`](#verticallayoutcomponent) — vertical flex container
 - [`HorizontalLayoutComponent`](#horizontallayoutcomponent) — horizontal flex container
 - [`GridLayoutComponent`](#gridlayoutcomponent) — flex container with row-wrap that approximates a CSS grid (no real grid algorithm)
@@ -62,25 +62,25 @@ The bg sprite type (`PIXI.Sprite` vs `PIXI.NineSliceSprite`) is fixed at constru
 
 Geometry / content. Visual fields are owned by the style — pass them through `StyleManager.resolve(...)`.
 
-| Field    | Type     | Description                                                  |
-| -------- | -------- | ------------------------------------------------------------ |
-| `x`      | `number` | X position.                                                  |
-| `y`      | `number` | Y position.                                                  |
-| `width`  | `number` | Fixed width. Ignored when the parent layout controls sizing. |
-| `height` | `number` | Fixed height. Ignored when the parent layout controls sizing.|
-| `label`  | `string` | Label text. Omit for an icon-only button.                    |
+| Field    | Type     | Description                                                   |
+| -------- | -------- | ------------------------------------------------------------- |
+| `x`      | `number` | X position.                                                   |
+| `y`      | `number` | Y position.                                                   |
+| `width`  | `number` | Fixed width. Ignored when the parent layout controls sizing.  |
+| `height` | `number` | Fixed height. Ignored when the parent layout controls sizing. |
+| `label`  | `string` | Label text. Omit for an icon-only button.                     |
 
 ### `ButtonComponentStyle`
 
 Bundle of four `SpriteStyle` slots plus an optional `TextStyle` label. Apps re-theme every button at once with `styleManager.modify(UIComponentsStyleIds.Button, { … })`; per-button overrides flow through `styleManager.resolve(...)` at the call site.
 
-| Slot       | Type          | Notes                                                                       |
-| ---------- | ------------- | --------------------------------------------------------------------------- |
+| Slot       | Type          | Notes                                                                                         |
+| ---------- | ------------- | --------------------------------------------------------------------------------------------- |
 | `idle`     | `SpriteStyle` | Resting visual. Drives the bg sprite type at construction (`border > 0` → `NineSliceSprite`). |
-| `hover`    | `SpriteStyle` | Pointer-over. Texture / tint / alpha swap on transition.                    |
-| `pressed`  | `SpriteStyle` | Pointer-down. Pointer-out during a press cancels back to `idle`.            |
-| `disabled` | `SpriteStyle` | Applied when `setEnabled(false)` is called.                                 |
-| `label`    | `TextStyle`   | Font / size / weight / color / alpha / letterSpacing for the label.         |
+| `hover`    | `SpriteStyle` | Pointer-over. Texture / tint / alpha swap on transition.                                      |
+| `pressed`  | `SpriteStyle` | Pointer-down. Pointer-out during a press cancels back to `idle`.                              |
+| `disabled` | `SpriteStyle` | Applied when `setEnabled(false)` is called.                                                   |
+| `label`    | `TextStyle`   | Font / size / weight / color / alpha / letterSpacing for the label.                           |
 
 `SpriteStyle` is `{ textureId?, color?, alpha?, scaleX?, scaleY?, border? }`. `TextStyle` is `{ fontFamily?, fontSize?, fontWeight?, color?, alpha?, letterSpacing? }`. The framework default registers `border: 2` for all four states (the PNGs ship with a 2px black border).
 
@@ -92,7 +92,7 @@ Bundle of four `SpriteStyle` slots plus an optional `TextStyle` label. Apps re-t
 
 ### Notes
 
-- **Default skin via `UIComponentsBinding`.** Adding the binding registers the four `DefaultButton{Idle,Hover,Pressed,Disabled}` `HudTexture` asset requests *and* the `UIComponentsStyleIds.Button` style entry. Apps re-theme every button at once with `styleManager.modify(UIComponentsStyleIds.Button, { hover: { color: 0x88aaff } })`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers the four `DefaultButton{Idle,Hover,Pressed,Disabled}` `HudTexture` asset requests _and_ the `UIComponentsStyleIds.Button` style entry. Apps re-theme every button at once with `styleManager.modify(UIComponentsStyleIds.Button, { hover: { color: 0x88aaff } })`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
 - **Tinting for colour identity.** When several buttons share a skin but need distinct colours (e.g. tower-defence shop cards, "Next Level" CTAs), set `button.tint = 0x...` after construction. `Container.tint` propagates to the bg sprite. The label's colour comes from `style.label.color` and is unaffected by container tint — set both if you want the label to follow the button's tint.
 - **State machine.** Pointer events flow through `@pixi/ui` `Button` (`onDown` / `onUp` / `onUpOut` / `onHover` / `onOut`); the component consolidates them into the four-state model and applies the matching state's `SpriteStyle` on each transition.
 - **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects all referenced textures to be loaded in the asset manager. Construct buttons in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
@@ -120,24 +120,24 @@ this.addChild(background);
 
 Overlay + fallback colours are per-screen UI tuning rather than themable skin data, so they live on the opts and not the style.
 
-| Field           | Type     | Default    | Description                                                  |
-| --------------- | -------- | ---------- | ------------------------------------------------------------ |
-| `overlayColor`  | `number` | `0x000000` | Overlay colour drawn on top of the texture.                  |
-| `overlayAlpha`  | `number` | `0.12`     | Overlay alpha when the texture is present.                   |
+| Field           | Type     | Default    | Description                                                                                                 |
+| --------------- | -------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
+| `overlayColor`  | `number` | `0x000000` | Overlay colour drawn on top of the texture.                                                                 |
+| `overlayAlpha`  | `number` | `0.12`     | Overlay alpha when the texture is present.                                                                  |
 | `fallbackColor` | `number` | `0x020617` | Solid colour used when no texture is loaded (defensive only — eager construction throws on missing assets). |
-| `fallbackAlpha` | `number` | `0.55`     | Fallback alpha.                                              |
+| `fallbackAlpha` | `number` | `0.55`     | Fallback alpha.                                                                                             |
 
 ### `BackgroundComponentStyle`
 
 A single `SpriteStyle` slot. Apps re-theme every background at once with `styleManager.modify(UIComponentsStyleIds.Background, { bg: { textureId: "..." } })`; per-screen overrides flow through `styleManager.resolve(...)` at the call site.
 
-| Slot | Type          | Notes                                                                                                                 |
-| ---- | ------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Slot | Type          | Notes                                                                                                                                                                 |
+| ---- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `bg` | `SpriteStyle` | The cover-scaled background texture. The component bypasses `_buildSprite` for cover-fit math, so `border` / `scaleX` / `scaleY` on this slot are informational only. |
 
 ### Notes
 
-- **Default skin via `UIComponentsBinding`.** Adding the binding registers the `DefaultBackground` `HudTexture` asset request *and* the `UIComponentsStyleIds.Background` style entry. The default texture is plain white — meant as a placeholder; real screens override the `bg` slot with their own backdrop.
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers the `DefaultBackground` `HudTexture` asset request _and_ the `UIComponentsStyleIds.Background` style entry. The default texture is plain white — meant as a placeholder; real screens override the `bg` slot with their own backdrop.
 - **Cover-fit math.** The component scales the bg sprite by `Math.max(width / textureWidth, height / textureHeight)` so the smaller axis overflows + crops, matching CSS `background-size: cover`. This is custom logic — the base `_buildSprite` helper would stretch instead and distort the texture along the over-sized axis.
 - **Tinting.** `Container.tint` propagates to the bg sprite; the overlay/fallback Graphics layers also respect Container.tint, so a single `bg.tint = 0xff0000` reddens the whole composite.
 - **Eager construction.** The constructor calls `_getTexture` from the base `StyledHudObject`, which throws if the resolved bg texture isn't loaded in the asset manager. Construct backgrounds in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
@@ -184,9 +184,7 @@ On/off switch themed via the framework's `StyleManager`. Construction takes an `
 
 ```ts
 // In a HudViewBase / ScreenView / PopupView subclass:
-const toggleStyle = this.styleManager.resolve<ToggleComponentStyle>(
-  UIComponentsStyleIds.Toggle,
-);
+const toggleStyle = this.styleManager.resolve<ToggleComponentStyle>(UIComponentsStyleIds.Toggle);
 const enabled = new ToggleComponent(this.assetLoader, toggleStyle, {
   value: true,
 });
@@ -206,22 +204,22 @@ const altToggle = new ToggleComponent(this.assetLoader, altStyle, { value: false
 
 Geometry / value. Visual fields are owned by the style.
 
-| Field        | Type      | Default | Description                                                         |
-| ------------ | --------- | ------- | ------------------------------------------------------------------- |
-| `width`      | `number`  | `44`    | Toggle width.                                                       |
-| `height`     | `number`  | `24`    | Toggle height.                                                      |
+| Field        | Type      | Default | Description                                                                   |
+| ------------ | --------- | ------- | ----------------------------------------------------------------------------- |
+| `width`      | `number`  | `44`    | Toggle width.                                                                 |
+| `height`     | `number`  | `24`    | Toggle height.                                                                |
 | `thumbInset` | `number`  | `3`     | Inset from track edge to thumb. Thumb renders at `(height - 2*inset)` square. |
-| `value`      | `boolean` | `false` | Initial value.                                                      |
+| `value`      | `boolean` | `false` | Initial value.                                                                |
 
 ### `ToggleComponentStyle`
 
 Bundle of three `SpriteStyle` slots. Defaults registered under `UIComponentsStyleIds.Toggle`.
 
-| Slot       | Type          | Notes                                                                                                                  |
-| ---------- | ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Slot       | Type          | Notes                                                                                                                      |
+| ---------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | `trackOn`  | `SpriteStyle` | Track texture used while value is `true`. Drives the track sprite type at construction (`border > 0` → `NineSliceSprite`). |
-| `trackOff` | `SpriteStyle` | Track texture used while value is `false`. Texture swaps onto the same sprite — no rebuild.                            |
-| `thumb`    | `SpriteStyle` | Sliding handle. Sized to `(height - 2*thumbInset)` square; anchored at its centre.                                     |
+| `trackOff` | `SpriteStyle` | Track texture used while value is `false`. Texture swaps onto the same sprite — no rebuild.                                |
+| `thumb`    | `SpriteStyle` | Sliding handle. Sized to `(height - 2*thumbInset)` square; anchored at its centre.                                         |
 
 The framework default uses `border: 0` for all three slots — the rounded pill ends don't 9-slice cleanly, so the runtime stretches the track texture between the resolved track-on / track-off PNGs. Custom skins with straight-edged tracks can opt into 9-slice via the style override.
 
@@ -234,7 +232,7 @@ The framework default uses `border: 0` for all three slots — the rounded pill 
 
 ### Notes
 
-- **Default skin via `UIComponentsBinding`.** Adding the binding registers the three `DefaultToggle{TrackOn,TrackOff,Thumb}` `HudTexture` asset requests *and* the `UIComponentsStyleIds.Toggle` style entry. Apps re-theme every toggle at once with `styleManager.modify(UIComponentsStyleIds.Toggle, …)`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers the three `DefaultToggle{TrackOn,TrackOff,Thumb}` `HudTexture` asset requests _and_ the `UIComponentsStyleIds.Toggle` style entry. Apps re-theme every toggle at once with `styleManager.modify(UIComponentsStyleIds.Toggle, …)`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
 - **Tinting for colour identity.** Set `toggle.tint = 0x...` after construction; `Container.tint` propagates to track + thumb sprites simultaneously.
 - **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects all three textures (both track variants and the thumb) to be loaded in the asset manager. Construct toggles in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
@@ -246,9 +244,7 @@ Horizontal slider themed via the framework's `StyleManager`. Three textured spri
 
 ```ts
 // Default skin — UIComponentsBinding registers everything.
-const sliderStyle = this.styleManager.resolve<SliderComponentStyle>(
-  UIComponentsStyleIds.Slider,
-);
+const sliderStyle = this.styleManager.resolve<SliderComponentStyle>(UIComponentsStyleIds.Slider);
 const volume = new SliderComponent(this.assetLoader, sliderStyle, {
   trackWidth: 200,
   min: 0,
@@ -268,7 +264,10 @@ const customStyle = this.styleManager.resolve<SliderComponentStyle>(UIComponents
   thumb: { textureId: MyAssetIds.NeutralThumb, border: 0 },
 });
 const slider = new SliderComponent(this.assetLoader, customStyle, {
-  trackWidth: 160, min: 0, max: 255, step: 1,
+  trackWidth: 160,
+  min: 0,
+  max: 255,
+  step: 1,
 });
 slider.tint = 0xff0000; // multiplies all three sub-sprites — channel red
 ```
@@ -277,25 +276,25 @@ slider.tint = 0xff0000; // multiplies all three sub-sprites — channel red
 
 Geometry / value. Visual fields are owned by the style.
 
-| Field         | Type     | Default | Description                                                          |
-| ------------- | -------- | ------- | -------------------------------------------------------------------- |
-| `trackWidth`  | `number` | `140`   | Track width in pixels.                                               |
-| `trackHeight` | `number` | `6`     | Track height in pixels.                                              |
+| Field         | Type     | Default | Description                                                               |
+| ------------- | -------- | ------- | ------------------------------------------------------------------------- |
+| `trackWidth`  | `number` | `140`   | Track width in pixels.                                                    |
+| `trackHeight` | `number` | `6`     | Track height in pixels.                                                   |
 | `thumbRadius` | `number` | `10`    | Thumb radius in pixels (the thumb sprite renders at `2 × radius` square). |
-| `min`         | `number` | `0`     | Minimum value.                                                       |
-| `max`         | `number` | `1`     | Maximum value.                                                       |
-| `step`        | `number` | `0`     | Step size. `0` means continuous.                                     |
-| `value`       | `number` | `min`   | Initial value (clamped to `[min, max]`).                             |
+| `min`         | `number` | `0`     | Minimum value.                                                            |
+| `max`         | `number` | `1`     | Maximum value.                                                            |
+| `step`        | `number` | `0`     | Step size. `0` means continuous.                                          |
+| `value`       | `number` | `min`   | Initial value (clamped to `[min, max]`).                                  |
 
 ### `SliderComponentStyle`
 
 Bundle of three `SpriteStyle` slots. Defaults registered under `UIComponentsStyleIds.Slider`.
 
-| Slot    | Type          | Notes                                                                                                                                                          |
-| ------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `track` | `SpriteStyle` | Full-length background. 9-slice when `border > 0`; the framework default registers `border: 2`.                                                                |
-| `fill`  | `SpriteStyle` | Value-driven foreground; width grows with the value ratio. Same default as `track`.                                                                            |
-| `thumb` | `SpriteStyle` | Draggable handle at `2 × thumbRadius` square. The framework default registers `border: 0` (plain stretched sprite); the thumb's geometry is fixed by opts.    |
+| Slot    | Type          | Notes                                                                                                                                                      |
+| ------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `track` | `SpriteStyle` | Full-length background. 9-slice when `border > 0`; the framework default registers `border: 2`.                                                            |
+| `fill`  | `SpriteStyle` | Value-driven foreground; width grows with the value ratio. Same default as `track`.                                                                        |
+| `thumb` | `SpriteStyle` | Draggable handle at `2 × thumbRadius` square. The framework default registers `border: 0` (plain stretched sprite); the thumb's geometry is fixed by opts. |
 
 ### Methods
 
@@ -319,9 +318,7 @@ Select-style dropdown themed via the framework's `StyleManager`. Construction ta
 
 ```ts
 // In a HudViewBase / ScreenView / PopupView subclass:
-const dropdownStyle = this.styleManager.resolve<DropdownComponentStyle>(
-  UIComponentsStyleIds.Dropdown,
-);
+const dropdownStyle = this.styleManager.resolve<DropdownComponentStyle>(UIComponentsStyleIds.Dropdown);
 const dropdown = new DropdownComponent(this.assetLoader, dropdownStyle, {
   width: 200,
   items: [
@@ -387,7 +384,7 @@ Bundle of six `SpriteStyle` slots plus an optional `TextStyle` for the shared la
 
 ### Notes
 
-- **Default skin via `UIComponentsBinding`.** Adding the binding registers six `DefaultDropdown{Header,List,ItemIdle,ItemHover,ItemSelected,Chevron}` `HudTexture` asset requests *and* the `UIComponentsStyleIds.Dropdown` style entry. Apps re-theme via `styleManager.modify(...)` or `binding.assetRequestList.overrideRequest(id, url)` at boot.
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers six `DefaultDropdown{Header,List,ItemIdle,ItemHover,ItemSelected,Chevron}` `HudTexture` asset requests _and_ the `UIComponentsStyleIds.Dropdown` style entry. Apps re-theme via `styleManager.modify(...)` or `binding.assetRequestList.overrideRequest(id, url)` at boot.
 - **Single chevron texture, runtime rotation.** The component ships a downward-pointing chevron and flips it 180° in code when the list opens. Custom skins follow the same convention — design the asset pointing down and the component handles open-state. (No separate `chevronOpen` slot.)
 - **Tinting.** `Container.tint` propagates to every sub-sprite (header, list, item rows, chevron) simultaneously.
 - **Overlay rendering.** When opened, the option list is re-parented to the scene root, given a very large `zIndex`, and the root is set to `sortableChildren = true` so the list paints above any HUD layers or other zIndex-based stacking. A near-transparent scrim sits behind the list and closes the dropdown when tapped. On `close()` (and on `destroy()`) the list returns to the dropdown.
@@ -406,9 +403,7 @@ Designed to be composed into a `RadioButtonGroupComponent` — the button report
 
 ```ts
 // In a HudViewBase / ScreenView / PopupView subclass:
-const radioStyle = this.styleManager.resolve<RadioButtonComponentStyle>(
-  UIComponentsStyleIds.RadioButton,
-);
+const radioStyle = this.styleManager.resolve<RadioButtonComponentStyle>(UIComponentsStyleIds.RadioButton);
 const option = new RadioButtonComponent(this.assetLoader, radioStyle, {
   label: "Easy",
   selected: true,
@@ -430,26 +425,26 @@ const altOption = new RadioButtonComponent(this.assetLoader, customStyle, { labe
 
 Geometry / content. Visual fields are owned by the style.
 
-| Field      | Type      | Default       | Description                                                                                |
-| ---------- | --------- | ------------- | ------------------------------------------------------------------------------------------ |
-| `x`        | `number`  | —             | X position.                                                                                |
-| `y`        | `number`  | —             | Y position.                                                                                |
-| `width`    | `number`  | auto          | Fixed width. When omitted, sized to fit indicator + gap + label.                           |
-| `height`   | `number`  | auto          | Fixed height. When omitted, matches the indicator diameter.                                |
-| `label`    | `string`  | —             | Optional label drawn to the right of the indicator. Omit for an icon-only indicator.       |
-| `radius`   | `number`  | `9`           | Outer ring radius. The indicator sprite renders at `2 * radius` square.                    |
-| `gap`      | `number`  | `8`           | Gap between indicator and label, in pixels.                                                |
-| `selected` | `boolean` | `false`       | Initial selected state.                                                                    |
+| Field      | Type      | Default | Description                                                                          |
+| ---------- | --------- | ------- | ------------------------------------------------------------------------------------ |
+| `x`        | `number`  | —       | X position.                                                                          |
+| `y`        | `number`  | —       | Y position.                                                                          |
+| `width`    | `number`  | auto    | Fixed width. When omitted, sized to fit indicator + gap + label.                     |
+| `height`   | `number`  | auto    | Fixed height. When omitted, matches the indicator diameter.                          |
+| `label`    | `string`  | —       | Optional label drawn to the right of the indicator. Omit for an icon-only indicator. |
+| `radius`   | `number`  | `9`     | Outer ring radius. The indicator sprite renders at `2 * radius` square.              |
+| `gap`      | `number`  | `8`     | Gap between indicator and label, in pixels.                                          |
+| `selected` | `boolean` | `false` | Initial selected state.                                                              |
 
 ### `RadioButtonComponentStyle`
 
 Bundle of two `SpriteStyle` indicator slots plus an optional `TextStyle` label. Apps re-theme every radio at once with `styleManager.modify(UIComponentsStyleIds.RadioButton, { … })`; per-radio overrides flow through `styleManager.resolve(...)` at the call site.
 
-| Slot         | Type          | Notes                                                                                                          |
-| ------------ | ------------- | -------------------------------------------------------------------------------------------------------------- |
-| `unselected` | `SpriteStyle` | Resting outer-ring visual. Plain `PIXI.Sprite` (the framework default registers `border: 0`).                  |
-| `selected`   | `SpriteStyle` | Outer ring + inner dot — the dot is baked into the texture rather than drawn at runtime.                       |
-| `label`      | `TextStyle`   | Font / size / weight / color / alpha / letterSpacing for the label.                                            |
+| Slot         | Type          | Notes                                                                                         |
+| ------------ | ------------- | --------------------------------------------------------------------------------------------- |
+| `unselected` | `SpriteStyle` | Resting outer-ring visual. Plain `PIXI.Sprite` (the framework default registers `border: 0`). |
+| `selected`   | `SpriteStyle` | Outer ring + inner dot — the dot is baked into the texture rather than drawn at runtime.      |
+| `label`      | `TextStyle`   | Font / size / weight / color / alpha / letterSpacing for the label.                           |
 
 ### Methods
 
@@ -460,7 +455,7 @@ Bundle of two `SpriteStyle` indicator slots plus an optional `TextStyle` label. 
 ### Notes
 
 - **State is decoupled from input.** The button does not auto-toggle on tap. This lets a group own the mutual-exclusion model and keeps the standalone-button case explicit. For a single button used outside a group, wire `btn.onPress(() => btn.setSelected(true))`.
-- **Default skin via `UIComponentsBinding`.** Adding the binding registers the two `DefaultRadio{Unselected,Selected}` `HudTexture` asset requests *and* the `UIComponentsStyleIds.RadioButton` style entry. Re-theme every radio at once with `styleManager.modify(...)`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers the two `DefaultRadio{Unselected,Selected}` `HudTexture` asset requests _and_ the `UIComponentsStyleIds.RadioButton` style entry. Re-theme every radio at once with `styleManager.modify(...)`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
 - **Tinting for colour identity.** Set `radio.tint = 0x...` after construction; `Container.tint` propagates to the indicator sprite. The label's colour comes from `style.label.color` and is unaffected by container tint.
 - **Layout-aware.** The component sets its own `.layout = { width, height }` so it participates in `@pixi/layout` flex flows. The whole bounding box (indicator + gap + label) is the click target via an explicit `hitArea`.
 - **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects the referenced indicator textures to be loaded in the asset manager. Construct radios in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
@@ -474,9 +469,7 @@ Mutually exclusive set of `RadioButtonComponent`s arranged in a column or row, a
 Construction takes an `AssetManager`, the `RadioButtonComponentStyle` to hand to every child, and group geometry / content opts:
 
 ```ts
-const radioStyle = this.styleManager.resolve<RadioButtonComponentStyle>(
-  UIComponentsStyleIds.RadioButton,
-);
+const radioStyle = this.styleManager.resolve<RadioButtonComponentStyle>(UIComponentsStyleIds.RadioButton);
 const group = new RadioButtonGroupComponent(this.assetLoader, radioStyle, {
   items: [
     { id: "easy", label: "Easy" },
@@ -496,17 +489,17 @@ group.onChange((id, item) => {
 
 Geometry / content. Visual styling for the child radios lives on the `RadioButtonComponentStyle` passed alongside the asset manager.
 
-| Field         | Type                              | Default    | Description                                                                  |
-| ------------- | --------------------------------- | ---------- | ---------------------------------------------------------------------------- |
-| `x`           | `number`                          | —          | X position.                                                                  |
-| `y`           | `number`                          | —          | Y position.                                                                  |
-| `items`       | `readonly RadioButtonGroupItem[]` | `[]`       | Options the group exposes. May be replaced later with `setItems()`.          |
-| `selectedId`  | `string`                          | —          | Initial selection. Ignored if it doesn't match an item id.                   |
-| `direction`   | `"column" \| "row"`               | `"column"` | Stack direction for the buttons.                                             |
-| `spacing`     | `number`                          | `8`        | Gap between adjacent buttons.                                                |
-| `padding`     | `number`                          | `0`        | Padding around the group.                                                    |
-| `radius`      | `number`                          | `9`        | Outer ring radius forwarded to every child (children render `2 * radius` square). |
-| `gap`         | `number`                          | `8`        | Gap between indicator and label inside each child.                           |
+| Field        | Type                              | Default    | Description                                                                       |
+| ------------ | --------------------------------- | ---------- | --------------------------------------------------------------------------------- |
+| `x`          | `number`                          | —          | X position.                                                                       |
+| `y`          | `number`                          | —          | Y position.                                                                       |
+| `items`      | `readonly RadioButtonGroupItem[]` | `[]`       | Options the group exposes. May be replaced later with `setItems()`.               |
+| `selectedId` | `string`                          | —          | Initial selection. Ignored if it doesn't match an item id.                        |
+| `direction`  | `"column" \| "row"`               | `"column"` | Stack direction for the buttons.                                                  |
+| `spacing`    | `number`                          | `8`        | Gap between adjacent buttons.                                                     |
+| `padding`    | `number`                          | `0`        | Padding around the group.                                                         |
+| `radius`     | `number`                          | `9`        | Outer ring radius forwarded to every child (children render `2 * radius` square). |
+| `gap`        | `number`                          | `8`        | Gap between indicator and label inside each child.                                |
 
 `RadioButtonGroupItem` is `{ id: string; label: string }`.
 
@@ -583,10 +576,13 @@ scroll.onScroll((x, y) => console.log("scrolled to", x, y));
 
 ## ListComponent
 
-Single-column list. Each row uses one of three layout variants — `"text"`, `"text+image"`, or `"image"` — picked up front so the row geometry stays stable. Selection is opt-in via `selectionMode`: a list can be a non-selectable button group (`"none"`), a single-select picker (`"single"`), or a multi-select set (`"multi"`).
+Single-column list themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `ListComponentStyle`, and geometry / content opts. Each row is a textured sprite whose background swaps between the resolved `itemIdle` / `itemHover` / `itemSelected` slots on pointer + selection transitions; the optional label uses the resolved `label` slot. Each row uses one of three layout variants — `"text"`, `"text+image"`, or `"image"` — picked up front so the row geometry stays stable. Selection is opt-in via `selectionMode`: a list can be a non-selectable button group (`"none"`), a single-select picker (`"single"`), or a multi-select set (`"multi"`). The framework's `UIComponentsBinding` registers a default style entry (legacy slate / indigo palette baked into the shipped PNGs) so apps that add the binding get a usable list without supplying any art.
 
 ```ts
-const list = new ListComponent({
+// In a HudViewBase / ScreenView / PopupView subclass — the base class
+// exposes `styleManager` and `assetLoader` getters for free:
+const listStyle = this.styleManager.resolve<ListComponentStyle>(UIComponentsStyleIds.List);
+const list = new ListComponent(this.assetLoader, listStyle, {
   width: 240,
   variant: "text+image",
   selectionMode: "single",
@@ -597,57 +593,72 @@ const list = new ListComponent({
   ],
   selectedIds: ["sword"],
 });
-list.resolveAssets(assetManager);
 list.onChange((ids, items) => console.log("selected:", ids, items));
 list.onItemPress((id, item) => console.log("pressed:", id, item.label));
+
+// Custom skin — point the row-state slots at your own PNGs:
+const customStyle = this.styleManager.resolve<ListComponentStyle>(UIComponentsStyleIds.List, {
+  itemIdle: { textureId: MyAssetIds.RowIdle },
+  itemHover: { textureId: MyAssetIds.RowHover },
+  itemSelected: { textureId: MyAssetIds.RowSelected },
+});
+const customList = new ListComponent(this.assetLoader, customStyle, { width: 240, items });
 ```
 
 The component does NOT scroll on its own. Wrap it in a `ScrollViewComponent` when the row count exceeds the visible area.
 
-### `ListComponentPreset`
+### `ListComponentOpts`
 
-| Field           | Type                                | Default    | Description                                                                                                       |
-| --------------- | ----------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------- |
-| `x`             | `number`                            | —          | X position.                                                                                                       |
-| `y`             | `number`                            | —          | Y position.                                                                                                       |
-| `width`         | `number`                            | `240`      | Total list width.                                                                                                 |
-| `itemHeight`    | `number`                            | `36`       | Per-row height.                                                                                                   |
-| `itemGap`       | `number`                            | `0`        | Vertical gap between rows.                                                                                        |
-| `padding`       | `number`                            | `0`        | Padding around the rows on all sides.                                                                             |
-| `variant`       | `"text" \| "text+image" \| "image"` | `"text"`   | Item layout variant.                                                                                              |
-| `selectionMode` | `"none" \| "single" \| "multi"`     | `"none"`   | Selection model. `"none"` = clickable rows, no selection. `"single"` = mutual exclusion. `"multi"` = toggle each. |
-| `items`         | `readonly ListItem[]`               | `[]`       | Rows to render. May be replaced later with `setItems()`.                                                          |
-| `selectedIds`   | `readonly string[]`                 | `[]`       | Initial selection. Filtered to known ids and the active mode.                                                     |
-| `radius`        | `number`                            | `0`        | Row corner radius.                                                                                                |
-| `fillColor`     | `number`                            | `0x111827` | Resting row background.                                                                                           |
-| `fillAlpha`     | `number`                            | `1`        | Row background alpha (applied to resting / hover / selected).                                                     |
-| `hoverColor`    | `number`                            | `0x374151` | Hover row background.                                                                                             |
-| `selectedColor` | `number`                            | `0x4338ca` | Selected row background.                                                                                          |
-| `borderColor`   | `number`                            | `0x475569` | Row border color (only drawn when `borderWidth > 0`).                                                             |
-| `borderWidth`   | `number`                            | `0`        | Row border width.                                                                                                 |
-| `imageSize`     | `number`                            | `24`       | Square image size (used by `"image"` and `"text+image"` variants).                                                |
-| `imagePadding`  | `number`                            | `8`        | Padding around the image inside its row slot.                                                                     |
-| `labelStyle`    | `Partial<PIXI.TextStyleOptions>`    | —          | Label style overrides merged on top of the defaults.                                                              |
-| `textPadding`   | `number`                            | `12`       | Left padding for the label in the `"text"` variant.                                                               |
+Geometry / content. Visual fields are owned by the style — pass them through `StyleManager.resolve(...)`.
 
-`ListItem` is `{ id: string; label?: string; textureId?: string; texture?: PIXI.Texture }`. `id` is the value emitted by `onChange` / `onItemPress` and accepted by `setSelectedIds`. `label` is required for the `"text"` and `"text+image"` variants. Image variants take either a pre-resolved `texture` or a `textureId` resolved via `resolveAssets()` — when both are present, `texture` wins.
+| Field           | Type                                | Default  | Description                                                                                                       |
+| --------------- | ----------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `x`             | `number`                            | —        | X position.                                                                                                       |
+| `y`             | `number`                            | —        | Y position.                                                                                                       |
+| `width`         | `number`                            | `240`    | Total list width.                                                                                                 |
+| `itemHeight`    | `number`                            | `36`     | Per-row height.                                                                                                   |
+| `itemGap`       | `number`                            | `0`      | Vertical gap between rows.                                                                                        |
+| `padding`       | `number`                            | `0`      | Padding around the rows on all sides.                                                                             |
+| `variant`       | `"text" \| "text+image" \| "image"` | `"text"` | Item layout variant.                                                                                              |
+| `selectionMode` | `"none" \| "single" \| "multi"`     | `"none"` | Selection model. `"none"` = clickable rows, no selection. `"single"` = mutual exclusion. `"multi"` = toggle each. |
+| `items`         | `readonly ListItem[]`               | `[]`     | Rows to render. May be replaced later with `setItems()`.                                                          |
+| `selectedIds`   | `readonly string[]`                 | `[]`     | Initial selection. Filtered to known ids and the active mode.                                                     |
+| `imageSize`     | `number`                            | `24`     | Square image size (used by `"image"` and `"text+image"` variants).                                                |
+| `imagePadding`  | `number`                            | `8`      | Padding around the image inside its row slot.                                                                     |
+| `textPadding`   | `number`                            | `12`     | Left padding for the label in the `"text"` variant.                                                               |
+
+`ListItem` is `{ id: string; label?: string; textureId?: string; texture?: PIXI.Texture }`. `id` is the value emitted by `onChange` / `onItemPress` and accepted by `setSelectedIds`. `label` is required for the `"text"` and `"text+image"` variants. Image variants take either a pre-resolved `texture` or a `textureId` looked up via the supplied `AssetManager` — when both are present, `texture` wins.
+
+### `ListComponentStyle`
+
+Bundle of three row-state `SpriteStyle` slots plus an optional `TextStyle` label. Apps re-theme every list at once with `styleManager.modify(UIComponentsStyleIds.List, { … })`; per-list overrides flow through `styleManager.resolve(...)` at the call site.
+
+| Slot           | Type          | Notes                                                                                          |
+| -------------- | ------------- | ---------------------------------------------------------------------------------------------- |
+| `itemIdle`     | `SpriteStyle` | Resting row bg. Drives the row sprite type at construction (`border > 0` → `NineSliceSprite`). |
+| `itemHover`    | `SpriteStyle` | Pointer-over row bg. Texture / tint / alpha swap on transition.                                |
+| `itemSelected` | `SpriteStyle` | Selected row bg. Applied in `"single"` / `"multi"` modes when the row is selected.             |
+| `label`        | `TextStyle`   | Font / size / weight / color / alpha / letterSpacing for the row label.                        |
+
+`SpriteStyle` is `{ textureId?, color?, alpha?, scaleX?, scaleY?, border? }`. `TextStyle` is `{ fontFamily?, fontSize?, fontWeight?, color?, alpha?, letterSpacing? }`. The framework default registers `border: 0` for all three slots (the PNGs ship as flat fills) — supply a `border > 0` in a custom skin if you need 9-slice rounded corners.
 
 ### Methods
 
 - `items` / `selectedIds` / `selectedItems` / `selectionMode` / `variant` — getters.
 - `setItems(items)` — replace the rows. Selection is filtered to ids that still exist; matching ids keep their selected state. No `onChange` is fired.
 - `setSelectedIds(ids)` — set the selection programmatically. Normalized for the active mode (clamped to one id in `"single"`, forced empty in `"none"`) and filtered to known ids. Does **not** fire `onChange`.
-- `resolveAssets(assetManager)` — look up each item's `textureId` and apply the loaded texture. Items with a pre-resolved `texture` are left alone. Safe to call repeatedly.
 - `onChange(cb): Unsubscribe` — fires only on user-driven selection changes (single / multi modes only). In `"none"` mode this never fires.
 - `onItemPress(cb): Unsubscribe` — fires on every user tap, regardless of mode.
 
 ### Notes
 
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers the three `DefaultListItem{Idle,Hover,Selected}` `HudTexture` asset requests _and_ the `UIComponentsStyleIds.List` style entry. Apps re-theme via `styleManager.modify(...)` or `binding.assetRequestList.overrideRequest(id, url)` at boot.
 - **Selection is opt-in.** The same component covers a "list of buttons" (`"none"`), a single-select picker (`"single"`), and a multi-select check-list (`"multi"`). Pick the mode at construction; it's not a runtime mutation.
 - **Tap semantics.** In `"single"` mode, re-tapping the already-selected row is a no-op (matches `RadioButtonGroupComponent` and `DropdownComponent`). In `"multi"` mode, re-tapping a selected row removes it from the set. `onItemPress` fires for every tap regardless.
 - **Layout-aware.** The list sets its own `.layout` (a flex column with the configured `width`, `padding`, `itemGap`, `alignItems: "stretch"`, `justifyContent: "flex-start"`) so it nests inside other `@pixi/layout` flex flows. Each row also carries `.layout = { width, height }` so it participates in the column's flex sizing.
 - **No internal scrolling.** Compose with `ScrollViewComponent` for long lists — the list keeps its full height, the scroll view clips and scrolls.
-- **Texture resolution timing.** `setItems()` rebuilds rows with whatever `texture` each item carries; if items use `textureId`, follow up with `resolveAssets(am)`. Re-resolving is idempotent for already-resolved sprites.
+- **Tinting.** `Container.tint` propagates to every row bg sprite simultaneously. Per-row tint lives in the resolved `itemIdle` / `itemHover` / `itemSelected` `color` fields.
+- **Texture resolution timing.** Per-item content textures (`item.textureId` for image variants) are resolved eagerly at construction via the supplied `AssetManager`; missing ids throw. Items with a pre-resolved `texture` skip the lookup. `setItems()` re-resolves on each call.
 
 ---
 
@@ -802,9 +813,9 @@ const updated = UIUtils.updateFields(originalJson, '{"overlayAlpha":0.3}');
 
 ### Themed components do **not** use JSON presets
 
-`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, `BackgroundComponent`, and `DropdownComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
+`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, `BackgroundComponent`, `DropdownComponent`, and `ListComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
 
-- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, `.Background`, and `.Dropdown`.
+- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, `.Background`, `.Dropdown`, and `.List`.
 - **Per-component override** — the call site passes a deep-merge override to `styleManager.resolve(UIComponentsStyleIds.<Id>, { … })` and forwards the resolved style to the constructor. See the component sections above for the canonical pattern.
 
-The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` / `Dropdown` components without supplying any art.
+The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` / `Dropdown` / `List` components without supplying any art.

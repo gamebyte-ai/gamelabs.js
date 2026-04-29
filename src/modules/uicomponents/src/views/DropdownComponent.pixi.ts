@@ -392,7 +392,10 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
     }
   }
 
-  private _createItemRow(item: DropdownItem, index: number): { container: PIXI.Container; bg: PIXI.Sprite | PIXI.NineSliceSprite; text: PIXI.Text } {
+  private _createItemRow(
+    item: DropdownItem,
+    index: number,
+  ): { container: PIXI.Container; bg: PIXI.Sprite | PIXI.NineSliceSprite; text: PIXI.Text } {
     const w = this._width;
     const ih = this._itemHeight;
     const container = new PIXI.Container();

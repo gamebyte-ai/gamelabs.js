@@ -88,11 +88,7 @@ export class RadioButtonGroupComponent extends PIXI.Container {
   private _items: readonly RadioButtonGroupItem[];
   private _selectedId: string | null;
 
-  public constructor(
-    assetManager: AssetManager,
-    style: RadioButtonComponentStyle,
-    opts: RadioButtonGroupComponentOpts = {},
-  ) {
+  public constructor(assetManager: AssetManager, style: RadioButtonComponentStyle, opts: RadioButtonGroupComponentOpts = {}) {
     super();
 
     this._assetManager = assetManager;

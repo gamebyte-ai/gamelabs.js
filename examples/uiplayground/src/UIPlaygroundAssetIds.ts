@@ -18,4 +18,7 @@ export enum UIPlaygroundAssetIds {
   CustomDropdownItemHover = "UIPlayground.CustomDropdown.ItemHover",
   CustomDropdownItemSelected = "UIPlayground.CustomDropdown.ItemSelected",
   CustomDropdownChevron = "UIPlayground.CustomDropdown.Chevron",
+  CustomListItemIdle = "UIPlayground.CustomList.ItemIdle",
+  CustomListItemHover = "UIPlayground.CustomList.ItemHover",
+  CustomListItemSelected = "UIPlayground.CustomList.ItemSelected",
 }

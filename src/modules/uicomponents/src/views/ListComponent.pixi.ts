@@ -1,7 +1,12 @@
 import type { LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
-import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
+import type { AssetManager } from "../../../../core/assets/AssetManager.js";
+import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
+import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
+import type { TextStyle } from "../../../../core/styles/TextStyle.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
+import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
+import type { ListComponentStyle } from "../UIComponentsStyleTypes.js";
 
 export type ListSelectionMode = "none" | "single" | "multi";
 
@@ -13,8 +18,10 @@ export type ListItem<T = unknown> = {
   /** Label text. Used by the `"text"` and `"text+image"` variants. */
   readonly label?: string;
   /**
-   * Asset id resolved to a `PIXI.Texture` via `resolveAssets()`. Used
-   * by the `"image"` and `"text+image"` variants.
+   * Asset id resolved to a `PIXI.Texture` via the asset manager at row-
+   * construction time. Used by the `"image"` and `"text+image"` variants.
+   * Throws if the id is not loaded — register the texture before
+   * constructing or calling `setItems`.
    */
   readonly textureId?: string;
   /**
@@ -32,7 +39,13 @@ export type ListItem<T = unknown> = {
   readonly data?: T;
 };
 
-export type ListComponentPreset<T = unknown> = {
+/**
+ * Geometry / content options for a {@link ListComponent}. Visual
+ * styling for the row backgrounds + label text lives on the
+ * {@link ListComponentStyle} passed alongside the asset manager and is
+ * owned by the framework's `StyleManager`.
+ */
+export type ListComponentOpts<T = unknown> = {
   /** X position. */
   x?: number;
   /** Y position. */
@@ -60,105 +73,104 @@ export type ListComponentPreset<T = unknown> = {
   items?: readonly ListItem<T>[];
   /** Initial selection. Filtered to known item ids and the active selection mode. */
   selectedIds?: readonly string[];
-
-  // ── Row visuals ─────────────────────────────────────────────────────
-  /** Row corner radius. @default 0 */
-  radius?: number;
-  /** Resting row background color. @default 0x111827 */
-  fillColor?: number;
-  /** Row background alpha (applied to resting / hover / selected). @default 1 */
-  fillAlpha?: number;
-  /** Row background color when the pointer hovers. @default 0x374151 */
-  hoverColor?: number;
-  /** Row background color for selected rows. @default 0x4338ca */
-  selectedColor?: number;
-  /** Row border color (drawn only when `borderWidth > 0`). @default 0x475569 */
-  borderColor?: number;
-  /** Row border width. @default 0 */
-  borderWidth?: number;
-
-  // ── Image options (variants `"image"` / `"text+image"`) ─────────────
-  /** Square image size in pixels. @default 24 */
+  /** Square image size in pixels. Used by `"image"` / `"text+image"` variants. @default 24 */
   imageSize?: number;
   /** Padding around the image inside its row slot. @default 8 */
   imagePadding?: number;
-
-  // ── Text options (variants `"text"` / `"text+image"`) ───────────────
-  /** Label style overrides merged on top of the defaults. */
-  labelStyle?: Partial<PIXI.TextStyleOptions>;
-  /** Left padding for the label in `"text"` variant. @default 12 */
+  /** Left padding for the label in the `"text"` variant. @default 12 */
   textPadding?: number;
 };
 
-/**
- * Parse a JSON string into ListComponentPreset.
- *
- * The optional generic parameter is purely a TypeScript convenience —
- * JSON has no payload type info, so the caller is asserting the shape.
- * Use `parseListComponentPreset<MyData>(json)` to thread the type
- * through, or run a runtime validator if the JSON is untrusted.
- */
-export function parseListComponentPreset<T = unknown>(json: string): ListComponentPreset<T> {
-  return JSON.parse(json) as ListComponentPreset<T>;
-}
+const DEFAULT_WIDTH = 240;
+const DEFAULT_ITEM_HEIGHT = 36;
+const DEFAULT_ITEM_GAP = 0;
+const DEFAULT_PADDING = 0;
+const DEFAULT_VARIANT: ListItemVariant = "text";
+const DEFAULT_SELECTION_MODE: ListSelectionMode = "none";
+const DEFAULT_IMAGE_SIZE = 24;
+const DEFAULT_IMAGE_PADDING = 8;
+const DEFAULT_TEXT_PADDING = 12;
 
-const DEFAULT_LABEL_STYLE: Partial<PIXI.TextStyleOptions> = {
-  fill: 0xe8eef6,
-  fontSize: 14,
-  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-  fontWeight: "600",
+const DEFAULT_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
+const DEFAULT_LABEL_FONT_SIZE = 14;
+const DEFAULT_LABEL_FONT_WEIGHT = "600";
+const DEFAULT_LABEL_COLOR = 0xe8eef6;
+const DEFAULT_LABEL_ALPHA = 1;
+
+const DEFAULT_BG_COLOR = 0xffffff;
+const DEFAULT_BG_ALPHA = 1;
+const DEFAULT_BG_SCALE = 1;
+const DEFAULT_BG_BORDER = 0;
+
+type RowState = "idle" | "hover" | "selected";
+
+const DEFAULT_TEXTURE_BY_STATE: Record<RowState, string> = {
+  idle: UIComponentsAssetIds.DefaultListItemIdle,
+  hover: UIComponentsAssetIds.DefaultListItemHover,
+  selected: UIComponentsAssetIds.DefaultListItemSelected,
 };
 
 type RowEntry<T> = {
   item: ListItem<T>;
   row: PIXI.Container;
-  bg: PIXI.Graphics;
+  bg: PIXI.Sprite | PIXI.NineSliceSprite;
   sprite: PIXI.Sprite | null;
   text: PIXI.Text | null;
 };
 
 /**
- * Reusable list / picker component.
+ * Reusable list / picker component, themed via the framework's style
+ * system. Construction takes an `AssetManager`, a fully-resolved
+ * {@link ListComponentStyle}, and geometry / content opts:
+ *
+ * ```ts
+ * const listStyle = this.styleManager.resolve<ListComponentStyle>(
+ *   UIComponentsStyleIds.List,
+ * );
+ * const list = new ListComponent(this.assetLoader, listStyle, {
+ *   width: 240,
+ *   variant: "text",
+ *   selectionMode: "single",
+ *   items: [{ id: "a", label: "Alpha" }, { id: "b", label: "Beta" }],
+ * });
+ * list.onChange((ids, items) => console.log("selected:", ids));
+ * ```
  *
  * - Renders one row per item in a single column. Item layout is one of
  *   three variants: `"text"`, `"text+image"`, or `"image"`. Picking the
  *   variant up front keeps the row geometry (and hit area) stable.
+ * - Each row's background is a textured sprite — texture swaps between
+ *   the resolved `itemIdle` / `itemHover` / `itemSelected` slots on
+ *   pointer transitions and selection changes.
  * - Selection is opt-in: `"none"` makes rows behave like buttons (only
  *   `onItemPress` fires); `"single"` enforces mutual exclusion;
  *   `"multi"` toggles each row in or out of a set. Programmatic
  *   `setSelectedIds()` is silent — `onChange` only fires on user-driven
  *   selection changes.
- * - Each row paints its own background (resting / hover / selected),
- *   uses an explicit `hitArea` covering its full bounds, and forwards
- *   taps as either a state change or a press depending on the mode.
- * - Sets its own `.layout` (a flex column with the configured
- *   `width`, `padding`, `itemGap`, `alignItems: "stretch"`) so it
- *   nests inside other `@pixi/layout` flex flows. The component does
- *   NOT scroll on its own — wrap it in a `ScrollViewComponent` when
- *   the row count exceeds the visible area.
+ * - Sets its own `.layout` (a flex column with the configured `width`,
+ *   `padding`, `itemGap`, `alignItems: "stretch"`) so it nests inside
+ *   other `@pixi/layout` flex flows. The component does NOT scroll on
+ *   its own — wrap it in a `ScrollViewComponent` when the row count
+ *   exceeds the visible area.
  *
- * Item textures: items can carry either a pre-resolved
- * {@link ListItem.texture} or a {@link ListItem.textureId}. After
- * `setItems()`, call `resolveAssets(assetManager)` to look up any
- * textureIds; pre-resolved `texture`s are always honored verbatim.
+ * Per-item content textures (variants `"image"` / `"text+image"`):
+ * items can carry either a pre-resolved {@link ListItem.texture} or a
+ * {@link ListItem.textureId}. The constructor (and `setItems()`)
+ * resolves textureIds eagerly through the asset manager — both must be
+ * loaded before the component renders.
  */
-export class ListComponent<T = unknown> extends PIXI.Container {
+export class ListComponent<T = unknown> extends StyledHudObject<ListComponentStyle> {
   private readonly _width: number;
   private readonly _itemHeight: number;
   private readonly _padding: number;
   private readonly _variant: ListItemVariant;
   private readonly _selectionMode: ListSelectionMode;
-  private readonly _radius: number;
-  private readonly _fillColor: number;
-  private readonly _fillAlpha: number;
-  private readonly _hoverColor: number;
-  private readonly _selectedColor: number;
-  private readonly _borderColor: number;
-  private readonly _borderWidth: number;
   private readonly _imageSize: number;
   private readonly _imagePadding: number;
-  private readonly _labelStyle: Partial<PIXI.TextStyleOptions>;
   private readonly _textPadding: number;
+
+  private readonly _itemStyles: Record<RowState, Required<SpriteStyle>>;
+  private readonly _resolvedLabelStyle: Required<TextStyle>;
 
   private readonly _changeListeners = new Set<(selectedIds: readonly string[], selectedItems: readonly ListItem<T>[]) => void>();
   private readonly _pressListeners = new Set<(id: string, item: ListItem<T>) => void>();
@@ -167,25 +179,55 @@ export class ListComponent<T = unknown> extends PIXI.Container {
   private _items: readonly ListItem<T>[];
   private _selectedIds: readonly string[];
 
-  public constructor(opts: ListComponentPreset<T> = {}) {
-    super();
+  public constructor(assetManager: AssetManager, style: ListComponentStyle, opts: ListComponentOpts<T> = {}) {
+    super(assetManager, style);
 
-    this._width = opts.width ?? 240;
-    this._itemHeight = opts.itemHeight ?? 36;
-    this._padding = opts.padding ?? 0;
-    this._variant = opts.variant ?? "text";
-    this._selectionMode = opts.selectionMode ?? "none";
-    this._radius = opts.radius ?? 0;
-    this._fillColor = opts.fillColor ?? 0x111827;
-    this._fillAlpha = opts.fillAlpha ?? 1;
-    this._hoverColor = opts.hoverColor ?? 0x374151;
-    this._selectedColor = opts.selectedColor ?? 0x4338ca;
-    this._borderColor = opts.borderColor ?? 0x475569;
-    this._borderWidth = opts.borderWidth ?? 0;
-    this._imageSize = opts.imageSize ?? 24;
-    this._imagePadding = opts.imagePadding ?? 8;
-    this._labelStyle = { ...DEFAULT_LABEL_STYLE, ...opts.labelStyle };
-    this._textPadding = opts.textPadding ?? 12;
+    this._width = opts.width ?? DEFAULT_WIDTH;
+    this._itemHeight = opts.itemHeight ?? DEFAULT_ITEM_HEIGHT;
+    this._padding = opts.padding ?? DEFAULT_PADDING;
+    this._variant = opts.variant ?? DEFAULT_VARIANT;
+    this._selectionMode = opts.selectionMode ?? DEFAULT_SELECTION_MODE;
+    this._imageSize = opts.imageSize ?? DEFAULT_IMAGE_SIZE;
+    this._imagePadding = opts.imagePadding ?? DEFAULT_IMAGE_PADDING;
+    this._textPadding = opts.textPadding ?? DEFAULT_TEXT_PADDING;
+
+    this._itemStyles = {
+      idle: this._resolveSpriteStyle(
+        style.itemIdle,
+        DEFAULT_TEXTURE_BY_STATE.idle,
+        DEFAULT_BG_COLOR,
+        DEFAULT_BG_ALPHA,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_BORDER,
+      ),
+      hover: this._resolveSpriteStyle(
+        style.itemHover,
+        DEFAULT_TEXTURE_BY_STATE.hover,
+        DEFAULT_BG_COLOR,
+        DEFAULT_BG_ALPHA,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_BORDER,
+      ),
+      selected: this._resolveSpriteStyle(
+        style.itemSelected,
+        DEFAULT_TEXTURE_BY_STATE.selected,
+        DEFAULT_BG_COLOR,
+        DEFAULT_BG_ALPHA,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_SCALE,
+        DEFAULT_BG_BORDER,
+      ),
+    };
+    this._resolvedLabelStyle = this._resolveTextStyle(
+      style.label,
+      DEFAULT_LABEL_FONT_FAMILY,
+      DEFAULT_LABEL_FONT_SIZE,
+      DEFAULT_LABEL_FONT_WEIGHT,
+      DEFAULT_LABEL_COLOR,
+      DEFAULT_LABEL_ALPHA,
+    );
 
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
@@ -195,7 +237,7 @@ export class ListComponent<T = unknown> extends PIXI.Container {
 
     const layout: Omit<LayoutOptions, "target"> = {
       flexDirection: "column",
-      gap: opts.itemGap ?? 0,
+      gap: opts.itemGap ?? DEFAULT_ITEM_GAP,
       padding: this._padding,
       width: this._width,
       alignItems: "stretch",
@@ -236,7 +278,8 @@ export class ListComponent<T = unknown> extends PIXI.Container {
   /**
    * Replace the items list. Selection is filtered to ids that still
    * exist; removed-then-re-added items keep their selection state if
-   * the id matches. No `onChange` is fired.
+   * the id matches. Eagerly resolves any per-item `textureId` via the
+   * asset manager. No `onChange` is fired.
    */
   public setItems(items: readonly ListItem<T>[]): void {
     this._items = items;
@@ -255,24 +298,6 @@ export class ListComponent<T = unknown> extends PIXI.Container {
     if (this._sameSelection(next, this._selectedIds)) return;
     this._selectedIds = next;
     this._syncRowVisuals();
-  }
-
-  /**
-   * Resolve each item's `textureId` against the asset manager and
-   * apply the loaded texture to the row's sprite. Items that already
-   * carry a `texture` are left alone; items with neither `texture`
-   * nor `textureId` keep an empty sprite. Safe to call multiple times.
-   */
-  public resolveAssets(assetManager: IAssetManager): void {
-    for (const entry of this._entries) {
-      const sprite = entry.sprite;
-      if (!sprite) continue;
-      if (entry.item.texture !== undefined) continue;
-      const id = entry.item.textureId;
-      if (id === undefined) continue;
-      const texture = assetManager.getAsset<PIXI.Texture>(id);
-      if (texture) sprite.texture = texture;
-    }
   }
 
   /** Subscribe to user-driven selection changes (single / multi modes only). */
@@ -327,7 +352,6 @@ export class ListComponent<T = unknown> extends PIXI.Container {
       this.addChild(entry.row);
       this._entries.push(entry);
     }
-    this._syncRowVisuals();
   }
 
   private _createRow(item: ListItem<T>): RowEntry<T> {
@@ -341,7 +365,11 @@ export class ListComponent<T = unknown> extends PIXI.Container {
     // just the bounds of whichever child happens to be drawn.
     row.hitArea = new PIXI.Rectangle(0, 0, w, h);
 
-    const bg = new PIXI.Graphics();
+    const isSelected = this._isSelected(item.id);
+    const initialState: RowState = isSelected ? "selected" : "idle";
+    const bg = this._buildSprite(this._itemStyles[initialState], w, h);
+    bg.anchor.set(0, 0);
+    bg.position.set(0, 0);
     bg.eventMode = "none";
     row.addChild(bg);
 
@@ -349,7 +377,10 @@ export class ListComponent<T = unknown> extends PIXI.Container {
     let text: PIXI.Text | null = null;
 
     if (this._variant === "image" || this._variant === "text+image") {
-      sprite = new PIXI.Sprite(item.texture ?? PIXI.Texture.EMPTY);
+      // Per-item content texture — pre-resolved `texture` wins; else
+      // resolve `textureId` via the base helper (throws on missing).
+      const tex = item.texture ?? (item.textureId !== undefined ? this._getTexture(item.textureId) : PIXI.Texture.EMPTY);
+      sprite = new PIXI.Sprite(tex);
       sprite.eventMode = "none";
       sprite.anchor.set(0.5);
       sprite.width = this._imageSize;
@@ -361,7 +392,7 @@ export class ListComponent<T = unknown> extends PIXI.Container {
     }
 
     if (this._variant === "text" || this._variant === "text+image") {
-      text = new PIXI.Text({ text: item.label ?? "", style: this._labelStyle });
+      text = this._buildText(item.label ?? "", this._resolvedLabelStyle);
       text.eventMode = "none";
       text.anchor.set(0, 0.5);
       const x = this._variant === "text" ? this._textPadding : this._imagePadding + this._imageSize + this._imagePadding;
@@ -380,40 +411,29 @@ export class ListComponent<T = unknown> extends PIXI.Container {
     if (this._isSelected(item.id)) return;
     const entry = this._entries.find((e) => e.item.id === item.id);
     if (!entry) return;
-    this._paintRow(entry.bg, this._hoverColor);
+    this._setRowState(entry, "hover");
   }
 
   private _onRowPointerOut(item: ListItem<T>): void {
     const entry = this._entries.find((e) => e.item.id === item.id);
     if (!entry) return;
-    const color = this._isSelected(item.id) ? this._selectedColor : this._fillColor;
-    this._paintRow(entry.bg, color);
+    this._setRowState(entry, this._isSelected(item.id) ? "selected" : "idle");
   }
 
   private _isSelected(id: string): boolean {
     return this._selectedIds.includes(id);
   }
 
-  private _paintRow(bg: PIXI.Graphics, color: number): void {
+  private _setRowState(entry: RowEntry<T>, state: RowState): void {
     const w = this._width - this._padding * 2;
     const h = this._itemHeight;
-    bg.clear();
-    if (this._radius > 0) {
-      bg.roundRect(0, 0, w, h, this._radius);
-    } else {
-      bg.rect(0, 0, w, h);
-    }
-    bg.fill({ color, alpha: this._fillAlpha });
-    if (this._borderWidth > 0) {
-      bg.stroke({ color: this._borderColor, width: this._borderWidth });
-    }
+    this._applySpriteStyle(entry.bg, this._itemStyles[state], w, h);
   }
 
   private _syncRowVisuals(): void {
     const idSet = new Set(this._selectedIds);
     for (const entry of this._entries) {
-      const color = idSet.has(entry.item.id) ? this._selectedColor : this._fillColor;
-      this._paintRow(entry.bg, color);
+      this._setRowState(entry, idSet.has(entry.item.id) ? "selected" : "idle");
     }
   }
 

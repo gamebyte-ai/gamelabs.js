@@ -199,6 +199,25 @@ export class UIPlaygroundApp extends GamelabsApp {
       UIPlaygroundAssetIds.CustomDropdownChevron,
       new URL("../assets/dropdown/chevron.png", import.meta.url).href,
     );
+
+    // Custom list skin for the ListDemo's "custom" example — violet /
+    // amber palette to contrast with the default slate / indigo skin
+    // shipped by `UIComponentsBinding`.
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomListItemIdle,
+      new URL("../assets/list/item-idle.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomListItemHover,
+      new URL("../assets/list/item-hover.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomListItemSelected,
+      new URL("../assets/list/item-selected.png", import.meta.url).href,
+    );
   }
 
   protected override configureDI(): void {

@@ -18,4 +18,7 @@ export enum UIComponentsAssetIds {
   DefaultDropdownItemHover = "UIComponents.DefaultDropdown.ItemHover",
   DefaultDropdownItemSelected = "UIComponents.DefaultDropdown.ItemSelected",
   DefaultDropdownChevron = "UIComponents.DefaultDropdown.Chevron",
+  DefaultListItemIdle = "UIComponents.DefaultList.ItemIdle",
+  DefaultListItemHover = "UIComponents.DefaultList.ItemHover",
+  DefaultListItemSelected = "UIComponents.DefaultList.ItemSelected",
 }

@@ -9,6 +9,7 @@ import {
   type BackgroundComponentStyle,
   type ButtonComponentStyle,
   type DropdownComponentStyle,
+  type ListComponentStyle,
   type RadioButtonComponentStyle,
   type SliderComponentStyle,
   type ToggleComponentStyle,
@@ -175,6 +176,28 @@ export class UIComponentsBinding extends ModuleBinding {
         new URL("./assets/uicomponents/dropdown/chevron.png", import.meta.url).href,
       ),
     );
+
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultListItemIdle,
+        new URL("./assets/uicomponents/list/item-idle.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultListItemHover,
+        new URL("./assets/uicomponents/list/item-hover.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultListItemSelected,
+        new URL("./assets/uicomponents/list/item-selected.png", import.meta.url).href,
+      ),
+    );
   }
 
   /**
@@ -241,8 +264,28 @@ export class UIComponentsBinding extends ModuleBinding {
       list: { textureId: UIComponentsAssetIds.DefaultDropdownList, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 6 },
       itemIdle: { textureId: UIComponentsAssetIds.DefaultDropdownItemIdle, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
       itemHover: { textureId: UIComponentsAssetIds.DefaultDropdownItemHover, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
-      itemSelected: { textureId: UIComponentsAssetIds.DefaultDropdownItemSelected, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      itemSelected: {
+        textureId: UIComponentsAssetIds.DefaultDropdownItemSelected,
+        color: 0xffffff,
+        alpha: 1,
+        scaleX: 1,
+        scaleY: 1,
+        border: 0,
+      },
       chevron: { textureId: UIComponentsAssetIds.DefaultDropdownChevron, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      label: {
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontSize: 14,
+        fontWeight: "600",
+        color: 0xe8eef6,
+        alpha: 1,
+      },
+    });
+
+    styleManager.add<ListComponentStyle>(UIComponentsStyleIds.List, {
+      itemIdle: { textureId: UIComponentsAssetIds.DefaultListItemIdle, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      itemHover: { textureId: UIComponentsAssetIds.DefaultListItemHover, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      itemSelected: { textureId: UIComponentsAssetIds.DefaultListItemSelected, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
       label: {
         fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
         fontSize: 14,
