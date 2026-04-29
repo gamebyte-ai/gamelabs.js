@@ -50,7 +50,10 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
 
   /**
    * Fills missing fields on a partial {@link SpriteStyle} with the
-   * supplied defaults, returning a fully-resolved style.
+   * supplied defaults, returning a fully-resolved style. `defaultBorder`
+   * is optional and defaults to `0` — pre-existing callers do not need
+   * to pass it; slots that should opt into nine-slice rendering pass a
+   * positive value.
    */
   protected _resolveSpriteStyle(
     style: SpriteStyle | undefined,
@@ -59,6 +62,7 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
     defaultAlpha: number,
     defaultScaleX: number,
     defaultScaleY: number,
+    defaultBorder: number = 0,
   ): Required<SpriteStyle> {
     return {
       textureId: style?.textureId ?? defaultTextureId,
@@ -66,6 +70,7 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
       alpha: style?.alpha ?? defaultAlpha,
       scaleX: style?.scaleX ?? defaultScaleX,
       scaleY: style?.scaleY ?? defaultScaleY,
+      border: style?.border ?? defaultBorder,
     };
   }
 
@@ -73,10 +78,27 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
    * Builds a center-anchored sprite from a resolved style. Width is
    * `slotWidth * scaleX`, height is `slotHeight * scaleY`. For a
    * square slot pass `slotWidth` only; `slotHeight` defaults to it.
-   * Throws via {@link _getTexture} if the texture is missing.
+   * When `style.border > 0` a `PIXI.NineSliceSprite` is built with a
+   * symmetric inset so corners stay crisp at any size; otherwise a
+   * plain `PIXI.Sprite` is built. Throws via {@link _getTexture} if
+   * the texture is missing.
    */
-  protected _buildSprite(style: Required<SpriteStyle>, slotWidth: number, slotHeight: number = slotWidth): PIXI.Sprite {
-    const sprite = new PIXI.Sprite(this._getTexture(style.textureId));
+  protected _buildSprite(
+    style: Required<SpriteStyle>,
+    slotWidth: number,
+    slotHeight: number = slotWidth,
+  ): PIXI.Sprite | PIXI.NineSliceSprite {
+    const texture = this._getTexture(style.textureId);
+    const sprite: PIXI.Sprite | PIXI.NineSliceSprite =
+      style.border > 0
+        ? new PIXI.NineSliceSprite({
+            texture,
+            leftWidth: style.border,
+            topHeight: style.border,
+            rightWidth: style.border,
+            bottomHeight: style.border,
+          })
+        : new PIXI.Sprite(texture);
     sprite.anchor.set(0.5, 0.5);
     this._applySpriteStyle(sprite, style, slotWidth, slotHeight);
     return sprite;
@@ -84,10 +106,17 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
 
   /**
    * Updates an existing sprite to a new resolved style — texture
-   * swap if different, plus tint, alpha, and per-axis dim. Throws if
-   * the new texture id is unloaded.
+   * swap if different, plus tint, alpha, and per-axis dim. Works for
+   * both `PIXI.Sprite` and `PIXI.NineSliceSprite`; the rendered size
+   * is set via `width` / `height` on both. Throws if the new texture
+   * id is unloaded.
    */
-  protected _applySpriteStyle(sprite: PIXI.Sprite, style: Required<SpriteStyle>, slotWidth: number, slotHeight: number = slotWidth): void {
+  protected _applySpriteStyle(
+    sprite: PIXI.Sprite | PIXI.NineSliceSprite,
+    style: Required<SpriteStyle>,
+    slotWidth: number,
+    slotHeight: number = slotWidth,
+  ): void {
     const texture = this._getTexture(style.textureId);
     if (sprite.texture !== texture) sprite.texture = texture;
     sprite.tint = style.color;

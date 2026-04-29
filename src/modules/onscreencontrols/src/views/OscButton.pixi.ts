@@ -6,7 +6,7 @@ import type { OscButtonStyle } from "../OnScreenControlTypes.js";
 import { OnScreenControlsAssetIds } from "../OnScreenControlsAssetIds.js";
 
 type ProgressRefs = {
-  sprite: PIXI.Sprite;
+  sprite: PIXI.Sprite | PIXI.NineSliceSprite;
   mask: PIXI.Graphics;
   visual: Required<SpriteStyle>;
   /** Last drawn t value, so we skip redraw when nothing changed. */
@@ -30,8 +30,8 @@ type ProgressRefs = {
 export class OscButton extends StyledHudObject<OscButtonStyle> {
   private readonly _size: number;
 
-  private _bg: PIXI.Sprite | null = null;
-  private _icon: PIXI.Sprite | null = null;
+  private _bg: PIXI.Sprite | PIXI.NineSliceSprite | null = null;
+  private _icon: PIXI.Sprite | PIXI.NineSliceSprite | null = null;
   private _iconVisual: Required<SpriteStyle> | null = null;
   private _progress: ProgressRefs | null = null;
   private _pendingProgress = 0;

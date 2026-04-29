@@ -20,7 +20,7 @@ import type { OscLabelStyle } from "../OnScreenControlTypes.js";
  */
 export class OscLabel extends StyledHudObject<OscLabelStyle> {
   private readonly _text: PIXI.Text;
-  private readonly _bg: PIXI.Sprite | null;
+  private readonly _bg: PIXI.Sprite | PIXI.NineSliceSprite | null;
 
   private _enabled = true;
 
