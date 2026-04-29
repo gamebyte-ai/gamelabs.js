@@ -4,11 +4,11 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 
 ## Components
 
-- [`ButtonComponent`](#buttoncomponent) — pressable button with four-state skin (idle / hover / pressed / disabled) and centered label
+- [`ButtonComponent`](#buttoncomponent) — pressable button driven by the framework `StyleManager` with four-state skin (idle / hover / pressed / disabled) and centered label
 - [`BackgroundComponent`](#backgroundcomponent) — full-screen cover-fit background with overlay and fallback color
 - [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch)
 - [`ToggleComponent`](#togglecomponent) — on/off switch with configurable colors
-- [`SliderComponent`](#slidercomponent) — horizontal slider with track / fill / thumb skin and min/max/step constraints
+- [`SliderComponent`](#slidercomponent) — horizontal slider driven by the framework `StyleManager` with track / fill / thumb skin and min/max/step constraints
 - [`DropdownComponent`](#dropdowncomponent) — select-style dropdown with overlay-rendered option list
 - [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator with optional label; designed to compose into a group
 - [`RadioButtonGroupComponent`](#radiobuttongroupcomponent) — mutually exclusive set of radio buttons stacked in a column or row
@@ -25,63 +25,77 @@ Each component exports a matching `parse<Name>Preset(json: string)` helper that 
 
 ## ButtonComponent
 
-Pressable button whose background swaps texture on interaction state — `idle` / `hover` / `pressed` / `disabled`. Each state is referenced by an asset id that `resolveAssets()` looks up in the asset manager. The framework's `UIComponentsBinding` ships a default skin so consumers can construct `new ButtonComponent({ label: "PLAY" })` and get a fully-textured button without supplying any art. Wraps `@pixi/ui`'s `Button` internally for press / hover handling.
+Pressable button themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `ButtonComponentStyle`, and geometry / label opts. The four pointer states (`idle` / `hover` / `pressed` / `disabled`) each carry an independent `SpriteStyle` (texture / tint / alpha / 9-slice border / scale); the matching texture / tint / alpha gets applied automatically on pointer transitions. The framework's `UIComponentsBinding` registers a default style entry under `UIComponentsStyleIds.Button` with the four PNGs it ships, so apps that add the binding get fully-textured buttons without supplying any art.
 
 ```ts
-// Default skin — register UIComponentsBinding in your app and you get
-// a four-state button out of the box.
-const playBtn = new ButtonComponent({
-  width: 400,
-  height: 200,
-  label: "PLAY",
+// In a HudViewBase / ScreenView / PopupView subclass — the base class
+// exposes `styleManager` and `assetLoader` getters for free:
+const buttonStyle = this.styleManager.resolve<ButtonComponentStyle>(
+  UIComponentsStyleIds.Button,
+  // optional per-button override; deep-merged on top of the registered defaults
+  { label: { fontSize: 14, color: 0x4a5568 } },
+);
+const closeBtn = new ButtonComponent(this.assetLoader, buttonStyle, {
+  width: 120,
+  height: 38,
+  label: "Close",
 });
-playBtn.resolveAssets(assetManager);
-playBtn.onPress(() => startGame());
+closeBtn.onPress(() => this.close());
 
-// Custom skin — point the asset ids at your own PNGs.
-const cancelBtn = new ButtonComponent({
+// Custom skin — point each state at your own PNGs:
+const cancelStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+  idle: { textureId: MyAssetIds.CancelIdle, border: 2 },
+  hover: { textureId: MyAssetIds.CancelHover, border: 2 },
+  pressed: { textureId: MyAssetIds.CancelPressed, border: 2 },
+  disabled: { textureId: MyAssetIds.CancelDisabled, border: 2 },
+});
+const cancelBtn = new ButtonComponent(this.assetLoader, cancelStyle, {
   width: 200,
   height: 60,
   label: "Cancel",
-  skin: {
-    idle: MyAssetIds.CancelIdle,
-    hover: MyAssetIds.CancelHover,
-    pressed: MyAssetIds.CancelPressed,
-    disabled: MyAssetIds.CancelDisabled,
-  },
-  border: 2, // 9-slice the four corners so they stay crisp at any size
 });
-cancelBtn.resolveAssets(assetManager);
 ```
 
-### `ButtonComponentPreset`
+The bg sprite type (`PIXI.Sprite` vs `PIXI.NineSliceSprite`) is fixed at construction by the resolved idle-state `border`. Default-skin PNGs ship with a 2px border so the registered default uses 9-slice; custom skins default to plain stretching unless their style override sets `border > 0`.
 
-| Field        | Type                             | Default                            | Description                                                                                                                                                                                                                                                          |
-| ------------ | -------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `x`          | `number`                         | —                                  | X position.                                                                                                                                                                                                                                                          |
-| `y`          | `number`                         | —                                  | Y position.                                                                                                                                                                                                                                                          |
-| `width`      | `number`                         | —                                  | Fixed width. Ignored when the parent layout controls sizing.                                                                                                                                                                                                         |
-| `height`     | `number`                         | —                                  | Fixed height. Ignored when the parent layout controls sizing.                                                                                                                                                                                                        |
-| `label`      | `string`                         | —                                  | Label text. Omit for an icon-only button.                                                                                                                                                                                                                            |
-| `labelStyle` | `Partial<PIXI.TextStyleOptions>` | —                                  | Label style overrides merged on top of the defaults.                                                                                                                                                                                                                 |
-| `skin`       | `ButtonSkin`                     | `UIComponentsBinding` default skin | Asset-id map for the four states. `idle` is required; `hover` / `pressed` / `disabled` fall back to `idle` if unset or unloaded. Omit the field entirely to use the framework default skin.                                                                          |
-| `border`     | `number`                         | `2` with default skin, `0` else    | Symmetric 9-slice border thickness in source-texture pixels. When `> 0`, the background renders via `PIXI.NineSliceSprite` so the four corners stay at their texture size while the middle stretches. The default skin's PNGs ship with a 2px border, so it auto-opts in. |
+### `ButtonComponentOpts`
 
-`ButtonSkin` is `{ idle: string; hover?: string; pressed?: string; disabled?: string }` — each field is an asset id resolved through `IAssetManager`.
+Geometry / content. Visual fields are owned by the style — pass them through `StyleManager.resolve(...)`.
+
+| Field    | Type     | Description                                                  |
+| -------- | -------- | ------------------------------------------------------------ |
+| `x`      | `number` | X position.                                                  |
+| `y`      | `number` | Y position.                                                  |
+| `width`  | `number` | Fixed width. Ignored when the parent layout controls sizing. |
+| `height` | `number` | Fixed height. Ignored when the parent layout controls sizing.|
+| `label`  | `string` | Label text. Omit for an icon-only button.                    |
+
+### `ButtonComponentStyle`
+
+Bundle of four `SpriteStyle` slots plus an optional `TextStyle` label. Apps re-theme every button at once with `styleManager.modify(UIComponentsStyleIds.Button, { … })`; per-button overrides flow through `styleManager.resolve(...)` at the call site.
+
+| Slot       | Type          | Notes                                                                       |
+| ---------- | ------------- | --------------------------------------------------------------------------- |
+| `idle`     | `SpriteStyle` | Resting visual. Drives the bg sprite type at construction (`border > 0` → `NineSliceSprite`). |
+| `hover`    | `SpriteStyle` | Pointer-over. Texture / tint / alpha swap on transition.                    |
+| `pressed`  | `SpriteStyle` | Pointer-down. Pointer-out during a press cancels back to `idle`.            |
+| `disabled` | `SpriteStyle` | Applied when `setEnabled(false)` is called.                                 |
+| `label`    | `TextStyle`   | Font / size / weight / color / alpha / letterSpacing for the label.         |
+
+`SpriteStyle` is `{ textureId?, color?, alpha?, scaleX?, scaleY?, border? }`. `TextStyle` is `{ fontFamily?, fontSize?, fontWeight?, color?, alpha?, letterSpacing? }`. The framework default registers `border: 2` for all four states (the PNGs ship with a 2px black border).
 
 ### Methods
 
-- `setLabel(text)` — update the label text (no-op if the button has no label).
-- `setSkin(skin, assetManager)` — replace the active skin and re-resolve all four state textures.
-- `setEnabled(enabled)` — enable / disable interaction. Disabling swaps to the `disabled` texture and prevents `onPress` from firing; re-enabling restores the resting state (or `hover` if the pointer is still over the button).
+- `setLabel(text)` — update the label text (no-op if the button was created without a label).
+- `setEnabled(enabled)` — disabling swaps to the `disabled` state and prevents `onPress` from firing; re-enabling restores the resting state (or `hover` if the pointer is still over the button).
 - `onPress(cb): Unsubscribe` — subscribe to press events. Disabled presses are filtered automatically.
-- `resolveAssets(assetManager)` — look up the active skin's asset ids and install the textures. Call after construction (or after `setSkin`) before the button shows.
 
 ### Notes
 
-- **Default skin via `UIComponentsBinding`.** Add `UIComponentsBinding` to your app's modules to ship the default-skin PNGs. The binding registers four `HudTexture` requests (`UIComponentsAssetIds.DefaultButton{Idle,Hover,Pressed,Disabled}`); apps can replace any of them with `binding.assetRequestList.overrideRequest(id, url)` before `addModule`, or supply a fully custom skin per-button via the `skin` preset field.
-- **Tinting for colour identity.** When several buttons share a skin but need distinct colours (e.g. tower-defence shop cards, "Next Level" CTA buttons), set `button.tint = 0x...` after `resolveAssets()`. `.tint` multiplies the texture and applies to all four state sprites simultaneously.
-- **State machine.** Pointer events flow through `@pixi/ui` `Button` (`onDown` / `onUp` / `onUpOut` / `onHover` / `onOut`); the component consolidates them into the four-state model and applies the matching texture on each transition. Pointer-out during a press cancels the `pressed` state, matching browser button semantics.
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers the four `DefaultButton{Idle,Hover,Pressed,Disabled}` `HudTexture` asset requests *and* the `UIComponentsStyleIds.Button` style entry. Apps re-theme every button at once with `styleManager.modify(UIComponentsStyleIds.Button, { hover: { color: 0x88aaff } })`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
+- **Tinting for colour identity.** When several buttons share a skin but need distinct colours (e.g. tower-defence shop cards, "Next Level" CTAs), set `button.tint = 0x...` after construction. `Container.tint` propagates to the bg sprite. The label's colour comes from `style.label.color` and is unaffected by container tint — set both if you want the label to follow the button's tint.
+- **State machine.** Pointer events flow through `@pixi/ui` `Button` (`onDown` / `onUp` / `onUpOut` / `onHover` / `onOut`); the component consolidates them into the four-state model and applies the matching state's `SpriteStyle` on each transition.
+- **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects all referenced textures to be loaded in the asset manager. Construct buttons in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
 ---
 
@@ -181,68 +195,74 @@ toggle.onChange((value) => {
 
 ## SliderComponent
 
-Horizontal slider whose track, filled portion, and thumb each render from a textured sprite — referenced by asset id through a `SliderSkin` map. The framework's `UIComponentsBinding` ships a default skin so `new SliderComponent({ min: 0, max: 100, value: 50 })` renders fully-textured without any consumer art. Tap the track or drag the thumb to change value; subscribers via `onChange` receive the clamped (and step-snapped) numeric value.
+Horizontal slider themed via the framework's `StyleManager`. Three textured sprites — full-length track, value-driven fill, draggable thumb — driven by a `SliderComponentStyle` resolved from `UIComponentsStyleIds.Slider`. The framework's `UIComponentsBinding` registers a default style entry (track + fill 9-slice with 2px border, plain stretched thumb) so apps that add the binding get a fully-textured slider out of the box. Tap the track or drag the thumb to change value; subscribers via `onChange` receive the clamped (and step-snapped) numeric value.
 
 ```ts
-// Default skin — register UIComponentsBinding and you get the
-// stock track + fill + thumb without any custom art.
-const volume = new SliderComponent({
+// Default skin — UIComponentsBinding registers everything.
+const sliderStyle = this.styleManager.resolve<SliderComponentStyle>(
+  UIComponentsStyleIds.Slider,
+);
+const volume = new SliderComponent(this.assetLoader, sliderStyle, {
+  trackWidth: 200,
   min: 0,
   max: 100,
   step: 1,
   value: 50,
-  trackWidth: 200,
 });
-volume.resolveAssets(assetManager);
 volume.onChange((v) => console.log("volume:", v));
-
-// Custom skin — point each part at your own asset id and tint at runtime.
-const channel = new SliderComponent({
-  min: 0,
-  max: 255,
-  step: 1,
-  value: 128,
-  skin: {
-    track: MyAssetIds.NeutralTrack,
-    fill: MyAssetIds.NeutralFill,
-    thumb: MyAssetIds.NeutralThumb,
-  },
-  border: 2, // 9-slice the track + fill so corners stay crisp
-});
-channel.resolveAssets(assetManager);
-channel.tint = 0xff0000; // Container.tint propagates to the three sprites
 ```
 
-### `SliderComponentPreset`
+For per-channel colour identity (e.g. R / G / B sliders), share one neutral-white skin and use `Container.tint`:
 
-| Field         | Type           | Default                            | Description                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------- | -------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `trackWidth`  | `number`       | `140`                              | Track width in pixels.                                                                                                                                                                                                                                                                                                                                                               |
-| `trackHeight` | `number`       | `6`                                | Track height in pixels.                                                                                                                                                                                                                                                                                                                                                              |
-| `thumbRadius` | `number`       | `10`                               | Thumb radius in pixels (the thumb sprite renders at `2 × radius` square).                                                                                                                                                                                                                                                                                                            |
-| `min`         | `number`       | `0`                                | Minimum value.                                                                                                                                                                                                                                                                                                                                                                       |
-| `max`         | `number`       | `1`                                | Maximum value.                                                                                                                                                                                                                                                                                                                                                                       |
-| `step`        | `number`       | `0`                                | Step size. `0` means continuous.                                                                                                                                                                                                                                                                                                                                                     |
-| `value`       | `number`       | `min`                              | Initial value (clamped to `[min, max]`).                                                                                                                                                                                                                                                                                                                                             |
-| `skin`        | `SliderSkin`   | `UIComponentsBinding` default skin | Asset-id map for the three parts (`track`, `fill`, `thumb`). All three fields are required when overriding so no part silently falls back. Omit the field entirely to use the framework default skin.                                                                                                                                                                               |
-| `border`      | `number`       | `2` with default skin, `0` else    | Symmetric 9-slice border thickness for the track and fill sprites, in source-texture pixels. When `> 0`, track and fill render via `PIXI.NineSliceSprite` so a skin's border stays crisp at any track length. The thumb is always a plain stretched sprite (its rendered size matches `thumbRadius` regardless). The default skin's PNGs ship with a 2px border, so it auto-opts in. |
+```ts
+const customStyle = this.styleManager.resolve<SliderComponentStyle>(UIComponentsStyleIds.Slider, {
+  track: { textureId: MyAssetIds.NeutralTrack, border: 2 },
+  fill: { textureId: MyAssetIds.NeutralFill, border: 2 },
+  thumb: { textureId: MyAssetIds.NeutralThumb, border: 0 },
+});
+const slider = new SliderComponent(this.assetLoader, customStyle, {
+  trackWidth: 160, min: 0, max: 255, step: 1,
+});
+slider.tint = 0xff0000; // multiplies all three sub-sprites — channel red
+```
 
-`SliderSkin` is `{ track: string; fill: string; thumb: string }` — each field is an asset id resolved through `IAssetManager`.
+### `SliderComponentOpts`
+
+Geometry / value. Visual fields are owned by the style.
+
+| Field         | Type     | Default | Description                                                          |
+| ------------- | -------- | ------- | -------------------------------------------------------------------- |
+| `trackWidth`  | `number` | `140`   | Track width in pixels.                                               |
+| `trackHeight` | `number` | `6`     | Track height in pixels.                                              |
+| `thumbRadius` | `number` | `10`    | Thumb radius in pixels (the thumb sprite renders at `2 × radius` square). |
+| `min`         | `number` | `0`     | Minimum value.                                                       |
+| `max`         | `number` | `1`     | Maximum value.                                                       |
+| `step`        | `number` | `0`     | Step size. `0` means continuous.                                     |
+| `value`       | `number` | `min`   | Initial value (clamped to `[min, max]`).                             |
+
+### `SliderComponentStyle`
+
+Bundle of three `SpriteStyle` slots. Defaults registered under `UIComponentsStyleIds.Slider`.
+
+| Slot    | Type          | Notes                                                                                                                                                          |
+| ------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `track` | `SpriteStyle` | Full-length background. 9-slice when `border > 0`; the framework default registers `border: 2`.                                                                |
+| `fill`  | `SpriteStyle` | Value-driven foreground; width grows with the value ratio. Same default as `track`.                                                                            |
+| `thumb` | `SpriteStyle` | Draggable handle at `2 × thumbRadius` square. The framework default registers `border: 0` (plain stretched sprite); the thumb's geometry is fixed by opts.    |
 
 ### Methods
 
 - `value` — current numeric value (getter).
 - `min`, `max`, `step` — constraint values (getters).
 - `setValue(value)` — set the value programmatically (does **not** fire `onChange`).
-- `setSkin(skin, assetManager)` — replace the active skin and re-resolve all three textures.
-- `resolveAssets(assetManager)` — look up the active skin's asset ids and install the textures. Call after construction (or after `setSkin`) before the slider shows.
-- `onChange(cb): Unsubscribe` — subscribe to value changes (drag, track tap, or any other user-driven update). `setValue` is silent on purpose — programmatic updates don't echo back.
+- `onChange(cb): Unsubscribe` — subscribe to value changes from drag, track tap, or any other user-driven update. `setValue` is silent on purpose — programmatic updates don't echo back.
 
 ### Notes
 
-- **Default skin via `UIComponentsBinding`.** Add `UIComponentsBinding` to your app's modules to ship the default track/fill/thumb PNGs. The binding registers three `HudTexture` requests (`UIComponentsAssetIds.DefaultSlider{Track,Fill,Thumb}`); apps can replace any of them with `binding.assetRequestList.overrideRequest(id, url)` before `addModule`, or supply a fully custom skin per-slider via the `skin` preset field.
-- **Tinting for colour identity.** When several sliders share a skin but need distinct colours (e.g. R / G / B sliders driving an RGB swatch), set `slider.tint = 0x...` after `resolveAssets()`. `Container.tint` propagates to all three sub-sprites, so a single neutral-white skin covers every channel.
+- **Default skin via `UIComponentsBinding`.** Apps re-theme every slider at once with `styleManager.modify(UIComponentsStyleIds.Slider, { ... })`. Per-slider overrides flow through `styleManager.resolve(...)` at the call site. Texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
+- **Tinting for colour identity.** `Container.tint` propagates to all three sub-sprites — the canonical pattern for sliders sharing a single neutral skin (e.g. R / G / B channel sliders driving an RGB swatch).
 - **Geometry.** Track sits centred on `y = 0` (top edge at `-trackHeight/2`); thumb rides `y = 0` at `(filledWidth, 0)` with anchor `(0.5, 0.5)`. The visible bounds are `[-thumbRadius, thumbRadius] × [-thumbRadius, thumbRadius]` extended horizontally by `trackWidth`. Wrap the slider in a layout box of `(trackWidth + 2·thumbRadius) × (2·thumbRadius)` and offset by `(thumbRadius, thumbRadius)` if you embed it in a Yoga flex flow.
+- **Eager construction.** Like `ButtonComponent`, sprites build at construction via the base `StyledHudObject` — referenced textures must be loaded in the asset manager before construction (typically that means constructing the slider in `postInitialize()`).
 
 ---
 
@@ -661,21 +681,31 @@ its `destroy()`.
 
 ## JSON preset pattern
 
-Every component can be constructed from a JSON string via its `parse*Preset` helper. This lets you store component configuration as a `Text` asset in a module's `AssetRequestList` and apply per-app overrides before `initialize()`:
+Most components expose a matching `parse<Name>Preset(json: string)` helper that parses a JSON string into the preset type. This lets you store component configuration as a `Text` asset in a module's `AssetRequestList` and apply per-app overrides before `initialize()`:
 
 ```ts
 // In a ModuleBinding:
 this._assetRequestList.addRequest(
-  new AssetRequest(AssetTypes.Text, MyAssetIds.MyButtonPreset, "", '{"width":400,"height":200,"label":"PLAY"}'),
+  new AssetRequest(AssetTypes.Text, MyAssetIds.MyBgPreset, "", '{"bgTextureId":"MyApp.Background","overlayAlpha":0.18}'),
 );
 
 // In a View:
-const json = this.assetLoader.getAsset<string>(MyAssetIds.MyButtonPreset) ?? "{}";
-const button = new ButtonComponent(parseButtonComponentPreset(json));
+const json = this.assetLoader.getAsset<string>(MyAssetIds.MyBgPreset) ?? "{}";
+const bg = new BackgroundComponent(parseBackgroundComponentPreset(json));
+bg.resolveAssets(this.assetLoader);
 ```
 
 Use `UIUtils.updateFields(base, overrides)` to tweak individual fields without rewriting the full JSON:
 
 ```ts
-const updated = UIUtils.updateFields(originalJson, '{"width":500}');
+const updated = UIUtils.updateFields(originalJson, '{"overlayAlpha":0.3}');
 ```
+
+### Themed components do **not** use JSON presets
+
+`ButtonComponent` and `SliderComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parseButtonComponentPreset` / `parseSliderComponentPreset`. To re-theme:
+
+- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change.
+- **Per-component override** — the call site passes a deep-merge override to `styleManager.resolve(UIComponentsStyleIds.Button, { … })` and forwards the resolved style to the constructor. See the `ButtonComponent` and `SliderComponent` sections above for the canonical pattern.
+
+The framework default style and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button`/`Slider` components without supplying any art.
