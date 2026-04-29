@@ -20,6 +20,8 @@ export interface IOnScreenControlsView extends IView {
   setButtonProgressVisible(id: string, visible: boolean): void;
   /** Updates the progress ring's wedge sweep. `t` is in `[0, 1]`. */
   setButtonProgressValue(id: string, t: number): void;
+  /** Updates a label's displayed text. No-op for non-label ids. */
+  setLabelText(id: string, value: string): void;
   onButtonStateChanged(cb: (id: string, isDown: boolean) => void): Unsubscribe;
   onJoystickDirectionChanged(cb: (id: string, nx: number, ny: number) => void): Unsubscribe;
 }

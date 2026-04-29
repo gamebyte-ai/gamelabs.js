@@ -12,7 +12,7 @@ import { OnScreenControlEvents } from "./events/OnScreenControlEvents.js";
 import { OnScreenControlsView } from "./views/OnScreenControlsView.pixi.js";
 import { OnScreenControlsViewController } from "./controllers/OnScreenControlsViewController.js";
 import { OnScreenControlsAssetIds } from "./OnScreenControlsAssetIds.js";
-import { OscStyleIds, type OscButtonStyle, type OscJoystickStyle } from "./OnScreenControlTypes.js";
+import { OscStyleIds, type OscButtonStyle, type OscJoystickStyle, type OscLabelStyle } from "./OnScreenControlTypes.js";
 
 /**
  * Module binding for the on-screen controls (touch-friendly virtual
@@ -87,6 +87,18 @@ export class OnScreenControlsBinding extends ModuleBinding {
     styleManager.add<OscJoystickStyle>(OscStyleIds.Joystick, {
       base: { textureId: OnScreenControlsAssetIds.JoystickBase, color: 0xffffff, alpha: 0.85, scaleX: 1, scaleY: 1 },
       knob: { textureId: OnScreenControlsAssetIds.JoystickHandle, color: 0xffffff, alpha: 0.95, scaleX: 1, scaleY: 1 },
+    });
+
+    // Default text style for `OscLabel`. No bg by default — labels
+    // that want a background sprite supply `bg.textureId` per-control.
+    styleManager.add<OscLabelStyle>(OscStyleIds.Label, {
+      text: {
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontSize: 16,
+        fontWeight: "normal",
+        color: 0xffffff,
+        alpha: 1,
+      },
     });
   }
 

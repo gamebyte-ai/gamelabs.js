@@ -5,13 +5,16 @@ import { StyleManager } from "../../../../core/styles/StyleManager.js";
 import type { IOnScreenControlsView } from "./IOnScreenControlsView.js";
 import { OscButton } from "./OscButton.pixi.js";
 import { OscJoystick } from "./OscJoystick.pixi.js";
+import { OscLabel } from "./OscLabel.pixi.js";
 import { ControlType, OscStyleIds, resolveAnchorPosition } from "../OnScreenControlTypes.js";
 import type {
   ControlConfig,
   OscButtonStyle,
   OscJoystickStyle,
+  OscLabelStyle,
   VirtualButtonConfig,
   VirtualJoystickConfig,
+  VirtualLabelConfig,
 } from "../OnScreenControlTypes.js";
 
 type ButtonEntry = {
@@ -24,15 +27,21 @@ type JoystickEntry = {
   joystick: OscJoystick;
 };
 
+type LabelEntry = {
+  config: VirtualLabelConfig;
+  label: OscLabel;
+};
+
 /**
  * Pixi rendering layer for on-screen controls.
  *
  * Buttons are delegated to {@link OscButton}; joysticks to
- * {@link OscJoystick}. The view's job is now: resolving the merged
- * `osc.button` / `osc.joystick` styles, instantiating widgets,
- * positioning them per `ControlAnchor` + offsets on every layout
- * pass, wiring per-widget events back to its own listeners, and
- * forwarding manager flags.
+ * {@link OscJoystick}; labels to {@link OscLabel}. The view's job is:
+ * resolving the merged `osc.button` / `osc.joystick` / `osc.label`
+ * styles, instantiating widgets, positioning them per `ControlAnchor`
+ * + offsets on every layout pass, wiring per-widget events back to
+ * its own listeners, and forwarding manager flags (enabled,
+ * visibility, button progress, label content).
  *
  * The view never reads or writes manager state directly — all wiring
  * goes through `OnScreenControlsViewController`. Apps add controls via
@@ -51,6 +60,7 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
 
   private readonly _buttons: ButtonEntry[] = [];
   private readonly _joysticks: JoystickEntry[] = [];
+  private readonly _labels: LabelEntry[] = [];
   private readonly _buttonStateListeners = new Set<(id: string, isDown: boolean) => void>();
   private readonly _joystickDirListeners = new Set<(id: string, nx: number, ny: number) => void>();
 
@@ -76,6 +86,7 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
   public createControl(config: ControlConfig): void {
     if (config.type === ControlType.Button) this._createButton(config as VirtualButtonConfig);
     else if (config.type === ControlType.Joystick) this._createJoystick(config as VirtualJoystickConfig);
+    else if (config.type === ControlType.Label) this._createLabel(config as VirtualLabelConfig);
   }
 
   /** Tears down the Pixi tree for the given control id. No-op for unknown ids. */
@@ -91,6 +102,13 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
     if (joyIdx >= 0) {
       this._joysticks[joyIdx]!.joystick.destroy({ children: true });
       this._joysticks.splice(joyIdx, 1);
+      return;
+    }
+
+    const lblIdx = this._labels.findIndex((l) => l.config.id === id);
+    if (lblIdx >= 0) {
+      this._labels[lblIdx]!.label.destroy({ children: true });
+      this._labels.splice(lblIdx, 1);
     }
   }
 
@@ -152,6 +170,11 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
     const joystickEntry = this._joysticks.find((j) => j.config.id === id);
     if (joystickEntry) {
       joystickEntry.joystick.setEnabled(enabled);
+      return;
+    }
+    const labelEntry = this._labels.find((l) => l.config.id === id);
+    if (labelEntry) {
+      labelEntry.label.setEnabled(enabled);
     }
   }
 
@@ -168,7 +191,18 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
     if (joystickEntry) {
       joystickEntry.joystick.visible = visible;
       if (!visible) joystickEntry.joystick.release();
+      return;
     }
+    const labelEntry = this._labels.find((l) => l.config.id === id);
+    if (labelEntry) {
+      labelEntry.label.visible = visible;
+    }
+  }
+
+  public setLabelText(id: string, value: string): void {
+    const entry = this._labels.find((l) => l.config.id === id);
+    if (!entry) return;
+    entry.label.setText(value);
   }
 
   /**
@@ -198,6 +232,28 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
       base: config.base,
       knob: config.knob,
     });
+  }
+
+  /**
+   * Pulls the merged label style for `config` — `OscStyleIds.Label`
+   * registered defaults deep-merged with any per-control overrides
+   * (`config.text`, `.bg`).
+   */
+  private _resolveLabelStyle(config: VirtualLabelConfig): OscLabelStyle {
+    if (!this._styleManager) throw new Error("OnScreenControlsView: not initialized");
+    return this._styleManager.resolve<OscLabelStyle>(OscStyleIds.Label, {
+      text: config.text,
+      bg: config.bg,
+    });
+  }
+
+  // ── LABELS ──
+
+  private _createLabel(config: VirtualLabelConfig): void {
+    const label = new OscLabel(this.assetLoader, this._resolveLabelStyle(config), config.content, config.anchorX ?? 0, config.anchorY ?? 0);
+    this._labels.push({ config, label });
+    this.addChild(label);
+    this._repositionAll();
   }
 
   // ── JOYSTICKS ──
@@ -245,14 +301,23 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
         j.joystick.position.set(pos.x - baseR, pos.y - baseR);
       }
     }
+
+    for (const l of this._labels) {
+      const pos = resolveAnchorPosition(l.config.anchor, l.config.offsetX, l.config.offsetY, w, h);
+      // Labels' inner anchorX/anchorY (set on text + bg) handle pivot;
+      // the container just sits at the resolved screen anchor.
+      l.label.position.set(pos.x, pos.y);
+    }
   }
 
   public override preDestroy(): void {
     for (const b of this._buttons) b.button.destroy({ children: true });
     for (const j of this._joysticks) j.joystick.destroy({ children: true });
+    for (const l of this._labels) l.label.destroy({ children: true });
     this._buttonStateListeners.clear();
     this._joystickDirListeners.clear();
     this._buttons.length = 0;
     this._joysticks.length = 0;
+    this._labels.length = 0;
   }
 }

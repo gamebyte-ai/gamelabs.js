@@ -87,4 +87,16 @@ export class OnScreenControlEvents {
   emitButtonProgressChanged(id: string, t: number): void {
     for (const cb of this._buttonProgressChangedListeners) cb(id, t);
   }
+
+  private readonly _labelTextChangedListeners = new Set<(id: string, value: string) => void>();
+
+  /** Fires when a label's text content is updated through `setLabelText`. */
+  onLabelTextChanged(cb: (id: string, value: string) => void): Unsubscribe {
+    this._labelTextChangedListeners.add(cb);
+    return () => this._labelTextChangedListeners.delete(cb);
+  }
+
+  emitLabelTextChanged(id: string, value: string): void {
+    for (const cb of this._labelTextChangedListeners) cb(id, value);
+  }
 }

@@ -3,15 +3,18 @@ import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js
 import type { IViewController } from "../../../../core/views/IViewController.js";
 import type { IOnScreenControlsView } from "../views/IOnScreenControlsView.js";
 import { OnScreenControlManager } from "../utilities/OnScreenControlManager.js";
+import { ControlType } from "../OnScreenControlTypes.js";
 
 /**
  * Wires the `OnScreenControlsView` against the `OnScreenControlManager`.
  *
- * - Replays existing controls + their disabled / progress state when
- *   the view binds late (so a button registered before the screen
- *   was created renders correctly on first display).
+ * - Replays existing controls and their latched state (enabled,
+ *   visibility, button progress, label text) when the view binds late
+ *   so anything registered before the screen was created renders
+ *   correctly on first display.
  * - Forwards manager events (`controlAdded` / `controlRemoved` /
- *   `buttonEnabledChanged` / progress visibility + value) to the view.
+ *   `controlEnabledChanged` / `controlVisibilityChanged` / progress
+ *   visibility + value / label text changes) to the view.
  * - Bridges view pointer events back to the manager via
  *   `setButtonDown` / `setButtonUp` / `setJoystickDirection` /
  *   `resetJoystick`.
@@ -32,16 +35,21 @@ export class OnScreenControlsViewController implements IViewController<IOnScreen
     this._view = view;
 
     // Create controls already registered before the view existed and
-    // replay enabled / visibility / progress flags so a control
-    // mutated while the view was off-screen renders correctly on first
-    // display.
+    // replay enabled / visibility / progress / label-text flags so a
+    // control mutated while the view was off-screen renders correctly
+    // on first display.
     for (const config of this._manager!.getControls()) {
       view.createControl(config);
       if (!this._manager!.isControlEnabled(config.id)) view.setControlEnabled(config.id, false);
       if (!this._manager!.isControlVisible(config.id)) view.setControlVisible(config.id, false);
-      const progress = this._manager!.getButtonProgress(config.id);
-      if (progress > 0) view.setButtonProgressValue(config.id, progress);
-      if (this._manager!.isButtonProgressVisible(config.id)) view.setButtonProgressVisible(config.id, true);
+      if (config.type === ControlType.Button) {
+        const progress = this._manager!.getButtonProgress(config.id);
+        if (progress > 0) view.setButtonProgressValue(config.id, progress);
+        if (this._manager!.isButtonProgressVisible(config.id)) view.setButtonProgressVisible(config.id, true);
+      } else if (config.type === ControlType.Label) {
+        const current = this._manager!.getLabelText(config.id);
+        if (current !== config.content) view.setLabelText(config.id, current);
+      }
     }
 
     // Listen for dynamic control changes
@@ -78,6 +86,12 @@ export class OnScreenControlsViewController implements IViewController<IOnScreen
     this._subs.add(
       this._manager!.events.onButtonProgressChanged((id, t) => {
         this._view?.setButtonProgressValue(id, t);
+      }),
+    );
+
+    this._subs.add(
+      this._manager!.events.onLabelTextChanged((id, value) => {
+        this._view?.setLabelText(id, value);
       }),
     );
 

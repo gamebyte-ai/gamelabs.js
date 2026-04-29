@@ -6,10 +6,10 @@ import { OnScreenControlEvents } from "../events/OnScreenControlEvents.js";
 
 /**
  * Owns runtime state for every on-screen control: registered configs,
- * key down/up state, the disabled flag for buttons, and the progress
- * ring value/visibility. Drives the `OnScreenControlsView` indirectly
- * through `OnScreenControlEvents`, and bridges to `InputMapper` via
- * `IInputDeviceListener`.
+ * key down/up state, the disabled / hidden flags, the progress ring
+ * value/visibility, and label text content. Drives the
+ * `OnScreenControlsView` indirectly through `OnScreenControlEvents`,
+ * and bridges to `InputMapper` via `IInputDeviceListener`.
  *
  * Virtual buttons expose their `id` as a digital key code.
  * Virtual joysticks expose two parallel surfaces:
@@ -18,6 +18,10 @@ import { OnScreenControlEvents } from "../events/OnScreenControlEvents.js";
  *   `InputMapper.mapKeysToDirection`.
  * - **Analog**: `<id>.x` / `<id>.y` carry the raw normalized
  *   knob position (`-1..1`). Use with `InputMapper.mapRangesToDirection`.
+ *
+ * Labels are display-only — no input surface. Their text content lives
+ * here so the manager remains the single source of truth across
+ * view rebinds; update via {@link setLabelText}.
  */
 export class OnScreenControlManager implements IInputDeviceListener {
   //  FIELDS
@@ -27,6 +31,7 @@ export class OnScreenControlManager implements IInputDeviceListener {
   private readonly _hiddenControls = new Set<string>();
   private readonly _progressVisible = new Set<string>();
   private readonly _progressValues = new Map<string, number>();
+  private readonly _labelContents = new Map<string, string>();
   private readonly _pressedHandlers = new Set<(code: string) => void>();
   private readonly _releasedHandlers = new Set<(code: string) => void>();
   private readonly _keyHandlers = new Map<string, Set<(isPressed: boolean) => void>>();
@@ -54,6 +59,9 @@ export class OnScreenControlManager implements IInputDeviceListener {
    */
   public addControl(config: ControlConfig): void {
     this._controls.set(config.id, config);
+    if (config.type === ControlType.Label) {
+      this._labelContents.set(config.id, config.content);
+    }
     this._events.emitControlAdded(config);
   }
 
@@ -75,27 +83,29 @@ export class OnScreenControlManager implements IInputDeviceListener {
       this._updateRange(`${id}.y`, 0);
       this._rangeValues.delete(`${id}.x`);
       this._rangeValues.delete(`${id}.y`);
-    } else {
+    } else if (config.type === ControlType.Button) {
       this.setButtonUp(id);
     }
+    // Labels have no input state to release.
 
     this._controls.delete(id);
     this._disabledControls.delete(id);
     this._hiddenControls.delete(id);
     this._progressVisible.delete(id);
     this._progressValues.delete(id);
+    this._labelContents.delete(id);
     this._events.emitControlRemoved(id);
   }
 
   /**
-   * Toggles a control between its enabled and disabled state. Works
-   * for both buttons and joysticks:
+   * Toggles a control between its enabled and disabled state.
    * - **Buttons**: render with the `disabled` visual, ignore pointer
    *   presses, force-release if they were currently held down.
    * - **Joysticks**: dim base + knob to half their configured alpha,
    *   ignore pointer drag, reset the knob to centre, and force a
    *   `(0, 0)` direction emission (clears any held virtual keys + the
    *   `<id>.x` / `<id>.y` ranges).
+   * - **Labels**: dim to half alpha. No input cleanup needed.
    *
    * Visibility and enabled are independent — disabling a hidden control
    * just updates the latent state. No-op for unknown ids.
@@ -113,11 +123,12 @@ export class OnScreenControlManager implements IInputDeviceListener {
       // or a frozen joystick direction.
       if (config.type === ControlType.Button) {
         if (this._keysDown.has(id)) this.setButtonUp(id);
-      } else {
+      } else if (config.type === ControlType.Joystick) {
         // resetJoystick fires `(0, 0)` through the existing pipeline,
         // releasing virtual keys and zeroing the analog ranges.
         this.resetJoystick(id);
       }
+      // Labels: no input state to flush.
     }
     this._events.emitControlEnabledChanged(id, enabled);
   }
@@ -145,9 +156,10 @@ export class OnScreenControlManager implements IInputDeviceListener {
       this._hiddenControls.add(id);
       if (config.type === ControlType.Button) {
         if (this._keysDown.has(id)) this.setButtonUp(id);
-      } else {
+      } else if (config.type === ControlType.Joystick) {
         this.resetJoystick(id);
       }
+      // Labels: no input state to flush.
     }
     this._events.emitControlVisibilityChanged(id, visible);
   }
@@ -200,6 +212,25 @@ export class OnScreenControlManager implements IInputDeviceListener {
   /** Last set progress value (0 if never set or after `removeControl`). */
   public getButtonProgress(id: string): number {
     return this._progressValues.get(id) ?? 0;
+  }
+
+  /**
+   * Updates a label's displayed text. The view re-renders on the next
+   * frame and (if the label has a bg sprite) the bg auto-resizes to
+   * match the new bounds. No-op for non-label controls, unknown ids,
+   * or unchanged values.
+   */
+  public setLabelText(id: string, value: string): void {
+    const config = this._controls.get(id);
+    if (!config || config.type !== ControlType.Label) return;
+    if (this._labelContents.get(id) === value) return;
+    this._labelContents.set(id, value);
+    this._events.emitLabelTextChanged(id, value);
+  }
+
+  /** Current label text (`""` if never set or for non-label ids). */
+  public getLabelText(id: string): string {
+    return this._labelContents.get(id) ?? "";
   }
 
   /** Returns the registered config, or `undefined` if not registered. */

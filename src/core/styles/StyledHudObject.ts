@@ -1,6 +1,7 @@
 import * as PIXI from "pixi.js";
 import type { AssetManager } from "../assets/AssetManager.js";
 import type { SpriteStyle } from "./SpriteStyle.js";
+import type { TextStyle } from "./TextStyle.js";
 
 /**
  * Base class for self-rendering, style-driven HUD widgets. Subclasses
@@ -12,14 +13,15 @@ import type { SpriteStyle } from "./SpriteStyle.js";
  * with respect to its theme. A `changeStyle` method can be added when
  * a real use case lands.
  *
- * Provides three sprite-rendering primitives shared across textured
- * HUD widgets:
+ * Provides primitives shared across textured + textual HUD widgets:
  * - {@link _getTexture} — asset lookup with a subclass-named error.
- * - {@link _resolveSpriteStyle} — fills missing fields on a partial
- *   `SpriteStyle` from caller-supplied defaults.
- * - {@link _buildSprite} / {@link _applySpriteStyle} — build or
- *   update a square center-anchored sprite sized to
- *   `slotSize * scaleX/Y`.
+ * - {@link _resolveSpriteStyle} / {@link _buildSprite} /
+ *   {@link _applySpriteStyle} — fill defaults on a partial
+ *   `SpriteStyle`, build or update a center-anchored sprite sized to
+ *   `slotWidth * scaleX` × `slotHeight * scaleY`.
+ * - {@link _resolveTextStyle} / {@link _buildText} /
+ *   {@link _applyTextStyle} — fill defaults on a partial `TextStyle`,
+ *   build or update a Pixi `Text` node with the resolved fields.
  */
 export abstract class StyledHudObject<TStyle> extends PIXI.Container {
   protected readonly _assetManager: AssetManager;
@@ -68,16 +70,15 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
   }
 
   /**
-   * Builds a center-anchored sprite from a resolved style. Width and
-   * height are `slotSize * scaleX` and `slotSize * scaleY` so the
-   * sprite is sized relative to a host slot whose reference dim is
-   * `slotSize`. Throws via {@link _getTexture} if the texture is
-   * missing.
+   * Builds a center-anchored sprite from a resolved style. Width is
+   * `slotWidth * scaleX`, height is `slotHeight * scaleY`. For a
+   * square slot pass `slotWidth` only; `slotHeight` defaults to it.
+   * Throws via {@link _getTexture} if the texture is missing.
    */
-  protected _buildSprite(style: Required<SpriteStyle>, slotSize: number): PIXI.Sprite {
+  protected _buildSprite(style: Required<SpriteStyle>, slotWidth: number, slotHeight: number = slotWidth): PIXI.Sprite {
     const sprite = new PIXI.Sprite(this._getTexture(style.textureId));
     sprite.anchor.set(0.5, 0.5);
-    this._applySpriteStyle(sprite, style, slotSize);
+    this._applySpriteStyle(sprite, style, slotWidth, slotHeight);
     return sprite;
   }
 
@@ -86,12 +87,64 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
    * swap if different, plus tint, alpha, and per-axis dim. Throws if
    * the new texture id is unloaded.
    */
-  protected _applySpriteStyle(sprite: PIXI.Sprite, style: Required<SpriteStyle>, slotSize: number): void {
+  protected _applySpriteStyle(sprite: PIXI.Sprite, style: Required<SpriteStyle>, slotWidth: number, slotHeight: number = slotWidth): void {
     const texture = this._getTexture(style.textureId);
     if (sprite.texture !== texture) sprite.texture = texture;
     sprite.tint = style.color;
     sprite.alpha = style.alpha;
-    sprite.width = slotSize * style.scaleX;
-    sprite.height = slotSize * style.scaleY;
+    sprite.width = slotWidth * style.scaleX;
+    sprite.height = slotHeight * style.scaleY;
+  }
+
+  /**
+   * Fills missing fields on a partial {@link TextStyle} with the
+   * supplied defaults, returning a fully-resolved style.
+   */
+  protected _resolveTextStyle(
+    style: TextStyle | undefined,
+    defaultFontFamily: string,
+    defaultFontSize: number,
+    defaultFontWeight: string,
+    defaultColor: number,
+    defaultAlpha: number,
+  ): Required<TextStyle> {
+    return {
+      fontFamily: style?.fontFamily ?? defaultFontFamily,
+      fontSize: style?.fontSize ?? defaultFontSize,
+      fontWeight: style?.fontWeight ?? defaultFontWeight,
+      color: style?.color ?? defaultColor,
+      alpha: style?.alpha ?? defaultAlpha,
+    };
+  }
+
+  /**
+   * Builds a Pixi `Text` node from a resolved style. Anchor is left at
+   * its Pixi default `(0, 0)` — callers set it explicitly if needed.
+   */
+  protected _buildText(content: string, style: Required<TextStyle>): PIXI.Text {
+    const text = new PIXI.Text({
+      text: content,
+      style: {
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize,
+        fontWeight: style.fontWeight as PIXI.TextStyleFontWeight,
+        fill: style.color,
+      },
+    });
+    text.alpha = style.alpha;
+    return text;
+  }
+
+  /**
+   * Updates an existing text node's style fields to match the resolved
+   * style. Mutates the underlying `PIXI.TextStyle` so the text
+   * re-renders on the next frame.
+   */
+  protected _applyTextStyle(text: PIXI.Text, style: Required<TextStyle>): void {
+    text.style.fontFamily = style.fontFamily;
+    text.style.fontSize = style.fontSize;
+    text.style.fontWeight = style.fontWeight as PIXI.TextStyleFontWeight;
+    text.style.fill = style.color;
+    text.alpha = style.alpha;
   }
 }

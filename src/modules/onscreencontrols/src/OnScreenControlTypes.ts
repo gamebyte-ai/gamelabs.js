@@ -5,6 +5,7 @@ export { resolveAnchorPosition } from "./utilities/resolveAnchorPosition.js";
 import type { ControlType } from "./constants/ControlType.js";
 import type { ControlAnchor } from "./constants/ControlAnchor.js";
 import type { SpriteStyle } from "../../../core/styles/SpriteStyle.js";
+import type { TextStyle } from "../../../core/styles/TextStyle.js";
 
 /**
  * Base configuration shared by all virtual controls.
@@ -90,7 +91,35 @@ export type VirtualJoystickConfig = VirtualControlConfig & {
   knob?: SpriteStyle;
 };
 
-export type ControlConfig = VirtualButtonConfig | VirtualJoystickConfig;
+/**
+ * Virtual label configuration.
+ *
+ * Labels are display-only — no pointer events, no virtual key /
+ * range surface. They share the manager's lifecycle (`addControl` /
+ * `removeControl`), enabled / visibility flags, and anchored
+ * positioning, but their content is updated through
+ * `OnScreenControlManager.setLabelText`.
+ *
+ * `anchorX` / `anchorY` (each `0..1`) set the pivot of both the text
+ * and the optional bg sprite — `(0, 0)` keeps the top-left at the
+ * resolved anchor position, `(0.5, 0.5)` centers, `(1, 1)` makes the
+ * anchor the bottom-right corner. Default is `(0, 0)`.
+ */
+export type VirtualLabelConfig = VirtualControlConfig & {
+  type: ControlType.Label;
+  /** Initial text content. Use `setLabelText` to update at runtime. */
+  content: string;
+  /** Horizontal pivot, `0..1`. @default 0 */
+  anchorX?: number;
+  /** Vertical pivot, `0..1`. @default 0 */
+  anchorY?: number;
+  /** Text style override; defaults come from the registered `osc.label` style. */
+  text?: TextStyle;
+  /** Optional bg sprite. `textureId` must be set to render. Sized to text bounds × scaleX/Y. */
+  bg?: SpriteStyle;
+};
+
+export type ControlConfig = VirtualButtonConfig | VirtualJoystickConfig | VirtualLabelConfig;
 
 /**
  * Visual fields of {@link VirtualButtonConfig} that the framework
@@ -119,8 +148,24 @@ export type OscJoystickStyle = {
   knob?: SpriteStyle;
 };
 
+/**
+ * Visual fields for an `OscLabel` widget — text styling plus an
+ * optional sprite background that auto-sizes to the rendered text
+ * bounds.
+ *
+ * Labels are display-only; they don't go through `OnScreenControlManager`
+ * (no manager state, no pointer events) and are constructed directly
+ * by host views.
+ */
+export type OscLabelStyle = {
+  text?: TextStyle;
+  /** Optional background sprite. Sized to text bounds × scaleX/scaleY. Set `textureId` to render. */
+  bg?: SpriteStyle;
+};
+
 /** Style ids registered by the on-screen controls module. */
 export const OscStyleIds = {
   Button: "osc.button",
   Joystick: "osc.joystick",
+  Label: "osc.label",
 } as const;
