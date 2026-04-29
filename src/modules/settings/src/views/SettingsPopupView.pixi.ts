@@ -8,6 +8,7 @@ import {
   UIComponentsStyleIds,
   type ButtonComponentStyle,
   type SliderComponentStyle,
+  type ToggleComponentStyle,
 } from "../../../uicomponents/src/UIComponentsStyleTypes.js";
 import type { ISettingsPopupView } from "./ISettingsPopupView.js";
 
@@ -144,7 +145,8 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     labelText.anchor.set(0, 0.5);
     row.addChild(labelText);
 
-    const toggle = new ToggleComponent({
+    const toggleStyle = this.styleManager.resolve<ToggleComponentStyle>(UIComponentsStyleIds.Toggle);
+    const toggle = new ToggleComponent(this.assetLoader, toggleStyle, {
       width: SettingsPopupView.TOGGLE_WIDTH,
       height: SettingsPopupView.TOGGLE_HEIGHT,
       value,

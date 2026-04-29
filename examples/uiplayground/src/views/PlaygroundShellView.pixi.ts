@@ -14,6 +14,7 @@ import {
   type IView,
   type RadioButtonComponentStyle,
   type SliderComponentStyle,
+  type ToggleComponentStyle,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
 import { UIPlaygroundConfig } from "../UIPlaygroundConfig.js";
@@ -394,11 +395,8 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     labelText.layout = { width: LABEL_WIDTH };
     row.addChild(labelText);
 
-    const toggle = new ToggleComponent({ value: initial });
-    // ToggleComponent extends PIXI.Graphics and doesn't set its own
-    // `.layout`, so without an explicit size Yoga lays it out at zero
-    // width — the toggle then renders on top of the previous label.
-    toggle.layout = { width: 44, height: 24 };
+    const toggleStyle = this.styleManager.resolve<ToggleComponentStyle>(UIComponentsStyleIds.Toggle);
+    const toggle = new ToggleComponent(this.assetLoader, toggleStyle, { value: initial });
     row.addChild(toggle);
 
     const readout = new PIXI.Text({ text: initial ? "ON" : "OFF", style: READOUT_STYLE });
@@ -692,8 +690,8 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     labelText.layout = { width: LABEL_WIDTH };
     row.addChild(labelText);
 
-    const toggle = new ToggleComponent({ value: this._outlineEnabled });
-    toggle.layout = { width: 44, height: 24 };
+    const toggleStyle = this.styleManager.resolve<ToggleComponentStyle>(UIComponentsStyleIds.Toggle);
+    const toggle = new ToggleComponent(this.assetLoader, toggleStyle, { value: this._outlineEnabled });
     row.addChild(toggle);
 
     const readout = new PIXI.Text({

@@ -3,19 +3,19 @@ import {
   type IInstanceResolver,
   type IViewController,
 } from "@gamebyte/gamelabsjs";
-import { TOGGLE_ON_LABELS, TOGGLE_ON_PALETTE } from "../constants/DemoPresets.js";
 import { IControlsManager } from "../utilities/IControlsManager.js";
 import type { IToggleDemoView } from "../views/IToggleDemoView.js";
 
 /**
- * Controller for `ToggleDemoView`. Width / height / on-color tweaks
- * plus a "flip programmatically" action that calls `view.toggle()` so
- * the user sees the actual toggle animation.
+ * Controller for `ToggleDemoView`. Width / height tweaks plus a "flip
+ * programmatically" action that calls `view.toggle()` so the user sees
+ * both toggles' transitions. Visual state (track / thumb colours) lives
+ * on the registered ToggleComponentStyle now, so the old onColor
+ * picker is gone — re-theme via `styleManager.modify(...)` instead.
  */
 export class ToggleDemoViewController implements IViewController<IToggleDemoView> {
   private _controls: IControlsManager | null = null;
   private _view: IToggleDemoView | null = null;
-  private _onColorIndex = 0;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
@@ -49,20 +49,10 @@ export class ToggleDemoViewController implements IViewController<IToggleDemoView
     );
 
     this._subs.add(
-      this._controls.addRadioGroupControl(
-        "onColor",
-        TOGGLE_ON_PALETTE,
-        this._onColorIndex,
-        (color) => this._formatOnColor(color),
-        (_color, index) => this._onColorCycled(index),
-      ),
+      this._controls.addActionControl("Flip both programmatically", () => this._onProgrammaticFlip()),
     );
 
-    this._subs.add(
-      this._controls.addActionControl("Flip programmatically", () => this._onProgrammaticFlip()),
-    );
-
-    this._subs.add(view.onChange((v) => this._onLiveChange(v)));
+    this._subs.add(view.onChange((which, value) => this._onLiveChange(which, value)));
   }
 
   public destroy(): void {
@@ -81,21 +71,11 @@ export class ToggleDemoViewController implements IViewController<IToggleDemoView
     this._view?.setHeight(Math.round(v));
   }
 
-  private _onColorCycled(index: number): void {
-    this._onColorIndex = index;
-    this._view?.setOnColor(TOGGLE_ON_PALETTE[index]!);
-  }
-
   private _onProgrammaticFlip(): void {
     this._view?.toggle();
   }
 
-  private _onLiveChange(value: boolean): void {
-    this._controls?.appendLog(`Toggle → onChange ${value ? "ON" : "OFF"}`);
-  }
-
-  private _formatOnColor(color: number): string {
-    const idx = TOGGLE_ON_PALETTE.indexOf(color);
-    return TOGGLE_ON_LABELS[idx] ?? `#${color.toString(16)}`;
+  private _onLiveChange(which: "default" | "custom", value: boolean): void {
+    this._controls?.appendLog(`Toggle (${which}) → onChange ${value ? "ON" : "OFF"}`);
   }
 }

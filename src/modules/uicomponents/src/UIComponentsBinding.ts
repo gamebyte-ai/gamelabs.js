@@ -9,6 +9,7 @@ import {
   type ButtonComponentStyle,
   type RadioButtonComponentStyle,
   type SliderComponentStyle,
+  type ToggleComponentStyle,
 } from "./UIComponentsStyleTypes.js";
 
 /**
@@ -99,6 +100,28 @@ export class UIComponentsBinding extends ModuleBinding {
         new URL("./assets/uicomponents/radio/selected.png", import.meta.url).href,
       ),
     );
+
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultToggleTrackOn,
+        new URL("./assets/uicomponents/toggle/track-on.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultToggleTrackOff,
+        new URL("./assets/uicomponents/toggle/track-off.png", import.meta.url).href,
+      ),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        UIComponentsAssetIds.DefaultToggleThumb,
+        new URL("./assets/uicomponents/toggle/thumb.png", import.meta.url).href,
+      ),
+    );
   }
 
   /**
@@ -148,6 +171,12 @@ export class UIComponentsBinding extends ModuleBinding {
         color: 0xe8eef6,
         alpha: 1,
       },
+    });
+
+    styleManager.add<ToggleComponentStyle>(UIComponentsStyleIds.Toggle, {
+      trackOn: { textureId: UIComponentsAssetIds.DefaultToggleTrackOn, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      trackOff: { textureId: UIComponentsAssetIds.DefaultToggleTrackOff, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+      thumb: { textureId: UIComponentsAssetIds.DefaultToggleThumb, color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
     });
   }
 }

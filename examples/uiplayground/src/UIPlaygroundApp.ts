@@ -117,6 +117,25 @@ export class UIPlaygroundApp extends GamelabsApp {
       UIPlaygroundAssetIds.CustomRadioSelected,
       new URL("../assets/radio/selected.png", import.meta.url).href,
     );
+
+    // Custom toggle skin for the ToggleDemo's "custom" example.
+    // Rectangle track + square thumb in a violet / amber palette so it
+    // visibly contrasts with the default rounded-pill skin.
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomToggleTrackOn,
+      new URL("../assets/toggle/track-on.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomToggleTrackOff,
+      new URL("../assets/toggle/track-off.png", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      UIPlaygroundAssetIds.CustomToggleThumb,
+      new URL("../assets/toggle/thumb.png", import.meta.url).href,
+    );
   }
 
   protected override configureDI(): void {

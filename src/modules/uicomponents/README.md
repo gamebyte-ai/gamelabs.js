@@ -7,7 +7,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`ButtonComponent`](#buttoncomponent) — pressable button driven by the framework `StyleManager` with four-state skin (idle / hover / pressed / disabled) and centered label
 - [`BackgroundComponent`](#backgroundcomponent) — full-screen cover-fit background with overlay and fallback color
 - [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch)
-- [`ToggleComponent`](#togglecomponent) — on/off switch with configurable colors
+- [`ToggleComponent`](#togglecomponent) — on/off switch driven by the framework `StyleManager` with track + thumb skin
 - [`SliderComponent`](#slidercomponent) — horizontal slider driven by the framework `StyleManager` with track / fill / thumb skin and min/max/step constraints
 - [`DropdownComponent`](#dropdowncomponent) — select-style dropdown with overlay-rendered option list
 - [`RadioButtonComponent`](#radiobuttoncomponent) — single radio indicator driven by the framework `StyleManager` with optional label; designed to compose into a group
@@ -163,33 +163,63 @@ logo.resolveAssets(assetManager);
 
 ## ToggleComponent
 
-On/off switch with a pill-shaped track and sliding circle thumb. Tap to toggle.
+On/off switch themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `ToggleComponentStyle`, and geometry / value opts. The track is a single sprite whose texture swaps between the resolved `trackOn` / `trackOff` slots when the value changes; the thumb is a separate sprite that slides between the off and on positions on each transition. The framework's `UIComponentsBinding` registers a default style entry (rounded pill track + circular thumb) so apps that add the binding get a fully-textured toggle without supplying any art.
 
 ```ts
-const toggle = new ToggleComponent({ value: true });
-toggle.onChange((value) => {
-  console.log("toggled:", value);
+// In a HudViewBase / ScreenView / PopupView subclass:
+const toggleStyle = this.styleManager.resolve<ToggleComponentStyle>(
+  UIComponentsStyleIds.Toggle,
+);
+const enabled = new ToggleComponent(this.assetLoader, toggleStyle, {
+  value: true,
 });
+enabled.onChange((v) => console.log("enabled:", v));
+
+// Custom skin — point each track + thumb slot at your own PNGs (e.g.
+// a rectangle track with a square knob, in a different palette):
+const altStyle = this.styleManager.resolve<ToggleComponentStyle>(UIComponentsStyleIds.Toggle, {
+  trackOn: { textureId: MyAssetIds.ToggleTrackOn },
+  trackOff: { textureId: MyAssetIds.ToggleTrackOff },
+  thumb: { textureId: MyAssetIds.ToggleThumb },
+});
+const altToggle = new ToggleComponent(this.assetLoader, altStyle, { value: false });
 ```
 
-### `ToggleComponentPreset`
+### `ToggleComponentOpts`
 
-| Field        | Type      | Default    | Description                |
-| ------------ | --------- | ---------- | -------------------------- |
-| `width`      | `number`  | `44`       | Toggle width.              |
-| `height`     | `number`  | `24`       | Toggle height.             |
-| `onColor`    | `number`  | `0x48bb78` | Background color when on.  |
-| `offColor`   | `number`  | `0xcbd5e0` | Background color when off. |
-| `thumbColor` | `number`  | `0xffffff` | Thumb color.               |
-| `thumbInset` | `number`  | `3`        | Thumb inset from edge.     |
-| `value`      | `boolean` | `false`    | Initial value.             |
+Geometry / value. Visual fields are owned by the style.
+
+| Field        | Type      | Default | Description                                                         |
+| ------------ | --------- | ------- | ------------------------------------------------------------------- |
+| `width`      | `number`  | `44`    | Toggle width.                                                       |
+| `height`     | `number`  | `24`    | Toggle height.                                                      |
+| `thumbInset` | `number`  | `3`     | Inset from track edge to thumb. Thumb renders at `(height - 2*inset)` square. |
+| `value`      | `boolean` | `false` | Initial value.                                                      |
+
+### `ToggleComponentStyle`
+
+Bundle of three `SpriteStyle` slots. Defaults registered under `UIComponentsStyleIds.Toggle`.
+
+| Slot       | Type          | Notes                                                                                                                  |
+| ---------- | ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `trackOn`  | `SpriteStyle` | Track texture used while value is `true`. Drives the track sprite type at construction (`border > 0` → `NineSliceSprite`). |
+| `trackOff` | `SpriteStyle` | Track texture used while value is `false`. Texture swaps onto the same sprite — no rebuild.                            |
+| `thumb`    | `SpriteStyle` | Sliding handle. Sized to `(height - 2*thumbInset)` square; anchored at its centre.                                     |
+
+The framework default uses `border: 0` for all three slots — the rounded pill ends don't 9-slice cleanly, so the runtime stretches the track texture between the resolved track-on / track-off PNGs. Custom skins with straight-edged tracks can opt into 9-slice via the style override.
 
 ### Methods
 
 - `value` — current boolean value (getter).
-- `setValue(value)` — set the value programmatically (does not fire `onChange`).
+- `setValue(value)` — set the value programmatically (does **not** fire `onChange`).
 - `toggle()` — flip the value and fire `onChange`.
 - `onChange(cb): Unsubscribe` — subscribe to value changes.
+
+### Notes
+
+- **Default skin via `UIComponentsBinding`.** Adding the binding registers the three `DefaultToggle{TrackOn,TrackOff,Thumb}` `HudTexture` asset requests *and* the `UIComponentsStyleIds.Toggle` style entry. Apps re-theme every toggle at once with `styleManager.modify(UIComponentsStyleIds.Toggle, …)`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
+- **Tinting for colour identity.** Set `toggle.tint = 0x...` after construction; `Container.tint` propagates to track + thumb sprites simultaneously.
+- **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects all three textures (both track variants and the thumb) to be loaded in the asset manager. Construct toggles in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
 ---
 
@@ -733,9 +763,9 @@ const updated = UIUtils.updateFields(originalJson, '{"overlayAlpha":0.3}');
 
 ### Themed components do **not** use JSON presets
 
-`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, and `RadioButtonGroupComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parseButtonComponentPreset` / `parseSliderComponentPreset` / `parseRadioButton*Preset`. To re-theme:
+`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, and `ToggleComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parseButtonComponentPreset` / `parseSliderComponentPreset` / `parseRadioButton*Preset` / `parseToggleComponentPreset`. To re-theme:
 
-- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider` and `.RadioButton`.
+- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, and `.Toggle`.
 - **Per-component override** — the call site passes a deep-merge override to `styleManager.resolve(UIComponentsStyleIds.<Id>, { … })` and forwards the resolved style to the constructor. See the component sections above for the canonical pattern.
 
-The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` components without supplying any art.
+The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` components without supplying any art.

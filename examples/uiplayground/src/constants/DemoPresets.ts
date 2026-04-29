@@ -31,12 +31,6 @@ export const SLIDER_RANGE_PRESETS: readonly SliderRangePreset[] = [
   { min: 0, max: 360, label: "0..360" },
 ];
 
-// ─── ToggleDemo ────────────────────────────────────────────────────────
-export const TOGGLE_ON_PALETTE: readonly number[] = [
-  0x48bb78, 0x3b82f6, 0xef4444, 0xeab308, 0xa855f7,
-];
-export const TOGGLE_ON_LABELS: readonly string[] = ["green", "blue", "red", "yellow", "purple"];
-
 // ─── GridLayoutDemo ────────────────────────────────────────────────────
 export type GridAlignItems = "flex-start" | "center" | "flex-end" | "stretch";
 export type GridJustifyContent =
@@ -124,18 +118,6 @@ export const DROPDOWN_PLACEHOLDERS: readonly string[] = [
 ];
 
 // ─── RadioButtonDemo ───────────────────────────────────────────────────
-
-export const RADIO_SELECTED_PALETTE: readonly number[] = [
-  0x4338ca, 0x22c55e, 0xef4444, 0xeab308, 0xa855f7,
-];
-
-export const RADIO_SELECTED_LABELS: readonly string[] = [
-  "indigo",
-  "green",
-  "red",
-  "yellow",
-  "purple",
-];
 
 export const RADIO_LABEL_PRESETS: readonly string[] = [
   "Option A",

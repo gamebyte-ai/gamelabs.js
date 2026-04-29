@@ -9,6 +9,7 @@ import {
   type ButtonComponentStyle,
   type RadioButtonComponentStyle,
   type SliderComponentStyle,
+  type ToggleComponentStyle,
 } from "../src/modules/uicomponents/src/UIComponentsStyleTypes.js";
 
 const noopLogger: ILogger = {
@@ -17,7 +18,7 @@ const noopLogger: ILogger = {
 };
 
 describe("UIComponentsBinding", () => {
-  it("registers the default button + slider + radio skin asset requests in its constructor", () => {
+  it("registers the default button + slider + radio + toggle skin asset requests in its constructor", () => {
     const binding = new UIComponentsBinding();
     const requests = [...binding.assetRequestList.getRequests()];
     const ids = requests.map((r) => r.id).sort();
@@ -31,13 +32,16 @@ describe("UIComponentsBinding", () => {
       UIComponentsAssetIds.DefaultSliderFill,
       UIComponentsAssetIds.DefaultSliderThumb,
       UIComponentsAssetIds.DefaultSliderTrack,
+      UIComponentsAssetIds.DefaultToggleThumb,
+      UIComponentsAssetIds.DefaultToggleTrackOff,
+      UIComponentsAssetIds.DefaultToggleTrackOn,
     ]);
     for (const r of requests) {
       expect(r.url).toMatch(/\.png$/);
     }
   });
 
-  it("configureDI registers ButtonComponent + SliderComponent + RadioButtonComponent styles on the view DI's StyleManager", () => {
+  it("configureDI registers ButtonComponent + SliderComponent + RadioButtonComponent + ToggleComponent styles on the view DI's StyleManager", () => {
     const binding = new UIComponentsBinding();
     const diContainer = new DIContainer(noopLogger);
     const viewDiContainer = new DIContainer(noopLogger);
@@ -71,5 +75,16 @@ describe("UIComponentsBinding", () => {
     expect(radioStyle.selected?.textureId).toBe(UIComponentsAssetIds.DefaultRadioSelected);
     expect(radioStyle.selected?.border).toBe(0);
     expect(radioStyle.label?.fontSize).toBe(14);
+
+    // Toggle style — two track slots (texture swap on value) + thumb.
+    // All three plain Sprite — the default-skin track has rounded ends
+    // that don't 9-slice cleanly, so the runtime stretches the texture.
+    const toggleStyle = styleManager.resolve<ToggleComponentStyle>(UIComponentsStyleIds.Toggle);
+    expect(toggleStyle.trackOn?.textureId).toBe(UIComponentsAssetIds.DefaultToggleTrackOn);
+    expect(toggleStyle.trackOn?.border).toBe(0);
+    expect(toggleStyle.trackOff?.textureId).toBe(UIComponentsAssetIds.DefaultToggleTrackOff);
+    expect(toggleStyle.trackOff?.border).toBe(0);
+    expect(toggleStyle.thumb?.textureId).toBe(UIComponentsAssetIds.DefaultToggleThumb);
+    expect(toggleStyle.thumb?.border).toBe(0);
   });
 });

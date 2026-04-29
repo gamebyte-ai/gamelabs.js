@@ -20,7 +20,7 @@ const TEXTURE_SIZE = 32;
 /**
  * Live preview for the `ListComponent` playground demo.
  *
- * Variant / selectionMode / itemHeight / selectedColor changes rebuild
+ * Variant / selectionMode / itemHeight changes rebuild
  * the underlying component (those are constructor-only). itemCount
  * flows through to the live instance via `setItems` so the user's
  * selection survives slider drags. The image and text+image variants
@@ -48,7 +48,6 @@ export class ListDemoView extends HudViewBase implements IListDemoView {
   private _selectionMode: ListSelectionModePreset = "none";
   private _itemCount = 6;
   private _itemHeight = 36;
-  private _selectedColor = 0x4338ca;
   private _selectedIds: readonly string[] = [];
 
   public override inject(resolver: IInstanceResolver): void {
@@ -91,12 +90,6 @@ export class ListDemoView extends HudViewBase implements IListDemoView {
   public setItemHeight(height: number): void {
     if (this._itemHeight === height) return;
     this._itemHeight = height;
-    this._rebuildList();
-  }
-
-  public setSelectedColor(color: number): void {
-    if (this._selectedColor === color) return;
-    this._selectedColor = color;
     this._rebuildList();
   }
 
@@ -210,7 +203,6 @@ export class ListDemoView extends HudViewBase implements IListDemoView {
       selectionMode: this._selectionMode,
       items: this._buildItems(),
       selectedIds: this._selectedIds,
-      selectedColor: this._selectedColor,
       radius: 4,
     });
     this._changeUnsub = this._list.onChange((ids, items) => this._fireChange(ids, items));

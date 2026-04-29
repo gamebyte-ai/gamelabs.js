@@ -7,8 +7,6 @@ import {
 import {
   LIST_SELECTION_MODES,
   LIST_VARIANTS,
-  RADIO_SELECTED_LABELS,
-  RADIO_SELECTED_PALETTE,
   type ListSelectionModePreset,
   type ListVariantPreset,
 } from "../constants/DemoPresets.js";
@@ -17,18 +15,17 @@ import type { IListDemoView } from "../views/IListDemoView.js";
 
 /**
  * Controller for `ListDemoView`. Drives variant, selection mode,
- * item count, item height, and selectedColor through the controls
- * panel and exposes a "Clear selection" programmatic action. Live
- * `onChange` and `onItemPress` events from the list are piped into
- * the shell's event log so the developer can see exactly when each
- * fires (handy when comparing the three selection modes).
+ * item count, and item height through the controls panel and exposes
+ * a "Clear selection" programmatic action. Live `onChange` and
+ * `onItemPress` events from the list are piped into the shell's event
+ * log so the developer can see exactly when each fires (handy when
+ * comparing the three selection modes).
  */
 export class ListDemoViewController implements IViewController<IListDemoView> {
   private _controls: IControlsManager | null = null;
   private _view: IListDemoView | null = null;
   private _variantIndex = 0; // default: "text"
   private _selectionModeIndex = 0; // default: "none"
-  private _selectedColorIndex = 0;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
@@ -82,16 +79,6 @@ export class ListDemoViewController implements IViewController<IListDemoView> {
     );
 
     this._subs.add(
-      this._controls.addRadioGroupControl(
-        "selectedColor",
-        RADIO_SELECTED_PALETTE,
-        this._selectedColorIndex,
-        (color) => this._formatSelectedColor(color),
-        (_color, index) => this._onSelectedColorCycled(index),
-      ),
-    );
-
-    this._subs.add(
       this._controls.addActionControl("Clear selection", () => this._onClearSelectionPressed()),
     );
 
@@ -127,12 +114,6 @@ export class ListDemoViewController implements IViewController<IListDemoView> {
     this._view?.setItemHeight(Math.round(v));
   }
 
-  private _onSelectedColorCycled(index: number): void {
-    this._selectedColorIndex = index;
-    this._view?.setSelectedColor(RADIO_SELECTED_PALETTE[index]!);
-    this._controls?.appendLog(`List → selectedColor=${RADIO_SELECTED_LABELS[index]}`);
-  }
-
   private _onClearSelectionPressed(): void {
     this._view?.clearSelection();
     this._controls?.appendLog("List → setSelectedIds=[] (programmatic)");
@@ -144,10 +125,5 @@ export class ListDemoViewController implements IViewController<IListDemoView> {
 
   private _onLivePress(id: string, item: ListItem): void {
     this._controls?.appendLog(`List → onItemPress id="${id}" label="${item.label ?? ""}"`);
-  }
-
-  private _formatSelectedColor(color: number): string {
-    const idx = RADIO_SELECTED_PALETTE.indexOf(color);
-    return RADIO_SELECTED_LABELS[idx] ?? `#${color.toString(16)}`;
   }
 }

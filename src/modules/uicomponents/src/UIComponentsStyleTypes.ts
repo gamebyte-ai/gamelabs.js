@@ -79,9 +79,35 @@ export type RadioButtonComponentStyle = {
   label?: TextStyle;
 };
 
+/**
+ * Visual style for `ToggleComponent`. Three slots — `trackOn` /
+ * `trackOff` swap on the toggle's value (the track is a single sprite
+ * whose texture changes), and `thumb` is a separate sprite that slides
+ * between the off and on positions.
+ *
+ * Slot defaults (applied for any field omitted in the registered style
+ * and the per-toggle override):
+ * - `textureId`: the three PNGs shipped by `UIComponentsBinding`
+ *   (`DefaultToggle{TrackOn,TrackOff,Thumb}`). The default skin uses a
+ *   rounded pill track + circular thumb.
+ * - `color` / `alpha`: `0xffffff` / `1`. Per-toggle tinting flows
+ *   through `Container.tint`.
+ * - `scaleX` / `scaleY`: `1`.
+ * - `border`: `0` for all three slots — toggles render as plain
+ *   stretched sprites at their layout box / thumb diameter, so 9-slice
+ *   would distort the curved track ends. Custom skins that ship with a
+ *   straight-edged track can opt into nine-slice by setting `border > 0`.
+ */
+export type ToggleComponentStyle = {
+  trackOn?: SpriteStyle;
+  trackOff?: SpriteStyle;
+  thumb?: SpriteStyle;
+};
+
 /** Style ids registered by the uicomponents module. */
 export const UIComponentsStyleIds = {
   Button: "uicomponents.button",
   Slider: "uicomponents.slider",
   RadioButton: "uicomponents.radiobutton",
+  Toggle: "uicomponents.toggle",
 } as const;
