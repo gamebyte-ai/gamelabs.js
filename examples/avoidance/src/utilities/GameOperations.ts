@@ -6,6 +6,8 @@ import { GameEvents } from "../events/GameEvents.js";
 import type { EnemySpawn } from "./WaveManager.js";
 import { WaveManager } from "./WaveManager.js";
 
+type SlowState = "ready" | "active" | "cooldown";
+
 export class GameOperations implements IInjectionTarget {
   private _config: AvoidanceConfig | null = null;
   private _model: GameModel | null = null;
@@ -14,6 +16,8 @@ export class GameOperations implements IInjectionTarget {
   private _inputDx = 0;
   private _inputDy = 0;
   private _wasAnnouncing = false;
+  private _slowState: SlowState = "ready";
+  private _slowTimerMs = 0;
 
   public inject(resolver: IInstanceResolver): void {
     this._config = resolver.getInstance(AvoidanceConfig);
@@ -31,7 +35,35 @@ export class GameOperations implements IInjectionTarget {
     const area = this._config!.gameAreaSize;
     this._model!.reset(area / 2, area / 2);
     this._wasAnnouncing = false;
+    this._slowState = "ready";
+    this._slowTimerMs = 0;
+    this._gameEvents?.emitSlowAbilityChanged(true);
+    this._gameEvents?.emitSlowAbilityProgressChanged(1);
     this._waveManager!.start();
+  }
+
+  /** Total milliseconds the ability is unavailable (active phase + cooldown). */
+  private _slowDisabledTotalMs(): number {
+    return this._config!.slowAbilityDurationMs + this._config!.slowAbilityCooldownMs;
+  }
+
+  /** Milliseconds remaining until the ability returns to ready. 0 when ready. */
+  private _slowRemainingMs(): number {
+    if (this._slowState === "active") return this._slowTimerMs + this._config!.slowAbilityCooldownMs;
+    if (this._slowState === "cooldown") return this._slowTimerMs;
+    return 0;
+  }
+
+  /**
+   * User tapped the slow-time button. Only honoured when the ability is
+   * ready; ignored during active slow or cooldown.
+   */
+  public tryActivateSlow(): void {
+    if (this._slowState !== "ready") return;
+    this._slowState = "active";
+    this._slowTimerMs = this._config!.slowAbilityDurationMs;
+    this._gameEvents?.emitSlowAbilityChanged(false);
+    this._gameEvents?.emitSlowAbilityProgressChanged(0);
   }
 
   public restart(): void {
@@ -41,10 +73,38 @@ export class GameOperations implements IInjectionTarget {
   public update(dt: number): void {
     if (!this._model || this._model.gameOver) return;
 
-    this._updatePlayer(dt);
-    this._spawnEnemies(dt);
-    this._updateEnemies(dt);
+    // Slow timer ticks in real time so 3s active / 10s cooldown are
+    // wall-clock durations regardless of the in-game time scale.
+    this._updateSlowState(dt);
+
+    const factor = this._slowState === "active" ? this._config!.slowAbilityFactor : 1;
+    const gameDt = dt * factor;
+
+    this._updatePlayer(gameDt);
+    this._spawnEnemies(gameDt);
+    this._updateEnemies(gameDt);
     this._checkCollisions();
+  }
+
+  private _updateSlowState(dt: number): void {
+    if (this._slowState === "ready") return;
+    this._slowTimerMs -= dt * 1000;
+    if (this._slowTimerMs > 0) {
+      const t = 1 - this._slowRemainingMs() / this._slowDisabledTotalMs();
+      this._gameEvents?.emitSlowAbilityProgressChanged(t);
+      return;
+    }
+    if (this._slowState === "active") {
+      this._slowState = "cooldown";
+      this._slowTimerMs = this._config!.slowAbilityCooldownMs;
+      const t = 1 - this._slowRemainingMs() / this._slowDisabledTotalMs();
+      this._gameEvents?.emitSlowAbilityProgressChanged(t);
+    } else {
+      this._slowState = "ready";
+      this._slowTimerMs = 0;
+      this._gameEvents?.emitSlowAbilityChanged(true);
+      this._gameEvents?.emitSlowAbilityProgressChanged(1);
+    }
   }
 
   private _updatePlayer(dt: number): void {
@@ -53,10 +113,13 @@ export class GameOperations implements IInjectionTarget {
     let dx = this._inputDx;
     let dy = this._inputDy;
 
-    if (dx !== 0 && dy !== 0) {
-      const len = Math.sqrt(dx * dx + dy * dy);
-      dx /= len;
-      dy /= len;
+    // Cap the magnitude at 1 so digital diagonals don't go faster than
+    // straight lines, but preserve sub-1 magnitudes from the analog
+    // joystick (so partial tilt gives partial speed).
+    const mag = Math.sqrt(dx * dx + dy * dy);
+    if (mag > 1) {
+      dx /= mag;
+      dy /= mag;
     }
 
     let px = model.playerX + dx * config.playerSpeed * dt;

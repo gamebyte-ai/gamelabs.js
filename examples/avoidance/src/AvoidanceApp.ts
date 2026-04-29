@@ -1,4 +1,20 @@
-import { GamelabsApp, UIEvents, AssetRequest, AssetTypes, AssetRequestList, GameCameraBinding, GameCameraManager, Topdown2dCameraController, OnScreenControlsBinding } from "@gamebyte/gamelabsjs";
+import {
+  GamelabsApp,
+  UIEvents,
+  AssetRequest,
+  AssetTypes,
+  AssetRequestList,
+  GameCameraBinding,
+  GameCameraManager,
+  Topdown2dCameraController,
+  OnScreenControlsBinding,
+  OnScreenControlManager,
+  ControlAnchor,
+  ControlType,
+  OscStyleIds,
+  type OscButtonStyle,
+  StyleManager,
+} from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
@@ -45,6 +61,40 @@ export class AvoidanceApp extends GamelabsApp {
     this.diContainer.bindSingleton(WaveManager, () => new WaveManager());
     this.diContainer.bindSingleton(GameOperations, () => new GameOperations());
 
+    // Re-theme on-screen buttons to the avoidance green palette before
+    // any control is registered. The view picks this up the first time
+    // it renders the slow button.
+    this.viewDiContainer.getInstance(StyleManager).modify<OscButtonStyle>(OscStyleIds.Button, {
+      up: { color: 0x44cc66, alpha: 0.85 },
+      down: { color: 0x88ee88, alpha: 0.95 },
+    });
+
+    // HUD chrome — wave counter (top-left, always visible) and the
+    // big "WAVE N" announce text (centred, hidden until a wave starts).
+    // Content is driven from `GameScreenViewController` via the manager.
+    const osc = this.diContainer.getInstance(OnScreenControlManager);
+    osc.addControl({
+      type: ControlType.Label,
+      id: "wave",
+      anchor: ControlAnchor.TopLeft,
+      offsetX: 16,
+      offsetY: 16,
+      content: "WAVE 1",
+      text: { color: 0x88cc88, fontSize: 18, fontWeight: "600" },
+    });
+    osc.addControl({
+      type: ControlType.Label,
+      id: "waveAnnounce",
+      anchor: ControlAnchor.Center,
+      offsetX: 0,
+      offsetY: 0,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      content: "",
+      text: { color: 0xccffcc, fontSize: 48, fontWeight: "800" },
+    });
+    osc.setControlVisible("waveAnnounce", false);
+
     const playerInput = new PlayerInputManager();
     playerInput.inject(this.diContainer);
   }
@@ -59,6 +109,7 @@ export class AvoidanceApp extends GamelabsApp {
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, AvoidanceAssetIds.Background, new URL("../assets/background.png", import.meta.url).href));
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, AvoidanceAssetIds.Player, new URL("../assets/player.png", import.meta.url).href));
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, AvoidanceAssetIds.Enemy, new URL("../assets/enemy.png", import.meta.url).href));
+    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, AvoidanceAssetIds.SlowIcon, new URL("../assets/slow-icon.png", import.meta.url).href));
     this.assetManager.loadAll(this._assetRequestList.getRequests());
   }
 

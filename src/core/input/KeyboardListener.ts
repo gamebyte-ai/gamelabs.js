@@ -92,6 +92,21 @@ export class KeyboardListener implements IInputDeviceListener {
     };
   }
 
+  // Keyboards have no continuous-axis inputs. The range API is implemented
+  // as no-ops so the device satisfies `IInputDeviceListener` and apps can
+  // wire range mappings against any device without an instanceof check.
+  public getRangeValue(_code: string): number {
+    return 0;
+  }
+
+  public addRangeChangedHandler(_cb: (code: string, value: number) => void): Unsubscribe {
+    return () => {};
+  }
+
+  public addRangeHandler(_code: string, _cb: (value: number) => void): Unsubscribe {
+    return () => {};
+  }
+
   /** Start listening to keyboard events on the window. */
   public startListening(): void {
     if (this._listening) return;

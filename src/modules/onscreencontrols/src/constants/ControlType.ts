@@ -4,4 +4,5 @@
 export enum ControlType {
   Button = "button",
   Joystick = "joystick",
+  Label = "label",
 }
