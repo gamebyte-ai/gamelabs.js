@@ -49,6 +49,10 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
 
   private _aimDotGeometry: THREE.CircleGeometry | null = null;
   private _aimDotMaterial: THREE.MeshBasicMaterial | null = null;
+  /** Tail-fade materials. Index 0 = closest to landing (most faded);
+   *  index K-1 = K-th from the end (least faded). Earlier dots reuse
+   *  {@link _aimDotMaterial} at full opacity. */
+  private readonly _aimDotFadeMaterials: THREE.MeshBasicMaterial[] = [];
   private readonly _aimDotPool: THREE.Mesh[] = [];
   private _activeAimDots = 0;
 
@@ -361,10 +365,21 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
 
   private _buildAimDotResources(config: BubbleShooterConfig): void {
     this._aimDotGeometry = new THREE.CircleGeometry(config.aimDotRadius, AIM_DOT_SEGMENTS);
-    this._aimDotMaterial = new THREE.MeshBasicMaterial({
-      color: config.aimDotColor,
+    this._aimDotMaterial = this._createAimDotMaterial(config.aimDotColor, config.aimDotAlpha);
+    const K = Math.max(0, config.aimDotFadeTailCount);
+    for (let i = 0; i < K; i++) {
+      // i = 0 is the last dot (most faded); ramp linearly up to K/(K+1)
+      // for the K-th-from-end so the gradient reads as smooth.
+      const factor = (i + 1) / (K + 1);
+      this._aimDotFadeMaterials.push(this._createAimDotMaterial(config.aimDotColor, config.aimDotAlpha * factor));
+    }
+  }
+
+  private _createAimDotMaterial(color: number, opacity: number): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({
+      color,
       transparent: true,
-      opacity: config.aimDotAlpha,
+      opacity,
       depthTest: false,
       depthWrite: false,
     });
@@ -437,17 +452,31 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
    * the trajectory's end. Reflections fall out for free — the arc-length
    * walker maps any `s` through the segment list to a world point, so the
    * dots flow smoothly through bounce points without special-casing.
+   *
+   * Materials are assigned by distance-from-end: the last K dots fade
+   * (closest to landing = most faded), everyone else uses full opacity.
+   * As dots advance through the marching animation, each one passes
+   * through the tail materials in sequence so the fade reads as smooth.
    */
   private _refreshAimDotsAtPhase(): void {
     this._hideAllAimDots();
     if (!this._config || !this._aimDotGeometry || !this._aimDotMaterial) return;
     if (this._aimTotalLength <= 0) return;
     const spacing = this._config.aimDotSpacing;
+
+    const positions: { x: number; y: number }[] = [];
     for (let s = this._aimPhaseOffset; s < this._aimTotalLength; s += spacing) {
       const pos = this._arcLengthToWorldPoint(s);
-      if (!pos) continue;
+      if (pos) positions.push(pos);
+    }
+
+    const total = positions.length;
+    const fadeCount = this._aimDotFadeMaterials.length;
+    for (let i = 0; i < total; i++) {
       const dot = this._acquireAimDot();
-      dot.position.set(pos.x, pos.y, AIM_DOT_Z);
+      dot.position.set(positions[i]!.x, positions[i]!.y, AIM_DOT_Z);
+      const tailIndex = total - 1 - i;
+      dot.material = tailIndex < fadeCount ? this._aimDotFadeMaterials[tailIndex]! : this._aimDotMaterial;
       dot.visible = true;
     }
   }
@@ -564,6 +593,8 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._aimDotGeometry = null;
     this._aimDotMaterial?.dispose();
     this._aimDotMaterial = null;
+    for (const mat of this._aimDotFadeMaterials) mat.dispose();
+    this._aimDotFadeMaterials.length = 0;
 
     if (this._landingPreviewMesh) {
       this.remove(this._landingPreviewMesh);

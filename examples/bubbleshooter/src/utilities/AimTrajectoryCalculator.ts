@@ -74,7 +74,11 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
     const leftWall = layout.leftWallX;
     const rightWall = layout.rightWallX;
     const topWall = layout.topWallY;
-    const collisionRadius = 2 * config.bubbleRadius;
+    // Shrink the centre-to-centre collision threshold by the configured
+    // tolerance so the flying bubble can squeeze through gaps slightly
+    // tighter than `2 · bubbleRadius`. Clamp at 0 so an over-large
+    // tolerance can't turn collisions inside-out.
+    const collisionRadius = Math.max(0, 2 * config.bubbleRadius - config.bubbleCollisionTolerance);
     const collisionR2 = collisionRadius * collisionRadius;
 
     const cells = this._snapshotOccupiedCells(grid, layout);

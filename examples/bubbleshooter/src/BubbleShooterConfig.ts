@@ -59,6 +59,13 @@ export class BubbleShooterConfig {
   public readonly aimDotAlpha = 0.6;
   /** Arc-length speed of the dot march, in world units per second. */
   public readonly aimDotFlowSpeed = 80;
+  /**
+   * Number of dots at the trajectory tail (closest to the landing) that
+   * fade out toward the end. Earlier dots use full opacity. With the
+   * default linear ramp, the last dot ends up at `1/(K+1)` of full
+   * alpha and the K-th-from-end at `K/(K+1)`.
+   */
+  public readonly aimDotFadeTailCount = 4;
   public readonly aimMaxBounces = 4;
   /** Minimum angle from horizontal so aim never points sideways or down. */
   public readonly aimMinAngleFromHorizontalRad = (15 * Math.PI) / 180;
@@ -68,6 +75,17 @@ export class BubbleShooterConfig {
 
   /** Minimum same-colour group size that pops on snap. */
   public readonly matchPopThreshold = 3;
+
+  /**
+   * Shrink applied to the bubble-vs-bubble collision radius (world units).
+   * Effective centre-to-centre threshold becomes `2 · bubbleRadius -
+   * bubbleCollisionTolerance`, so the flying bubble can squeeze through
+   * gaps slightly tighter than its full diameter. The aim trajectory,
+   * ghost landing preview, and actual fire all use the same value via
+   * `AimTrajectoryCalculator`, so the predicted landing always matches
+   * the real flight.
+   */
+  public readonly bubbleCollisionTolerance = 6.3;
 
   /**
    * Front camera focal-point Z. Pushes the camera back so bubble spheres
