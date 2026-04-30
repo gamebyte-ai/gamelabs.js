@@ -15,7 +15,7 @@ export class UIPlaygroundConfig {
   public readonly logHeight = 160;
   /** Inner padding inside every region (sidebar / stage / controls / log). */
   public readonly regionPadding = 14;
-  /** Vertical gap between sidebar sections (Component / Composition). */
+  /** Vertical gap between sidebar sections (Component / Module / Composition). */
   public readonly sidebarSectionGap = 6;
   /** Height of a single sidebar item button. */
   public readonly sidebarItemHeight = 32;
