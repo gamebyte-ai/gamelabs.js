@@ -1,4 +1,7 @@
 import {
+  AssetRequest,
+  AssetRequestList,
+  AssetTypes,
   Front2dCameraController,
   GameCameraBinding,
   GameCameraManager,
@@ -9,6 +12,7 @@ import {
   World,
 } from "@gamebyte/gamelabsjs";
 
+import { BubbleShooterAssetIds } from "./BubbleShooterAssetIds";
 import { BubbleShooterConfig } from "./BubbleShooterConfig";
 import { BubbleShooterUIIds } from "./BubbleShooterUIIds";
 import { BubbleGridLayout } from "./utilities/BubbleGridLayout";
@@ -36,6 +40,7 @@ import { GameScreenViewController } from "./controllers/GameScreenViewController
  * top wall or the first bubble it would touch. No firing yet.
  */
 export class BubbleShooterApp extends GamelabsApp {
+  private readonly _assetRequestList = new AssetRequestList();
   private readonly _config = new BubbleShooterConfig();
   private readonly _layout = new BubbleGridLayout(this._config);
   private readonly _grid = new BubbleGrid(this._layout);
@@ -80,6 +85,25 @@ export class BubbleShooterApp extends GamelabsApp {
   protected override configureViews(): void {
     this.viewFactory.registerScreen(BubbleShooterUIIds.GameScreen, GameScreenView, GameScreenViewController);
     this.viewFactory.register(GameAreaView, GameAreaViewController);
+  }
+
+  protected override loadAssets(): void {
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.BubbleRed, new URL("../assets/bubbles/red.svg", import.meta.url).href),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.BubbleBlue, new URL("../assets/bubbles/blue.svg", import.meta.url).href),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.BubbleGreen, new URL("../assets/bubbles/green.svg", import.meta.url).href),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.BubbleYellow, new URL("../assets/bubbles/yellow.svg", import.meta.url).href),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.BubblePurple, new URL("../assets/bubbles/purple.svg", import.meta.url).href),
+    );
+    this.assetManager.loadAll(this._assetRequestList.getRequests());
   }
 
   protected override postInitialize(): void {

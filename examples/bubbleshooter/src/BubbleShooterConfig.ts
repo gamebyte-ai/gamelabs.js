@@ -51,14 +51,16 @@ export class BubbleShooterConfig {
   /** Visual scale of the bubble inside the next-slot ring (× bubbleRadius). */
   public readonly nextBubbleRadiusScale = 0.6;
 
-  public readonly landingPreviewOpacity = 0.4;
+  public readonly landingPreviewOpacity = 0.55;
+  /** Ring thickness for the ghost landing preview (world units). */
+  public readonly landingPreviewRingThickness = 2.5;
 
   public readonly aimDotRadius = 3.5;
   public readonly aimDotSpacing = 15;
   public readonly aimDotColor = 0xffffff;
   public readonly aimDotAlpha = 0.6;
   /** Arc-length speed of the dot march, in world units per second. */
-  public readonly aimDotFlowSpeed = 80;
+  public readonly aimDotFlowSpeed = 60;
   /**
    * Number of dots at the trajectory tail (closest to the landing) that
    * fade out toward the end. Earlier dots use full opacity. With the

@@ -5,12 +5,13 @@ import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BubbleGridLayout } from "../utilities/BubbleGridLayout";
 import type { IAimTrajectory, IAimTrajectorySegment } from "../utilities/AimTrajectoryCalculator";
 import { BUBBLE_COLOR_HEX, BUBBLE_COLORS, type BubbleColor } from "../constants/BubbleColor";
+import { BUBBLE_COLOR_TO_ASSET_ID } from "../BubbleShooterAssetIds";
 
 const CELL_RING_SEGMENTS = 32;
 const SHOOTER_RING_SEGMENTS = 48;
+const LANDING_PREVIEW_SEGMENTS = 48;
 const AIM_DOT_SEGMENTS = 14;
-const SPHERE_WIDTH_SEGMENTS = 24;
-const SPHERE_HEIGHT_SEGMENTS = 18;
+const BUBBLE_DISC_SEGMENTS = 48;
 const BUBBLE_VISUAL_RADIUS_FACTOR = 0.94;
 const SHOOTER_Z = 0.2;
 const AIM_DOT_Z = 0.4;
@@ -36,10 +37,8 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   private readonly _borderMeshes: THREE.Mesh[] = [];
   private readonly _cellMeshes: THREE.Mesh[] = [];
 
-  private _ambientLight: THREE.AmbientLight | null = null;
-  private _directionalLight: THREE.DirectionalLight | null = null;
-  private _bubbleGeometry: THREE.SphereGeometry | null = null;
-  private readonly _bubbleMaterials = new Map<BubbleColor, THREE.MeshLambertMaterial>();
+  private _bubbleGeometry: THREE.CircleGeometry | null = null;
+  private readonly _bubbleMaterials = new Map<BubbleColor, THREE.MeshBasicMaterial>();
   private readonly _bubbleMeshes = new Map<string, THREE.Mesh>();
 
   private _shooterGroup: THREE.Group | null = null;
@@ -64,8 +63,9 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
    *  re-emits so the dot stream keeps marching when the player re-aims. */
   private _aimPhaseOffset = 0;
 
+  private _landingPreviewGeometry: THREE.RingGeometry | null = null;
   private _landingPreviewMesh: THREE.Mesh | null = null;
-  private readonly _landingPreviewMaterials = new Map<BubbleColor, THREE.MeshLambertMaterial>();
+  private readonly _landingPreviewMaterials = new Map<BubbleColor, THREE.MeshBasicMaterial>();
   private _landingPreviewColor: BubbleColor | null = null;
 
   private _flyingBubbleMesh: THREE.Mesh | null = null;
@@ -111,7 +111,6 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._gridTopY = layout.gridOriginY;
     this._buildCellOutlines(this._gridLeftX, this._gridTopY, layout, config);
 
-    this._buildLights();
     this._buildBubbleResources(layout.bubbleRadius);
     this._buildShooter(config, layout);
     this._buildNextSlot(config, layout);
@@ -306,23 +305,29 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     }
   }
 
-  private _buildLights(): void {
-    this._ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
-    this.add(this._ambientLight);
-
-    this._directionalLight = new THREE.DirectionalLight(0xffffff, 0.85);
-    this._directionalLight.position.set(-0.6, 0.8, 1);
-    this.add(this._directionalLight);
-  }
-
   private _buildBubbleResources(bubbleRadius: number): void {
-    this._bubbleGeometry = new THREE.SphereGeometry(
-      bubbleRadius * BUBBLE_VISUAL_RADIUS_FACTOR,
-      SPHERE_WIDTH_SEGMENTS,
-      SPHERE_HEIGHT_SEGMENTS,
-    );
+    // Bubbles are flat disc billboards textured with the per-colour SVG
+    // sprite shipped under `assets/bubbles/`. With a Front2D camera the
+    // disc reads as a 3D bubble thanks to the baked highlight + rim
+    // gradient. Textures are owned by AssetManager — the view only owns
+    // the materials.
+    this._bubbleGeometry = new THREE.CircleGeometry(bubbleRadius * BUBBLE_VISUAL_RADIUS_FACTOR, BUBBLE_DISC_SEGMENTS);
     for (const color of BUBBLE_COLORS) {
-      this._bubbleMaterials.set(color, new THREE.MeshLambertMaterial({ color: BUBBLE_COLOR_HEX[color] }));
+      const assetId = BUBBLE_COLOR_TO_ASSET_ID[color];
+      const tex = this.assetLoader.getAsset<THREE.Texture>(assetId);
+      if (tex) {
+        this._bubbleMaterials.set(
+          color,
+          new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }),
+        );
+      } else {
+        // Asset failed to load — fall back to a solid-colour disc so the
+        // game still renders rather than going invisible.
+        this._bubbleMaterials.set(
+          color,
+          new THREE.MeshBasicMaterial({ color: BUBBLE_COLOR_HEX[color], transparent: true, depthWrite: false }),
+        );
+      }
     }
   }
 
@@ -350,16 +355,17 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._shooterBarrelMesh = barrel;
     group.add(barrel);
 
-    // Held bubble: centred on the shooter. Material is swapped via
-    // setShooterHeldColor; default to the first palette entry until the
-    // controller calls in with the loaded colour.
-    const placeholder = this._bubbleMaterials.get(BUBBLE_COLORS[0]!) ?? new THREE.MeshLambertMaterial({ color: 0xffffff });
+    // Held bubble: centred on the shooter, attached *outside* the
+    // rotating group so the procedural highlight stays in the upper-left
+    // regardless of aim. Material is swapped via setShooterHeldColor;
+    // default to the first palette entry until the controller calls in.
+    const placeholder = this._bubbleMaterials.get(BUBBLE_COLORS[0]!);
     const bubbleGeo = this._bubbleGeometry;
-    if (bubbleGeo) {
+    if (bubbleGeo && placeholder) {
       const bubble = new THREE.Mesh(bubbleGeo, placeholder);
-      bubble.position.set(0, 0, 0);
+      bubble.position.set(layout.shooterX, layout.shooterY, SHOOTER_Z);
       this._shooterBubbleMesh = bubble;
-      group.add(bubble);
+      this.add(bubble);
     }
   }
 
@@ -386,20 +392,24 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   }
 
   private _buildLandingPreview(config: BubbleShooterConfig): void {
-    if (!this._bubbleGeometry) return;
+    // Outline-only ghost: a thin ring matching the bubble's outer radius.
+    const outer = config.bubbleRadius * BUBBLE_VISUAL_RADIUS_FACTOR;
+    const inner = Math.max(0, outer - config.landingPreviewRingThickness);
+    this._landingPreviewGeometry = new THREE.RingGeometry(inner, outer, LANDING_PREVIEW_SEGMENTS);
     for (const color of BUBBLE_COLORS) {
       this._landingPreviewMaterials.set(
         color,
-        new THREE.MeshLambertMaterial({
+        new THREE.MeshBasicMaterial({
           color: BUBBLE_COLOR_HEX[color],
           transparent: true,
           opacity: config.landingPreviewOpacity,
+          side: THREE.DoubleSide,
           depthWrite: false,
         }),
       );
     }
     const initial = this._landingPreviewMaterials.get(BUBBLE_COLORS[0]!)!;
-    const mesh = new THREE.Mesh(this._bubbleGeometry, initial);
+    const mesh = new THREE.Mesh(this._landingPreviewGeometry, initial);
     mesh.visible = false;
     this._landingPreviewMesh = mesh;
     this.add(mesh);
@@ -600,6 +610,8 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
       this.remove(this._landingPreviewMesh);
       this._landingPreviewMesh = null;
     }
+    this._landingPreviewGeometry?.dispose();
+    this._landingPreviewGeometry = null;
     for (const mat of this._landingPreviewMaterials.values()) mat.dispose();
     this._landingPreviewMaterials.clear();
     this._landingPreviewColor = null;
@@ -626,15 +638,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._bubbleGeometry = null;
     for (const mat of this._bubbleMaterials.values()) mat.dispose();
     this._bubbleMaterials.clear();
-
-    if (this._directionalLight) {
-      this.remove(this._directionalLight);
-      this._directionalLight = null;
-    }
-    if (this._ambientLight) {
-      this.remove(this._ambientLight);
-      this._ambientLight = null;
-    }
+    // Textures are owned by AssetManager; do not dispose here.
 
     for (const mesh of this._cellMeshes) this.remove(mesh);
     if (this._cellMeshes.length > 0) {
