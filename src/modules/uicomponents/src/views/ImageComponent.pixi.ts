@@ -93,9 +93,17 @@ const DEFAULT_SCALE = 1;
  * via `_buildSprite`'s slot sizing, because the helper stretches to a
  * fixed slot whereas Image preserves aspect ratio (or matches the box
  * exactly) based on `opts.fit`.
+ *
+ * The bg sprite type is fixed at construction by the resolved `border`:
+ * `border > 0` builds a `PIXI.NineSliceSprite` with a symmetric inset
+ * so corner detail (e.g. a rounded panel chrome) stays crisp at any
+ * size; `border === 0` (the default) builds a plain `PIXI.Sprite`. The
+ * fit math is identical for both — the helper assigns `width` /
+ * `height` directly, which Pixi maps to scale on plain Sprites and to
+ * 9-slice dimensions on NineSliceSprites.
  */
 export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
-  private readonly _sprite: PIXI.Sprite;
+  private readonly _sprite: PIXI.Sprite | PIXI.NineSliceSprite;
   private readonly _imageStyle: Required<SpriteStyle>;
   private readonly _fit: "contain" | "cover" | "stretch";
   private readonly _padding: number;
@@ -128,7 +136,17 @@ export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
     };
 
     const initialTexture = resolvedTextureId ? this._getTexture(resolvedTextureId) : PIXI.Texture.EMPTY;
-    this._sprite = new PIXI.Sprite(initialTexture);
+    const border = this._imageStyle.border;
+    this._sprite =
+      border > 0
+        ? new PIXI.NineSliceSprite({
+            texture: initialTexture,
+            leftWidth: border,
+            topHeight: border,
+            rightWidth: border,
+            bottomHeight: border,
+          })
+        : new PIXI.Sprite(initialTexture);
     this._sprite.anchor.set(0.5, 0.5);
     this._sprite.tint = this._imageStyle.color;
     this._sprite.alpha = this._imageStyle.alpha;
@@ -193,8 +211,12 @@ export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
 
     // The style's per-axis scale composes on top of the fit scale —
     // useful for apps that want a bit of zoom or letterboxing tuning
-    // without overriding the chosen fit semantics.
-    this._sprite.scale.set(scaleX * this._imageStyle.scaleX, scaleY * this._imageStyle.scaleY);
+    // without overriding the chosen fit semantics. Assign width/height
+    // directly so the same code path works for both `PIXI.Sprite`
+    // (Pixi's setter maps width/height onto scale) and
+    // `PIXI.NineSliceSprite` (which sizes via width/height natively).
+    this._sprite.width = tw * scaleX * this._imageStyle.scaleX;
+    this._sprite.height = th * scaleY * this._imageStyle.scaleY;
     this._sprite.position.set(w / 2, h / 2);
   }
 }

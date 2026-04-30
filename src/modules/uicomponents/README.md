@@ -1,6 +1,9 @@
 # UI Components Module
 
-Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Each component accepts a plain preset object so configuration can be stored as JSON (e.g. loaded through the `AssetManager` as a `Text` asset and parsed at runtime).
+Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. The components fall into two categories:
+
+- **Themed components** — driven by the framework's `StyleManager`. Construction takes `(assetManager, style, opts)` where the style is resolved via `styleManager.resolve(UIComponentsStyleIds.<Id>, override?)`. Adding `UIComponentsBinding` to the app registers the framework default style + skin asset requests for each one. See [Themed components do **not** use JSON presets](#themed-components-do-not-use-json-presets).
+- **Layout components** — pure flex containers (`VerticalLayout`, `HorizontalLayout`, `GridLayout`, `FullscreenLayout`). They accept a single plain preset object that can be stored as JSON (e.g. loaded through the `AssetManager` as a `Text` asset and parsed at runtime). See the [JSON preset pattern](#json-preset-pattern) section.
 
 ## Components
 
@@ -19,7 +22,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 - [`GridLayoutComponent`](#gridlayoutcomponent) — flex container with row-wrap that approximates a CSS grid (no real grid algorithm)
 - [`FullscreenLayoutComponent`](#fullscreenlayoutcomponent) — layout container whose size tracks the canvas via `AppEvents`
 
-Each component exports a matching `parse<Name>Preset(json: string)` helper that parses a JSON string into the preset type.
+The three layout containers `VerticalLayoutComponent`, `HorizontalLayoutComponent`, and `GridLayoutComponent` each export a matching `parse<Name>Preset(json: string)` helper that parses a JSON string into the preset type. Themed components don't have one — visual config flows through `StyleManager` instead.
 
 ---
 
@@ -191,7 +194,7 @@ Single `SpriteStyle` slot (`image`). Apps re-theme every image at once with `sty
 | ------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `image` | `SpriteStyle` | Tint / alpha / per-axis scale defaults plus an optional `textureId`. The `textureId` here serves as a theme default — `ImageComponentOpts.textureId` overrides it for per-instance content textures. |
 
-`SpriteStyle` is `{ textureId?, color?, alpha?, scaleX?, scaleY?, border? }`. The framework default leaves `textureId` undefined (content is app-supplied) and registers `color: 0xffffff`, `alpha: 1`, `border: 0`. The `border` field is informational only — Image runs its own contain / cover / stretch math, so 9-slice doesn't apply.
+`SpriteStyle` is `{ textureId?, color?, alpha?, scaleX?, scaleY?, border? }`. The framework default leaves `textureId` undefined (content is app-supplied) and registers `color: 0xffffff`, `alpha: 1`, `border: 0`. Set `border > 0` to opt into 9-slice rendering — Image builds a `PIXI.NineSliceSprite` with a symmetric inset so corner detail (e.g. a rounded panel chrome, fixed-edge frame) stays crisp at any size while the centre region stretches with `fit`.
 
 ### Methods
 
@@ -203,6 +206,7 @@ Single `SpriteStyle` slot (`image`). Apps re-theme every image at once with `sty
 - **Default style via `UIComponentsBinding`.** Adding the binding registers the `UIComponentsStyleIds.Image` style entry. No asset request — the texture is content, not skin. Apps re-theme via `styleManager.modify(...)` for app-wide tint / alpha.
 - **Texture ownership: opts vs style.** Per-instance content (logo, character portrait, screenshot) belongs on `opts.textureId`. App-wide theme defaults (e.g. a placeholder texture) belong on `style.image.textureId`. When both are set, opts wins — the per-call value is treated as the more specific intent.
 - **Fit math runs in the component.** Image bypasses `_buildSprite`'s slot sizing because the helper stretches to a fixed slot size, whereas Image preserves aspect ratio (or matches the box exactly) based on `opts.fit`. The style's `scaleX` / `scaleY` compose on top of the fit scale — useful for letterboxing tweaks without overriding the fit semantics.
+- **9-slice via `border`.** When `style.image.border > 0`, the bg sprite is a `PIXI.NineSliceSprite` instead of a plain `PIXI.Sprite`. Same fit math applies — the helper assigns `width` / `height`, which Pixi maps to scale on plain Sprites and to 9-slice dimensions on NineSliceSprites. The sprite type is fixed at construction by the resolved border. Combining `border > 0` with `fit: "stretch"` will distort corners on the non-uniform axis; that's inherent to NineSliceSprite under non-uniform stretch — pick one or the other for crisp results.
 - **Tinting.** `Container.tint` propagates to the inner sprite, so `image.tint = 0x...` works for runtime colour identity. The style's `image.color` is the registered default; per-call overrides via `styleManager.resolve(..., { image: { color: ... } })` deep-merge on top.
 
 ---
@@ -856,24 +860,23 @@ its `destroy()`.
 
 ## JSON preset pattern
 
-Most components expose a matching `parse<Name>Preset(json: string)` helper that parses a JSON string into the preset type. This lets you store component configuration as a `Text` asset in a module's `AssetRequestList` and apply per-app overrides before `initialize()`:
+The layout containers (`VerticalLayoutComponent`, `HorizontalLayoutComponent`, `GridLayoutComponent`) each expose a matching `parse<Name>Preset(json: string)` helper that parses a JSON string into the preset type. This lets you store layout configuration as a `Text` asset in a module's `AssetRequestList` and apply per-app overrides before `initialize()`:
 
 ```ts
 // In a ModuleBinding:
 this._assetRequestList.addRequest(
-  new AssetRequest(AssetTypes.Text, MyAssetIds.MyBgPreset, "", '{"bgTextureId":"MyApp.Background","overlayAlpha":0.18}'),
+  new AssetRequest(AssetTypes.Text, MyAssetIds.MyColPreset, "", '{"width":400,"gap":18,"alignItems":"center"}'),
 );
 
 // In a View:
-const json = this.assetLoader.getAsset<string>(MyAssetIds.MyBgPreset) ?? "{}";
-const bg = new BackgroundComponent(parseBackgroundComponentPreset(json));
-bg.resolveAssets(this.assetLoader);
+const json = this.assetLoader.getAsset<string>(MyAssetIds.MyColPreset) ?? "{}";
+const col = new VerticalLayoutComponent(parseVerticalLayoutComponentPreset(json));
 ```
 
 Use `UIUtils.updateFields(base, overrides)` to tweak individual fields without rewriting the full JSON:
 
 ```ts
-const updated = UIUtils.updateFields(originalJson, '{"overlayAlpha":0.3}');
+const updated = UIUtils.updateFields(originalJson, '{"gap":24}');
 ```
 
 ### Themed components do **not** use JSON presets

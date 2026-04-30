@@ -205,10 +205,13 @@ export type ListComponentStyle = {
  *   a textureId resolves either from a style override or the opts.
  * - `color` / `alpha`: `0xffffff` / `1` so default-skin renders the
  *   image untinted at full opacity.
- * - `scaleX` / `scaleY`: `1` (informational — the component does its own
- *   contain / cover / stretch scaling based on `ImageComponentOpts.fit`).
- * - `border`: `0`. The component runs its own fit math, so 9-slice
- *   doesn't apply.
+ * - `scaleX` / `scaleY`: `1`. Composes on top of the component's
+ *   fit-driven scale — useful for letterboxing tweaks without changing
+ *   the chosen `fit` semantics.
+ * - `border`: `0`. Set positive to opt into 9-slice rendering — Image
+ *   builds a `PIXI.NineSliceSprite` with a symmetric inset so corner
+ *   detail (e.g. a rounded panel chrome, fixed-edge frame) stays crisp
+ *   at any size while the centre region stretches with `fit`.
  */
 export type ImageComponentStyle = {
   image?: SpriteStyle;
