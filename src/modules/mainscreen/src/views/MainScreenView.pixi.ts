@@ -11,6 +11,7 @@ import {
   UIComponentsStyleIds,
   type BackgroundComponentStyle,
   type ButtonComponentStyle,
+  type ImageComponentStyle,
 } from "../../../uicomponents/src/UIComponentsStyleTypes.js";
 import type { IMainScreenView } from "./IMainScreenView.js";
 import { MainScreenAssetIds } from "../MainScreenAssetIds.js";
@@ -36,13 +37,7 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     alignItems: "center",
   });
 
-  private readonly logo = new ImageComponent({
-    width: MainScreenView.logoWidth,
-    height: MainScreenView.logoHeight,
-    textureId: MainScreenAssetIds.Logo,
-    fit: "contain",
-    padding: 0.96,
-  });
+  private logo!: ImageComponent;
 
   private background!: BackgroundComponent;
   private playButton!: ButtonComponent;
@@ -87,10 +82,20 @@ export class MainScreenView extends ScreenView implements IMainScreenView {
     const buttonsColPresetJson = this.assetLoader.getAsset<string>(MainScreenAssetIds.ButtonsColPreset) ?? "{}";
     this.buttonsCol = new VerticalLayoutComponent(parseVerticalLayoutComponentPreset(buttonsColPresetJson));
 
+    // Logo — image content is per-screen so the textureId lives on opts;
+    // tint / alpha defaults flow from the framework Image style.
+    const logoStyle = this.styleManager.resolve<ImageComponentStyle>(UIComponentsStyleIds.Image);
+    this.logo = new ImageComponent(this.assetLoader, logoStyle, {
+      width: MainScreenView.logoWidth,
+      height: MainScreenView.logoHeight,
+      textureId: MainScreenAssetIds.Logo,
+      fit: "contain",
+      padding: 0.96,
+    });
+
     this.addChild(this.background);
 
     // Logo bar: absolute positioned so it doesn't affect centered button layout.
-    this.logo.resolveAssets(this.assetLoader);
     this.logoBar.addChild(this.logo);
     this.addChild(this.logoBar);
 

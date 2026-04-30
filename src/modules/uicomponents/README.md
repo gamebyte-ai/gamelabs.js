@@ -6,7 +6,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. Eac
 
 - [`ButtonComponent`](#buttoncomponent) — pressable button driven by the framework `StyleManager` with four-state skin (idle / hover / pressed / disabled) and centered label
 - [`BackgroundComponent`](#backgroundcomponent) — full-screen cover-fit background driven by the framework `StyleManager` with overlay + fallback colour
-- [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch)
+- [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch), driven by the framework `StyleManager` for tint / alpha defaults
 - [`ToggleComponent`](#togglecomponent) — on/off switch driven by the framework `StyleManager` with track + thumb skin
 - [`SliderComponent`](#slidercomponent) — horizontal slider driven by the framework `StyleManager` with track / fill / thumb skin and min/max/step constraints
 - [`DropdownComponent`](#dropdowncomponent) — select-style dropdown driven by the framework `StyleManager` with overlay-rendered option list
@@ -146,35 +146,64 @@ A single `SpriteStyle` slot. Apps re-theme every background at once with `styleM
 
 ## ImageComponent
 
-Texture fitted into a layout-managed box with configurable scaling behavior.
+Texture fitted into a layout-managed box with configurable scaling behavior, themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `ImageComponentStyle`, and geometry / fit opts. Unlike skinned components (Button, Slider, etc.) the texture here is _content_ — each app supplies its own per-call. The style mostly carries cosmetic defaults (tint, alpha) so apps can re-theme every Image at once via `styleManager.modify(UIComponentsStyleIds.Image, { image: { color: 0xf59e0b } })`.
 
 ```ts
-const logo = new ImageComponent({
+// In a HudViewBase / ScreenView / PopupView subclass — the base class
+// exposes `styleManager` and `assetLoader` getters for free:
+const imageStyle = this.styleManager.resolve<ImageComponentStyle>(UIComponentsStyleIds.Image);
+const logo = new ImageComponent(this.assetLoader, imageStyle, {
   width: 520,
   height: 140,
   textureId: "MainScreen.Logo",
   fit: "contain",
   padding: 0.96,
 });
-logo.resolveAssets(assetManager);
+
+// Per-instance tint without touching the global default:
+const tintedStyle = this.styleManager.resolve<ImageComponentStyle>(UIComponentsStyleIds.Image, { image: { color: 0xf59e0b, alpha: 0.85 } });
+const tinted = new ImageComponent(this.assetLoader, tintedStyle, {
+  width: 200,
+  height: 200,
+  textureId: "MyApp.Hero",
+});
 ```
 
-### `ImageComponentPreset`
+### `ImageComponentOpts`
 
-| Field       | Type                                | Default     | Description                                                                                                                                                   |
-| ----------- | ----------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `x`         | `number`                            | —           | X position.                                                                                                                                                   |
-| `y`         | `number`                            | —           | Y position.                                                                                                                                                   |
-| `width`     | `number \| string`                  | —           | Fixed width. Accepts a number or a percentage string like `"100%"`.                                                                                           |
-| `height`    | `number \| string`                  | —           | Fixed height. Accepts a number or a percentage string like `"100%"`.                                                                                          |
-| `textureId` | `string`                            | —           | Asset ID for the texture. Resolved via `resolveAssets()`.                                                                                                     |
-| `fit`       | `"contain" \| "cover" \| "stretch"` | `"contain"` | Fit strategy. `contain` preserves aspect ratio and fits entirely inside; `cover` preserves aspect ratio and fills (may crop); `stretch` ignores aspect ratio. |
-| `padding`   | `number`                            | `1`         | Scale factor applied to the fit calculation (0–1). E.g. `0.96` leaves a 4% margin. Ignored when `fit` is `"stretch"`.                                         |
+Geometry / fit. Visual fields (tint / alpha / scale) live on the style — pass them through `StyleManager.resolve(...)`.
+
+| Field       | Type                                | Default     | Description                                                                                                                                                                                                                          |
+| ----------- | ----------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `x`         | `number`                            | —           | X position.                                                                                                                                                                                                                          |
+| `y`         | `number`                            | —           | Y position.                                                                                                                                                                                                                          |
+| `width`     | `number \| string`                  | —           | Fixed width. Accepts a number or a percentage string like `"100%"`.                                                                                                                                                                  |
+| `height`    | `number \| string`                  | —           | Fixed height. Accepts a number or a percentage string like `"100%"`.                                                                                                                                                                 |
+| `textureId` | `string`                            | —           | Asset id for the per-instance content texture. Resolved eagerly at construction. Wins over `style.image.textureId` when both are set. Use the style slot for theme defaults; use this opt for per-screen content (logos, portraits). |
+| `fit`       | `"contain" \| "cover" \| "stretch"` | `"contain"` | Fit strategy. `contain` preserves aspect ratio and fits entirely inside; `cover` preserves aspect ratio and fills (may crop); `stretch` ignores aspect ratio.                                                                        |
+| `padding`   | `number`                            | `1`         | Scale factor applied to the fit calculation (0–1). E.g. `0.96` leaves a 4% margin. Ignored when `fit` is `"stretch"`.                                                                                                                |
+
+### `ImageComponentStyle`
+
+Single `SpriteStyle` slot (`image`). Apps re-theme every image at once with `styleManager.modify(UIComponentsStyleIds.Image, { … })`; per-image overrides flow through `styleManager.resolve(...)` at the call site.
+
+| Slot    | Type          | Notes                                                                                                                                                                                                |
+| ------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `image` | `SpriteStyle` | Tint / alpha / per-axis scale defaults plus an optional `textureId`. The `textureId` here serves as a theme default — `ImageComponentOpts.textureId` overrides it for per-instance content textures. |
+
+`SpriteStyle` is `{ textureId?, color?, alpha?, scaleX?, scaleY?, border? }`. The framework default leaves `textureId` undefined (content is app-supplied) and registers `color: 0xffffff`, `alpha: 1`, `border: 0`. The `border` field is informational only — Image runs its own contain / cover / stretch math, so 9-slice doesn't apply.
 
 ### Methods
 
-- `setTexture(texture)` — set the texture directly.
-- `resolveAssets(assetManager)` — look up `textureId` in the asset manager and apply it.
+- `setTexture(texture)` — replace the rendered texture at runtime; the fit math re-runs against the current layout box.
+- `setTextureId(id)` — convenience: look up the texture by asset id via the asset manager and apply it. Throws if the asset isn't loaded.
+
+### Notes
+
+- **Default style via `UIComponentsBinding`.** Adding the binding registers the `UIComponentsStyleIds.Image` style entry. No asset request — the texture is content, not skin. Apps re-theme via `styleManager.modify(...)` for app-wide tint / alpha.
+- **Texture ownership: opts vs style.** Per-instance content (logo, character portrait, screenshot) belongs on `opts.textureId`. App-wide theme defaults (e.g. a placeholder texture) belong on `style.image.textureId`. When both are set, opts wins — the per-call value is treated as the more specific intent.
+- **Fit math runs in the component.** Image bypasses `_buildSprite`'s slot sizing because the helper stretches to a fixed slot size, whereas Image preserves aspect ratio (or matches the box exactly) based on `opts.fit`. The style's `scaleX` / `scaleY` compose on top of the fit scale — useful for letterboxing tweaks without overriding the fit semantics.
+- **Tinting.** `Container.tint` propagates to the inner sprite, so `image.tint = 0x...` works for runtime colour identity. The style's `image.color` is the registered default; per-call overrides via `styleManager.resolve(..., { image: { color: ... } })` deep-merge on top.
 
 ---
 
@@ -849,9 +878,9 @@ const updated = UIUtils.updateFields(originalJson, '{"overlayAlpha":0.3}');
 
 ### Themed components do **not** use JSON presets
 
-`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, `BackgroundComponent`, `DropdownComponent`, `ListComponent`, and `ScrollViewComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
+`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, `BackgroundComponent`, `DropdownComponent`, `ListComponent`, `ScrollViewComponent`, and `ImageComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
 
-- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, `.Background`, `.Dropdown`, `.List`, and `.ScrollView`.
+- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, `.Background`, `.Dropdown`, `.List`, `.ScrollView`, and `.Image`.
 - **Per-component override** — the call site passes a deep-merge override to `styleManager.resolve(UIComponentsStyleIds.<Id>, { … })` and forwards the resolved style to the constructor. See the component sections above for the canonical pattern.
 
-The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` / `Dropdown` / `List` / `ScrollView` components without supplying any art.
+The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` / `Dropdown` / `List` / `ScrollView` components without supplying any art. `ImageComponent` is also `StyleManager`-driven but ships no default texture — the texture is per-instance app content.

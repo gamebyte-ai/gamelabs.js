@@ -176,3 +176,31 @@ export const LIST_SELECTION_MODES: readonly ListSelectionModePreset[] = [
   "single",
   "multi",
 ];
+
+// ─── ImageDemo ─────────────────────────────────────────────────────────
+
+export type ImageFitPreset = "contain" | "cover" | "stretch";
+
+export const IMAGE_FIT_PRESETS: readonly ImageFitPreset[] = ["contain", "cover", "stretch"];
+
+/**
+ * Aspect-ratio variants the Image demo cycles through. Each preset is
+ * a different shape so the user can see how `fit` / `padding` re-scale
+ * and re-align the texture inside a fixed-size box.
+ */
+export interface ImageContentPreset {
+  /** Source-texture width in pixels. */
+  readonly width: number;
+  /** Source-texture height in pixels. */
+  readonly height: number;
+  /** Background fill colour for the canvas-generated test texture. */
+  readonly color: number;
+  /** Short label shown in the controls panel + event log. */
+  readonly label: string;
+}
+
+export const IMAGE_CONTENT_PRESETS: readonly ImageContentPreset[] = [
+  { width: 200, height: 100, color: 0x3b82f6, label: "wide" },
+  { width: 100, height: 100, color: 0x22c55e, label: "square" },
+  { width: 100, height: 200, color: 0xef4444, label: "tall" },
+];

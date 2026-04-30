@@ -9,6 +9,7 @@ import {
   type BackgroundComponentStyle,
   type ButtonComponentStyle,
   type DropdownComponentStyle,
+  type ImageComponentStyle,
   type ListComponentStyle,
   type RadioButtonComponentStyle,
   type ScrollViewComponentStyle,
@@ -142,5 +143,14 @@ describe("UIComponentsBinding", () => {
     expect(scrollViewStyle.thumb?.textureId).toBe(UIComponentsAssetIds.DefaultScrollViewThumb);
     expect(scrollViewStyle.thumb?.alpha).toBe(0.6);
     expect(scrollViewStyle.thumb?.border).toBe(4);
+
+    // Image style — single sprite slot, no framework default texture.
+    // The slot only carries cosmetic defaults (tint / alpha) since the
+    // texture is per-instance app-supplied content.
+    const imageStyle = styleManager.resolve<ImageComponentStyle>(UIComponentsStyleIds.Image);
+    expect(imageStyle.image?.textureId).toBeUndefined();
+    expect(imageStyle.image?.color).toBe(0xffffff);
+    expect(imageStyle.image?.alpha).toBe(1);
+    expect(imageStyle.image?.border).toBe(0);
   });
 });

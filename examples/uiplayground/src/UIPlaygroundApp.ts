@@ -16,6 +16,7 @@ import { BackgroundDemoViewController } from "./controllers/BackgroundDemoViewCo
 import { ButtonDemoViewController } from "./controllers/ButtonDemoViewController.js";
 import { DropdownDemoViewController } from "./controllers/DropdownDemoViewController.js";
 import { GridLayoutDemoViewController } from "./controllers/GridLayoutDemoViewController.js";
+import { ImageDemoViewController } from "./controllers/ImageDemoViewController.js";
 import { ListDemoViewController } from "./controllers/ListDemoViewController.js";
 import { PlaygroundShellViewController } from "./controllers/PlaygroundShellViewController.js";
 import { RadioButtonDemoViewController } from "./controllers/RadioButtonDemoViewController.js";
@@ -29,6 +30,7 @@ import { BackgroundDemoView } from "./views/BackgroundDemoView.pixi.js";
 import { ButtonDemoView } from "./views/ButtonDemoView.pixi.js";
 import { DropdownDemoView } from "./views/DropdownDemoView.pixi.js";
 import { GridLayoutDemoView } from "./views/GridLayoutDemoView.pixi.js";
+import { ImageDemoView } from "./views/ImageDemoView.pixi.js";
 import { ListDemoView } from "./views/ListDemoView.pixi.js";
 import { PlaygroundShellView } from "./views/PlaygroundShellView.pixi.js";
 import { RadioButtonDemoView } from "./views/RadioButtonDemoView.pixi.js";
@@ -264,6 +266,7 @@ export class UIPlaygroundApp extends GamelabsApp {
     this.viewFactory.register(RadioButtonGroupDemoView, RadioButtonGroupDemoViewController);
     this.viewFactory.register(ScrollViewDemoView, ScrollViewDemoViewController);
     this.viewFactory.register(ListDemoView, ListDemoViewController);
+    this.viewFactory.register(ImageDemoView, ImageDemoViewController);
     this.viewFactory.register(BackgroundDemoView, BackgroundDemoViewController);
   }
 

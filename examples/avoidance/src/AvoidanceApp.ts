@@ -14,6 +14,7 @@ import {
   OscStyleIds,
   type OscButtonStyle,
   StyleManager,
+  UIComponentsBinding,
 } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
@@ -39,6 +40,11 @@ export class AvoidanceApp extends GamelabsApp {
   private readonly _gameEvents = new GameEvents();
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _onScreenControlsBinding = new OnScreenControlsBinding();
+  // UIComponentsBinding ships the framework default Button skin asset
+  // requests + style entry — `GameOverPopupView` resolves
+  // `UIComponentsStyleIds.Button` for its "Play Again" button, so the
+  // binding has to be registered before the popup mounts.
+  private readonly _uiComponentsBinding = new UIComponentsBinding();
 
   private _gameAreaView: GameAreaView | null = null;
   private _cameraController: Topdown2dCameraController | null = null;
@@ -51,6 +57,7 @@ export class AvoidanceApp extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._onScreenControlsBinding);
+    this.addModule(this._uiComponentsBinding);
   }
 
   protected override configureDI(): void {

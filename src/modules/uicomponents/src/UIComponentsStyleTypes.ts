@@ -190,6 +190,31 @@ export type ListComponentStyle = {
 };
 
 /**
+ * Visual style for `ImageComponent`. A single sprite slot — the image's
+ * tint, alpha, per-axis scale, and optional `textureId`. Unlike skinned
+ * components (Button, Slider, etc.) the texture here is *content* —
+ * each app supplies its own. The `textureId` field is optional in the
+ * registered default; consumers typically pass it per-call via
+ * `styleManager.resolve(UIComponentsStyleIds.Image, { image: { textureId: "..." } })`,
+ * or via `ImageComponentOpts.textureId` when they want to keep the
+ * style focused on tint / alpha defaults.
+ *
+ * Slot defaults (applied for any field omitted in the registered style
+ * and the per-component override):
+ * - `textureId`: undefined. The component renders an empty sprite until
+ *   a textureId resolves either from a style override or the opts.
+ * - `color` / `alpha`: `0xffffff` / `1` so default-skin renders the
+ *   image untinted at full opacity.
+ * - `scaleX` / `scaleY`: `1` (informational — the component does its own
+ *   contain / cover / stretch scaling based on `ImageComponentOpts.fit`).
+ * - `border`: `0`. The component runs its own fit math, so 9-slice
+ *   doesn't apply.
+ */
+export type ImageComponentStyle = {
+  image?: SpriteStyle;
+};
+
+/**
  * Visual style for `ScrollViewComponent`'s scrollbars. Two sprite slots —
  * `track` (full-length background, hit-tested for jump-to-position taps)
  * and `thumb` (the draggable handle drawn on top of the track). Both
@@ -229,4 +254,5 @@ export const UIComponentsStyleIds = {
   Dropdown: "uicomponents.dropdown",
   List: "uicomponents.list",
   ScrollView: "uicomponents.scrollview",
+  Image: "uicomponents.image",
 } as const;

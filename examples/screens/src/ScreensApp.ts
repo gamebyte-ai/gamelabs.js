@@ -1,4 +1,4 @@
-import { GamelabsApp, MainScreenAssetIds, UnsubscribeBag, UIEvents, UIUtils } from "@gamebyte/gamelabsjs";
+import { GamelabsApp, MainScreenAssetIds, UIComponentsBinding, UnsubscribeBag, UIEvents, UIUtils } from "@gamebyte/gamelabsjs";
 
 import { MainScreenBinding, MainScreenEvents, MainScreenUIIds } from "@gamebyte/gamelabsjs";
 import { LevelProgressScreenBinding, LevelProgressScreenEvents, LevelProgressScreenUIIds } from "@gamebyte/gamelabsjs";
@@ -6,6 +6,11 @@ import { LevelProgressModel } from "./modules/levelprogressscreen/models/LevelPr
 import { ScreensConfig } from "./ScreensConfig";
 
 export class ScreensApp extends GamelabsApp {
+  // UIComponentsBinding ships the framework default styles + skin asset
+  // requests for `Button`, `Background`, `Image`, etc. — `MainScreenView`
+  // resolves those via `styleManager.resolve(UIComponentsStyleIds.*)`,
+  // so the binding has to be registered before the screen mounts.
+  private readonly _uiComponentsBinding = new UIComponentsBinding();
   private readonly _mainScreenBinding = new MainScreenBinding();
   private readonly _levelProgressScreenBinding = new LevelProgressScreenBinding(new LevelProgressModel());
   private readonly _config = new ScreensConfig();
@@ -26,6 +31,7 @@ export class ScreensApp extends GamelabsApp {
       this._mainScreenBinding.assetRequestList.overrideRequest(MainScreenAssetIds.PlayButtonPreset, "", updated);
     }
 
+    this.addModule(this._uiComponentsBinding);
     this.addModule(this._mainScreenBinding);
     this.addModule(this._levelProgressScreenBinding);
   }

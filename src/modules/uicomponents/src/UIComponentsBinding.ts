@@ -9,6 +9,7 @@ import {
   type BackgroundComponentStyle,
   type ButtonComponentStyle,
   type DropdownComponentStyle,
+  type ImageComponentStyle,
   type ListComponentStyle,
   type RadioButtonComponentStyle,
   type ScrollViewComponentStyle,
@@ -318,6 +319,15 @@ export class UIComponentsBinding extends ModuleBinding {
     styleManager.add<ScrollViewComponentStyle>(UIComponentsStyleIds.ScrollView, {
       track: { textureId: UIComponentsAssetIds.DefaultScrollViewTrack, color: 0xffffff, alpha: 0, scaleX: 1, scaleY: 1, border: 4 },
       thumb: { textureId: UIComponentsAssetIds.DefaultScrollViewThumb, color: 0xffffff, alpha: 0.6, scaleX: 1, scaleY: 1, border: 4 },
+    });
+
+    // Default Image style — content textures are app-supplied so no
+    // `textureId` is registered here. The slot defaults make the
+    // component render the image untinted at full opacity. Apps tint
+    // app-wide via `styleManager.modify(UIComponentsStyleIds.Image, …)`,
+    // or per-call via `styleManager.resolve(...)` overrides.
+    styleManager.add<ImageComponentStyle>(UIComponentsStyleIds.Image, {
+      image: { color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
     });
   }
 }
