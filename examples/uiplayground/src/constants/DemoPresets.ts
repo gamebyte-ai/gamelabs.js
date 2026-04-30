@@ -109,8 +109,6 @@ export const DROPDOWN_ITEM_LIBRARY: readonly DropdownItemPreset[] = [
   { id: "sandbox", label: "Sandbox" },
 ];
 
-export const DROPDOWN_ITEM_COUNTS: readonly number[] = [3, 5, 8];
-
 export const DROPDOWN_PLACEHOLDERS: readonly string[] = [
   "Select…",
   "Choose difficulty",

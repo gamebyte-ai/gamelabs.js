@@ -71,7 +71,7 @@ export class GridLayoutDemoViewController implements IViewController<IGridLayout
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "alignItems",
         GRID_ALIGN_ITEMS,
         this._alignItemsIndex,
@@ -81,7 +81,7 @@ export class GridLayoutDemoViewController implements IViewController<IGridLayout
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "justifyContent",
         GRID_JUSTIFY_CONTENT,
         this._justifyContentIndex,
@@ -91,7 +91,7 @@ export class GridLayoutDemoViewController implements IViewController<IGridLayout
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "flexWrap",
         GRID_FLEX_WRAP,
         this._flexWrapIndex,
@@ -101,7 +101,7 @@ export class GridLayoutDemoViewController implements IViewController<IGridLayout
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "itemHeights",
         GRID_ITEM_HEIGHT_MODES,
         this._itemHeightModeIndex,

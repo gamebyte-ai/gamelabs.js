@@ -64,6 +64,19 @@ export class ControlsManager implements IControlsManager {
     );
   }
 
+  public addDropdownControl<T>(
+    label: string,
+    values: readonly T[],
+    initialIndex: number,
+    formatValue: (value: T) => string,
+    onChange: (value: T, index: number) => void,
+  ): Unsubscribe {
+    return (
+      this._shell?.addDropdownControl(label, values, initialIndex, formatValue, onChange) ??
+      NOOP_UNSUBSCRIBE
+    );
+  }
+
   public addRadioGroupControl<T>(
     label: string,
     values: readonly T[],

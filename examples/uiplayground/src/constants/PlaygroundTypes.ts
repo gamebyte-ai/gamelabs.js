@@ -1,12 +1,16 @@
 /**
- * Sidebar grouping for a registered demo.
+ * Sidebar grouping for a registered demo. `Component` covers the
+ * individual `uicomponents` widgets; `Module` covers framework
+ * `ModuleBinding`-shaped subsystems exercised in isolation (e.g. the
+ * settings popup); `Composition` is reserved for future composite-flow
+ * demos.
  */
-export type DemoCategory = "Component" | "Composition";
+export type DemoCategory = "Component" | "Module" | "Composition";
 
 /**
  * Order in which sidebar sections are rendered.
  */
-export const SIDEBAR_CATEGORY_ORDER: readonly DemoCategory[] = ["Component", "Composition"];
+export const SIDEBAR_CATEGORY_ORDER: readonly DemoCategory[] = ["Component", "Module", "Composition"];
 
 /**
  * One entry in the demo registry — also the shape the shell view uses

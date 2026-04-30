@@ -53,6 +53,13 @@ export interface IPlaygroundShellView extends IScreenView {
     formatValue: (value: T) => string,
     onChange: (value: T, index: number) => void,
   ): Unsubscribe;
+  addDropdownControl<T>(
+    label: string,
+    values: readonly T[],
+    initialIndex: number,
+    formatValue: (value: T) => string,
+    onChange: (value: T, index: number) => void,
+  ): Unsubscribe;
   addRadioGroupControl<T>(
     label: string,
     values: readonly T[],

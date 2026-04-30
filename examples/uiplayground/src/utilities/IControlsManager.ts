@@ -40,9 +40,25 @@ export interface IControlsManager {
 
   /**
    * Appends a "label cycle-button → currentValue" row that round-robins
-   * through `values`.
+   * through `values`. Suitable for short two-option toggles where seeing
+   * every alternative isn't useful; for sets of three or more options,
+   * prefer {@link addDropdownControl} so all alternatives stay visible
+   * in the open list.
    */
   addCycleControl<T>(
+    label: string,
+    values: readonly T[],
+    initialIndex: number,
+    formatValue: (value: T) => string,
+    onChange: (value: T, index: number) => void,
+  ): Unsubscribe;
+
+  /**
+   * Appends a "label `DropdownComponent`" row. Renders all values as
+   * dropdown items so every alternative is visible in the open list —
+   * the canonical control for sets of three or more options.
+   */
+  addDropdownControl<T>(
     label: string,
     values: readonly T[],
     initialIndex: number,

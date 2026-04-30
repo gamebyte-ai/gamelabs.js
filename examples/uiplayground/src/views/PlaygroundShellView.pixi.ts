@@ -1,6 +1,7 @@
 import * as PIXI from "pixi.js";
 import {
   ButtonComponent,
+  DropdownComponent,
   HorizontalLayoutComponent,
   HudViewBase,
   RadioButtonGroupComponent,
@@ -10,6 +11,7 @@ import {
   UIComponentsStyleIds,
   VerticalLayoutComponent,
   type ButtonComponentStyle,
+  type DropdownComponentStyle,
   type IInstanceResolver,
   type IView,
   type RadioButtonComponentStyle,
@@ -30,6 +32,7 @@ import { ListDemoView } from "./ListDemoView.pixi.js";
 import { RadioButtonDemoView } from "./RadioButtonDemoView.pixi.js";
 import { RadioButtonGroupDemoView } from "./RadioButtonGroupDemoView.pixi.js";
 import { ScrollViewDemoView } from "./ScrollViewDemoView.pixi.js";
+import { SettingsModuleDemoView } from "./SettingsModuleDemoView.pixi.js";
 import { SliderDemoView } from "./SliderDemoView.pixi.js";
 import { ToggleDemoView } from "./ToggleDemoView.pixi.js";
 import type { IPlaygroundShellView } from "./IPlaygroundShellView.js";
@@ -66,6 +69,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     ["list", ListDemoView],
     ["image", ImageDemoView],
     ["background", BackgroundDemoView],
+    ["settings", SettingsModuleDemoView],
   ]);
 
   private _config: UIPlaygroundConfig | null = null;
@@ -451,6 +455,52 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     const section = this._wrapInSection(row);
     this._demoControls.addChild(section);
     return () => this._removeControlSection(section, buttonUnsub);
+  }
+
+  public addDropdownControl<T>(
+    label: string,
+    values: readonly T[],
+    initialIndex: number,
+    formatValue: (value: T) => string,
+    onChange: (value: T, index: number) => void,
+  ): Unsubscribe {
+    if (!this._demoControls) return () => {};
+    const row = new HorizontalLayoutComponent({ gap: 12, padding: 4, alignItems: "center" });
+
+    const labelText = new PIXI.Text({ text: label, style: LABEL_STYLE });
+    labelText.layout = { width: LABEL_WIDTH };
+    row.addChild(labelText);
+
+    // Map each value to a dropdown item; the id encodes the index so
+    // the onChange callback can recover the original `T` cleanly
+    // (mirrors the addRadioGroupControl pattern).
+    const items = values.map((v, i) => ({ id: String(i), label: formatValue(v) }));
+    const dropdownStyle = this.styleManager.resolve<DropdownComponentStyle>(UIComponentsStyleIds.Dropdown, {
+      label: { fontSize: 12, fontWeight: "600", color: 0xe8eef6 },
+    });
+    const dropdown = new DropdownComponent(this.assetLoader, dropdownStyle, {
+      width: 160,
+      height: 28,
+      itemHeight: 26,
+      items,
+      selectedId: items[initialIndex]?.id,
+    });
+    // DropdownComponent doesn't set its own `.layout`, so without one
+    // here Yoga skips it from the row's flex flow and the dropdown
+    // renders at the row's (0, 0), painting on top of the label.
+    // Mirrors the pattern used in `addSliderControl` for SliderComponent.
+    dropdown.layout = { width: 160, height: 28 };
+    row.addChild(dropdown);
+
+    const dropdownUnsub = dropdown.onChange((id) => {
+      const index = Number.parseInt(id, 10);
+      if (Number.isInteger(index) && index >= 0 && index < values.length) {
+        onChange(values[index]!, index);
+      }
+    });
+    const section = this._wrapInSection(row);
+    this._demoControls.addChild(section);
+    return () => this._removeControlSection(section, dropdownUnsub);
   }
 
   public addRadioGroupControl<T>(

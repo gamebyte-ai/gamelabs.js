@@ -39,7 +39,7 @@ export class ImageDemoViewController implements IViewController<IImageDemoView> 
     this._subs.add(this._controls.onOutlineChanged((visible) => view.setOutlineVisible(visible)));
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "fit",
         IMAGE_FIT_PRESETS,
         this._fitIndex,
@@ -57,7 +57,7 @@ export class ImageDemoViewController implements IViewController<IImageDemoView> 
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "content",
         IMAGE_CONTENT_PRESETS,
         this._contentIndex,

@@ -44,7 +44,7 @@ export class SliderDemoViewController implements IViewController<ISliderDemoView
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "range",
         SLIDER_RANGE_PRESETS,
         this._rangeIndex,

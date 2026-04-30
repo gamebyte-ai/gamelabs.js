@@ -43,7 +43,7 @@ export class ListDemoViewController implements IViewController<IListDemoView> {
     this._subs.add(this._controls.onOutlineChanged((visible) => view.setOutlineVisible(visible)));
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "variant",
         LIST_VARIANTS,
         this._variantIndex,
@@ -53,7 +53,7 @@ export class ListDemoViewController implements IViewController<IListDemoView> {
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "selectionMode",
         LIST_SELECTION_MODES,
         this._selectionModeIndex,

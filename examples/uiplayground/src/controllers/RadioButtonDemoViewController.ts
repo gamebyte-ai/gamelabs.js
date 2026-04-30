@@ -52,7 +52,7 @@ export class RadioButtonDemoViewController implements IViewController<IRadioButt
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "label",
         RADIO_LABEL_PRESETS,
         this._labelIndex,

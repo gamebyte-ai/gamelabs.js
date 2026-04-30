@@ -37,7 +37,7 @@ export class ScrollViewDemoViewController implements IViewController<IScrollView
     this._subs.add(this._controls.onOutlineChanged((visible) => view.setOutlineVisible(visible)));
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "direction",
         SCROLL_VIEW_DIRECTIONS,
         this._directionIndex,

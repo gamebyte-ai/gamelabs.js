@@ -1,14 +1,11 @@
 import * as PIXI from "pixi.js";
 import {
   BackgroundComponent,
-  ButtonComponent,
   HudViewBase,
   UIComponentsStyleIds,
   VerticalLayoutComponent,
   type BackgroundComponentStyle,
-  type ButtonComponentStyle,
   type IInstanceResolver,
-  type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
 import { UIPlaygroundAssetIds } from "../UIPlaygroundAssetIds.js";
 import { UIPlaygroundConfig } from "../UIPlaygroundConfig.js";
@@ -40,11 +37,6 @@ const WRAPPER_HEIGHT = 180;
  *      call style override pointing at the playground's
  *      `UIPlaygroundAssetIds.CustomBackground` PNG (a dark vignette).
  *
- * A "Open settings" button at the bottom of the column opens the
- * framework `SettingsBinding` popup — useful for testing the settings
- * module's UI from the playground (the module's only other entry point
- * is from inside a game example's HUD).
- *
  * Overlay alpha is controllable from the controls panel; both wrappers
  * are rebuilt on every change so the user can see the
  * readability-overlay tuning live.
@@ -60,9 +52,6 @@ export class BackgroundDemoView extends HudViewBase implements IBackgroundDemoVi
   private _defaultOutline: PIXI.Graphics | null = null;
   private _customOutline: PIXI.Graphics | null = null;
   private _outlineVisible = false;
-  private _settingsBtn: ButtonComponent | null = null;
-  private _settingsBtnUnsub: Unsubscribe | null = null;
-  private readonly _openSettingsListeners = new Set<() => void>();
 
   private _overlayAlpha = 0.12;
 
@@ -88,15 +77,7 @@ export class BackgroundDemoView extends HudViewBase implements IBackgroundDemoVi
     this._refreshOutlines();
   }
 
-  public onOpenSettingsPressed(cb: () => void): Unsubscribe {
-    this._openSettingsListeners.add(cb);
-    return () => this._openSettingsListeners.delete(cb);
-  }
-
   public override preDestroy(): void {
-    this._openSettingsListeners.clear();
-    this._settingsBtnUnsub?.();
-    this._settingsBtnUnsub = null;
     this._defaultOutline?.removeFromParent();
     this._defaultOutline?.destroy();
     this._defaultOutline = null;
@@ -110,13 +91,8 @@ export class BackgroundDemoView extends HudViewBase implements IBackgroundDemoVi
     this._customWrapper = null;
     this._defaultBg = null;
     this._customBg = null;
-    this._settingsBtn = null;
     this._config = null;
     super.preDestroy();
-  }
-
-  private _fireOpenSettings(): void {
-    for (const cb of this._openSettingsListeners) cb();
   }
 
   private _buildColumn(): void {
@@ -134,8 +110,6 @@ export class BackgroundDemoView extends HudViewBase implements IBackgroundDemoVi
   private _rebuildBackgrounds(): void {
     if (!this._column) return;
 
-    this._settingsBtnUnsub?.();
-    this._settingsBtnUnsub = null;
     this._defaultOutline?.removeFromParent();
     this._defaultOutline?.destroy();
     this._defaultOutline = null;
@@ -147,7 +121,6 @@ export class BackgroundDemoView extends HudViewBase implements IBackgroundDemoVi
 
     this._column.addChild(this._buildSection("DEFAULT SKIN (white)", false));
     this._column.addChild(this._buildSection("CUSTOM SKIN (dark vignette)", true));
-    this._column.addChild(this._buildSettingsRow());
 
     this._refreshOutlines();
   }
@@ -192,35 +165,6 @@ export class BackgroundDemoView extends HudViewBase implements IBackgroundDemoVi
     }
 
     return section;
-  }
-
-  private _buildSettingsRow(): VerticalLayoutComponent {
-    const row = new VerticalLayoutComponent({
-      gap: 4,
-      padding: 0,
-      alignItems: "flex-start",
-      justifyContent: "flex-start",
-    });
-    const caption = new PIXI.Text({ text: "SETTINGS MODULE", style: SECTION_LABEL_STYLE });
-    caption.layout = {};
-    row.addChild(caption);
-
-    // Button — opens the SettingsBinding popup. The playground app
-    // registers SettingsBinding alongside UIComponentsBinding so the
-    // SettingsUIIds.SettingsPopup id resolves at runtime.
-    const buttonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
-      label: { fontSize: 14, fontWeight: "600" },
-    });
-    const button = new ButtonComponent(this.assetLoader, buttonStyle, {
-      width: 200,
-      height: 38,
-      label: "Open settings",
-    });
-    this._settingsBtn = button;
-    this._settingsBtnUnsub = button.onPress(() => this._fireOpenSettings());
-    row.addChild(button);
-
-    return row;
   }
 
   private _refreshOutlines(): void {

@@ -1,6 +1,4 @@
 import {
-  SettingsUIIds,
-  UIEvents,
   UnsubscribeBag,
   type IInstanceResolver,
   type IViewController,
@@ -11,19 +9,16 @@ import type { IBackgroundDemoView } from "../views/IBackgroundDemoView.js";
 /**
  * Controller for `BackgroundDemoView`. Drives the overlay-alpha slider
  * (the only `BackgroundComponentOpts` field worth exposing live in the
- * playground), and forwards the demo's "Open settings" press through
- * `UIEvents.createPopup(SettingsUIIds.SettingsPopup)` so the framework
- * settings module gets exercised inside the playground.
+ * playground). The settings module has its own dedicated demo entry —
+ * see `SettingsModuleDemoView*`.
  */
 export class BackgroundDemoViewController implements IViewController<IBackgroundDemoView> {
   private _controls: IControlsManager | null = null;
   private _view: IBackgroundDemoView | null = null;
-  private _uiEvents: UIEvents | null = null;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
     this._controls = resolver.getInstance(IControlsManager);
-    this._uiEvents = resolver.getInstance(UIEvents);
   }
 
   public initialize(view: IBackgroundDemoView): void {
@@ -43,25 +38,17 @@ export class BackgroundDemoViewController implements IViewController<IBackground
         (v) => this._onOverlayAlphaChanged(v),
       ),
     );
-
-    this._subs.add(view.onOpenSettingsPressed(() => this._onOpenSettingsPressed()));
   }
 
   public destroy(): void {
     this._subs.flush();
     this._view = null;
     this._controls = null;
-    this._uiEvents = null;
   }
 
   // ── Control handlers ────────────────────────────────────────────────
 
   private _onOverlayAlphaChanged(value: number): void {
     this._view?.setOverlayAlpha(value);
-  }
-
-  private _onOpenSettingsPressed(): void {
-    this._uiEvents?.createPopup(SettingsUIIds.SettingsPopup);
-    this._controls?.appendLog("Background → openSettings (SettingsPopup created)");
   }
 }

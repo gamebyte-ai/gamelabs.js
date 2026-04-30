@@ -54,7 +54,7 @@ export class ButtonDemoViewController implements IViewController<IButtonDemoView
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "label",
         BUTTON_TEXT_PRESETS,
         this._labelIndex,

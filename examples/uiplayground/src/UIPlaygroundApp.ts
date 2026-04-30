@@ -3,9 +3,6 @@ import {
   GamelabsApp,
   LogTypes,
   SettingsBinding,
-  SettingsBooleanField,
-  SettingsManager,
-  SettingsNumberField,
   UIComponentsBinding,
   UIEvents,
 } from "@gamebyte/gamelabsjs";
@@ -22,6 +19,7 @@ import { PlaygroundShellViewController } from "./controllers/PlaygroundShellView
 import { RadioButtonDemoViewController } from "./controllers/RadioButtonDemoViewController.js";
 import { RadioButtonGroupDemoViewController } from "./controllers/RadioButtonGroupDemoViewController.js";
 import { ScrollViewDemoViewController } from "./controllers/ScrollViewDemoViewController.js";
+import { SettingsModuleDemoViewController } from "./controllers/SettingsModuleDemoViewController.js";
 import { SliderDemoViewController } from "./controllers/SliderDemoViewController.js";
 import { ToggleDemoViewController } from "./controllers/ToggleDemoViewController.js";
 import { ControlsManager } from "./utilities/ControlsManager.js";
@@ -36,6 +34,7 @@ import { PlaygroundShellView } from "./views/PlaygroundShellView.pixi.js";
 import { RadioButtonDemoView } from "./views/RadioButtonDemoView.pixi.js";
 import { RadioButtonGroupDemoView } from "./views/RadioButtonGroupDemoView.pixi.js";
 import { ScrollViewDemoView } from "./views/ScrollViewDemoView.pixi.js";
+import { SettingsModuleDemoView } from "./views/SettingsModuleDemoView.pixi.js";
 import { SliderDemoView } from "./views/SliderDemoView.pixi.js";
 import { ToggleDemoView } from "./views/ToggleDemoView.pixi.js";
 
@@ -63,10 +62,13 @@ export class UIPlaygroundApp extends GamelabsApp {
   private readonly _config = new UIPlaygroundConfig();
   private readonly _controlsManager = new ControlsManager();
   private readonly _uiComponentsBinding = new UIComponentsBinding();
-  // SettingsBinding is registered so the Background demo can open the
-  // framework settings popup — the playground is otherwise a pure
-  // component catalog and wouldn't need it.
-  private readonly _settingsBinding = new SettingsBinding();
+  // SettingsBinding is registered so the Settings module demo's gear
+  // button can open the framework settings popup. `defaults: true`
+  // opts into the framework's standard field set (sfx / music /
+  // sfxVolume / musicVolume) — the playground app itself doesn't call
+  // `addField(...)` so the popup renders exactly what the framework
+  // provides.
+  private readonly _settingsBinding = new SettingsBinding({ defaults: true });
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -77,8 +79,10 @@ export class UIPlaygroundApp extends GamelabsApp {
     // so the Button demo's "default" button has art without us providing any.
     this.addModule(this._uiComponentsBinding);
     // Registers SettingsManager + SettingsPopupView/Controller. The
-    // Background demo's "Open settings" button creates the popup via
-    // `UIEvents.createPopup(SettingsUIIds.SettingsPopup)`.
+    // Settings module demo's gear button opens the popup via
+    // `UIEvents.createPopup(SettingsUIIds.SettingsPopup)`. The
+    // playground does NOT register any fields on SettingsManager —
+    // the popup renders exactly as the framework provides it.
     this.addModule(this._settingsBinding);
   }
 
@@ -268,6 +272,7 @@ export class UIPlaygroundApp extends GamelabsApp {
     this.viewFactory.register(ListDemoView, ListDemoViewController);
     this.viewFactory.register(ImageDemoView, ImageDemoViewController);
     this.viewFactory.register(BackgroundDemoView, BackgroundDemoViewController);
+    this.viewFactory.register(SettingsModuleDemoView, SettingsModuleDemoViewController);
   }
 
   protected override postInitialize(): void {
@@ -275,16 +280,6 @@ export class UIPlaygroundApp extends GamelabsApp {
       this.logger.log("HUD is not initialized", LogTypes.Error);
       throw new Error("HUD is not initialized");
     }
-
-    // Sample fields exercised by the Background demo's "Open settings"
-    // popup. Mirrors how game examples wire up SettingsBinding — apps
-    // call `addField` on the resolved SettingsManager once the binding
-    // has been initialised.
-    const settings = this.diContainer.getInstance(SettingsManager);
-    settings.addField(new SettingsBooleanField("notifications", "Notifications", true));
-    settings.addField(new SettingsBooleanField("sfxEnabled", "Sound Effects", true));
-    settings.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 0.8, 0, 1, 0.1));
-    settings.addField(new SettingsNumberField("brightness", "Brightness", 0.7, 0, 1, 0.05));
 
     this.diContainer
       .getInstance(UIEvents)

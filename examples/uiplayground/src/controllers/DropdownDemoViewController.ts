@@ -4,11 +4,7 @@ import {
   type IInstanceResolver,
   type IViewController,
 } from "@gamebyte/gamelabsjs";
-import {
-  DROPDOWN_ITEM_COUNTS,
-  DROPDOWN_ITEM_LIBRARY,
-  DROPDOWN_PLACEHOLDERS,
-} from "../constants/DemoPresets.js";
+import { DROPDOWN_ITEM_LIBRARY, DROPDOWN_PLACEHOLDERS } from "../constants/DemoPresets.js";
 import { IControlsManager } from "../utilities/IControlsManager.js";
 import type { IDropdownDemoView } from "../views/IDropdownDemoView.js";
 
@@ -22,7 +18,8 @@ import type { IDropdownDemoView } from "../views/IDropdownDemoView.js";
 export class DropdownDemoViewController implements IViewController<IDropdownDemoView> {
   private _controls: IControlsManager | null = null;
   private _view: IDropdownDemoView | null = null;
-  private _itemCountIndex = 1; // default: 5 items
+  /** Current item count (1..6). Slice depth into DROPDOWN_ITEM_LIBRARY. */
+  private _itemCount = 5;
   private _placeholderIndex = 0; // default: "Select…"
   private _selectionCycleIndex = 0; // 0 = null, 1..N = items
   private readonly _subs = new UnsubscribeBag();
@@ -62,7 +59,7 @@ export class DropdownDemoViewController implements IViewController<IDropdownDemo
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addDropdownControl(
         "placeholder",
         DROPDOWN_PLACEHOLDERS,
         this._placeholderIndex,
@@ -72,12 +69,10 @@ export class DropdownDemoViewController implements IViewController<IDropdownDemo
     );
 
     this._subs.add(
-      this._controls.addCycleControl(
+      this._controls.addSliderControl(
         "itemCount",
-        DROPDOWN_ITEM_COUNTS,
-        this._itemCountIndex,
-        (count) => `${count}`,
-        (count, index) => this._onItemCountCycled(count, index),
+        { min: 1, max: 6, step: 1, value: this._itemCount, format: (v) => `${Math.round(v)}` },
+        (v) => this._onItemCountChanged(v),
       ),
     );
 
@@ -121,8 +116,10 @@ export class DropdownDemoViewController implements IViewController<IDropdownDemo
     this._controls?.appendLog(`Dropdown → placeholder="${value}"`);
   }
 
-  private _onItemCountCycled(count: number, index: number): void {
-    this._itemCountIndex = index;
+  private _onItemCountChanged(v: number): void {
+    const count = Math.round(v);
+    if (count === this._itemCount) return;
+    this._itemCount = count;
     this._selectionCycleIndex = 0; // reset since the items list shape changed
     this._view?.setItems(this._currentItems());
     this._controls?.appendLog(`Dropdown → itemCount=${count}`);
@@ -159,7 +156,6 @@ export class DropdownDemoViewController implements IViewController<IDropdownDemo
   }
 
   private _currentItems(): readonly DropdownItem[] {
-    const count = DROPDOWN_ITEM_COUNTS[this._itemCountIndex]!;
-    return DROPDOWN_ITEM_LIBRARY.slice(0, count);
+    return DROPDOWN_ITEM_LIBRARY.slice(0, this._itemCount);
   }
 }
