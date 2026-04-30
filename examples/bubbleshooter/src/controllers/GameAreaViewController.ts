@@ -21,13 +21,20 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
     this._subs.add(this._gameEvents!.onBubblePlaced((r, c, color) => this._view?.setBubble(r, c, color)));
     this._subs.add(this._gameEvents!.onBubbleRemoved((r, c) => this._view?.removeBubble(r, c)));
     this._subs.add(this._gameEvents!.onShooterColorChanged((color) => this._view?.setShooterHeldColor(color)));
+    this._subs.add(this._gameEvents!.onShooterNextColorChanged((color) => this._view?.setShooterNextColor(color)));
     this._subs.add(this._gameEvents!.onShooterAimChanged((angle) => this._view?.setShooterAimAngle(angle)));
     this._subs.add(this._gameEvents!.onAimTrajectoryChanged((traj) => this._view?.setAimTrajectory(traj)));
     this._subs.add(this._gameEvents!.onFlyingBubbleChanged((color, x, y) => this._view?.setFlyingBubble(color, x, y)));
     this._subs.add(this._view.onAimAtWorld((x, y) => this._ops?.aimAt(x, y)));
     this._subs.add(this._view.onFire(() => this._ops?.fire()));
-    this._subs.add(this._updateManager!.register((dt) => this._ops?.update(dt), 0));
+    this._subs.add(this._view.onSwap(() => this._ops?.swap()));
+    this._subs.add(this._updateManager!.register((dt) => this._tick(dt), 0));
     this._ops!.start();
+  }
+
+  private _tick(dt: number): void {
+    this._ops?.update(dt);
+    this._view?.updateAimDots(dt);
   }
 
   public destroy(): void {

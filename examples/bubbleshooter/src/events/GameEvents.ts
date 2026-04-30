@@ -13,6 +13,7 @@ export class GameEvents {
   private readonly _bubblePlacedListeners = new Set<BubblePlacedCb>();
   private readonly _bubbleRemovedListeners = new Set<BubbleRemovedCb>();
   private readonly _shooterColorListeners = new Set<ShooterColorCb>();
+  private readonly _shooterNextColorListeners = new Set<ShooterColorCb>();
   private readonly _shooterAimListeners = new Set<ShooterAimCb>();
   private readonly _aimTrajectoryListeners = new Set<AimTrajectoryCb>();
   private readonly _flyingBubbleListeners = new Set<FlyingBubbleCb>();
@@ -42,6 +43,15 @@ export class GameEvents {
 
   public emitShooterColorChanged(color: BubbleColor | null): void {
     for (const cb of this._shooterColorListeners) cb(color);
+  }
+
+  public onShooterNextColorChanged(cb: ShooterColorCb): Unsubscribe {
+    this._shooterNextColorListeners.add(cb);
+    return () => this._shooterNextColorListeners.delete(cb);
+  }
+
+  public emitShooterNextColorChanged(color: BubbleColor | null): void {
+    for (const cb of this._shooterNextColorListeners) cb(color);
   }
 
   public onShooterAimChanged(cb: ShooterAimCb): Unsubscribe {

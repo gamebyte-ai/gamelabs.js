@@ -52,14 +52,26 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   private readonly _aimDotPool: THREE.Mesh[] = [];
   private _activeAimDots = 0;
 
+  private _aimSegments: readonly IAimTrajectorySegment[] = [];
+  private readonly _aimSegLengths: number[] = [];
+  private readonly _aimSegCumLengths: number[] = [];
+  private _aimTotalLength = 0;
+  /** Persistent phase offset in [0, spacing); preserved across trajectory
+   *  re-emits so the dot stream keeps marching when the player re-aims. */
+  private _aimPhaseOffset = 0;
+
   private _landingPreviewMesh: THREE.Mesh | null = null;
   private readonly _landingPreviewMaterials = new Map<BubbleColor, THREE.MeshLambertMaterial>();
   private _landingPreviewColor: BubbleColor | null = null;
 
   private _flyingBubbleMesh: THREE.Mesh | null = null;
 
+  private _nextSlotRingMesh: THREE.Mesh | null = null;
+  private _nextBubbleMesh: THREE.Mesh | null = null;
+
   private readonly _aimListeners = new Set<(worldX: number, worldY: number) => void>();
   private readonly _fireListeners = new Set<() => void>();
+  private readonly _swapListeners = new Set<() => void>();
   private _canvasEl: HTMLCanvasElement | null = null;
   private _pointerEventTarget: HTMLElement | null = null;
 
@@ -98,6 +110,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._buildLights();
     this._buildBubbleResources(layout.bubbleRadius);
     this._buildShooter(config, layout);
+    this._buildNextSlot(config, layout);
     this._buildAimDotResources(config);
     this._buildLandingPreview(config);
     this._buildFlyingBubble();
@@ -165,14 +178,43 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   }
 
   public setAimTrajectory(trajectory: IAimTrajectory): void {
-    this._hideAllAimDots();
-    const config = this._config;
-    if (config && this._aimDotGeometry && this._aimDotMaterial) {
-      for (const segment of trajectory.segments) {
-        this._placeDotsAlongSegment(segment, config.aimDotSpacing);
-      }
+    this._aimSegments = trajectory.segments;
+    this._aimSegLengths.length = 0;
+    this._aimSegCumLengths.length = 0;
+    let total = 0;
+    for (const seg of trajectory.segments) {
+      const dx = seg.toX - seg.fromX;
+      const dy = seg.toY - seg.fromY;
+      const len = Math.hypot(dx, dy);
+      this._aimSegLengths.push(len);
+      total += len;
+      this._aimSegCumLengths.push(total);
     }
+    this._aimTotalLength = total;
+    this._refreshAimDotsAtPhase();
     this._updateLandingPreview(trajectory);
+  }
+
+  public updateAimDots(dt: number): void {
+    if (this._aimTotalLength <= 0 || !this._config) return;
+    const spacing = this._config.aimDotSpacing;
+    if (spacing <= 0) return;
+    this._aimPhaseOffset = (this._aimPhaseOffset + this._config.aimDotFlowSpeed * dt) % spacing;
+    if (this._aimPhaseOffset < 0) this._aimPhaseOffset += spacing;
+    this._refreshAimDotsAtPhase();
+  }
+
+  public setShooterNextColor(color: BubbleColor | null): void {
+    const mesh = this._nextBubbleMesh;
+    if (!mesh) return;
+    if (color === null) {
+      mesh.visible = false;
+      return;
+    }
+    const material = this._bubbleMaterials.get(color);
+    if (!material) return;
+    mesh.material = material;
+    mesh.visible = true;
   }
 
   public setFlyingBubble(color: BubbleColor | null, x: number, y: number): void {
@@ -197,6 +239,11 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   public onFire(cb: () => void): Unsubscribe {
     this._fireListeners.add(cb);
     return () => this._fireListeners.delete(cb);
+  }
+
+  public onSwap(cb: () => void): Unsubscribe {
+    this._swapListeners.add(cb);
+    return () => this._swapListeners.delete(cb);
   }
 
   private _bubbleKey(row: number, col: number): string {
@@ -355,6 +402,26 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     mesh.visible = true;
   }
 
+  private _buildNextSlot(config: BubbleShooterConfig, layout: BubbleGridLayout): void {
+    const ringInner = config.nextSlotRadius - config.nextSlotRingThickness;
+    const ringGeo = new THREE.RingGeometry(ringInner, config.nextSlotRadius, SHOOTER_RING_SEGMENTS);
+    const ringMat = new THREE.MeshBasicMaterial({ color: config.nextSlotRingColor, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.set(layout.nextSlotX, layout.nextSlotY, SHOOTER_Z);
+    this._nextSlotRingMesh = ring;
+    this.add(ring);
+
+    if (!this._bubbleGeometry) return;
+    const placeholder = this._bubbleMaterials.get(BUBBLE_COLORS[0]!);
+    if (!placeholder) return;
+    const bubble = new THREE.Mesh(this._bubbleGeometry, placeholder);
+    bubble.scale.setScalar(config.nextBubbleRadiusScale);
+    bubble.position.set(layout.nextSlotX, layout.nextSlotY, SHOOTER_Z);
+    bubble.visible = false;
+    this._nextBubbleMesh = bubble;
+    this.add(bubble);
+  }
+
   private _buildFlyingBubble(): void {
     if (!this._bubbleGeometry) return;
     const initial = this._bubbleMaterials.get(BUBBLE_COLORS[0]!);
@@ -365,20 +432,41 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this.add(mesh);
   }
 
-  private _placeDotsAlongSegment(segment: IAimTrajectorySegment, spacing: number): void {
-    const dx = segment.toX - segment.fromX;
-    const dy = segment.toY - segment.fromY;
-    const length = Math.sqrt(dx * dx + dy * dy);
-    if (length <= spacing) return;
-    const ux = dx / length;
-    const uy = dy / length;
-    for (let t = spacing; t <= length; t += spacing) {
-      const x = segment.fromX + ux * t;
-      const y = segment.fromY + uy * t;
+  /**
+   * Place dots at arc-length positions `phase, phase + spacing, ...` until
+   * the trajectory's end. Reflections fall out for free — the arc-length
+   * walker maps any `s` through the segment list to a world point, so the
+   * dots flow smoothly through bounce points without special-casing.
+   */
+  private _refreshAimDotsAtPhase(): void {
+    this._hideAllAimDots();
+    if (!this._config || !this._aimDotGeometry || !this._aimDotMaterial) return;
+    if (this._aimTotalLength <= 0) return;
+    const spacing = this._config.aimDotSpacing;
+    for (let s = this._aimPhaseOffset; s < this._aimTotalLength; s += spacing) {
+      const pos = this._arcLengthToWorldPoint(s);
+      if (!pos) continue;
       const dot = this._acquireAimDot();
-      dot.position.set(x, y, AIM_DOT_Z);
+      dot.position.set(pos.x, pos.y, AIM_DOT_Z);
       dot.visible = true;
     }
+  }
+
+  private _arcLengthToWorldPoint(s: number): { x: number; y: number } | null {
+    for (let i = 0; i < this._aimSegments.length; i++) {
+      const cumEnd = this._aimSegCumLengths[i]!;
+      if (s <= cumEnd) {
+        const segLen = this._aimSegLengths[i]!;
+        const segStart = i === 0 ? 0 : this._aimSegCumLengths[i - 1]!;
+        const t = segLen === 0 ? 0 : (s - segStart) / segLen;
+        const seg = this._aimSegments[i]!;
+        return {
+          x: seg.fromX + (seg.toX - seg.fromX) * t,
+          y: seg.fromY + (seg.toY - seg.fromY) * t,
+        };
+      }
+    }
+    return null;
   }
 
   private _acquireAimDot(): THREE.Mesh {
@@ -411,6 +499,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._pointerEventTarget = this._canvasEl.parentElement ?? this._canvasEl;
     this._pointerEventTarget.addEventListener("pointermove", this._onPointerMove);
     this._pointerEventTarget.addEventListener("pointerdown", this._onPointerDown);
+    this._pointerEventTarget.addEventListener("contextmenu", this._onContextMenu);
   }
 
   private readonly _onPointerMove = (event: PointerEvent): void => {
@@ -428,19 +517,40 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   };
 
   private readonly _onPointerDown = (event: PointerEvent): void => {
-    if (event.button !== 0) return;
-    for (const cb of this._fireListeners) cb();
+    if (event.button === 0) {
+      for (const cb of this._fireListeners) cb();
+    } else if (event.button === 2) {
+      for (const cb of this._swapListeners) cb();
+    }
+  };
+
+  private readonly _onContextMenu = (event: MouseEvent): void => {
+    // Suppress the browser context menu so right-click can drive swap.
+    event.preventDefault();
   };
 
   public override preDestroy(): void {
     if (this._pointerEventTarget) {
       this._pointerEventTarget.removeEventListener("pointermove", this._onPointerMove);
       this._pointerEventTarget.removeEventListener("pointerdown", this._onPointerDown);
+      this._pointerEventTarget.removeEventListener("contextmenu", this._onContextMenu);
       this._pointerEventTarget = null;
     }
     this._canvasEl = null;
     this._aimListeners.clear();
     this._fireListeners.clear();
+    this._swapListeners.clear();
+
+    if (this._nextBubbleMesh) {
+      this.remove(this._nextBubbleMesh);
+      this._nextBubbleMesh = null;
+    }
+    if (this._nextSlotRingMesh) {
+      this.remove(this._nextSlotRingMesh);
+      this._nextSlotRingMesh.geometry.dispose();
+      (this._nextSlotRingMesh.material as THREE.MeshBasicMaterial).dispose();
+      this._nextSlotRingMesh = null;
+    }
 
     if (this._flyingBubbleMesh) {
       this.remove(this._flyingBubbleMesh);

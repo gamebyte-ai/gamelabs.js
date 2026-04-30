@@ -6,9 +6,12 @@ export interface IGameAreaView extends IView {
   setBubble(row: number, col: number, color: BubbleColor): void;
   removeBubble(row: number, col: number): void;
   setShooterHeldColor(color: BubbleColor | null): void;
+  setShooterNextColor(color: BubbleColor | null): void;
   setShooterAimAngle(angle: number): void;
   setAimTrajectory(trajectory: IAimTrajectory): void;
+  updateAimDots(dt: number): void;
   setFlyingBubble(color: BubbleColor | null, x: number, y: number): void;
   onAimAtWorld(cb: (worldX: number, worldY: number) => void): Unsubscribe;
   onFire(cb: () => void): Unsubscribe;
+  onSwap(cb: () => void): Unsubscribe;
 }

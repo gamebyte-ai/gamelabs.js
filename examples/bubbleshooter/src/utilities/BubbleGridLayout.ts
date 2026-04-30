@@ -147,6 +147,14 @@ export class BubbleGridLayout {
     return -this.halfAreaHeight + this._config.shooterMarginFromBottom;
   }
 
+  public get nextSlotX(): number {
+    return this.shooterX + this._config.nextSlotOffsetX;
+  }
+
+  public get nextSlotY(): number {
+    return this.shooterY + this._config.nextSlotOffsetY;
+  }
+
   public getCellWorldPosition(row: number, col: number): IBubbleGridCellPosition {
     const local = this.getCellLocalPosition(row, col);
     return { x: this.gridOriginX + local.x, y: this.gridOriginY - local.y };

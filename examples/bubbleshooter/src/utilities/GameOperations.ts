@@ -58,10 +58,10 @@ export class GameOperations implements IInjectionTarget {
     this._floatingFinder = resolver.getInstance(FloatingBubbleFinder);
   }
 
-  /** Build initial layout, load first shooter bubble, point straight up. */
+  /** Build initial layout, load shooter held + next, point straight up. */
   public start(): void {
     this.buildInitialLayout();
-    this.loadNextBubble();
+    this._initShooterBubbles();
     const layout = this._layout!;
     this.aimAt(layout.shooterX, layout.shooterY + 1);
   }
@@ -80,11 +80,50 @@ export class GameOperations implements IInjectionTarget {
     }
   }
 
-  public loadNextBubble(): void {
-    const palette = BUBBLE_COLORS;
-    const color = palette[Math.floor(Math.random() * palette.length)]!;
+  /**
+   * Swap held ↔ next. Blocked while a bubble is in flight (which also
+   * covers the synchronous pop / drop phase since state only flips back
+   * to idle after _completeFlight finishes).
+   */
+  public swap(): void {
+    if (this._state !== "idle") return;
+    const shooter = this._shooter!;
+    const a = shooter.heldColor;
+    const b = shooter.nextColor;
+    if (a === null || b === null) return;
+    this._setHeldColor(b);
+    this._setNextColor(a);
+  }
+
+  private _initShooterBubbles(): void {
+    this._setHeldColor(this._randomColor());
+    this._setNextColor(this._randomColor());
+  }
+
+  /**
+   * Promote next → held and generate a fresh next. Called immediately on
+   * fire, so during flight the shooter already shows the upcoming colour
+   * (firing stays blocked until the in-flight bubble snaps).
+   */
+  private _promoteNextBubble(): void {
+    const next = this._shooter!.nextColor ?? this._randomColor();
+    this._setHeldColor(next);
+    this._setNextColor(this._randomColor());
+  }
+
+  private _setHeldColor(color: BubbleColor | null): void {
     this._shooter!.setHeldColor(color);
     this._events!.emitShooterColorChanged(color);
+  }
+
+  private _setNextColor(color: BubbleColor | null): void {
+    this._shooter!.setNextColor(color);
+    this._events!.emitShooterNextColorChanged(color);
+  }
+
+  private _randomColor(): BubbleColor {
+    const palette = BUBBLE_COLORS;
+    return palette[Math.floor(Math.random() * palette.length)]!;
   }
 
   /**
@@ -175,8 +214,9 @@ export class GameOperations implements IInjectionTarget {
     // Push the flying bubble visual to its starting position.
     const start = trajectory.segments[0]!;
     this._events!.emitFlyingBubbleChanged(heldColor, start.fromX, start.fromY);
-    // New bubble loads onto the shooter; firing stays blocked until snap.
-    this.loadNextBubble();
+    // Promote next → held and generate a fresh next; firing stays
+    // blocked until snap.
+    this._promoteNextBubble();
   }
 
   public update(dt: number): void {

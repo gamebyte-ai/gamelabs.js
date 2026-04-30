@@ -42,12 +42,23 @@ export class BubbleShooterConfig {
   public readonly shooterBarrelThickness = 6;
   public readonly shooterBarrelColor = 0x6b86a8;
 
+  /** Next-bubble preview slot, drawn beside the shooter. */
+  public readonly nextSlotOffsetX = 78;
+  public readonly nextSlotOffsetY = -10;
+  public readonly nextSlotRadius = 22;
+  public readonly nextSlotRingThickness = 2;
+  public readonly nextSlotRingColor = 0x4a6280;
+  /** Visual scale of the bubble inside the next-slot ring (× bubbleRadius). */
+  public readonly nextBubbleRadiusScale = 0.6;
+
   public readonly landingPreviewOpacity = 0.4;
 
   public readonly aimDotRadius = 3.5;
   public readonly aimDotSpacing = 15;
   public readonly aimDotColor = 0xffffff;
   public readonly aimDotAlpha = 0.6;
+  /** Arc-length speed of the dot march, in world units per second. */
+  public readonly aimDotFlowSpeed = 80;
   public readonly aimMaxBounces = 4;
   /** Minimum angle from horizontal so aim never points sideways or down. */
   public readonly aimMinAngleFromHorizontalRad = (15 * Math.PI) / 180;
