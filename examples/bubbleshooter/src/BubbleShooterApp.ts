@@ -19,6 +19,8 @@ import { IShooter } from "./models/IShooter";
 import { GameEvents } from "./events/GameEvents";
 import { GameOperations } from "./utilities/GameOperations";
 import { AimTrajectoryCalculator } from "./utilities/AimTrajectoryCalculator";
+import { MatchFinder } from "./utilities/MatchFinder";
+import { FloatingBubbleFinder } from "./utilities/FloatingBubbleFinder";
 import { GameAreaView } from "./views/GameAreaView.three";
 import { GameAreaViewController } from "./controllers/GameAreaViewController";
 import { GameScreenView } from "./views/GameScreenView.pixi";
@@ -70,6 +72,8 @@ export class BubbleShooterApp extends GamelabsApp {
     this.diContainer.bindInstance(Shooter, this._shooter, [IShooter]);
     this.diContainer.bindInstance(GameEvents, this._gameEvents);
     this.diContainer.bindSingleton(AimTrajectoryCalculator, () => new AimTrajectoryCalculator());
+    this.diContainer.bindSingleton(MatchFinder, () => new MatchFinder());
+    this.diContainer.bindSingleton(FloatingBubbleFinder, () => new FloatingBubbleFinder());
     this.diContainer.bindSingleton(GameOperations, () => new GameOperations());
   }
 

@@ -55,6 +55,9 @@ export class BubbleShooterConfig {
   /** World units per second for the bubble's straight-line flight. */
   public readonly firedBubbleSpeed = 1500;
 
+  /** Minimum same-colour group size that pops on snap. */
+  public readonly matchPopThreshold = 3;
+
   /**
    * Front camera focal-point Z. Pushes the camera back so bubble spheres
    * (radius ≈ {@link bubbleRadius}) sit comfortably between the ortho

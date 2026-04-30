@@ -6,6 +6,8 @@ import { Shooter } from "../models/Shooter";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BubbleGridLayout } from "./BubbleGridLayout";
 import { AimTrajectoryCalculator, type IAimLanding, type IAimTrajectorySegment, type IAimTrajectory } from "./AimTrajectoryCalculator";
+import { MatchFinder } from "./MatchFinder";
+import { FloatingBubbleFinder } from "./FloatingBubbleFinder";
 
 const EMPTY_TRAJECTORY: IAimTrajectory = { segments: [], end: "none", landing: null };
 
@@ -37,6 +39,8 @@ export class GameOperations implements IInjectionTarget {
   private _shooter: Shooter | null = null;
   private _events: GameEvents | null = null;
   private _aimCalculator: AimTrajectoryCalculator | null = null;
+  private _matchFinder: MatchFinder | null = null;
+  private _floatingFinder: FloatingBubbleFinder | null = null;
 
   private _state: "idle" | "flying" = "idle";
   private _flying: IFlyingBubbleState | null = null;
@@ -50,6 +54,8 @@ export class GameOperations implements IInjectionTarget {
     this._shooter = resolver.getInstance(Shooter);
     this._events = resolver.getInstance(GameEvents);
     this._aimCalculator = resolver.getInstance(AimTrajectoryCalculator);
+    this._matchFinder = resolver.getInstance(MatchFinder);
+    this._floatingFinder = resolver.getInstance(FloatingBubbleFinder);
   }
 
   /** Build initial layout, load first shooter bubble, point straight up. */
@@ -213,6 +219,22 @@ export class GameOperations implements IInjectionTarget {
     grid.setColor(landing.row, landing.col, color);
     events.emitBubblePlaced(landing.row, landing.col, color);
     events.emitFlyingBubbleChanged(null, 0, 0);
+
+    // Match-and-pop. Group includes the just-placed bubble; below the
+    // threshold the bubble simply stays put.
+    const group = this._matchFinder!.findConnectedGroup(landing.row, landing.col);
+    if (group.length >= this._config!.matchPopThreshold) {
+      for (const cell of group) {
+        grid.setColor(cell.row, cell.col, null);
+        events.emitBubbleRemoved(cell.row, cell.col);
+      }
+      // Anything no longer anchored to the top row drops.
+      const floating = this._floatingFinder!.findFloating();
+      for (const cell of floating) {
+        grid.setColor(cell.row, cell.col, null);
+        events.emitBubbleRemoved(cell.row, cell.col);
+      }
+    }
 
     this._flying = null;
     this._state = "idle";
