@@ -492,12 +492,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     dropdown.layout = { width: 160, height: 28 };
     row.addChild(dropdown);
 
-    const dropdownUnsub = dropdown.onChange((id) => {
-      const index = Number.parseInt(id, 10);
-      if (Number.isInteger(index) && index >= 0 && index < values.length) {
-        onChange(values[index]!, index);
-      }
-    });
+    const dropdownUnsub = dropdown.onChange((id) => this._dispatchIndexedSelection(id, values, onChange));
     const section = this._wrapInSection(row);
     this._demoControls.addChild(section);
     return () => this._removeControlSection(section, dropdownUnsub);
@@ -536,12 +531,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     });
     row.addChild(group);
 
-    const groupUnsub = group.onChange((id) => {
-      const index = Number.parseInt(id, 10);
-      if (Number.isInteger(index) && index >= 0 && index < values.length) {
-        onChange(values[index]!, index);
-      }
-    });
+    const groupUnsub = group.onChange((id) => this._dispatchIndexedSelection(id, values, onChange));
     const section = this._wrapInSection(row);
     this._demoControls.addChild(section);
     return () => this._removeControlSection(section, groupUnsub);
@@ -686,6 +676,12 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     // Yoga from sucking it into the ScreenView's flex flow alongside the
     // region containers.
     g.layout = { position: "absolute", left: x, top: y, width: safeW, height: safeH };
+    // Block any pointer events that would otherwise pass through the
+    // full-screen background to the Three.js world below — required by
+    // DeveloperNotes.md §HUD ("Any visible UI element that should block
+    // world pointer input must have eventMode: 'static' set on its
+    // background Graphics").
+    g.eventMode = "static";
     g.clear();
     g.rect(0, 0, safeW, safeH).fill({ color });
   }
@@ -700,6 +696,34 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
   private _clearSidebarUnsubs(): void {
     for (const u of this._sidebarUnsubs) u();
     this._sidebarUnsubs.length = 0;
+  }
+
+  /**
+   * Translates the id-by-index selection format used by the dropdown
+   * + radio-group controls back into the original `T` value before
+   * calling the consumer's `onChange`. Mirrors the round-trip set up
+   * in `addDropdownControl` / `addRadioGroupControl` where each value
+   * is mapped to an item with `id: String(index)`.
+   */
+  private _dispatchIndexedSelection<T>(
+    id: string,
+    values: readonly T[],
+    onChange: (value: T, index: number) => void,
+  ): void {
+    const index = Number.parseInt(id, 10);
+    if (Number.isInteger(index) && index >= 0 && index < values.length) {
+      onChange(values[index]!, index);
+    }
+  }
+
+  /**
+   * Outline-toggle change handler. Mirrors the toggle value to the
+   * row's ON/OFF readout and propagates the new value to subscribers
+   * via `_setOutlineEnabled`.
+   */
+  private _handleOutlineToggleChange(readout: PIXI.Text, value: boolean): void {
+    readout.text = value ? "ON" : "OFF";
+    this._setOutlineEnabled(value);
   }
 
   /**
@@ -755,10 +779,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     readout.layout = { width: READOUT_WIDTH };
     row.addChild(readout);
 
-    toggle.onChange((value) => {
-      readout.text = value ? "ON" : "OFF";
-      this._setOutlineEnabled(value);
-    });
+    toggle.onChange((value) => this._handleOutlineToggleChange(readout, value));
 
     return row;
   }

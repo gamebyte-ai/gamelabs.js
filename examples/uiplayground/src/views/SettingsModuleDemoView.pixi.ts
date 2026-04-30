@@ -64,9 +64,11 @@ export class SettingsModuleDemoView extends HudViewBase implements ISettingsModu
       label: "⚙",
     });
     column.addChild(this._settingsBtn);
-    this._settingsBtn.onPress(() => {
-      for (const cb of this._settingsListeners) cb();
-    });
+    this._settingsBtn.onPress(() => this._fireSettingsTapped());
+  }
+
+  private _fireSettingsTapped(): void {
+    for (const cb of this._settingsListeners) cb();
   }
 
   public onSettingsTapped(cb: () => void): Unsubscribe {
