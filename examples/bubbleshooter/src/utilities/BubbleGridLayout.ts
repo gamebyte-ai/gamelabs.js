@@ -96,4 +96,59 @@ export class BubbleGridLayout {
     if (col < 0 || col >= this.getColumnCount(row)) return false;
     return true;
   }
+
+  // ── Play-area / shooter geometry (world frame, +y up, origin centred) ──
+
+  public get areaWidth(): number {
+    return this.gridWidth + 2 * this._config.playAreaPaddingX;
+  }
+
+  public get areaHeight(): number {
+    return this.gridHeight + this._config.playAreaPaddingTop + this._config.playAreaPaddingBottom;
+  }
+
+  public get halfAreaWidth(): number {
+    return this.areaWidth / 2;
+  }
+
+  public get halfAreaHeight(): number {
+    return this.areaHeight / 2;
+  }
+
+  /** World x of the grid's left edge (= leftmost-bubble centre minus a radius). */
+  public get gridOriginX(): number {
+    return -this.halfAreaWidth + this._config.playAreaPaddingX;
+  }
+
+  /** World y of the grid's top edge (= topmost-bubble centre plus a radius). */
+  public get gridOriginY(): number {
+    return this.halfAreaHeight - this._config.playAreaPaddingTop;
+  }
+
+  /** Effective wall x where a flying bubble's centre bounces. */
+  public get leftWallX(): number {
+    return -this.halfAreaWidth + this._config.bubbleRadius;
+  }
+
+  public get rightWallX(): number {
+    return this.halfAreaWidth - this._config.bubbleRadius;
+  }
+
+  /** Effective wall y where a flying bubble's centre stops at the top. */
+  public get topWallY(): number {
+    return this.halfAreaHeight - this._config.bubbleRadius;
+  }
+
+  public get shooterX(): number {
+    return 0;
+  }
+
+  public get shooterY(): number {
+    return -this.halfAreaHeight + this._config.shooterMarginFromBottom;
+  }
+
+  public getCellWorldPosition(row: number, col: number): IBubbleGridCellPosition {
+    const local = this.getCellLocalPosition(row, col);
+    return { x: this.gridOriginX + local.x, y: this.gridOriginY - local.y };
+  }
 }

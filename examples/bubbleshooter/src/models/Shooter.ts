@@ -1,0 +1,33 @@
+import type { BubbleColor } from "../constants/BubbleColor";
+import type { IShooter } from "./IShooter";
+
+/**
+ * Mutable shooter state: held bubble colour and current aim angle.
+ *
+ * Aim is stored as the world-frame angle of the firing direction (radians,
+ * measured from +x). `π/2` means straight up; values are clamped by
+ * `GameOperations.aimAt` so the shot never points horizontally or down.
+ *
+ * Concrete writers go through this class; reading callers should resolve
+ * {@link IShooter} from DI to keep state read-only outside `utilities/`.
+ */
+export class Shooter implements IShooter {
+  private _heldColor: BubbleColor | null = null;
+  private _aimAngle: number = Math.PI / 2;
+
+  public get heldColor(): BubbleColor | null {
+    return this._heldColor;
+  }
+
+  public get aimAngle(): number {
+    return this._aimAngle;
+  }
+
+  public setHeldColor(color: BubbleColor | null): void {
+    this._heldColor = color;
+  }
+
+  public setAimAngle(angle: number): void {
+    this._aimAngle = angle;
+  }
+}

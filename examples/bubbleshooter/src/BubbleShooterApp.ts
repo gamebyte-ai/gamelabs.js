@@ -6,11 +6,19 @@ import {
   LogTypes,
   UIComponentsBinding,
   UIEvents,
+  World,
 } from "@gamebyte/gamelabsjs";
 
 import { BubbleShooterConfig } from "./BubbleShooterConfig";
 import { BubbleShooterUIIds } from "./BubbleShooterUIIds";
 import { BubbleGridLayout } from "./utilities/BubbleGridLayout";
+import { BubbleGrid } from "./models/BubbleGrid";
+import { IBubbleGrid } from "./models/IBubbleGrid";
+import { Shooter } from "./models/Shooter";
+import { IShooter } from "./models/IShooter";
+import { GameEvents } from "./events/GameEvents";
+import { GameOperations } from "./utilities/GameOperations";
+import { AimTrajectoryCalculator } from "./utilities/AimTrajectoryCalculator";
 import { GameAreaView } from "./views/GameAreaView.three";
 import { GameAreaViewController } from "./controllers/GameAreaViewController";
 import { GameScreenView } from "./views/GameScreenView.pixi";
@@ -19,14 +27,18 @@ import { GameScreenViewController } from "./controllers/GameScreenViewController
 /**
  * Bubble Shooter scaffold.
  *
- * Step 1 in a multi-step build: only the play area frame and the empty
- * bubble grid are rendered. No bubbles, shooter, or input yet — the grid
- * is the foundation later mechanics (firing, neighbour matching, cluster
- * pop) will plug into.
+ * Step 3 in a multi-step build: play area + empty grid + initial bubble
+ * layout from earlier steps, plus a shooter at the bottom-centre that
+ * holds a random-coloured bubble, rotates to track the cursor, and shows
+ * a dotted aim line that reflects off the side walls and stops at the
+ * top wall or the first bubble it would touch. No firing yet.
  */
 export class BubbleShooterApp extends GamelabsApp {
   private readonly _config = new BubbleShooterConfig();
   private readonly _layout = new BubbleGridLayout(this._config);
+  private readonly _grid = new BubbleGrid(this._layout);
+  private readonly _shooter = new Shooter();
+  private readonly _gameEvents = new GameEvents();
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _uiComponentsBinding = new UIComponentsBinding();
 
@@ -44,10 +56,21 @@ export class BubbleShooterApp extends GamelabsApp {
   }
 
   protected override configureDI(): void {
+    if (!this.world) {
+      this.logger.log("World is not initialized", LogTypes.Error);
+      throw new Error("World is not initialized");
+    }
+    this.viewDiContainer.bindInstance(World, this.world);
+
     this.diContainer.bindInstance(BubbleShooterConfig, this._config);
     this.viewDiContainer.bindInstance(BubbleShooterConfig, this._config);
     this.diContainer.bindInstance(BubbleGridLayout, this._layout);
     this.viewDiContainer.bindInstance(BubbleGridLayout, this._layout);
+    this.diContainer.bindInstance(BubbleGrid, this._grid, [IBubbleGrid]);
+    this.diContainer.bindInstance(Shooter, this._shooter, [IShooter]);
+    this.diContainer.bindInstance(GameEvents, this._gameEvents);
+    this.diContainer.bindSingleton(AimTrajectoryCalculator, () => new AimTrajectoryCalculator());
+    this.diContainer.bindSingleton(GameOperations, () => new GameOperations());
   }
 
   protected override configureViews(): void {
@@ -67,7 +90,7 @@ export class BubbleShooterApp extends GamelabsApp {
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);
     this._cameraController = new Front2dCameraController(this._cameraManager).register();
-    this._cameraController.followPosition(0, 0, 0);
+    this._cameraController.followPosition(0, 0, this._config.cameraFocusZ);
     this._fitCamera(this.width, this.height);
 
     this.diContainer.getInstance(UIEvents).createScreen(BubbleShooterUIIds.GameScreen, this._config.transitions.gameScreenEnter);
