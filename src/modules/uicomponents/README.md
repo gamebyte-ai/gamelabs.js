@@ -10,6 +10,7 @@ Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. The
 - [`ButtonComponent`](#buttoncomponent) — pressable button driven by the framework `StyleManager` with four-state skin (idle / hover / pressed / disabled) and centered label
 - [`BackgroundComponent`](#backgroundcomponent) — full-screen cover-fit background driven by the framework `StyleManager` with overlay + fallback colour
 - [`ImageComponent`](#imagecomponent) — texture fitted into a layout-managed box (contain / cover / stretch), driven by the framework `StyleManager` for tint / alpha defaults
+- [`LabelComponent`](#labelcomponent) — display text with an optional 9-slice background, driven by the framework `StyleManager`
 - [`ToggleComponent`](#togglecomponent) — on/off switch driven by the framework `StyleManager` with track + thumb skin
 - [`SliderComponent`](#slidercomponent) — horizontal slider driven by the framework `StyleManager` with track / fill / thumb skin and min/max/step constraints
 - [`DropdownComponent`](#dropdowncomponent) — select-style dropdown driven by the framework `StyleManager` with overlay-rendered option list
@@ -28,7 +29,7 @@ The three layout containers `VerticalLayoutComponent`, `HorizontalLayoutComponen
 
 ## ButtonComponent
 
-Pressable button themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `ButtonComponentStyle`, and geometry / label opts. The four pointer states (`idle` / `hover` / `pressed` / `disabled`) each carry an independent `SpriteStyle` (texture / tint / alpha / 9-slice border / scale); the matching texture / tint / alpha gets applied automatically on pointer transitions. The framework's `UIComponentsBinding` registers a default style entry under `UIComponentsStyleIds.Button` with the four PNGs it ships, so apps that add the binding get fully-textured buttons without supplying any art.
+Pressable button themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a `ButtonComponentStyle`, and geometry / label opts. The four pointer states (`idle` / `hover` / `pressed` / `disabled`) each carry an independent `SpriteStyle` (texture / tint / alpha / 9-slice border / scale); the matching texture / tint / alpha gets applied automatically on pointer transitions. The framework's `UIComponentsBinding` registers a default style entry under `UIComponentsStyleIds.Button` with the four PNGs it ships, so apps that add the binding get fully-textured buttons without supplying any art.
 
 ```ts
 // In a HudViewBase / ScreenView / PopupView subclass — the base class
@@ -98,13 +99,13 @@ Bundle of four `SpriteStyle` slots plus an optional `TextStyle` label. Apps re-t
 - **Default skin via `UIComponentsBinding`.** Adding the binding registers the four `DefaultButton{Idle,Hover,Pressed,Disabled}` `HudTexture` asset requests _and_ the `UIComponentsStyleIds.Button` style entry. Apps re-theme every button at once with `styleManager.modify(UIComponentsStyleIds.Button, { hover: { color: 0x88aaff } })`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
 - **Tinting for colour identity.** When several buttons share a skin but need distinct colours (e.g. tower-defence shop cards, "Next Level" CTAs), set `button.tint = 0x...` after construction. `Container.tint` propagates to the bg sprite. The label's colour comes from `style.label.color` and is unaffected by container tint — set both if you want the label to follow the button's tint.
 - **State machine.** Pointer events flow through `@pixi/ui` `Button` (`onDown` / `onUp` / `onUpOut` / `onHover` / `onOut`); the component consolidates them into the four-state model and applies the matching state's `SpriteStyle` on each transition.
-- **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects all referenced textures to be loaded in the asset manager. Construct buttons in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
+- **Eager construction.** The constructor calls `_buildStyledSprite` from the base `StyledHudObject`, which expects all referenced textures to be loaded in the asset manager. Construct buttons in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
 ---
 
 ## BackgroundComponent
 
-Full-screen background themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `BackgroundComponentStyle`, and overlay / fallback opts. Fills its parent (absolute layout), scales the resolved bg texture to "cover" the viewport without distortion (preserves aspect ratio, centres + crops along the over-sized axis), and draws a semi-transparent overlay on top for UI readability. The framework's `UIComponentsBinding` registers a default style entry (white texture) so apps that add the binding get a usable fallback without supplying any art; real screens override the bg slot.
+Full-screen background themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a `BackgroundComponentStyle`, and overlay / fallback opts. Fills its parent (absolute layout), scales the resolved bg texture to "cover" the viewport without distortion (preserves aspect ratio, centres + crops along the over-sized axis), and draws a semi-transparent overlay on top for UI readability. The framework's `UIComponentsBinding` registers a default style entry (white texture) so apps that add the binding get a usable fallback without supplying any art; real screens override the bg slot.
 
 ```ts
 // In a HudViewBase / ScreenView / PopupView subclass:
@@ -134,14 +135,14 @@ Overlay + fallback colours are per-screen UI tuning rather than themable skin da
 
 A single `SpriteStyle` slot. Apps re-theme every background at once with `styleManager.modify(UIComponentsStyleIds.Background, { bg: { textureId: "..." } })`; per-screen overrides flow through `styleManager.resolve(...)` at the call site.
 
-| Slot | Type          | Notes                                                                                                                                                                 |
-| ---- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bg` | `SpriteStyle` | The cover-scaled background texture. The component bypasses `_buildSprite` for cover-fit math, so `border` / `scaleX` / `scaleY` on this slot are informational only. |
+| Slot | Type          | Notes                                                                                                                                                                       |
+| ---- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bg` | `SpriteStyle` | The cover-scaled background texture. The component bypasses `_buildStyledSprite` for cover-fit math, so `border` / `scaleX` / `scaleY` on this slot are informational only. |
 
 ### Notes
 
 - **Default skin via `UIComponentsBinding`.** Adding the binding registers the `DefaultBackground` `HudTexture` asset request _and_ the `UIComponentsStyleIds.Background` style entry. The default texture is plain white — meant as a placeholder; real screens override the `bg` slot with their own backdrop.
-- **Cover-fit math.** The component scales the bg sprite by `Math.max(width / textureWidth, height / textureHeight)` so the smaller axis overflows + crops, matching CSS `background-size: cover`. This is custom logic — the base `_buildSprite` helper would stretch instead and distort the texture along the over-sized axis.
+- **Cover-fit math.** The component scales the bg sprite by `Math.max(width / textureWidth, height / textureHeight)` so the smaller axis overflows + crops, matching CSS `background-size: cover`. This is custom logic — the base `_buildStyledSprite` helper would stretch instead and distort the texture along the over-sized axis.
 - **Tinting.** `Container.tint` propagates to the bg sprite; the overlay/fallback Graphics layers also respect Container.tint, so a single `bg.tint = 0xff0000` reddens the whole composite.
 - **Eager construction.** The constructor calls `_getTexture` from the base `StyledHudObject`, which throws if the resolved bg texture isn't loaded in the asset manager. Construct backgrounds in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
@@ -149,7 +150,7 @@ A single `SpriteStyle` slot. Apps re-theme every background at once with `styleM
 
 ## ImageComponent
 
-Texture fitted into a layout-managed box with configurable scaling behavior, themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `ImageComponentStyle`, and geometry / fit opts. Unlike skinned components (Button, Slider, etc.) the texture here is _content_ — each app supplies its own per-call. The style mostly carries cosmetic defaults (tint, alpha) so apps can re-theme every Image at once via `styleManager.modify(UIComponentsStyleIds.Image, { image: { color: 0xf59e0b } })`.
+Texture fitted into a layout-managed box with configurable scaling behavior, themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a `ImageComponentStyle`, and geometry / fit opts. Unlike skinned components (Button, Slider, etc.) the texture here is _content_ — each app supplies its own per-call. The style mostly carries cosmetic defaults (tint, alpha) so apps can re-theme every Image at once via `styleManager.modify(UIComponentsStyleIds.Image, { image: { color: 0xf59e0b } })`.
 
 ```ts
 // In a HudViewBase / ScreenView / PopupView subclass — the base class
@@ -205,15 +206,75 @@ Single `SpriteStyle` slot (`image`). Apps re-theme every image at once with `sty
 
 - **Default style via `UIComponentsBinding`.** Adding the binding registers the `UIComponentsStyleIds.Image` style entry. No asset request — the texture is content, not skin. Apps re-theme via `styleManager.modify(...)` for app-wide tint / alpha.
 - **Texture ownership: opts vs style.** Per-instance content (logo, character portrait, screenshot) belongs on `opts.textureId`. App-wide theme defaults (e.g. a placeholder texture) belong on `style.image.textureId`. When both are set, opts wins — the per-call value is treated as the more specific intent.
-- **Fit math runs in the component.** Image bypasses `_buildSprite`'s slot sizing because the helper stretches to a fixed slot size, whereas Image preserves aspect ratio (or matches the box exactly) based on `opts.fit`. The style's `scaleX` / `scaleY` compose on top of the fit scale — useful for letterboxing tweaks without overriding the fit semantics.
+- **Fit math runs in the component.** Image bypasses `_buildStyledSprite`'s slot sizing because the helper stretches to a fixed slot size, whereas Image preserves aspect ratio (or matches the box exactly) based on `opts.fit`. The style's `scaleX` / `scaleY` compose on top of the fit scale — useful for letterboxing tweaks without overriding the fit semantics.
 - **9-slice via `border`.** When `style.image.border > 0`, the bg sprite is a `PIXI.NineSliceSprite` instead of a plain `PIXI.Sprite`. Same fit math applies — the helper assigns `width` / `height`, which Pixi maps to scale on plain Sprites and to 9-slice dimensions on NineSliceSprites. The sprite type is fixed at construction by the resolved border. Combining `border > 0` with `fit: "stretch"` will distort corners on the non-uniform axis; that's inherent to NineSliceSprite under non-uniform stretch — pick one or the other for crisp results.
 - **Tinting.** `Container.tint` propagates to the inner sprite, so `image.tint = 0x...` works for runtime colour identity. The style's `image.color` is the registered default; per-call overrides via `styleManager.resolve(..., { image: { color: ... } })` deep-merge on top.
 
 ---
 
+## LabelComponent
+
+Display text with an optional 9-slice background, themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a `LabelComponentStyle`, and geometry / content opts. The framework's `UIComponentsBinding` registers a text-only default under `UIComponentsStyleIds.Label` (system-ui 14px 600-weight slate-100); the `bg` slot is intentionally absent so labels render as bare text by default. Apps opt into a backdrop per-instance via the `bg` slot of the resolved style — when `bg.textureId` is set the component builds a backing sprite and sizes it to the rendered text bounds.
+
+```ts
+// In a HudViewBase / ScreenView / PopupView subclass:
+const labelStyle = this.styleManager.resolve<LabelComponentStyle>(UIComponentsStyleIds.Label);
+const status = new LabelComponent(this.assetLoader, labelStyle, { text: "Ready" });
+
+// Padded badge — opt into a 9-slice bg per-call. `border > 0` makes
+// the bg a NineSliceSprite so rounded corners stay crisp across text
+// widths; `scaleX/Y > 1` inflates the bg into a padded badge.
+const badgeStyle = this.styleManager.resolve<LabelComponentStyle>(UIComponentsStyleIds.Label, {
+  text: { color: 0x000000, fontWeight: "700" },
+  bg: { textureId: MyAssetIds.BadgeBg, color: 0xffd700, alpha: 0.9, border: 6, scaleX: 1.4, scaleY: 1.6 },
+});
+const score = new LabelComponent(this.assetLoader, badgeStyle, { text: "0", anchorX: 0.5, anchorY: 0.5 });
+score.setText("1234"); // bg auto-resizes to the new text bounds
+```
+
+### `LabelComponentOpts`
+
+Geometry / content. Visual fields (font, colour, optional bg) live on the style — pass them through `StyleManager.resolve(...)`.
+
+| Field     | Type     | Default      | Description                                                                                                             |
+| --------- | -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `x`       | `number` | —            | X position.                                                                                                             |
+| `y`       | `number` | —            | Y position.                                                                                                             |
+| `text`    | `string` | **required** | Initial text content. Update later via `setText`.                                                                       |
+| `anchorX` | `number` | `0`          | Pivot X (0..1). Drives where the label's `(x, y)` lands relative to the rendered content (text + bg share this anchor). |
+| `anchorY` | `number` | `0`          | Pivot Y (0..1).                                                                                                         |
+
+### `LabelComponentStyle`
+
+Bundle of an optional `TextStyle` for the rendered string and an optional `SpriteStyle` for the backdrop. Apps re-theme every label at once with `styleManager.modify(UIComponentsStyleIds.Label, { … })`; per-label overrides flow through `styleManager.resolve(...)` at the call site.
+
+| Slot   | Type          | Notes                                                                                                                                                                                                                    |
+| ------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `text` | `TextStyle`   | Font / size / weight / colour / alpha / letterSpacing for the rendered string.                                                                                                                                           |
+| `bg`   | `SpriteStyle` | Optional backdrop. Built only when the resolved slot supplies a `textureId`. The bg sizes itself to the rendered text bounds × the slot's `scaleX/Y` (use values > 1 for padded badges). `border > 0` opts into 9-slice. |
+
+`SpriteStyle` is `{ textureId?, color?, alpha?, scaleX?, scaleY?, border? }`. `TextStyle` is `{ fontFamily?, fontSize?, fontWeight?, color?, alpha?, letterSpacing? }`. The framework default registers the text slot only; the bg slot is unset so labels are text-only out of the box.
+
+### Methods
+
+- `text` — current text content (getter).
+- `setText(value)` — replace the displayed text. The bg (when present) re-sizes to the new text bounds; the layout box updates so flex parents re-flow.
+
+### Notes
+
+- **Default style via `UIComponentsBinding`.** Adding the binding registers the `UIComponentsStyleIds.Label` style entry (text-only). Apps re-theme app-wide via `styleManager.modify(UIComponentsStyleIds.Label, { text: { color: 0xffffff } })`; per-label overrides flow through `styleManager.resolve(...)` at the call site.
+- **Bg is opt-in.** Construction only builds the backing sprite when the resolved `bg` slot supplies a `textureId`. Text-only labels skip the sprite entirely.
+- **9-slice via `border`.** When `bg.border > 0`, the backdrop is a `PIXI.NineSliceSprite` so rounded corners stay crisp across text widths; otherwise it's a plain stretched `PIXI.Sprite`. The sprite type is fixed at construction by the resolved border.
+- **Padded badge via `scaleX/Y`.** The bg sizes itself to the rendered text bounds. Set `bg.scaleX/Y > 1` (e.g. `1.4` / `1.6`) to grow the bg beyond the text — produces the canonical padded-badge look without the component needing an explicit padding opt.
+- **Anchor parity.** Both the text and the bg use the same `anchorX` / `anchorY` so they stay aligned regardless of pivot. Use `(0.5, 0.5)` for centered badges and `(0, 0)` (the default) for left-aligned labels.
+- **Layout-aware.** The component sets its own `.layout` to the rendered content's box (bg dims when present, text dims otherwise) so it participates in `@pixi/layout` flex flows. `setText` updates the layout box on every change.
+- **Tinting.** `Container.tint` propagates to the bg sprite. The text's `style.text.color` is the registered default; per-call overrides via `styleManager.resolve(..., { text: { color: ... } })` deep-merge on top. The label's text colour is independent of `Container.tint` (Pixi's `Text` ignores the parent tint).
+
+---
+
 ## ToggleComponent
 
-On/off switch themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `ToggleComponentStyle`, and geometry / value opts. The track is a single sprite whose texture swaps between the resolved `trackOn` / `trackOff` slots when the value changes; the thumb is a separate sprite that slides between the off and on positions on each transition. The framework's `UIComponentsBinding` registers a default style entry (rounded pill track + circular thumb) so apps that add the binding get a fully-textured toggle without supplying any art.
+On/off switch themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a `ToggleComponentStyle`, and geometry / value opts. The track is a single sprite whose texture swaps between the resolved `trackOn` / `trackOff` slots when the value changes; the thumb is a separate sprite that slides between the off and on positions on each transition. The framework's `UIComponentsBinding` registers a default style entry (rounded pill track + circular thumb) so apps that add the binding get a fully-textured toggle without supplying any art.
 
 ```ts
 // In a HudViewBase / ScreenView / PopupView subclass:
@@ -267,7 +328,7 @@ The framework default uses `border: 0` for all three slots — the rounded pill 
 
 - **Default skin via `UIComponentsBinding`.** Adding the binding registers the three `DefaultToggle{TrackOn,TrackOff,Thumb}` `HudTexture` asset requests _and_ the `UIComponentsStyleIds.Toggle` style entry. Apps re-theme every toggle at once with `styleManager.modify(UIComponentsStyleIds.Toggle, …)`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
 - **Tinting for colour identity.** Set `toggle.tint = 0x...` after construction; `Container.tint` propagates to track + thumb sprites simultaneously.
-- **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects all three textures (both track variants and the thumb) to be loaded in the asset manager. Construct toggles in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
+- **Eager construction.** The constructor calls `_buildStyledSprite` from the base `StyledHudObject`, which expects all three textures (both track variants and the thumb) to be loaded in the asset manager. Construct toggles in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
 ---
 
@@ -347,7 +408,7 @@ Bundle of three `SpriteStyle` slots. Defaults registered under `UIComponentsStyl
 
 ## DropdownComponent
 
-Select-style dropdown themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `DropdownComponentStyle`, and geometry / content opts. The header is a textured sprite carrying the selected label (or placeholder) plus a chevron icon (a single texture rotated 180° at runtime when the list opens). Tapping the header toggles the list — a separate textured sprite container holding stacked item rows whose backgrounds swap between the resolved `itemIdle` / `itemHover` / `itemSelected` slots. The framework's `UIComponentsBinding` registers a default style entry (legacy slate / indigo palette baked into the shipped PNGs) so apps that add the binding get a usable dropdown without supplying any art.
+Select-style dropdown themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a `DropdownComponentStyle`, and geometry / content opts. The header is a textured sprite carrying the selected label (or placeholder) plus a chevron icon (a single texture rotated 180° at runtime when the list opens). Tapping the header toggles the list — a separate textured sprite container holding stacked item rows whose backgrounds swap between the resolved `itemIdle` / `itemHover` / `itemSelected` slots. The framework's `UIComponentsBinding` registers a default style entry (legacy slate / indigo palette baked into the shipped PNGs) so apps that add the binding get a usable dropdown without supplying any art.
 
 ```ts
 // In a HudViewBase / ScreenView / PopupView subclass:
@@ -424,13 +485,13 @@ Bundle of six `SpriteStyle` slots plus an optional `TextStyle` for the shared la
 - **Hit handling inside the list.** Each row has an explicit hit rect covering its full bounds, so hover and tap fire on the entire row — not just the text. The list background also absorbs pointer events so taps at the rounded corners (where no row sits) don't fall through to the scrim and close the dropdown unexpectedly.
 - **Static placement.** The list's position is computed once on `open()` from the dropdown's current global transform. Moving the dropdown while open won't reposition the list — close and re-open instead. Parent scale / rotation is not propagated to the re-parented list.
 - **Detached scenarios.** When the dropdown has no parent at `open()` time, the list stays inline as a child of the dropdown — placement and z-order then follow standard Pixi rules.
-- **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects every referenced texture to be loaded in the asset manager. Construct dropdowns in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
+- **Eager construction.** The constructor calls `_buildStyledSprite` from the base `StyledHudObject`, which expects every referenced texture to be loaded in the asset manager. Construct dropdowns in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
 ---
 
 ## RadioButtonComponent
 
-Single radio indicator with an optional label, themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `RadioButtonComponentStyle`, and geometry / content opts. The two indicator states (`unselected` / `selected`) each carry an independent `SpriteStyle` (texture / tint / alpha / scale); `setSelected(value)` swaps the texture between them. The framework's `UIComponentsBinding` registers a default style entry under `UIComponentsStyleIds.RadioButton` with the two PNGs it ships, so apps that add the binding get a fully-textured radio without supplying any art.
+Single radio indicator with an optional label, themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a `RadioButtonComponentStyle`, and geometry / content opts. The two indicator states (`unselected` / `selected`) each carry an independent `SpriteStyle` (texture / tint / alpha / scale); `setSelected(value)` swaps the texture between them. The framework's `UIComponentsBinding` registers a default style entry under `UIComponentsStyleIds.RadioButton` with the two PNGs it ships, so apps that add the binding get a fully-textured radio without supplying any art.
 
 Designed to be composed into a `RadioButtonGroupComponent` — the button reports user taps via `onPress`, and the group calls `setSelected(true/false)` on each button to enforce mutual exclusion.
 
@@ -491,7 +552,7 @@ Bundle of two `SpriteStyle` indicator slots plus an optional `TextStyle` label. 
 - **Default skin via `UIComponentsBinding`.** Adding the binding registers the two `DefaultRadio{Unselected,Selected}` `HudTexture` asset requests _and_ the `UIComponentsStyleIds.RadioButton` style entry. Re-theme every radio at once with `styleManager.modify(...)`; texture URLs can be swapped at boot with `binding.assetRequestList.overrideRequest(id, url)`.
 - **Tinting for colour identity.** Set `radio.tint = 0x...` after construction; `Container.tint` propagates to the indicator sprite. The label's colour comes from `style.label.color` and is unaffected by container tint.
 - **Layout-aware.** The component sets its own `.layout = { width, height }` so it participates in `@pixi/layout` flex flows. The whole bounding box (indicator + gap + label) is the click target via an explicit `hitArea`.
-- **Eager construction.** The constructor calls `_buildSprite` from the base `StyledHudObject`, which expects the referenced indicator textures to be loaded in the asset manager. Construct radios in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
+- **Eager construction.** The constructor calls `_buildStyledSprite` from the base `StyledHudObject`, which expects the referenced indicator textures to be loaded in the asset manager. Construct radios in `postInitialize()` (or later) — after the framework's `loadAssets` phase has resolved.
 
 ---
 
@@ -554,7 +615,7 @@ The group hands the same `RadioButtonComponentStyle` to every child. If you want
 
 ## ScrollViewComponent
 
-Clipped scrollable viewport themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `ScrollViewComponentStyle`, and geometry / behaviour opts. The scrollbar is two textured sprites per axis — a `track` (full-length rail) and a `thumb` (draggable handle drawn on top). Both sprites use 9-slice rendering when their resolved `border > 0` so rounded ends stay crisp at any thumb / track length. The framework's `UIComponentsBinding` registers a default style entry that matches the legacy look — invisible track (alpha 0, hit-tested only) plus a slate-blue rounded thumb at 0.6 alpha — so apps that add the binding get a familiar scrollbar without supplying any art.
+Clipped scrollable viewport themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a `ScrollViewComponentStyle`, and geometry / behaviour opts. The scrollbar is two textured sprites per axis — a `track` (full-length rail) and a `thumb` (draggable handle drawn on top). Both sprites use 9-slice rendering when their resolved `border > 0` so rounded ends stay crisp at any thumb / track length. The framework's `UIComponentsBinding` registers a default style entry that matches the legacy look — invisible track (alpha 0, hit-tested only) plus a slate-blue rounded thumb at 0.6 alpha — so apps that add the binding get a familiar scrollbar without supplying any art.
 
 ```ts
 // In a HudViewBase / ScreenView / PopupView subclass — the base class
@@ -645,7 +706,7 @@ Bundle of two `SpriteStyle` slots. Apps re-theme every scroll view at once with 
 
 ## ListComponent
 
-Single-column list themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a fully-resolved `ListComponentStyle`, and geometry / content opts. Each row is a textured sprite whose background swaps between the resolved `itemIdle` / `itemHover` / `itemSelected` slots on pointer + selection transitions; the optional label uses the resolved `label` slot. Each row uses one of three layout variants — `"text"`, `"text+image"`, or `"image"` — picked up front so the row geometry stays stable. Selection is opt-in via `selectionMode`: a list can be a non-selectable button group (`"none"`), a single-select picker (`"single"`), or a multi-select set (`"multi"`). The framework's `UIComponentsBinding` registers a default style entry (legacy slate / indigo palette baked into the shipped PNGs) so apps that add the binding get a usable list without supplying any art.
+Single-column list themed via the framework's `StyleManager`. Construction takes an `AssetManager`, a `ListComponentStyle`, and geometry / content opts. Each row is a textured sprite whose background swaps between the resolved `itemIdle` / `itemHover` / `itemSelected` slots on pointer + selection transitions; the optional label uses the resolved `label` slot. Each row uses one of three layout variants — `"text"`, `"text+image"`, or `"image"` — picked up front so the row geometry stays stable. Selection is opt-in via `selectionMode`: a list can be a non-selectable button group (`"none"`), a single-select picker (`"single"`), or a multi-select set (`"multi"`). The framework's `UIComponentsBinding` registers a default style entry (legacy slate / indigo palette baked into the shipped PNGs) so apps that add the binding get a usable list without supplying any art.
 
 ```ts
 // In a HudViewBase / ScreenView / PopupView subclass — the base class
@@ -881,9 +942,9 @@ const updated = UIUtils.updateFields(originalJson, '{"gap":24}');
 
 ### Themed components do **not** use JSON presets
 
-`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, `BackgroundComponent`, `DropdownComponent`, `ListComponent`, `ScrollViewComponent`, and `ImageComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
+`ButtonComponent`, `SliderComponent`, `RadioButtonComponent`, `RadioButtonGroupComponent`, `ToggleComponent`, `BackgroundComponent`, `DropdownComponent`, `ListComponent`, `ScrollViewComponent`, `ImageComponent`, and `LabelComponent` are themed via the framework's `StyleManager` instead of JSON presets — there is no `parse*Preset` helper for any of them. To re-theme:
 
-- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, `.Background`, `.Dropdown`, `.List`, `.ScrollView`, and `.Image`.
+- **App-wide retheming** — apps call `styleManager.modify(UIComponentsStyleIds.Button, { idle: { color: 0x88aaff } })` once at boot. Every component that resolves from this id picks up the change. The same applies to `UIComponentsStyleIds.Slider`, `.RadioButton`, `.Toggle`, `.Background`, `.Dropdown`, `.List`, `.ScrollView`, `.Image`, and `.Label`.
 - **Per-component override** — the call site passes a deep-merge override to `styleManager.resolve(UIComponentsStyleIds.<Id>, { … })` and forwards the resolved style to the constructor. See the component sections above for the canonical pattern.
 
-The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` / `Dropdown` / `List` / `ScrollView` components without supplying any art. `ImageComponent` is also `StyleManager`-driven but ships no default texture — the texture is per-instance app content.
+The framework default styles and asset requests are both contributed by `UIComponentsBinding`, so adding the binding once gets you fully-textured `Button` / `Slider` / `RadioButton` / `Toggle` / `Background` / `Dropdown` / `List` / `ScrollView` components without supplying any art. `ImageComponent` and `LabelComponent` are also `StyleManager`-driven but ship no default texture — Image's texture is per-instance app content, and Label's bg is opt-in (text-only by default).

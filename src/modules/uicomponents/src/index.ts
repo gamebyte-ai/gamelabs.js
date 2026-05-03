@@ -8,6 +8,7 @@ export * from "./views/HorizontalLayoutComponent.pixi.js";
 export * from "./views/GridLayoutComponent.pixi.js";
 export * from "./views/FullscreenLayoutComponent.pixi.js";
 export * from "./views/ImageComponent.pixi.js";
+export * from "./views/LabelComponent.pixi.js";
 export * from "./views/ToggleComponent.pixi.js";
 export * from "./views/SliderComponent.pixi.js";
 export * from "./views/DropdownComponent.pixi.js";

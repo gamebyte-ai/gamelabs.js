@@ -3,11 +3,13 @@ import {
   HorizontalLayoutComponent,
   HudViewBase,
   ListComponent,
+  ScrollViewComponent,
   UIComponentsStyleIds,
   VerticalLayoutComponent,
   type IInstanceResolver,
   type ListComponentStyle,
   type ListItem,
+  type ScrollViewComponentStyle,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
 import { UIPlaygroundAssetIds } from "../UIPlaygroundAssetIds.js";
@@ -29,6 +31,13 @@ const SECTION_LABEL_STYLE: Partial<PIXI.TextStyleOptions> = {
 
 const LIST_WIDTH = 240;
 const TEXTURE_SIZE = 32;
+/**
+ * Fixed scroll-view viewport. Chosen so the default `itemCount = 6 ×
+ * 36 = 216` fits without scrolling, but raising the slider to 8+
+ * rows makes the scrollbar appear and the list scrolls inside the
+ * viewport instead of pushing the panel taller.
+ */
+const LIST_VIEWPORT_HEIGHT = 240;
 
 /**
  * Live preview for the `ListComponent` playground demo. Renders two
@@ -54,6 +63,8 @@ export class ListDemoView extends HudViewBase implements IListDemoView {
   private _row: HorizontalLayoutComponent | null = null;
   private _defaultList: ListComponent | null = null;
   private _customList: ListComponent | null = null;
+  private _defaultScroll: ScrollViewComponent | null = null;
+  private _customScroll: ScrollViewComponent | null = null;
   private _defaultOutline: PIXI.Graphics | null = null;
   private _customOutline: PIXI.Graphics | null = null;
   private _outlineVisible = false;
@@ -116,7 +127,19 @@ export class ListDemoView extends HudViewBase implements IListDemoView {
       this._customList.setItems(this._buildItems());
       this._customSelectedIds = this._customList.selectedIds;
     }
+    // Tell each wrapping ScrollView the new content extent. We can't use
+    // `refresh()` here because it reads `content.getLocalBounds()`, and
+    // the list's rows are still stacked at (0, 0) until Yoga's next
+    // layout pass — `getLocalBounds()` would return one row's worth.
+    // `setContentSize` skips the measurement entirely.
+    const totalHeight = this._totalContentHeight();
+    this._defaultScroll?.setContentSize(LIST_WIDTH, totalHeight);
+    this._customScroll?.setContentSize(LIST_WIDTH, totalHeight);
     this._refreshOutlines();
+  }
+
+  private _totalContentHeight(): number {
+    return this._itemCount * this._itemHeight;
   }
 
   public setItemHeight(height: number): void {
@@ -171,6 +194,8 @@ export class ListDemoView extends HudViewBase implements IListDemoView {
     this._row = null;
     this._defaultList = null;
     this._customList = null;
+    this._defaultScroll = null;
+    this._customScroll = null;
     for (const tex of this._paletteTextures) tex.destroy(true);
     this._paletteTextures.length = 0;
     this._config = null;
@@ -260,6 +285,12 @@ export class ListDemoView extends HudViewBase implements IListDemoView {
     this._customOutline?.removeFromParent();
     this._customOutline?.destroy();
     this._customOutline = null;
+    // Scroll views live inside the section subtree — the
+    // `removeChildren().destroy({ children: true })` chain below tears
+    // them down. Just clear the references so we don't accidentally
+    // dereference stale instances before the new sections build.
+    this._defaultScroll = null;
+    this._customScroll = null;
 
     this._row.removeChildren().forEach((c) => c.destroy({ children: true }));
 
@@ -303,16 +334,36 @@ export class ListDemoView extends HudViewBase implements IListDemoView {
       selectedIds: initialSelected,
     });
 
+    // Wrap the list in a fixed-viewport ScrollView so increasing
+    // itemCount produces a scrollbar instead of pushing the section
+    // taller. The list is added to `scroll.content` (the masked,
+    // translatable inner container); the scroll view itself stays
+    // at LIST_WIDTH × LIST_VIEWPORT_HEIGHT and participates in the
+    // section's flex column.
+    const scrollStyle = this.styleManager.resolve<ScrollViewComponentStyle>(UIComponentsStyleIds.ScrollView);
+    const scroll = new ScrollViewComponent(this.assetLoader, scrollStyle, {
+      width: LIST_WIDTH,
+      height: LIST_VIEWPORT_HEIGHT,
+      direction: "vertical",
+    });
+    scroll.content.addChild(list);
+    // Set explicit content size; `refresh()` would read
+    // `content.getLocalBounds()` which is wrong before Yoga's first
+    // layout pass (rows are stacked at 0,0).
+    scroll.setContentSize(LIST_WIDTH, this._totalContentHeight());
+
     if (isCustom) {
       this._customList = list;
+      this._customScroll = scroll;
       this._customChangeUnsub = list.onChange((ids, items) => this._fireChange("custom", ids, items));
       this._customPressUnsub = list.onItemPress((id, item) => this._firePress("custom", id, item));
     } else {
       this._defaultList = list;
+      this._defaultScroll = scroll;
       this._defaultChangeUnsub = list.onChange((ids, items) => this._fireChange("default", ids, items));
       this._defaultPressUnsub = list.onItemPress((id, item) => this._firePress("default", id, item));
     }
-    section.addChild(list);
+    section.addChild(scroll);
 
     return section;
   }
@@ -326,23 +377,24 @@ export class ListDemoView extends HudViewBase implements IListDemoView {
     this._customOutline = null;
     if (!this._outlineVisible || !this._config) return;
 
-    if (this._defaultList) {
+    // Outline marks the scroll viewport (the fixed visible rectangle);
+    // attached to the scroll view itself rather than `scroll.content`
+    // so it doesn't scroll with the rows.
+    if (this._defaultScroll) {
       this._defaultOutline = this._makeOutline();
-      this._defaultList.addChild(this._defaultOutline);
+      this._defaultScroll.addChild(this._defaultOutline);
     }
-    if (this._customList) {
+    if (this._customScroll) {
       this._customOutline = this._makeOutline();
-      this._customList.addChild(this._customOutline);
+      this._customScroll.addChild(this._customOutline);
     }
   }
 
   private _makeOutline(): PIXI.Graphics {
     const config = this._config!;
-    const w = LIST_WIDTH;
-    const h = this._itemCount * this._itemHeight;
     const g = new PIXI.Graphics();
     g.eventMode = "none";
-    g.rect(0, 0, w, h).stroke({ color: config.outlineColor, width: config.outlineWidth });
+    g.rect(0, 0, LIST_WIDTH, LIST_VIEWPORT_HEIGHT).stroke({ color: config.outlineColor, width: config.outlineWidth });
     return g;
   }
 }

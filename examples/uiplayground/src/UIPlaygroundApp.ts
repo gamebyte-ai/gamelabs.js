@@ -14,6 +14,7 @@ import { ButtonDemoViewController } from "./controllers/ButtonDemoViewController
 import { DropdownDemoViewController } from "./controllers/DropdownDemoViewController.js";
 import { GridLayoutDemoViewController } from "./controllers/GridLayoutDemoViewController.js";
 import { ImageDemoViewController } from "./controllers/ImageDemoViewController.js";
+import { LabelDemoViewController } from "./controllers/LabelDemoViewController.js";
 import { ListDemoViewController } from "./controllers/ListDemoViewController.js";
 import { PlaygroundShellViewController } from "./controllers/PlaygroundShellViewController.js";
 import { RadioButtonDemoViewController } from "./controllers/RadioButtonDemoViewController.js";
@@ -29,6 +30,7 @@ import { ButtonDemoView } from "./views/ButtonDemoView.pixi.js";
 import { DropdownDemoView } from "./views/DropdownDemoView.pixi.js";
 import { GridLayoutDemoView } from "./views/GridLayoutDemoView.pixi.js";
 import { ImageDemoView } from "./views/ImageDemoView.pixi.js";
+import { LabelDemoView } from "./views/LabelDemoView.pixi.js";
 import { ListDemoView } from "./views/ListDemoView.pixi.js";
 import { PlaygroundShellView } from "./views/PlaygroundShellView.pixi.js";
 import { RadioButtonDemoView } from "./views/RadioButtonDemoView.pixi.js";
@@ -63,12 +65,12 @@ export class UIPlaygroundApp extends GamelabsApp {
   private readonly _controlsManager = new ControlsManager();
   private readonly _uiComponentsBinding = new UIComponentsBinding();
   // SettingsBinding is registered so the Settings module demo's gear
-  // button can open the framework settings popup. `defaults: true`
-  // opts into the framework's standard field set (sfx / music /
-  // sfxVolume / musicVolume) — the playground app itself doesn't call
-  // `addField(...)` so the popup renders exactly what the framework
-  // provides.
-  private readonly _settingsBinding = new SettingsBinding({ defaults: true });
+  // button can open the framework settings popup. `audioFields: true`
+  // opts into the framework's standard audio field set (sfx / music /
+  // sfxVolume / musicVolume) and installs the AudioService bridge —
+  // the playground app itself doesn't call `addField(...)` so the
+  // popup renders exactly what the framework provides.
+  private readonly _settingsBinding = new SettingsBinding({ audioFields: true });
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -271,6 +273,7 @@ export class UIPlaygroundApp extends GamelabsApp {
     this.viewFactory.register(ScrollViewDemoView, ScrollViewDemoViewController);
     this.viewFactory.register(ListDemoView, ListDemoViewController);
     this.viewFactory.register(ImageDemoView, ImageDemoViewController);
+    this.viewFactory.register(LabelDemoView, LabelDemoViewController);
     this.viewFactory.register(BackgroundDemoView, BackgroundDemoViewController);
     this.viewFactory.register(SettingsModuleDemoView, SettingsModuleDemoViewController);
   }

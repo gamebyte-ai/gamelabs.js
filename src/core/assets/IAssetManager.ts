@@ -1,3 +1,4 @@
+import type { Texture } from "pixi.js";
 import type { AssetRequest } from "./AssetRequest";
 import type { AssetType } from "./AssetTypes";
 
@@ -16,4 +17,5 @@ export interface IAssetManager {
   getAsset<T>(id: string): T | undefined;
   setAsset(id: string, asset: unknown): void;
   isFallback(id: string): boolean;
+  getDefaultHudTexture(): Texture;
 }

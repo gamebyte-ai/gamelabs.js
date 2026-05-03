@@ -4,7 +4,6 @@ import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { TextStyle } from "../../../../core/styles/TextStyle.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
 import type { DropdownComponentStyle } from "../UIComponentsStyleTypes.js";
 
 export type DropdownItem = {
@@ -46,18 +45,6 @@ const DEFAULT_ITEM_HEIGHT = 32;
 const DEFAULT_LIST_OFFSET = 4;
 const DEFAULT_PLACEHOLDER = "Select…";
 
-const DEFAULT_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
-const DEFAULT_LABEL_FONT_SIZE = 14;
-const DEFAULT_LABEL_FONT_WEIGHT = "600";
-const DEFAULT_LABEL_COLOR = 0xe8eef6;
-const DEFAULT_LABEL_ALPHA = 1;
-
-const DEFAULT_BG_COLOR = 0xffffff;
-const DEFAULT_BG_ALPHA = 1;
-const DEFAULT_BG_SCALE = 1;
-const DEFAULT_BG_BORDER_HEADER_LIST = 6;
-const DEFAULT_BG_BORDER_FLAT = 0;
-
 const SCRIM_EXTENT = 1_000_000;
 /**
  * zIndex applied to the overlay scrim and list so they paint above
@@ -78,7 +65,7 @@ type ItemState = "idle" | "hover" | "selected";
 
 /**
  * Reusable dropdown / select component, themed via the framework's
- * style system. Construction takes an `AssetManager`, a fully-resolved
+ * style system. Construction takes an `AssetManager`, a
  * {@link DropdownComponentStyle}, and geometry / content opts:
  *
  * ```ts
@@ -125,11 +112,11 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
   private readonly _itemRows: Array<{ container: PIXI.Container; bg: PIXI.Sprite | PIXI.NineSliceSprite; text: PIXI.Text }> = [];
   private readonly _changeListeners = new Set<(id: string, item: DropdownItem) => void>();
 
-  private readonly _headerStyle: Required<SpriteStyle>;
-  private readonly _listStyle: Required<SpriteStyle>;
-  private readonly _itemStyles: Record<ItemState, Required<SpriteStyle>>;
-  private readonly _chevronStyle: Required<SpriteStyle>;
-  private readonly _labelStyle: Required<TextStyle>;
+  private readonly _headerStyle: SpriteStyle | undefined;
+  private readonly _listStyle: SpriteStyle | undefined;
+  private readonly _itemStyles: Record<ItemState, SpriteStyle | undefined>;
+  private readonly _chevronStyle: SpriteStyle | undefined;
+  private readonly _labelStyle: TextStyle | undefined;
 
   private readonly _width: number;
   private readonly _height: number;
@@ -154,76 +141,21 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
     this._items = opts.items ?? [];
     this._selectedId = this._resolveInitialSelection(opts.selectedId, this._items);
 
-    this._headerStyle = this._resolveSpriteStyle(
-      style.header,
-      UIComponentsAssetIds.DefaultDropdownHeader,
-      DEFAULT_BG_COLOR,
-      DEFAULT_BG_ALPHA,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_BORDER_HEADER_LIST,
-    );
-    this._listStyle = this._resolveSpriteStyle(
-      style.list,
-      UIComponentsAssetIds.DefaultDropdownList,
-      DEFAULT_BG_COLOR,
-      DEFAULT_BG_ALPHA,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_BORDER_HEADER_LIST,
-    );
+    this._headerStyle = style.header;
+    this._listStyle = style.list;
     this._itemStyles = {
-      idle: this._resolveSpriteStyle(
-        style.itemIdle,
-        UIComponentsAssetIds.DefaultDropdownItemIdle,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER_FLAT,
-      ),
-      hover: this._resolveSpriteStyle(
-        style.itemHover,
-        UIComponentsAssetIds.DefaultDropdownItemHover,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER_FLAT,
-      ),
-      selected: this._resolveSpriteStyle(
-        style.itemSelected,
-        UIComponentsAssetIds.DefaultDropdownItemSelected,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER_FLAT,
-      ),
+      idle: style.itemIdle,
+      hover: style.itemHover,
+      selected: style.itemSelected,
     };
-    this._chevronStyle = this._resolveSpriteStyle(
-      style.chevron,
-      UIComponentsAssetIds.DefaultDropdownChevron,
-      DEFAULT_BG_COLOR,
-      DEFAULT_BG_ALPHA,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_BORDER_FLAT,
-    );
-    this._labelStyle = this._resolveTextStyle(
-      style.label,
-      DEFAULT_LABEL_FONT_FAMILY,
-      DEFAULT_LABEL_FONT_SIZE,
-      DEFAULT_LABEL_FONT_WEIGHT,
-      DEFAULT_LABEL_COLOR,
-      DEFAULT_LABEL_ALPHA,
-    );
+    this._chevronStyle = style.chevron;
+    this._labelStyle = style.label;
 
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
 
     // Header bg (texture-driven) — replaces the legacy roundRect Graphics.
-    this._header = this._buildSprite(this._headerStyle, this._width, this._height);
+    this._header = this._buildStyledSprite(this._headerStyle, this._width, this._height);
     this._header.anchor.set(0, 0);
     this._header.position.set(0, 0);
     this._header.eventMode = "static";
@@ -232,14 +164,14 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
     this.addChild(this._header);
 
     // Header label.
-    this._label = this._buildText(this._computeHeaderLabel(), this._labelStyle);
+    this._label = this._buildStyledText(this._computeHeaderLabel(), this._labelStyle);
     this._label.anchor.set(0, 0.5);
     this._label.position.set(LABEL_PADDING, this._height / 2);
     this.addChild(this._label);
 
     // Chevron sprite — anchored at centre so 180° rotation pivots in
     // place when the list opens / closes.
-    this._chevron = this._buildSprite(this._chevronStyle, CHEVRON_SIZE, CHEVRON_SIZE);
+    this._chevron = this._buildStyledSprite(this._chevronStyle, CHEVRON_SIZE, CHEVRON_SIZE);
     this._chevron.anchor.set(0.5, 0.5);
     this._chevron.position.set(this._width - CHEVRON_PADDING - CHEVRON_SIZE / 2, this._height / 2);
     this._chevron.eventMode = "none";
@@ -253,10 +185,10 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
 
     // List bg — placeholder size; resized in `_rebuildList` once the
     // item count is known. Using slot dim 1 here would feed
-    // `_buildSprite` a degenerate size; pre-feed the header width so
-    // the texture is at least correctly proportioned even if the list
-    // is empty.
-    this._listBg = this._buildSprite(this._listStyle, this._width, this._itemHeight);
+    // `_buildStyledSprite` a degenerate size; pre-feed the header
+    // width so the texture is at least correctly proportioned even if
+    // the list is empty.
+    this._listBg = this._buildStyledSprite(this._listStyle, this._width, this._itemHeight);
     this._listBg.anchor.set(0, 0);
     this._listBg.position.set(0, 0);
     // Absorb pointer events so clicks at the rounded corners (where no
@@ -381,8 +313,8 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
     const totalH = this._items.length * ih;
 
     // Resize the list bg to the new total height. NineSliceSprite (or
-    // plain Sprite) handles the resize cleanly via _applySpriteStyle.
-    this._applySpriteStyle(this._listBg, this._listStyle, w, Math.max(1, totalH));
+    // plain Sprite) handles the resize cleanly via partial-apply.
+    this._applyPartialSpriteStyle(this._listBg, this._listStyle, w, Math.max(1, totalH));
 
     for (let i = 0; i < this._items.length; i++) {
       const item = this._items[i]!;
@@ -411,19 +343,19 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
 
     const isSelected = this._selectedId === item.id;
     const initialState: ItemState = isSelected ? "selected" : "idle";
-    const bg = this._buildSprite(this._itemStyles[initialState], w, ih);
+    const bg = this._buildStyledSprite(this._itemStyles[initialState], w, ih);
     bg.anchor.set(0, 0);
     bg.position.set(0, 0);
     bg.eventMode = "none";
     container.addChild(bg);
 
-    const text = this._buildText(item.label, this._labelStyle);
+    const text = this._buildStyledText(item.label, this._labelStyle);
     text.anchor.set(0, 0.5);
     text.position.set(LABEL_PADDING, ih / 2);
     container.addChild(text);
 
     const setState = (state: ItemState): void => {
-      this._applySpriteStyle(bg, this._itemStyles[state], w, ih);
+      this._applyPartialSpriteStyle(bg, this._itemStyles[state], w, ih);
     };
     container.on("pointerover", () => {
       if (this._selectedId !== item.id) setState("hover");

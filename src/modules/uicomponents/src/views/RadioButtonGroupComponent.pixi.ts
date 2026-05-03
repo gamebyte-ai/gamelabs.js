@@ -45,7 +45,7 @@ export type RadioButtonGroupComponentOpts = {
 /**
  * Reusable radio-button group, themed via the framework's style system.
  *
- * Construction takes an `AssetManager`, a fully-resolved
+ * Construction takes an `AssetManager`, a
  * {@link RadioButtonComponentStyle} that the group hands to every child
  * radio, and group geometry / content opts:
  *

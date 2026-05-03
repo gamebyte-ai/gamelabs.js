@@ -2,9 +2,7 @@ import "@pixi/layout";
 import type { Layout } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
-import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
-import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
 import type { BackgroundComponentStyle } from "../UIComponentsStyleTypes.js";
 
 /**
@@ -30,14 +28,9 @@ const DEFAULT_OVERLAY_ALPHA = 0.12;
 const DEFAULT_FALLBACK_COLOR = 0x020617;
 const DEFAULT_FALLBACK_ALPHA = 0.55;
 
-const DEFAULT_BG_COLOR = 0xffffff;
-const DEFAULT_BG_ALPHA = 1;
-const DEFAULT_BG_SCALE = 1;
-const DEFAULT_BG_BORDER = 0;
-
 /**
  * Reusable full-screen background component, themed via the framework's
- * style system. Construction takes an `AssetManager`, a fully-resolved
+ * style system. Construction takes an `AssetManager`, a
  * {@link BackgroundComponentStyle}, and overlay / fallback opts:
  *
  * ```ts
@@ -54,9 +47,9 @@ const DEFAULT_BG_BORDER = 0;
  * Renders the resolved bg texture cover-scaled (preserves aspect ratio,
  * centred) into its layout box, with a semi-transparent overlay on top
  * for UI readability. The cover-fit math runs in the component itself
- * rather than delegating to `StyledHudObject._buildSprite` because the
- * helper stretches the sprite to a slot size, whereas backgrounds need
- * to overflow + crop along whichever axis is over-sized.
+ * rather than delegating to `StyledHudObject._buildStyledSprite`
+ * because the helper stretches the sprite to a slot size, whereas
+ * backgrounds need to overflow + crop along whichever axis is over-sized.
  *
  * Tint flows through `Container.tint` and applies to the bg sprite
  * (overlay/fallback Graphics layers also respect Container.tint, so a
@@ -65,7 +58,6 @@ const DEFAULT_BG_BORDER = 0;
 export class BackgroundComponent extends StyledHudObject<BackgroundComponentStyle> {
   private readonly _bgSprite: PIXI.Sprite;
   private readonly _overlay: PIXI.Graphics;
-  private readonly _bgStyle: Required<SpriteStyle>;
   private readonly _overlayColor: number;
   private readonly _overlayAlpha: number;
   private readonly _fallbackColor: number;
@@ -82,28 +74,21 @@ export class BackgroundComponent extends StyledHudObject<BackgroundComponentStyl
     this._fallbackColor = opts.fallbackColor ?? DEFAULT_FALLBACK_COLOR;
     this._fallbackAlpha = opts.fallbackAlpha ?? DEFAULT_FALLBACK_ALPHA;
 
-    this._bgStyle = this._resolveSpriteStyle(
-      style.bg,
-      UIComponentsAssetIds.DefaultBackground,
-      DEFAULT_BG_COLOR,
-      DEFAULT_BG_ALPHA,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_BORDER,
-    );
-
-    // Pull the texture eagerly via the base helper. This throws with a
-    // clear error if the asset wasn't loaded — same contract as every
-    // other StyledHudObject subclass.
-    const bgTexture = this._getTexture(this._bgStyle.textureId);
+    // Resolve the bg texture. The slot's `textureId` is honoured when
+    // set (throws via `_getTexture` if the asset isn't loaded); when
+    // absent we fall back to the asset manager's 1×1 default HUD
+    // texture so the component still has a renderable sprite.
+    const bgTexture = style.bg?.textureId !== undefined ? this._getTexture(style.bg.textureId) : this._assetManager.getDefaultHudTexture();
 
     // The texture sprite is NOT under @pixi/layout control. We size and
     // position it manually for "cover" behaviour — Yoga would only
     // stretch, which would distort the texture along whichever axis is
-    // over-sized.
+    // over-sized. Built as a plain `PIXI.Sprite` (never NineSliceSprite)
+    // because cover-fit assumes a single uniform scale across the
+    // texture; nine-slice corner insets would be meaningless here.
     this._bgSprite = new PIXI.Sprite(bgTexture);
-    this._bgSprite.tint = this._bgStyle.color;
-    this._bgSprite.alpha = this._bgStyle.alpha;
+    if (style.bg?.color !== undefined) this._bgSprite.tint = style.bg.color;
+    if (style.bg?.alpha !== undefined) this._bgSprite.alpha = style.bg.alpha;
     this.addChild(this._bgSprite);
 
     this._overlay = new PIXI.Graphics();

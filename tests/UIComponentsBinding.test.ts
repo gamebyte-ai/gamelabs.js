@@ -10,6 +10,7 @@ import {
   type ButtonComponentStyle,
   type DropdownComponentStyle,
   type ImageComponentStyle,
+  type LabelComponentStyle,
   type ListComponentStyle,
   type RadioButtonComponentStyle,
   type ScrollViewComponentStyle,
@@ -152,5 +153,16 @@ describe("UIComponentsBinding", () => {
     expect(imageStyle.image?.color).toBe(0xffffff);
     expect(imageStyle.image?.alpha).toBe(1);
     expect(imageStyle.image?.border).toBe(0);
+
+    // Label style — text slot is fully populated with the framework's
+    // default font; bg slot is intentionally absent so labels render
+    // as bare text by default (apps opt into a badge per-instance).
+    const labelStyle = styleManager.resolve<LabelComponentStyle>(UIComponentsStyleIds.Label);
+    expect(labelStyle.text?.fontFamily).toBe("system-ui, -apple-system, Segoe UI, Roboto, Arial");
+    expect(labelStyle.text?.fontSize).toBe(14);
+    expect(labelStyle.text?.fontWeight).toBe("600");
+    expect(labelStyle.text?.color).toBe(0xe8eef6);
+    expect(labelStyle.text?.alpha).toBe(1);
+    expect(labelStyle.bg).toBeUndefined();
   });
 });

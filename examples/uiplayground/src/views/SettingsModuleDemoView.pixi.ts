@@ -27,7 +27,7 @@ const HINT_STYLE: Partial<PIXI.TextStyleOptions> = {
  * `UIEvents.createPopup(SettingsUIIds.SettingsPopup)`. The popup
  * itself is the framework default — the playground does NOT register
  * any fields on top of it, so the popup renders exactly as the
- * `SettingsBinding` provides it (with `defaults: true`, that's
+ * `SettingsBinding` provides it (with `audioFields: true`, that's
  * `sfx` / `music` / `sfxVolume` / `musicVolume`).
  */
 export class SettingsModuleDemoView extends HudViewBase implements ISettingsModuleDemoView {

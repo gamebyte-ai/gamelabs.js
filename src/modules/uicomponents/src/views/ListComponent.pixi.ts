@@ -5,7 +5,6 @@ import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { TextStyle } from "../../../../core/styles/TextStyle.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
 import type { ListComponentStyle } from "../UIComponentsStyleTypes.js";
 
 export type ListSelectionMode = "none" | "single" | "multi";
@@ -91,24 +90,7 @@ const DEFAULT_IMAGE_SIZE = 24;
 const DEFAULT_IMAGE_PADDING = 8;
 const DEFAULT_TEXT_PADDING = 12;
 
-const DEFAULT_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
-const DEFAULT_LABEL_FONT_SIZE = 14;
-const DEFAULT_LABEL_FONT_WEIGHT = "600";
-const DEFAULT_LABEL_COLOR = 0xe8eef6;
-const DEFAULT_LABEL_ALPHA = 1;
-
-const DEFAULT_BG_COLOR = 0xffffff;
-const DEFAULT_BG_ALPHA = 1;
-const DEFAULT_BG_SCALE = 1;
-const DEFAULT_BG_BORDER = 0;
-
 type RowState = "idle" | "hover" | "selected";
-
-const DEFAULT_TEXTURE_BY_STATE: Record<RowState, string> = {
-  idle: UIComponentsAssetIds.DefaultListItemIdle,
-  hover: UIComponentsAssetIds.DefaultListItemHover,
-  selected: UIComponentsAssetIds.DefaultListItemSelected,
-};
 
 type RowEntry<T> = {
   item: ListItem<T>;
@@ -120,7 +102,7 @@ type RowEntry<T> = {
 
 /**
  * Reusable list / picker component, themed via the framework's style
- * system. Construction takes an `AssetManager`, a fully-resolved
+ * system. Construction takes an `AssetManager`, a
  * {@link ListComponentStyle}, and geometry / content opts:
  *
  * ```ts
@@ -169,8 +151,8 @@ export class ListComponent<T = unknown> extends StyledHudObject<ListComponentSty
   private readonly _imagePadding: number;
   private readonly _textPadding: number;
 
-  private readonly _itemStyles: Record<RowState, Required<SpriteStyle>>;
-  private readonly _resolvedLabelStyle: Required<TextStyle>;
+  private readonly _itemStyles: Record<RowState, SpriteStyle | undefined>;
+  private readonly _resolvedLabelStyle: TextStyle | undefined;
 
   private readonly _changeListeners = new Set<(selectedIds: readonly string[], selectedItems: readonly ListItem<T>[]) => void>();
   private readonly _pressListeners = new Set<(id: string, item: ListItem<T>) => void>();
@@ -192,42 +174,11 @@ export class ListComponent<T = unknown> extends StyledHudObject<ListComponentSty
     this._textPadding = opts.textPadding ?? DEFAULT_TEXT_PADDING;
 
     this._itemStyles = {
-      idle: this._resolveSpriteStyle(
-        style.itemIdle,
-        DEFAULT_TEXTURE_BY_STATE.idle,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER,
-      ),
-      hover: this._resolveSpriteStyle(
-        style.itemHover,
-        DEFAULT_TEXTURE_BY_STATE.hover,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER,
-      ),
-      selected: this._resolveSpriteStyle(
-        style.itemSelected,
-        DEFAULT_TEXTURE_BY_STATE.selected,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER,
-      ),
+      idle: style.itemIdle,
+      hover: style.itemHover,
+      selected: style.itemSelected,
     };
-    this._resolvedLabelStyle = this._resolveTextStyle(
-      style.label,
-      DEFAULT_LABEL_FONT_FAMILY,
-      DEFAULT_LABEL_FONT_SIZE,
-      DEFAULT_LABEL_FONT_WEIGHT,
-      DEFAULT_LABEL_COLOR,
-      DEFAULT_LABEL_ALPHA,
-    );
+    this._resolvedLabelStyle = style.label;
 
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
@@ -367,7 +318,7 @@ export class ListComponent<T = unknown> extends StyledHudObject<ListComponentSty
 
     const isSelected = this._isSelected(item.id);
     const initialState: RowState = isSelected ? "selected" : "idle";
-    const bg = this._buildSprite(this._itemStyles[initialState], w, h);
+    const bg = this._buildStyledSprite(this._itemStyles[initialState], w, h);
     bg.anchor.set(0, 0);
     bg.position.set(0, 0);
     bg.eventMode = "none";
@@ -392,7 +343,7 @@ export class ListComponent<T = unknown> extends StyledHudObject<ListComponentSty
     }
 
     if (this._variant === "text" || this._variant === "text+image") {
-      text = this._buildText(item.label ?? "", this._resolvedLabelStyle);
+      text = this._buildStyledText(item.label ?? "", this._resolvedLabelStyle);
       text.eventMode = "none";
       text.anchor.set(0, 0.5);
       const x = this._variant === "text" ? this._textPadding : this._imagePadding + this._imageSize + this._imagePadding;
@@ -427,7 +378,7 @@ export class ListComponent<T = unknown> extends StyledHudObject<ListComponentSty
   private _setRowState(entry: RowEntry<T>, state: RowState): void {
     const w = this._width - this._padding * 2;
     const h = this._itemHeight;
-    this._applySpriteStyle(entry.bg, this._itemStyles[state], w, h);
+    this._applyPartialSpriteStyle(entry.bg, this._itemStyles[state], w, h);
   }
 
   private _syncRowVisuals(): void {

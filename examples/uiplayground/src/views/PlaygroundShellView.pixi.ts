@@ -28,6 +28,7 @@ import { ButtonDemoView } from "./ButtonDemoView.pixi.js";
 import { DropdownDemoView } from "./DropdownDemoView.pixi.js";
 import { GridLayoutDemoView } from "./GridLayoutDemoView.pixi.js";
 import { ImageDemoView } from "./ImageDemoView.pixi.js";
+import { LabelDemoView } from "./LabelDemoView.pixi.js";
 import { ListDemoView } from "./ListDemoView.pixi.js";
 import { RadioButtonDemoView } from "./RadioButtonDemoView.pixi.js";
 import { RadioButtonGroupDemoView } from "./RadioButtonGroupDemoView.pixi.js";
@@ -68,6 +69,7 @@ export class PlaygroundShellView extends ScreenView implements IPlaygroundShellV
     ["scroll-view", ScrollViewDemoView],
     ["list", ListDemoView],
     ["image", ImageDemoView],
+    ["label", LabelDemoView],
     ["background", BackgroundDemoView],
     ["settings", SettingsModuleDemoView],
   ]);

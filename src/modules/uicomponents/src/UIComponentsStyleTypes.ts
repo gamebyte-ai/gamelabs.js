@@ -122,8 +122,8 @@ export type ToggleComponentStyle = {
  *   compatibility.
  * - `border`: `0`. Backgrounds are full-screen cover-scaled — 9-slice
  *   would distort the texture. The component bypasses the base
- *   `_buildSprite` helper for its own cover-fit positioning, so this
- *   field is informational only.
+ *   `_buildStyledSprite` helper for its own cover-fit positioning, so
+ *   this field is informational only.
  *
  * Overlay and fallback colours are not part of the style — they are
  * per-screen UI tuning and live on the `BackgroundComponentOpts`.
@@ -247,6 +247,34 @@ export type ScrollViewComponentStyle = {
   thumb?: SpriteStyle;
 };
 
+/**
+ * Visual style for `LabelComponent`. A `text` slot for the rendered
+ * string plus an optional `bg` sprite slot — when the resolved `bg.textureId`
+ * is set the component builds a sprite behind the text and sizes it to
+ * the rendered text bounds (× any per-axis scale on the slot for padded
+ * badges). When `bg.textureId` is unset the label is text-only and no
+ * sprite is built.
+ *
+ * Slot defaults (applied for any field omitted in the registered style
+ * and the per-component override):
+ * - `text`: `system-ui` 14px 600-weight `0xe8eef6` at full alpha — the
+ *   same family / size / weight used by every other label slot in the
+ *   module so labels read consistently regardless of which component
+ *   they live inside.
+ * - `bg`: not registered. Apps opt into a backdrop per-instance via
+ *   `styleManager.resolve(UIComponentsStyleIds.Label, { bg: { textureId: "..." } })`,
+ *   or globally via `styleManager.modify(UIComponentsStyleIds.Label, { bg: { textureId: "..." } })`.
+ *   When the bg slot has `border > 0` the component builds a
+ *   `PIXI.NineSliceSprite` so the badge corners stay crisp across text
+ *   widths; otherwise the bg is a plain stretched `PIXI.Sprite`. Use
+ *   `bg.scaleX` / `bg.scaleY > 1` to grow the bg beyond the text bounds
+ *   for a padded badge feel.
+ */
+export type LabelComponentStyle = {
+  text?: TextStyle;
+  bg?: SpriteStyle;
+};
+
 /** Style ids registered by the uicomponents module. */
 export const UIComponentsStyleIds = {
   Button: "uicomponents.button",
@@ -258,4 +286,5 @@ export const UIComponentsStyleIds = {
   List: "uicomponents.list",
   ScrollView: "uicomponents.scrollview",
   Image: "uicomponents.image",
+  Label: "uicomponents.label",
 } as const;

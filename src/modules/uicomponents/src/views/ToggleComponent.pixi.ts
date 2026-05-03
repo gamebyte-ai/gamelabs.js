@@ -4,7 +4,6 @@ import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
 import type { ToggleComponentStyle } from "../UIComponentsStyleTypes.js";
 
 /**
@@ -30,22 +29,12 @@ const DEFAULT_WIDTH = 44;
 const DEFAULT_HEIGHT = 24;
 const DEFAULT_THUMB_INSET = 3;
 
-const DEFAULT_BG_COLOR = 0xffffff;
-const DEFAULT_BG_ALPHA = 1;
-const DEFAULT_BG_SCALE = 1;
-const DEFAULT_BG_BORDER = 0;
-
 type TrackState = "on" | "off";
-
-const DEFAULT_TRACK_TEXTURE_BY_STATE: Record<TrackState, string> = {
-  on: UIComponentsAssetIds.DefaultToggleTrackOn,
-  off: UIComponentsAssetIds.DefaultToggleTrackOff,
-};
 
 /**
  * Reusable on/off toggle, themed via the framework's style system.
  *
- * Construction takes an `AssetManager`, a fully-resolved
+ * Construction takes an `AssetManager`, a
  * {@link ToggleComponentStyle}, and geometry / value opts:
  *
  * ```ts
@@ -75,8 +64,8 @@ export class ToggleComponent extends StyledHudObject<ToggleComponentStyle> {
   private readonly _track: PIXI.Sprite | PIXI.NineSliceSprite;
   private readonly _thumb: PIXI.Sprite | PIXI.NineSliceSprite;
 
-  private readonly _trackStyles: Record<TrackState, Required<SpriteStyle>>;
-  private readonly _thumbStyle: Required<SpriteStyle>;
+  private readonly _trackStyles: Record<TrackState, SpriteStyle | undefined>;
+  private readonly _thumbStyle: SpriteStyle | undefined;
 
   private readonly _width: number;
   private readonly _height: number;
@@ -94,40 +83,17 @@ export class ToggleComponent extends StyledHudObject<ToggleComponentStyle> {
     this._value = opts.value ?? false;
 
     this._trackStyles = {
-      on: this._resolveSpriteStyle(
-        style.trackOn,
-        DEFAULT_TRACK_TEXTURE_BY_STATE.on,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER,
-      ),
-      off: this._resolveSpriteStyle(
-        style.trackOff,
-        DEFAULT_TRACK_TEXTURE_BY_STATE.off,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER,
-      ),
+      on: style.trackOn,
+      off: style.trackOff,
     };
-    this._thumbStyle = this._resolveSpriteStyle(
-      style.thumb,
-      UIComponentsAssetIds.DefaultToggleThumb,
-      DEFAULT_BG_COLOR,
-      DEFAULT_BG_ALPHA,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_BORDER,
-    );
+    this._thumbStyle = style.thumb;
 
     // Track — single sprite whose texture swaps on value change. Build
-    // from the initial state's resolved style; that style's border
-    // decides whether we end up with Sprite or NineSliceSprite.
+    // from the initial state's slot; its `border` decides whether we
+    // end up with Sprite or NineSliceSprite (sprite type is fixed at
+    // construction).
     const initialTrackState: TrackState = this._value ? "on" : "off";
-    this._track = this._buildSprite(this._trackStyles[initialTrackState], this._width, this._height);
+    this._track = this._buildStyledSprite(this._trackStyles[initialTrackState], this._width, this._height);
     this._track.anchor.set(0, 0);
     this._track.position.set(0, 0);
     this.addChild(this._track);
@@ -135,7 +101,7 @@ export class ToggleComponent extends StyledHudObject<ToggleComponentStyle> {
     // Thumb — sized to fit between the track edges. The slide position
     // is recomputed from `_value` on every visual refresh.
     const thumbSize = this._height - this._thumbInset * 2;
-    this._thumb = this._buildSprite(this._thumbStyle, thumbSize, thumbSize);
+    this._thumb = this._buildStyledSprite(this._thumbStyle, thumbSize, thumbSize);
     this._thumb.anchor.set(0.5, 0.5);
     this.addChild(this._thumb);
 
@@ -183,7 +149,7 @@ export class ToggleComponent extends StyledHudObject<ToggleComponentStyle> {
 
   private _refreshTrack(): void {
     const state: TrackState = this._value ? "on" : "off";
-    this._applySpriteStyle(this._track, this._trackStyles[state], this._width, this._height);
+    this._applyPartialSpriteStyle(this._track, this._trackStyles[state], this._width, this._height);
   }
 
   private _refreshThumb(): void {
@@ -192,7 +158,7 @@ export class ToggleComponent extends StyledHudObject<ToggleComponentStyle> {
     // edge inset. The thumb is anchored at its centre, so the position
     // values point at the thumb's centre coordinate.
     const thumbCx = this._value ? this._width - this._height / 2 : this._height / 2;
-    this._applySpriteStyle(this._thumb, this._thumbStyle, thumbSize, thumbSize);
+    this._applyPartialSpriteStyle(this._thumb, this._thumbStyle, thumbSize, thumbSize);
     this._thumb.position.set(thumbCx, this._height / 2);
   }
 }

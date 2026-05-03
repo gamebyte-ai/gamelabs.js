@@ -1,14 +1,17 @@
 import * as PIXI from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
-import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import type { OscButtonStyle } from "../OnScreenControlTypes.js";
-import { OnScreenControlsAssetIds } from "../OnScreenControlsAssetIds.js";
 
 type ProgressRefs = {
   sprite: PIXI.Sprite | PIXI.NineSliceSprite;
   mask: PIXI.Graphics;
-  visual: Required<SpriteStyle>;
+  /**
+   * Cached max axis scale (= max(scaleX, scaleY) on the resolved
+   * progress slot, defaulting to 1 when unset). Drives the circular
+   * mask radius so stretched rings stay fully covered by the wedge.
+   */
+  maxScale: number;
   /** Last drawn t value, so we skip redraw when nothing changed. */
   lastT: number;
 };
@@ -23,16 +26,21 @@ type ProgressRefs = {
  * is captured once at construction — runtime restyling is not
  * supported yet (a `changeStyle` API can land when needed).
  *
- * Sprite construction goes through the base class's
- * `_buildSprite` / `_applySpriteStyle` helpers; missing textures
- * throw with a clear error at construction.
+ * Sprite construction goes through the base class's partial-apply
+ * helpers (`_buildStyledSprite` / `_applyPartialSpriteStyle`); missing
+ * textures throw with a clear error at construction.
  */
 export class OscButton extends StyledHudObject<OscButtonStyle> {
   private readonly _size: number;
 
   private _bg: PIXI.Sprite | PIXI.NineSliceSprite | null = null;
   private _icon: PIXI.Sprite | PIXI.NineSliceSprite | null = null;
-  private _iconVisual: Required<SpriteStyle> | null = null;
+  /**
+   * Resting alpha of the icon (= `style.icon?.alpha ?? 1`). `setEnabled`
+   * multiplies this by 0.5 to dim the icon while disabled, then restores
+   * to this value on re-enable.
+   */
+  private _iconRestAlpha = 1;
   private _progress: ProgressRefs | null = null;
   private _pendingProgress = 0;
 
@@ -71,8 +79,8 @@ export class OscButton extends StyledHudObject<OscButtonStyle> {
     if (!enabled && this._isDown) this._isDown = false;
     this.cursor = enabled ? "pointer" : "default";
     this.eventMode = enabled ? "static" : "auto";
-    if (this._icon && this._iconVisual) {
-      this._icon.alpha = this._iconVisual.alpha * (enabled ? 1 : 0.5);
+    if (this._icon) {
+      this._icon.alpha = this._iconRestAlpha * (enabled ? 1 : 0.5);
     }
     this._refreshBg();
   }
@@ -102,32 +110,29 @@ export class OscButton extends StyledHudObject<OscButtonStyle> {
 
   private _refreshBg(): void {
     const state: "up" | "down" | "disabled" = !this._enabled ? "disabled" : this._isDown ? "down" : "up";
-    const visual = this._resolveSpriteStyle(this._style[state], OnScreenControlsAssetIds.ButtonBg, 0xffffff, 1, 1, 1);
+    const slot = this._style[state];
     if (!this._bg) {
-      this._bg = this._buildSprite(visual, this._size);
+      this._bg = this._buildStyledSprite(slot, this._size);
       this._bg.position.set(this._size / 2, this._size / 2);
       this.addChild(this._bg);
     } else {
-      this._applySpriteStyle(this._bg, visual, this._size);
+      this._applyPartialSpriteStyle(this._bg, slot, this._size);
     }
   }
 
   private _buildIcon(): void {
-    const v = this._style.icon;
-    if (!v?.textureId) return;
-    // Pass the user-supplied textureId as the "default" — guaranteed
-    // truthy by the early return above.
-    const visual = this._resolveSpriteStyle(v, v.textureId, 0xffffff, 1, 0.6, 0.6);
-    this._iconVisual = visual;
-    this._icon = this._buildSprite(visual, this._size);
+    const slot = this._style.icon;
+    if (!slot?.textureId) return;
+    this._iconRestAlpha = slot.alpha ?? 1;
+    this._icon = this._buildStyledSprite(slot, this._size);
     this._icon.position.set(this._size / 2, this._size / 2);
     this.addChild(this._icon);
   }
 
   private _ensureProgress(): ProgressRefs {
     if (this._progress) return this._progress;
-    const visual = this._resolveSpriteStyle(this._style.progress, OnScreenControlsAssetIds.ButtonProgress, 0xffffff, 0.85, 1.1, 1.1);
-    const sprite = this._buildSprite(visual, this._size);
+    const slot = this._style.progress;
+    const sprite = this._buildStyledSprite(slot, this._size);
     sprite.position.set(this._size / 2, this._size / 2);
     sprite.visible = false;
 
@@ -140,7 +145,8 @@ export class OscButton extends StyledHudObject<OscButtonStyle> {
     this.addChildAt(sprite, 0);
     this.addChildAt(mask, 0);
 
-    const progress: ProgressRefs = { sprite, mask, visual, lastT: -1 };
+    const maxScale = Math.max(slot?.scaleX ?? 1, slot?.scaleY ?? 1);
+    const progress: ProgressRefs = { sprite, mask, maxScale, lastT: -1 };
     this._progress = progress;
     return progress;
   }
@@ -156,7 +162,7 @@ export class OscButton extends StyledHudObject<OscButtonStyle> {
     const cy = this._size / 2;
     // Mask is circular; for stretched rings (scaleX !== scaleY) take
     // the larger axis so the wedge fully covers the visible sprite.
-    const radius = (this._size * Math.max(progress.visual.scaleX, progress.visual.scaleY)) / 2 + 1;
+    const radius = (this._size * progress.maxScale) / 2 + 1;
     progress.mask.clear();
     if (clamped <= 0) return;
     if (clamped >= 1) {
