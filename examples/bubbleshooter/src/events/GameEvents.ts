@@ -1,6 +1,6 @@
 import type { Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { BubbleColor } from "../constants/BubbleColor";
-import type { IAimTrajectory } from "../utilities/AimTrajectoryCalculator";
+import type { IAimTrajectory } from "../models/IAimTrajectory";
 
 type BubblePlacedCb = (row: number, col: number, color: BubbleColor) => void;
 type BubbleRemovedCb = (row: number, col: number) => void;
@@ -18,6 +18,7 @@ type CountCb = (count: number) => void;
 type GameWonCb = (won: boolean) => void;
 type GameOverCb = (over: boolean) => void;
 type ControlsLockedCb = (locked: boolean) => void;
+type PowerUpAvailabilityCb = (bombEnabled: boolean, fireballEnabled: boolean) => void;
 type ShooterSwapCb = (newHeld: BubbleColor, newNext: BubbleColor) => void;
 type VoidCb = () => void;
 
@@ -41,6 +42,7 @@ export class GameEvents {
   private readonly _gameWonListeners = new Set<GameWonCb>();
   private readonly _gameOverListeners = new Set<GameOverCb>();
   private readonly _controlsLockedListeners = new Set<ControlsLockedCb>();
+  private readonly _powerUpAvailabilityListeners = new Set<PowerUpAvailabilityCb>();
   private readonly _shooterSwapListeners = new Set<ShooterSwapCb>();
   private readonly _bubbleShotFiredListeners = new Set<VoidCb>();
   private readonly _bombExplodedListeners = new Set<VoidCb>();
@@ -248,6 +250,21 @@ export class GameEvents {
 
   public emitShooterControlsLocked(locked: boolean): void {
     for (const cb of this._controlsLockedListeners) cb(locked);
+  }
+
+  /**
+   * Combined enable/disable signal for the bomb + fireball power-up
+   * buttons. Drives the screen controller's `setControlEnabled` calls
+   * directly, so the controller doesn't have to mirror inventory or
+   * lock state. Emitted on every count change or lock transition.
+   */
+  public onPowerUpAvailabilityChanged(cb: PowerUpAvailabilityCb): Unsubscribe {
+    this._powerUpAvailabilityListeners.add(cb);
+    return () => this._powerUpAvailabilityListeners.delete(cb);
+  }
+
+  public emitPowerUpAvailabilityChanged(bombEnabled: boolean, fireballEnabled: boolean): void {
+    for (const cb of this._powerUpAvailabilityListeners) cb(bombEnabled, fireballEnabled);
   }
 
   /**

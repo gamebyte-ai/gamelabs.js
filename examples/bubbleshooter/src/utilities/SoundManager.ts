@@ -3,9 +3,11 @@ import { GameEvents } from "../events/GameEvents";
 import { BubbleShooterAssetIds } from "../BubbleShooterAssetIds";
 
 /**
- * Wires GameEvents → AudioService.playSfx for the Bubble Shooter
- * SFX bus. Intentionally not an `IViewController` — it owns no view
- * and lives as long as the app does.
+ * Owns the SFX-bus state for Bubble Shooter and wires GameEvents →
+ * AudioService.playSfx. Lives in `utilities/` per the "Where logic
+ * lives" table — it owns mutable subsystem state (the rolling combo
+ * counter) but never talks to the outside world directly; the
+ * AudioService is the boundary.
  *
  * Combo pop pitch: each pop within a short rolling window bumps the
  * playback rate by a fixed step so chained pops climb in pitch.
@@ -15,7 +17,7 @@ const COMBO_RESET_MS = 250;
 const COMBO_RATE_STEP = 0.07;
 const COMBO_RATE_MAX = 1.9;
 
-export class GameSoundController implements IInjectionTarget {
+export class SoundManager implements IInjectionTarget {
   private readonly _subs = new UnsubscribeBag();
   private _audio: AudioService | null = null;
   private _events: GameEvents | null = null;

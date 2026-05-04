@@ -1,30 +1,8 @@
 import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { IBubbleGrid } from "../models/IBubbleGrid";
+import type { AimTrajectoryEnd, IAimLanding, IAimTrajectory, IAimTrajectorySegment } from "../models/IAimTrajectory";
 import { BubbleGridLayout } from "./BubbleGridLayout";
-
-export interface IAimTrajectorySegment {
-  readonly fromX: number;
-  readonly fromY: number;
-  readonly toX: number;
-  readonly toY: number;
-}
-
-export type AimTrajectoryEnd = "top" | "bubble" | "max-bounces" | "none";
-
-export interface IAimLanding {
-  readonly row: number;
-  readonly col: number;
-  readonly worldX: number;
-  readonly worldY: number;
-}
-
-export interface IAimTrajectory {
-  readonly segments: readonly IAimTrajectorySegment[];
-  readonly end: AimTrajectoryEnd;
-  /** Empty cell where the fired bubble would settle, or null if no valid one. */
-  readonly landing: IAimLanding | null;
-}
 
 interface ICellPos {
   readonly x: number;

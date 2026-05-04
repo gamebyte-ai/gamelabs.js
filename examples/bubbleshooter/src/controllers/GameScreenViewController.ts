@@ -2,15 +2,7 @@ import { OnScreenControlManager, UnsubscribeBag, type IInstanceResolver, type IV
 import type { IGameScreenView } from "../views/IGameScreenView";
 import { GameEvents } from "../events/GameEvents";
 import { GameOperations } from "../utilities/GameOperations";
-import {
-  BOMB_BUTTON_ID,
-  BOMB_COUNT_LABEL_ID,
-  FIREBALL_BUTTON_ID,
-  FIREBALL_COUNT_LABEL_ID,
-  GAME_OVER_LABEL_ID,
-  SCORE_CONTROL_ID,
-  WIN_LABEL_ID,
-} from "../BubbleShooterApp";
+import { BubbleShooterUIIds } from "../BubbleShooterUIIds";
 
 export class GameScreenViewController implements IViewController<IGameScreenView> {
   private _view: IGameScreenView | null = null;
@@ -18,9 +10,6 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   private _gameEvents: GameEvents | null = null;
   private _osc: OnScreenControlManager | null = null;
   private _ops: GameOperations | null = null;
-  private _bombCount = 0;
-  private _fireballCount = 0;
-  private _controlsLocked = false;
 
   public inject(resolver: IInstanceResolver): void {
     this._gameEvents = resolver.getInstance(GameEvents);
@@ -30,41 +19,20 @@ export class GameScreenViewController implements IViewController<IGameScreenView
 
   public initialize(view: IGameScreenView): void {
     this._view = view;
-    this._subs.add(this._gameEvents!.onScoreChanged((value) => this._osc?.setLabelText(SCORE_CONTROL_ID, `Score: ${value}`)));
-    this._subs.add(this._gameEvents!.onBombCountChanged((count) => this._onBombCountChanged(count)));
-    this._subs.add(this._gameEvents!.onFireballCountChanged((count) => this._onFireballCountChanged(count)));
-    this._subs.add(this._gameEvents!.onShooterControlsLocked((locked) => this._onControlsLocked(locked)));
-    this._subs.add(this._gameEvents!.onGameWonChanged((won) => this._osc?.setControlVisible(WIN_LABEL_ID, won)));
-    this._subs.add(this._gameEvents!.onGameOverChanged((over) => this._osc?.setControlVisible(GAME_OVER_LABEL_ID, over)));
+    const e = this._gameEvents!;
+    const osc = this._osc!;
+    this._subs.add(e.onScoreChanged((value) => osc.setLabelText(BubbleShooterUIIds.ScoreLabel, `Score: ${value}`)));
+    this._subs.add(e.onBombCountChanged((count) => osc.setLabelText(BubbleShooterUIIds.BombCountLabel, `${count}`)));
+    this._subs.add(e.onFireballCountChanged((count) => osc.setLabelText(BubbleShooterUIIds.FireballCountLabel, `${count}`)));
+    this._subs.add(e.onPowerUpAvailabilityChanged((bomb, fireball) => this._onPowerUpAvailability(bomb, fireball)));
+    this._subs.add(e.onGameWonChanged((won) => osc.setControlVisible(BubbleShooterUIIds.WinLabel, won)));
+    this._subs.add(e.onGameOverChanged((over) => osc.setControlVisible(BubbleShooterUIIds.GameOverLabel, over)));
     this._subs.add(this._view.onLevelChanged((id) => this._ops?.loadLevel(id)));
   }
 
-  private _onBombCountChanged(count: number): void {
-    this._bombCount = count;
-    this._osc?.setLabelText(BOMB_COUNT_LABEL_ID, `${count}`);
-    this._refreshButtonEnabled();
-  }
-
-  private _onFireballCountChanged(count: number): void {
-    this._fireballCount = count;
-    this._osc?.setLabelText(FIREBALL_COUNT_LABEL_ID, `${count}`);
-    this._refreshButtonEnabled();
-  }
-
-  private _onControlsLocked(locked: boolean): void {
-    this._controlsLocked = locked;
-    this._refreshButtonEnabled();
-  }
-
-  /**
-   * Power-up buttons are enabled when the player has stock AND the
-   * controls aren't locked (lock fires the moment the grid empties so
-   * the buttons go dead before the win message appears).
-   */
-  private _refreshButtonEnabled(): void {
-    const unlocked = !this._controlsLocked;
-    this._osc?.setControlEnabled(BOMB_BUTTON_ID, unlocked && this._bombCount > 0);
-    this._osc?.setControlEnabled(FIREBALL_BUTTON_ID, unlocked && this._fireballCount > 0);
+  private _onPowerUpAvailability(bombEnabled: boolean, fireballEnabled: boolean): void {
+    this._osc?.setControlEnabled(BubbleShooterUIIds.BombButton, bombEnabled);
+    this._osc?.setControlEnabled(BubbleShooterUIIds.FireballButton, fireballEnabled);
   }
 
   public destroy(): void {

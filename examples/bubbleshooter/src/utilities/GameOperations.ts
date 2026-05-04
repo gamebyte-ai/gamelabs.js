@@ -5,7 +5,8 @@ import { BubbleGrid } from "../models/BubbleGrid";
 import { Shooter } from "../models/Shooter";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BubbleGridLayout } from "./BubbleGridLayout";
-import { AimTrajectoryCalculator, type IAimLanding, type IAimTrajectorySegment, type IAimTrajectory } from "./AimTrajectoryCalculator";
+import type { IAimLanding, IAimTrajectory, IAimTrajectorySegment } from "../models/IAimTrajectory";
+import { AimTrajectoryCalculator } from "./AimTrajectoryCalculator";
 import { MatchFinder, type IMatchedCell } from "./MatchFinder";
 import { FloatingBubbleFinder } from "./FloatingBubbleFinder";
 import { Score } from "../models/Score";
@@ -188,7 +189,20 @@ export class GameOperations implements IInjectionTarget {
       this._events!.emitGameOverChanged(false);
       this._events!.emitShooterControlsLocked(false);
     }
+    this._emitPowerUpAvailability();
     this.aimAt(this._lastAimX, this._lastAimY);
+  }
+
+  /**
+   * Authoritative gate for the bomb / fireball OSC buttons: enabled
+   * only when the player has stock AND the controls aren't locked
+   * (win latch / loss latch). Called from every code path that can
+   * change inventory or lock state so the controller never has to
+   * mirror these fields.
+   */
+  private _emitPowerUpAvailability(): void {
+    const unlocked = !this._isWon && !this._isLost;
+    this._events!.emitPowerUpAvailabilityChanged(unlocked && this._bombCount > 0, unlocked && this._fireballCount > 0);
   }
 
   /** Wipe transient flight / pop / falling / bomb / fireball state and notify the view. */
@@ -336,6 +350,7 @@ export class GameOperations implements IInjectionTarget {
     if (!this._isWon) {
       this._isWon = true;
       this._events!.emitShooterControlsLocked(true);
+      this._emitPowerUpAvailability();
     }
     if (this._falling.length > 0) return;
     this._winLatched = true;
@@ -369,6 +384,7 @@ export class GameOperations implements IInjectionTarget {
     this._events!.emitAimTrajectoryChanged(EMPTY_TRAJECTORY);
     this._events!.emitShooterControlsLocked(true);
     this._events!.emitGameOverChanged(true);
+    this._emitPowerUpAvailability();
   }
 
   /**
@@ -490,6 +506,7 @@ export class GameOperations implements IInjectionTarget {
       this._events!.emitShooterBombChanged(false);
       this._bombCount = Math.max(0, this._bombCount - 1);
       this._events!.emitBombCountChanged(this._bombCount);
+      this._emitPowerUpAvailability();
     } else {
       this._events!.emitFlyingBubbleChanged(heldColor, start.fromX, start.fromY);
       this._events!.emitBubbleShotFired();
@@ -717,6 +734,7 @@ export class GameOperations implements IInjectionTarget {
     events.emitShooterFireballChanged(false);
     this._fireballCount = Math.max(0, this._fireballCount - 1);
     events.emitFireballCountChanged(this._fireballCount);
+    this._emitPowerUpAvailability();
     this._promoteNextBubble();
   }
 

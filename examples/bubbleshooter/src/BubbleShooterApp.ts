@@ -37,17 +37,8 @@ import { GameAreaView } from "./views/GameAreaView.three";
 import { GameAreaViewController } from "./controllers/GameAreaViewController";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
-import { GameSoundController } from "./controllers/GameSoundController";
+import { SoundManager } from "./utilities/SoundManager";
 import { SoundSynth } from "./utilities/SoundSynth";
-
-const SCORE_CONTROL_ID = "score";
-const BOMB_BUTTON_ID = "bomb";
-const BOMB_COUNT_LABEL_ID = "bomb-count";
-const FIREBALL_BUTTON_ID = "fireball";
-const FIREBALL_COUNT_LABEL_ID = "fireball-count";
-const WIN_LABEL_ID = "win";
-const GAME_OVER_LABEL_ID = "game-over";
-export { SCORE_CONTROL_ID, BOMB_BUTTON_ID, BOMB_COUNT_LABEL_ID, FIREBALL_BUTTON_ID, FIREBALL_COUNT_LABEL_ID, WIN_LABEL_ID, GAME_OVER_LABEL_ID };
 
 // Power-up button layout. Bomb is anchored to BottomRight; future
 // power-ups stack to its LEFT by adding `(POWER_UP_SIZE + GAP)` to
@@ -84,7 +75,7 @@ export class BubbleShooterApp extends GamelabsApp {
   private _gameAreaView: GameAreaView | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _cameraController: Front2dCameraController | null = null;
-  private _soundController: GameSoundController | null = null;
+  private _soundManager: SoundManager | null = null;
 
   // Power-up button + count configs are kept by reference so resize can
   // reposition them against the play area's bottom-right corner (rather
@@ -125,7 +116,7 @@ export class BubbleShooterApp extends GamelabsApp {
     const osc = this.diContainer.getInstance(OnScreenControlManager);
     osc.addControl({
       type: ControlType.Label,
-      id: SCORE_CONTROL_ID,
+      id: BubbleShooterUIIds.ScoreLabel,
       anchor: ControlAnchor.TopLeft,
       offsetX: 16,
       offsetY: 16,
@@ -135,7 +126,7 @@ export class BubbleShooterApp extends GamelabsApp {
     // Centre-of-screen "YOU WIN!" overlay, hidden until the grid clears.
     osc.addControl({
       type: ControlType.Label,
-      id: WIN_LABEL_ID,
+      id: BubbleShooterUIIds.WinLabel,
       anchor: ControlAnchor.Center,
       offsetX: 0,
       offsetY: 0,
@@ -144,12 +135,12 @@ export class BubbleShooterApp extends GamelabsApp {
       content: "YOU WIN!",
       text: { color: 0xfff2a0, fontSize: 64, fontWeight: "800" },
     });
-    osc.setControlVisible(WIN_LABEL_ID, false);
+    osc.setControlVisible(BubbleShooterUIIds.WinLabel, false);
     // Centre-of-screen "GAME OVER" overlay, hidden until a bubble
     // settles in the bottom row.
     osc.addControl({
       type: ControlType.Label,
-      id: GAME_OVER_LABEL_ID,
+      id: BubbleShooterUIIds.GameOverLabel,
       anchor: ControlAnchor.Center,
       offsetX: 0,
       offsetY: 0,
@@ -158,7 +149,7 @@ export class BubbleShooterApp extends GamelabsApp {
       content: "GAME OVER",
       text: { color: 0xff6464, fontSize: 64, fontWeight: "800" },
     });
-    osc.setControlVisible(GAME_OVER_LABEL_ID, false);
+    osc.setControlVisible(BubbleShooterUIIds.GameOverLabel, false);
     // Power-up buttons stack at the bottom-right. Bomb is rightmost;
     // future power-ups (currently fireball) sit to its LEFT by
     // increasing offsetX (BottomRight: bigger offsetX = further LEFT).
@@ -170,7 +161,7 @@ export class BubbleShooterApp extends GamelabsApp {
     // area's bottom-right corner on each resize.
     this._bombButtonConfig = {
       type: ControlType.Button,
-      id: BOMB_BUTTON_ID,
+      id: BubbleShooterUIIds.BombButton,
       anchor: ControlAnchor.BottomRight,
       offsetX: POWER_UP_BOMB_OFFSET_X,
       offsetY: POWER_UP_OFFSET_Y,
@@ -180,7 +171,7 @@ export class BubbleShooterApp extends GamelabsApp {
     osc.addControl(this._bombButtonConfig);
     this._bombCountConfig = {
       type: ControlType.Label,
-      id: BOMB_COUNT_LABEL_ID,
+      id: BubbleShooterUIIds.BombCountLabel,
       anchor: ControlAnchor.BottomRight,
       offsetX: POWER_UP_BOMB_OFFSET_X - POWER_UP_COUNT_INSET,
       offsetY: POWER_UP_OFFSET_Y + POWER_UP_COUNT_INSET,
@@ -192,7 +183,7 @@ export class BubbleShooterApp extends GamelabsApp {
     osc.addControl(this._bombCountConfig);
     this._fireballButtonConfig = {
       type: ControlType.Button,
-      id: FIREBALL_BUTTON_ID,
+      id: BubbleShooterUIIds.FireballButton,
       anchor: ControlAnchor.BottomRight,
       offsetX: POWER_UP_FIREBALL_OFFSET_X,
       offsetY: POWER_UP_OFFSET_Y,
@@ -202,7 +193,7 @@ export class BubbleShooterApp extends GamelabsApp {
     osc.addControl(this._fireballButtonConfig);
     this._fireballCountConfig = {
       type: ControlType.Label,
-      id: FIREBALL_COUNT_LABEL_ID,
+      id: BubbleShooterUIIds.FireballCountLabel,
       anchor: ControlAnchor.BottomRight,
       offsetX: POWER_UP_FIREBALL_OFFSET_X - POWER_UP_COUNT_INSET,
       offsetY: POWER_UP_OFFSET_Y + POWER_UP_COUNT_INSET,
@@ -310,16 +301,16 @@ export class BubbleShooterApp extends GamelabsApp {
     // pattern fires both on press and release with `isPressed`.
     const osc = this.diContainer.getInstance(OnScreenControlManager);
     const ops = this.diContainer.getInstance(GameOperations);
-    osc.addKeyHandler(BOMB_BUTTON_ID, (isPressed) => {
+    osc.addKeyHandler(BubbleShooterUIIds.BombButton, (isPressed) => {
       if (isPressed) ops.activateBomb();
     });
-    osc.addKeyHandler(FIREBALL_BUTTON_ID, (isPressed) => {
+    osc.addKeyHandler(BubbleShooterUIIds.FireballButton, (isPressed) => {
       if (isPressed) ops.activateFireball();
     });
 
-    this._soundController = new GameSoundController();
-    this._soundController.inject(this.diContainer);
-    this._soundController.start();
+    this._soundManager = new SoundManager();
+    this._soundManager.inject(this.diContainer);
+    this._soundManager.start();
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
@@ -400,6 +391,8 @@ export class BubbleShooterApp extends GamelabsApp {
   }
 
   protected override preDestroy(): void {
+    this._soundManager?.destroy();
+    this._soundManager = null;
     this._cameraController = null;
     this._gameAreaView?.destroy();
     this._gameAreaView = null;

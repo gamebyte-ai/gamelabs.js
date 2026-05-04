@@ -1,6 +1,6 @@
 import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { BubbleColor } from "../constants/BubbleColor";
-import type { IAimTrajectory } from "../utilities/AimTrajectoryCalculator";
+import type { IAimTrajectory } from "../models/IAimTrajectory";
 
 export interface IGameAreaView extends IView {
   setBubble(row: number, col: number, color: BubbleColor): void;

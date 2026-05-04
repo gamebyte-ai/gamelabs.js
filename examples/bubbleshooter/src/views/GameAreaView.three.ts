@@ -3,7 +3,7 @@ import { WorldViewBase, World, type IInstanceResolver, type Unsubscribe } from "
 import type { IGameAreaView } from "./IGameAreaView";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BubbleGridLayout } from "../utilities/BubbleGridLayout";
-import type { IAimTrajectory, IAimTrajectorySegment } from "../utilities/AimTrajectoryCalculator";
+import type { IAimTrajectory, IAimTrajectorySegment } from "../models/IAimTrajectory";
 import { ALL_BUBBLE_COLORS, BUBBLE_COLOR_HEX, BUBBLE_COLORS, type BubbleColor } from "../constants/BubbleColor";
 import { BUBBLE_COLOR_TO_ASSET_ID, BubbleShooterAssetIds } from "../BubbleShooterAssetIds";
 
@@ -54,11 +54,13 @@ interface IScorePopup {
   readonly mesh: THREE.Mesh;
   readonly geometry: THREE.PlaneGeometry;
   readonly material: THREE.MeshBasicMaterial;
+  readonly canvas: HTMLCanvasElement;
+  readonly canvasCtx: CanvasRenderingContext2D;
   readonly texture: THREE.CanvasTexture;
-  readonly startY: number;
-  readonly rise: number;
+  startY: number;
+  rise: number;
   age: number;
-  readonly lifetime: number;
+  lifetime: number;
 }
 
 /**
@@ -136,6 +138,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   private readonly _particles: IPopParticle[] = [];
 
   private readonly _scorePopups: IScorePopup[] = [];
+  private readonly _scorePopupPool: IScorePopup[] = [];
 
   private _nextSlotIconMesh: THREE.Mesh | null = null;
   private _nextBubbleMesh: THREE.Mesh | null = null;
@@ -472,36 +475,57 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     const config = this._config;
     if (!config) return;
 
-    // Per-popup canvas + texture so each popup carries its own number
-    // and tint. Modest cost (a few hundred bytes + one upload per pop)
-    // — pop bursts in this game are bounded by `bombBlastRingCount`.
+    const popup = this._acquireScorePopup();
+    if (!popup) return;
+    this._renderScorePopupCanvas(popup, color, points);
+    popup.mesh.position.set(x, y, SCORE_POPUP_Z);
+    popup.material.opacity = 1;
+    popup.startY = y;
+    popup.rise = config.scorePopupRise;
+    popup.age = 0;
+    popup.lifetime = config.scorePopupLifetimeSeconds;
+    this.add(popup.mesh);
+    this._scorePopups.push(popup);
+  }
+
+  public updateScorePopups(dt: number): void {
+    // Reverse iteration so removals don't disturb the index walk.
+    for (let i = this._scorePopups.length - 1; i >= 0; i--) {
+      const p = this._scorePopups[i]!;
+      p.age += dt;
+      if (p.age >= p.lifetime) {
+        // Pool the canvas / texture / material / mesh for the next pop
+        // so a 19-cell bomb burst doesn't churn 19 GPU textures.
+        this.remove(p.mesh);
+        this._scorePopups.splice(i, 1);
+        this._scorePopupPool.push(p);
+        continue;
+      }
+      const t = p.age / p.lifetime;
+      p.mesh.position.y = p.startY + p.rise * t;
+      p.material.opacity = 1 - t;
+    }
+  }
+
+  private _acquireScorePopup(): IScorePopup | null {
+    const pooled = this._scorePopupPool.pop();
+    if (pooled) return pooled;
+    return this._buildScorePopup();
+  }
+
+  private _buildScorePopup(): IScorePopup | null {
+    const config = this._config;
+    if (!config) return null;
     const cw = SCORE_POPUP_CANVAS_W;
     const ch = SCORE_POPUP_CANVAS_H;
     const canvas = document.createElement("canvas");
     canvas.width = cw;
     canvas.height = ch;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const colorHex = BUBBLE_COLOR_HEX[color];
-    const r = (colorHex >> 16) & 0xff;
-    const g = (colorHex >> 8) & 0xff;
-    const b = colorHex & 0xff;
-    ctx.font = "bold 52px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    // Black outline for legibility against any cluster colour.
-    ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
-    ctx.lineWidth = 6;
-    const text = `+${points}`;
-    ctx.strokeText(text, cw / 2, ch / 2);
-    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-    ctx.fillText(text, cw / 2, ch / 2);
-
+    const canvasCtx = canvas.getContext("2d");
+    if (!canvasCtx) return null;
     const texture = new THREE.CanvasTexture(canvas);
     texture.generateMipmaps = false;
     texture.minFilter = THREE.LinearFilter;
-    texture.needsUpdate = true;
-
     const material = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
@@ -512,39 +536,40 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     const planeHeight = (planeWidth * ch) / cw;
     const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(x, y, SCORE_POPUP_Z);
     mesh.renderOrder = 15;
-    this.add(mesh);
-
-    this._scorePopups.push({
+    return {
       mesh,
       geometry,
       material,
+      canvas,
+      canvasCtx,
       texture,
-      startY: y,
-      rise: config.scorePopupRise,
+      startY: 0,
+      rise: 0,
       age: 0,
-      lifetime: config.scorePopupLifetimeSeconds,
-    });
+      lifetime: 0,
+    };
   }
 
-  public updateScorePopups(dt: number): void {
-    // Reverse iteration so removals don't disturb the index walk.
-    for (let i = this._scorePopups.length - 1; i >= 0; i--) {
-      const p = this._scorePopups[i]!;
-      p.age += dt;
-      if (p.age >= p.lifetime) {
-        this.remove(p.mesh);
-        p.geometry.dispose();
-        p.material.dispose();
-        p.texture.dispose();
-        this._scorePopups.splice(i, 1);
-        continue;
-      }
-      const t = p.age / p.lifetime;
-      p.mesh.position.y = p.startY + p.rise * t;
-      p.material.opacity = 1 - t;
-    }
+  private _renderScorePopupCanvas(popup: IScorePopup, color: BubbleColor, points: number): void {
+    const cw = SCORE_POPUP_CANVAS_W;
+    const ch = SCORE_POPUP_CANVAS_H;
+    const ctx = popup.canvasCtx;
+    ctx.clearRect(0, 0, cw, ch);
+    const colorHex = BUBBLE_COLOR_HEX[color];
+    const r = (colorHex >> 16) & 0xff;
+    const g = (colorHex >> 8) & 0xff;
+    const b = colorHex & 0xff;
+    ctx.font = "bold 52px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+    ctx.lineWidth = 6;
+    const text = `+${points}`;
+    ctx.strokeText(text, cw / 2, ch / 2);
+    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    ctx.fillText(text, cw / 2, ch / 2);
+    popup.texture.needsUpdate = true;
   }
 
   public setFlyingBomb(active: boolean, x: number, y: number): void {
@@ -1085,6 +1110,12 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
       p.texture.dispose();
     }
     this._scorePopups.length = 0;
+    for (const p of this._scorePopupPool) {
+      p.geometry.dispose();
+      p.material.dispose();
+      p.texture.dispose();
+    }
+    this._scorePopupPool.length = 0;
     this._shooterSwapAnim = null;
 
     for (const dot of this._aimDotPool) this.remove(dot);
