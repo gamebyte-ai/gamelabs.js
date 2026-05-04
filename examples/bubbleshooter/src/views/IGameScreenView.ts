@@ -1,3 +1,5 @@
-import type { IScreenView } from "@gamebyte/gamelabsjs";
+import type { IScreenView, Unsubscribe } from "@gamebyte/gamelabsjs";
 
-export interface IGameScreenView extends IScreenView {}
+export interface IGameScreenView extends IScreenView {
+  onLevelChanged(cb: (levelId: string) => void): Unsubscribe;
+}

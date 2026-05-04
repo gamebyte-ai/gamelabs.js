@@ -6,8 +6,10 @@ import { Shooter } from "../models/Shooter";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BubbleGridLayout } from "./BubbleGridLayout";
 import { AimTrajectoryCalculator, type IAimLanding, type IAimTrajectorySegment, type IAimTrajectory } from "./AimTrajectoryCalculator";
-import { MatchFinder } from "./MatchFinder";
+import { MatchFinder, type IMatchedCell } from "./MatchFinder";
 import { FloatingBubbleFinder } from "./FloatingBubbleFinder";
+import { Score } from "../models/Score";
+import { LEVELS } from "../constants/Levels";
 
 const EMPTY_TRAJECTORY: IAimTrajectory = { segments: [], end: "none", landing: null };
 
@@ -20,6 +22,15 @@ interface IFlyingBubbleState {
   readonly landing: IAimLanding;
   segmentIndex: number;
   traveledInSegment: number;
+}
+
+interface IFallingBubbleState {
+  readonly id: number;
+  readonly color: BubbleColor;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
 }
 
 /**
@@ -41,9 +52,17 @@ export class GameOperations implements IInjectionTarget {
   private _aimCalculator: AimTrajectoryCalculator | null = null;
   private _matchFinder: MatchFinder | null = null;
   private _floatingFinder: FloatingBubbleFinder | null = null;
+  private _score: Score | null = null;
 
-  private _state: "idle" | "flying" = "idle";
+  private _state: "idle" | "flying" | "popping" = "idle";
   private _flying: IFlyingBubbleState | null = null;
+  private _popQueue: IMatchedCell[] = [];
+  private _popTimer = 0;
+  /** Per-pop-session counter used to compute the (n+1)·popPointsStep score per bubble. */
+  private _popIndexInSession = 0;
+  /** Disconnected bubbles in mid-fall. Lives independently of the main state machine. */
+  private _falling: IFallingBubbleState[] = [];
+  private _nextFallingId = 0;
   private _lastAimX = 0;
   private _lastAimY = 0;
 
@@ -56,11 +75,14 @@ export class GameOperations implements IInjectionTarget {
     this._aimCalculator = resolver.getInstance(AimTrajectoryCalculator);
     this._matchFinder = resolver.getInstance(MatchFinder);
     this._floatingFinder = resolver.getInstance(FloatingBubbleFinder);
+    this._score = resolver.getInstance(Score);
   }
 
   /** Build initial layout, load shooter held + next, point straight up. */
   public start(): void {
     this.buildInitialLayout();
+    this._score!.reset();
+    this._events!.emitScoreChanged(this._score!.value);
     this._initShooterBubbles();
     const layout = this._layout!;
     this.aimAt(layout.shooterX, layout.shooterY + 1);
@@ -76,6 +98,63 @@ export class GameOperations implements IInjectionTarget {
         const color = this._pickColor(row, col);
         grid.setColor(row, col, color);
         events.emitBubblePlaced(row, col, color);
+      }
+    }
+  }
+
+  /**
+   * Reset the grid to the layout of the given level. Cancels any
+   * in-flight / popping / falling state and resets the score so the
+   * test scenario starts from a clean slate.
+   */
+  public loadLevel(levelId: string): void {
+    const level = LEVELS.find((l) => l.id === levelId);
+    if (!level) return;
+
+    this._cancelTransientState();
+    this._clearGrid();
+
+    if (level.placements === null) {
+      this.buildInitialLayout();
+    } else {
+      const grid = this._grid!;
+      const events = this._events!;
+      for (const p of level.placements) {
+        grid.setColor(p.row, p.col, p.color);
+        events.emitBubblePlaced(p.row, p.col, p.color);
+      }
+    }
+
+    this._score!.reset();
+    this._events!.emitScoreChanged(0);
+    this.aimAt(this._lastAimX, this._lastAimY);
+  }
+
+  /** Wipe transient flight / pop / falling state and notify the view. */
+  private _cancelTransientState(): void {
+    const events = this._events!;
+    if (this._flying) {
+      events.emitFlyingBubbleChanged(null, 0, 0);
+      this._flying = null;
+    }
+    this._popQueue.length = 0;
+    this._popTimer = 0;
+    this._popIndexInSession = 0;
+    for (const f of this._falling) events.emitFallingBubbleChanged(f.id, null, f.x, f.y);
+    this._falling.length = 0;
+    this._state = "idle";
+  }
+
+  private _clearGrid(): void {
+    const grid = this._grid!;
+    const events = this._events!;
+    for (let row = 0; row < grid.rowCount; row++) {
+      const colCount = grid.getColumnCount(row);
+      for (let col = 0; col < colCount; col++) {
+        if (grid.isOccupied(row, col)) {
+          grid.setColor(row, col, null);
+          events.emitBubbleRemoved(row, col);
+        }
       }
     }
   }
@@ -144,7 +223,7 @@ export class GameOperations implements IInjectionTarget {
     const config = this._config!;
 
     if (worldY < layout.shooterY) {
-      if (this._state !== "flying") this._events!.emitAimTrajectoryChanged(EMPTY_TRAJECTORY);
+      if (this._state === "idle") this._events!.emitAimTrajectoryChanged(EMPTY_TRAJECTORY);
       return;
     }
 
@@ -162,7 +241,7 @@ export class GameOperations implements IInjectionTarget {
     this._shooter!.setAimAngle(angle);
     this._events!.emitShooterAimChanged(angle);
 
-    if (this._state === "flying") return;
+    if (this._state !== "idle") return;
     const trajectory = this._aimCalculator!.compute(angle);
     this._events!.emitAimTrajectoryChanged(trajectory);
   }
@@ -220,6 +299,15 @@ export class GameOperations implements IInjectionTarget {
   }
 
   public update(dt: number): void {
+    // Falling bubbles tick every frame regardless of state — they're
+    // already detached from the grid, so flight + popping carry on
+    // independently.
+    if (this._falling.length > 0) this._updateFalling(dt);
+
+    if (this._state === "popping") {
+      this._updatePopping(dt);
+      return;
+    }
     if (this._state !== "flying" || !this._flying) return;
     const config = this._config!;
     let remaining = config.firedBubbleSpeed * dt;
@@ -260,27 +348,142 @@ export class GameOperations implements IInjectionTarget {
     events.emitBubblePlaced(landing.row, landing.col, color);
     events.emitFlyingBubbleChanged(null, 0, 0);
 
-    // Match-and-pop. Group includes the just-placed bubble; below the
-    // threshold the bubble simply stays put.
     const group = this._matchFinder!.findConnectedGroup(landing.row, landing.col);
+    this._flying = null;
+
     if (group.length >= this._config!.matchPopThreshold) {
-      for (const cell of group) {
-        grid.setColor(cell.row, cell.col, null);
-        events.emitBubbleRemoved(cell.row, cell.col);
-      }
-      // Anything no longer anchored to the top row drops.
-      const floating = this._floatingFinder!.findFloating();
-      for (const cell of floating) {
-        grid.setColor(cell.row, cell.col, null);
-        events.emitBubbleRemoved(cell.row, cell.col);
-      }
+      // Sequential pop with score and particle burst per bubble. The
+      // pop driver advances in `update(dt)`; floating-bubble drop runs
+      // once the queue empties.
+      this._popQueue = group.slice();
+      this._popTimer = 0;
+      this._popIndexInSession = 0;
+      this._state = "popping";
+      return;
     }
 
-    this._flying = null;
     this._state = "idle";
-
-    // Re-aim from the latest cursor position now that the grid changed.
     this.aimAt(this._lastAimX, this._lastAimY);
+  }
+
+  private _updatePopping(dt: number): void {
+    this._popTimer -= dt;
+    while (this._popTimer <= 0 && this._popQueue.length > 0) {
+      const cell = this._popQueue.shift()!;
+      this._popOneCell(cell);
+      this._popTimer += this._config!.popDelaySeconds;
+    }
+    if (this._popQueue.length === 0) this._finishPopping();
+  }
+
+  private _popOneCell(cell: IMatchedCell): void {
+    const grid = this._grid!;
+    const events = this._events!;
+    const layout = this._layout!;
+    const color = grid.getColor(cell.row, cell.col);
+    if (color === null) return;
+
+    this._popIndexInSession++;
+    this._score!.add(this._popIndexInSession * this._config!.popPointsStep);
+    events.emitScoreChanged(this._score!.value);
+
+    const pos = layout.getCellWorldPosition(cell.row, cell.col);
+    events.emitBubblePopped(pos.x, pos.y, color);
+    grid.setColor(cell.row, cell.col, null);
+    events.emitBubbleRemoved(cell.row, cell.col);
+  }
+
+  private _finishPopping(): void {
+    // Anything no longer anchored to the top row detaches and starts
+    // falling. Each falling bubble gets a fresh id so the view tracks
+    // its mesh independently from any cluster mesh that may later
+    // occupy the same cell.
+    const grid = this._grid!;
+    const layout = this._layout!;
+    const events = this._events!;
+    const config = this._config!;
+    const floating = this._floatingFinder!.findFloating();
+
+    // Snapshot positions + colours BEFORE removing anything so we can
+    // compute the group's centre of mass (drives the outward impulse).
+    interface IPending {
+      row: number;
+      col: number;
+      color: BubbleColor;
+      x: number;
+      y: number;
+    }
+    const pending: IPending[] = [];
+    let cx = 0;
+    let cy = 0;
+    for (const cell of floating) {
+      const color = grid.getColor(cell.row, cell.col);
+      if (color === null) continue;
+      const pos = layout.getCellWorldPosition(cell.row, cell.col);
+      pending.push({ row: cell.row, col: cell.col, color, x: pos.x, y: pos.y });
+      cx += pos.x;
+      cy += pos.y;
+    }
+    if (pending.length > 0) {
+      cx /= pending.length;
+      cy /= pending.length;
+    }
+
+    const impulse = config.fallingBubbleSeparationImpulse;
+    const upBias = config.fallingBubbleSeparationUpBias;
+    for (const p of pending) {
+      grid.setColor(p.row, p.col, null);
+      events.emitBubbleRemoved(p.row, p.col);
+
+      // Outward direction from the group's centre — gives each bubble a
+      // brief "scattering" beat before gravity overtakes the impulse.
+      // A bubble exactly at the centre gets a random direction so a
+      // single-cell drop still nudges visibly.
+      let dx = p.x - cx;
+      let dy = p.y - cy;
+      const len = Math.hypot(dx, dy);
+      if (len < 0.001) {
+        const a = Math.random() * Math.PI * 2;
+        dx = Math.cos(a);
+        dy = Math.sin(a);
+      } else {
+        dx /= len;
+        dy /= len;
+      }
+      const vx = dx * impulse;
+      const vy = dy * impulse + upBias;
+
+      const id = this._nextFallingId++;
+      this._falling.push({ id, color: p.color, x: p.x, y: p.y, vx, vy });
+      events.emitFallingBubbleChanged(id, p.color, p.x, p.y);
+    }
+    this._state = "idle";
+    this.aimAt(this._lastAimX, this._lastAimY);
+  }
+
+  private _updateFalling(dt: number): void {
+    const config = this._config!;
+    const layout = this._layout!;
+    const events = this._events!;
+    const popY = layout.shooterY - config.fallingBubblePopDepth;
+    const gravity = config.fallingBubbleGravity;
+
+    const remaining: IFallingBubbleState[] = [];
+    for (const f of this._falling) {
+      f.vy -= gravity * dt;
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      if (f.y <= popY) {
+        this._score!.add(config.fallingBubblePopPoints);
+        events.emitScoreChanged(this._score!.value);
+        events.emitBubblePopped(f.x, f.y, f.color);
+        events.emitFallingBubbleChanged(f.id, null, f.x, f.y);
+        continue;
+      }
+      events.emitFallingBubbleChanged(f.id, f.color, f.x, f.y);
+      remaining.push(f);
+    }
+    this._falling = remaining;
   }
 
   /**

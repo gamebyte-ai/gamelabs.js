@@ -5,7 +5,7 @@ import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BubbleGridLayout } from "../utilities/BubbleGridLayout";
 import type { IAimTrajectory, IAimTrajectorySegment } from "../utilities/AimTrajectoryCalculator";
 import { BUBBLE_COLOR_HEX, BUBBLE_COLORS, type BubbleColor } from "../constants/BubbleColor";
-import { BUBBLE_COLOR_TO_ASSET_ID } from "../BubbleShooterAssetIds";
+import { BUBBLE_COLOR_TO_ASSET_ID, BubbleShooterAssetIds } from "../BubbleShooterAssetIds";
 
 const CELL_RING_SEGMENTS = 32;
 const SHOOTER_RING_SEGMENTS = 48;
@@ -13,8 +13,20 @@ const LANDING_PREVIEW_SEGMENTS = 48;
 const AIM_DOT_SEGMENTS = 14;
 const BUBBLE_DISC_SEGMENTS = 48;
 const BUBBLE_VISUAL_RADIUS_FACTOR = 0.94;
+const PARTICLE_SEGMENTS = 10;
 const SHOOTER_Z = 0.2;
 const AIM_DOT_Z = 0.4;
+const PARTICLE_Z = 0.5;
+
+interface IPopParticle {
+  readonly mesh: THREE.Mesh;
+  readonly material: THREE.MeshBasicMaterial;
+  vx: number;
+  vy: number;
+  age: number;
+  lifetime: number;
+  active: boolean;
+}
 
 /**
  * Renders the play area frame, the empty bubble grid as outline-only
@@ -70,7 +82,13 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
 
   private _flyingBubbleMesh: THREE.Mesh | null = null;
 
-  private _nextSlotRingMesh: THREE.Mesh | null = null;
+  /** Live falling-bubble meshes keyed by ops-side falling-bubble id. */
+  private readonly _fallingBubbleMeshes = new Map<number, THREE.Mesh>();
+
+  private _particleGeometry: THREE.CircleGeometry | null = null;
+  private readonly _particles: IPopParticle[] = [];
+
+  private _nextSlotIconMesh: THREE.Mesh | null = null;
   private _nextBubbleMesh: THREE.Mesh | null = null;
 
   private readonly _aimListeners = new Set<(worldX: number, worldY: number) => void>();
@@ -117,6 +135,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._buildAimDotResources(config);
     this._buildLandingPreview(config);
     this._buildFlyingBubble();
+    this._buildParticleResources(config);
     this._attachPointerListener();
   }
 
@@ -218,6 +237,66 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     if (!material) return;
     mesh.material = material;
     mesh.visible = true;
+  }
+
+  public playPopBurst(x: number, y: number, color: BubbleColor): void {
+    const config = this._config;
+    if (!config || !this._particleGeometry) return;
+    const colorHex = BUBBLE_COLOR_HEX[color];
+    const count = config.popParticleCount;
+    const speedMin = config.popParticleSpeedMin;
+    const speedMax = config.popParticleSpeedMax;
+    const lifetime = config.popParticleLifetimeSeconds;
+    for (let i = 0; i < count; i++) {
+      // Even-ish angular distribution with a small per-spawn jitter so
+      // bursts don't look mechanical.
+      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+      const speed = speedMin + Math.random() * (speedMax - speedMin);
+      const particle = this._acquireParticle(colorHex);
+      particle.mesh.position.set(x, y, PARTICLE_Z);
+      particle.vx = Math.cos(angle) * speed;
+      particle.vy = Math.sin(angle) * speed;
+      particle.age = 0;
+      particle.lifetime = lifetime;
+      particle.material.opacity = 1;
+      particle.mesh.visible = true;
+      particle.active = true;
+    }
+  }
+
+  public setFallingBubble(id: number, color: BubbleColor | null, x: number, y: number): void {
+    if (color === null) {
+      const mesh = this._fallingBubbleMeshes.get(id);
+      if (!mesh) return;
+      this.remove(mesh);
+      this._fallingBubbleMeshes.delete(id);
+      return;
+    }
+    const geometry = this._bubbleGeometry;
+    const material = this._bubbleMaterials.get(color);
+    if (!geometry || !material) return;
+    let mesh = this._fallingBubbleMeshes.get(id);
+    if (!mesh) {
+      mesh = new THREE.Mesh(geometry, material);
+      this._fallingBubbleMeshes.set(id, mesh);
+      this.add(mesh);
+    }
+    mesh.position.set(x, y, 0);
+  }
+
+  public updateParticles(dt: number): void {
+    for (const p of this._particles) {
+      if (!p.active) continue;
+      p.age += dt;
+      if (p.age >= p.lifetime) {
+        p.active = false;
+        p.mesh.visible = false;
+        continue;
+      }
+      p.mesh.position.x += p.vx * dt;
+      p.mesh.position.y += p.vy * dt;
+      p.material.opacity = 1 - p.age / p.lifetime;
+    }
   }
 
   public setFlyingBubble(color: BubbleColor | null, x: number, y: number): void {
@@ -428,13 +507,18 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   }
 
   private _buildNextSlot(config: BubbleShooterConfig, layout: BubbleGridLayout): void {
-    const ringInner = config.nextSlotRadius - config.nextSlotRingThickness;
-    const ringGeo = new THREE.RingGeometry(ringInner, config.nextSlotRadius, SHOOTER_RING_SEGMENTS);
-    const ringMat = new THREE.MeshBasicMaterial({ color: config.nextSlotRingColor, side: THREE.DoubleSide });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.position.set(layout.nextSlotX, layout.nextSlotY, SHOOTER_Z);
-    this._nextSlotRingMesh = ring;
-    this.add(ring);
+    // Swap-icon plane: refresh-style two-arrow ring framing the next
+    // bubble, so the slot reads as the swap affordance.
+    const iconTex = this.assetLoader.getAsset<THREE.Texture>(BubbleShooterAssetIds.SwapIcon);
+    const iconGeo = new THREE.PlaneGeometry(config.nextSlotIconSize, config.nextSlotIconSize);
+    const iconMat = iconTex
+      ? new THREE.MeshBasicMaterial({ map: iconTex, transparent: true, depthWrite: false })
+      : new THREE.MeshBasicMaterial({ color: 0x6b86a8, transparent: true, opacity: 0.6, depthWrite: false });
+    const icon = new THREE.Mesh(iconGeo, iconMat);
+    // Slightly behind the bubble so the bubble disc draws on top.
+    icon.position.set(layout.nextSlotX, layout.nextSlotY, SHOOTER_Z - 0.05);
+    this._nextSlotIconMesh = icon;
+    this.add(icon);
 
     if (!this._bubbleGeometry) return;
     const placeholder = this._bubbleMaterials.get(BUBBLE_COLORS[0]!);
@@ -445,6 +529,34 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     bubble.visible = false;
     this._nextBubbleMesh = bubble;
     this.add(bubble);
+  }
+
+  private _buildParticleResources(config: BubbleShooterConfig): void {
+    this._particleGeometry = new THREE.CircleGeometry(config.popParticleRadius, PARTICLE_SEGMENTS);
+  }
+
+  private _acquireParticle(colorHex: number): IPopParticle {
+    // Reuse an inactive particle if available; recolor + recycle.
+    for (const p of this._particles) {
+      if (!p.active) {
+        p.material.color.setHex(colorHex);
+        return p;
+      }
+    }
+    const material = new THREE.MeshBasicMaterial({
+      color: colorHex,
+      transparent: true,
+      opacity: 1,
+      depthTest: false,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(this._particleGeometry!, material);
+    mesh.renderOrder = 12;
+    mesh.visible = false;
+    this.add(mesh);
+    const particle: IPopParticle = { mesh, material, vx: 0, vy: 0, age: 0, lifetime: 0, active: false };
+    this._particles.push(particle);
+    return particle;
   }
 
   private _buildFlyingBubble(): void {
@@ -542,26 +654,48 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   }
 
   private readonly _onPointerMove = (event: PointerEvent): void => {
-    const world = this._world;
-    if (!world || !this._canvasEl) return;
-    const camera = world.activeCamera;
-    if (!camera) return;
-    const rect = this._canvasEl.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-
-    const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    const ndcY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
-    const v = new THREE.Vector3(ndcX, ndcY, 0).unproject(camera);
-    for (const cb of this._aimListeners) cb(v.x, v.y);
+    const world = this._eventToWorld(event);
+    if (!world) return;
+    for (const cb of this._aimListeners) cb(world.x, world.y);
   };
 
   private readonly _onPointerDown = (event: PointerEvent): void => {
-    if (event.button === 0) {
-      for (const cb of this._fireListeners) cb();
-    } else if (event.button === 2) {
+    if (event.button === 2) {
       for (const cb of this._swapListeners) cb();
+      return;
     }
+    if (event.button !== 0) return;
+    // Left-click on the next-slot icon also triggers swap.
+    const world = this._eventToWorld(event);
+    if (world && this._isOverNextSlot(world.x, world.y)) {
+      for (const cb of this._swapListeners) cb();
+      return;
+    }
+    for (const cb of this._fireListeners) cb();
   };
+
+  private _eventToWorld(event: MouseEvent): { x: number; y: number } | null {
+    const world = this._world;
+    if (!world || !this._canvasEl) return null;
+    const camera = world.activeCamera;
+    if (!camera) return null;
+    const rect = this._canvasEl.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    const ndcX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const ndcY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+    const v = new THREE.Vector3(ndcX, ndcY, 0).unproject(camera);
+    return { x: v.x, y: v.y };
+  }
+
+  private _isOverNextSlot(worldX: number, worldY: number): boolean {
+    const layout = this._layout;
+    const config = this._config;
+    if (!layout || !config) return false;
+    const dx = worldX - layout.nextSlotX;
+    const dy = worldY - layout.nextSlotY;
+    const r = config.nextSlotClickRadius;
+    return dx * dx + dy * dy <= r * r;
+  }
 
   private readonly _onContextMenu = (event: MouseEvent): void => {
     // Suppress the browser context menu so right-click can drive swap.
@@ -584,17 +718,28 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
       this.remove(this._nextBubbleMesh);
       this._nextBubbleMesh = null;
     }
-    if (this._nextSlotRingMesh) {
-      this.remove(this._nextSlotRingMesh);
-      this._nextSlotRingMesh.geometry.dispose();
-      (this._nextSlotRingMesh.material as THREE.MeshBasicMaterial).dispose();
-      this._nextSlotRingMesh = null;
+    if (this._nextSlotIconMesh) {
+      this.remove(this._nextSlotIconMesh);
+      this._nextSlotIconMesh.geometry.dispose();
+      (this._nextSlotIconMesh.material as THREE.MeshBasicMaterial).dispose();
+      this._nextSlotIconMesh = null;
     }
 
     if (this._flyingBubbleMesh) {
       this.remove(this._flyingBubbleMesh);
       this._flyingBubbleMesh = null;
     }
+
+    for (const mesh of this._fallingBubbleMeshes.values()) this.remove(mesh);
+    this._fallingBubbleMeshes.clear();
+
+    for (const p of this._particles) {
+      this.remove(p.mesh);
+      p.material.dispose();
+    }
+    this._particles.length = 0;
+    this._particleGeometry?.dispose();
+    this._particleGeometry = null;
 
     for (const dot of this._aimDotPool) this.remove(dot);
     this._aimDotPool.length = 0;

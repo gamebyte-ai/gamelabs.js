@@ -25,6 +25,8 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
     this._subs.add(this._gameEvents!.onShooterAimChanged((angle) => this._view?.setShooterAimAngle(angle)));
     this._subs.add(this._gameEvents!.onAimTrajectoryChanged((traj) => this._view?.setAimTrajectory(traj)));
     this._subs.add(this._gameEvents!.onFlyingBubbleChanged((color, x, y) => this._view?.setFlyingBubble(color, x, y)));
+    this._subs.add(this._gameEvents!.onBubblePopped((x, y, color) => this._view?.playPopBurst(x, y, color)));
+    this._subs.add(this._gameEvents!.onFallingBubbleChanged((id, color, x, y) => this._view?.setFallingBubble(id, color, x, y)));
     this._subs.add(this._view.onAimAtWorld((x, y) => this._ops?.aimAt(x, y)));
     this._subs.add(this._view.onFire(() => this._ops?.fire()));
     this._subs.add(this._view.onSwap(() => this._ops?.swap()));
@@ -35,6 +37,7 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
   private _tick(dt: number): void {
     this._ops?.update(dt);
     this._view?.updateAimDots(dt);
+    this._view?.updateParticles(dt);
   }
 
   public destroy(): void {

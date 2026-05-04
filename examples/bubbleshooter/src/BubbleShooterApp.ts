@@ -2,11 +2,15 @@ import {
   AssetRequest,
   AssetRequestList,
   AssetTypes,
+  ControlAnchor,
+  ControlType,
   Front2dCameraController,
   GameCameraBinding,
   GameCameraManager,
   GamelabsApp,
   LogTypes,
+  OnScreenControlManager,
+  OnScreenControlsBinding,
   UIComponentsBinding,
   UIEvents,
   World,
@@ -20,6 +24,8 @@ import { BubbleGrid } from "./models/BubbleGrid";
 import { IBubbleGrid } from "./models/IBubbleGrid";
 import { Shooter } from "./models/Shooter";
 import { IShooter } from "./models/IShooter";
+import { Score } from "./models/Score";
+import { IScore } from "./models/IScore";
 import { GameEvents } from "./events/GameEvents";
 import { GameOperations } from "./utilities/GameOperations";
 import { AimTrajectoryCalculator } from "./utilities/AimTrajectoryCalculator";
@@ -29,6 +35,9 @@ import { GameAreaView } from "./views/GameAreaView.three";
 import { GameAreaViewController } from "./controllers/GameAreaViewController";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
+
+const SCORE_CONTROL_ID = "score";
+export { SCORE_CONTROL_ID };
 
 /**
  * Bubble Shooter scaffold.
@@ -45,8 +54,10 @@ export class BubbleShooterApp extends GamelabsApp {
   private readonly _layout = new BubbleGridLayout(this._config);
   private readonly _grid = new BubbleGrid(this._layout);
   private readonly _shooter = new Shooter();
+  private readonly _score = new Score();
   private readonly _gameEvents = new GameEvents();
   private readonly _gameCameraBinding = new GameCameraBinding();
+  private readonly _onScreenControlsBinding = new OnScreenControlsBinding();
   private readonly _uiComponentsBinding = new UIComponentsBinding();
 
   private _gameAreaView: GameAreaView | null = null;
@@ -59,6 +70,7 @@ export class BubbleShooterApp extends GamelabsApp {
 
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
+    this.addModule(this._onScreenControlsBinding);
     this.addModule(this._uiComponentsBinding);
   }
 
@@ -75,7 +87,20 @@ export class BubbleShooterApp extends GamelabsApp {
     this.viewDiContainer.bindInstance(BubbleGridLayout, this._layout);
     this.diContainer.bindInstance(BubbleGrid, this._grid, [IBubbleGrid]);
     this.diContainer.bindInstance(Shooter, this._shooter, [IShooter]);
+    this.diContainer.bindInstance(Score, this._score, [IScore]);
     this.diContainer.bindInstance(GameEvents, this._gameEvents);
+
+    // Top-left score readout via the on-screen-controls Label widget.
+    const osc = this.diContainer.getInstance(OnScreenControlManager);
+    osc.addControl({
+      type: ControlType.Label,
+      id: SCORE_CONTROL_ID,
+      anchor: ControlAnchor.TopLeft,
+      offsetX: 16,
+      offsetY: 16,
+      content: "Score: 0",
+      text: { color: 0xffffff, fontSize: 22, fontWeight: "700" },
+    });
     this.diContainer.bindSingleton(AimTrajectoryCalculator, () => new AimTrajectoryCalculator());
     this.diContainer.bindSingleton(MatchFinder, () => new MatchFinder());
     this.diContainer.bindSingleton(FloatingBubbleFinder, () => new FloatingBubbleFinder());
@@ -102,6 +127,9 @@ export class BubbleShooterApp extends GamelabsApp {
     );
     this._assetRequestList.addRequest(
       new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.BubblePurple, new URL("../assets/bubbles/purple.svg", import.meta.url).href),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.SwapIcon, new URL("../assets/swap-icon.svg", import.meta.url).href),
     );
     this.assetManager.loadAll(this._assetRequestList.getRequests());
   }

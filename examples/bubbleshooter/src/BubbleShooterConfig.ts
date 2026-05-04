@@ -23,7 +23,7 @@ export class BubbleShooterConfig {
    * so the grid's bottom edge lines up exactly with the shooter level
    * (the new lower rows act as the lose-line area).
    */
-  public readonly playAreaPaddingBottom = 70;
+  public readonly playAreaPaddingBottom = 100;
 
   public readonly playAreaBgColor = 0x101822;
   public readonly playAreaBorderColor = 0x2a3a55;
@@ -45,9 +45,10 @@ export class BubbleShooterConfig {
   /** Next-bubble preview slot, drawn beside the shooter. */
   public readonly nextSlotOffsetX = 78;
   public readonly nextSlotOffsetY = -10;
-  public readonly nextSlotRadius = 22;
-  public readonly nextSlotRingThickness = 2;
-  public readonly nextSlotRingColor = 0x4a6280;
+  /** World-space side length of the swap-icon plane that frames the next bubble. */
+  public readonly nextSlotIconSize = 44;
+  /** Click hit-test radius around the next-slot centre (slightly forgiving vs the visible icon). */
+  public readonly nextSlotClickRadius = 24;
   /** Visual scale of the bubble inside the next-slot ring (× bubbleRadius). */
   public readonly nextBubbleRadiusScale = 0.6;
 
@@ -78,6 +79,43 @@ export class BubbleShooterConfig {
   /** Minimum same-colour group size that pops on snap. */
   public readonly matchPopThreshold = 3;
 
+  /** Seconds between sequential bubble pops within a single match group. */
+  public readonly popDelaySeconds = 0.05;
+  /** Per-bubble score increment within a single pop sequence. */
+  public readonly popPointsStep = 5;
+
+  /** Particle burst — quick visual when a bubble pops. */
+  public readonly popParticleCount = 8;
+  public readonly popParticleSpeedMin = 60;
+  public readonly popParticleSpeedMax = 130;
+  public readonly popParticleLifetimeSeconds = 0.45;
+  public readonly popParticleRadius = 3;
+
+  /** Acceleration for disconnected falling bubbles, world units per second squared. */
+  public readonly fallingBubbleGravity = 1200;
+  /**
+   * Outward radial separation impulse applied to each disconnected
+   * bubble before it falls. Each bubble's initial velocity points away
+   * from the group's centre of mass at this magnitude — the cluster
+   * visibly breaks apart for a beat instead of dropping as a frozen
+   * blob.
+   */
+  public readonly fallingBubbleSeparationImpulse = 50;
+  /**
+   * Extra upward velocity added on top of the radial separation impulse,
+   * giving the disconnect a tiny "burst" feel before gravity pulls
+   * everything down.
+   */
+  public readonly fallingBubbleSeparationUpBias = 70;
+  /** Bonus points awarded when a falling bubble pops at the threshold. */
+  public readonly fallingBubblePopPoints = 40;
+  /**
+   * World-Y threshold (relative to the shooter) at which a falling bubble
+   * pops. Default: just below the shooter level so the player sees the
+   * full drop before the burst.
+   */
+  public readonly fallingBubblePopDepth = -50;
+
   /**
    * Shrink applied to the bubble-vs-bubble collision radius (world units).
    * Effective centre-to-centre threshold becomes `2 · bubbleRadius -
@@ -87,7 +125,7 @@ export class BubbleShooterConfig {
    * `AimTrajectoryCalculator`, so the predicted landing always matches
    * the real flight.
    */
-  public readonly bubbleCollisionTolerance = 6.3;
+  public readonly bubbleCollisionTolerance = 6.45;
 
   /**
    * Front camera focal-point Z. Pushes the camera back so bubble spheres

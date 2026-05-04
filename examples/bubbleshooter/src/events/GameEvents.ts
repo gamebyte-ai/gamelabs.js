@@ -8,6 +8,9 @@ type ShooterColorCb = (color: BubbleColor | null) => void;
 type ShooterAimCb = (angle: number) => void;
 type AimTrajectoryCb = (trajectory: IAimTrajectory) => void;
 type FlyingBubbleCb = (color: BubbleColor | null, x: number, y: number) => void;
+type BubblePoppedCb = (x: number, y: number, color: BubbleColor) => void;
+type FallingBubbleCb = (id: number, color: BubbleColor | null, x: number, y: number) => void;
+type ScoreCb = (value: number) => void;
 
 export class GameEvents {
   private readonly _bubblePlacedListeners = new Set<BubblePlacedCb>();
@@ -17,6 +20,9 @@ export class GameEvents {
   private readonly _shooterAimListeners = new Set<ShooterAimCb>();
   private readonly _aimTrajectoryListeners = new Set<AimTrajectoryCb>();
   private readonly _flyingBubbleListeners = new Set<FlyingBubbleCb>();
+  private readonly _bubblePoppedListeners = new Set<BubblePoppedCb>();
+  private readonly _fallingBubbleListeners = new Set<FallingBubbleCb>();
+  private readonly _scoreListeners = new Set<ScoreCb>();
 
   public onBubblePlaced(cb: BubblePlacedCb): Unsubscribe {
     this._bubblePlacedListeners.add(cb);
@@ -79,5 +85,46 @@ export class GameEvents {
 
   public emitFlyingBubbleChanged(color: BubbleColor | null, x: number, y: number): void {
     for (const cb of this._flyingBubbleListeners) cb(color, x, y);
+  }
+
+  /**
+   * A bubble popped — used by the view to drive the particle-burst
+   * animation. Carries world coordinates so it works for both cluster
+   * pops (`x`, `y` resolved from grid cell) and falling-bubble pops
+   * (`x`, `y` taken from the bubble's mid-air position).
+   *
+   * For cluster pops, fires *in addition to* `onBubbleRemoved` so the
+   * view can split visual concerns from the grid mutation.
+   */
+  public onBubblePopped(cb: BubblePoppedCb): Unsubscribe {
+    this._bubblePoppedListeners.add(cb);
+    return () => this._bubblePoppedListeners.delete(cb);
+  }
+
+  public emitBubblePopped(x: number, y: number, color: BubbleColor): void {
+    for (const cb of this._bubblePoppedListeners) cb(x, y, color);
+  }
+
+  /**
+   * Falling-bubble lifecycle. `color !== null` means spawn-or-update at
+   * `(x, y)`; `color === null` means the falling bubble is gone (popped
+   * at the threshold or otherwise) and the view should remove its mesh.
+   */
+  public onFallingBubbleChanged(cb: FallingBubbleCb): Unsubscribe {
+    this._fallingBubbleListeners.add(cb);
+    return () => this._fallingBubbleListeners.delete(cb);
+  }
+
+  public emitFallingBubbleChanged(id: number, color: BubbleColor | null, x: number, y: number): void {
+    for (const cb of this._fallingBubbleListeners) cb(id, color, x, y);
+  }
+
+  public onScoreChanged(cb: ScoreCb): Unsubscribe {
+    this._scoreListeners.add(cb);
+    return () => this._scoreListeners.delete(cb);
+  }
+
+  public emitScoreChanged(value: number): void {
+    for (const cb of this._scoreListeners) cb(value);
   }
 }
