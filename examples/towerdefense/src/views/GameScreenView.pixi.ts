@@ -1,5 +1,11 @@
 import * as PIXI from "pixi.js";
-import { ButtonComponent, ScreenView, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  ButtonComponent,
+  ScreenView,
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView.js";
 import { TowerTypeId, TOWER_TYPES } from "../constants/TowerTypeDef.js";
 
@@ -90,14 +96,13 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     const row = new PIXI.Container();
     row.layout = { flexDirection: "row", gap: 16, alignItems: "center" };
 
-    const generateBtn = new ButtonComponent({
+    const generateBtnStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 14, fontWeight: "600", color: 0xffffff },
+    });
+    const generateBtn = new ButtonComponent(this.assetLoader, generateBtnStyle, {
       width: GameScreenView.BTN_W,
       height: GameScreenView.BTN_H,
       label: "Generate Level",
-      labelStyle: { fontSize: 14, fontWeight: "600", fill: 0xffffff },
-      radius: 6,
-      fillColor: 0x4488cc,
-      strokeColor: 0x5599dd,
     });
     generateBtn.onPress(() => this._generateHandler?.());
     row.addChild(generateBtn);
@@ -117,15 +122,13 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     row.addChild(this._statsText);
 
     // Settings gear button
-    const settingsBtn = new ButtonComponent({
+    const settingsBtnStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 20, color: 0xcbd5e0 },
+    });
+    const settingsBtn = new ButtonComponent(this.assetLoader, settingsBtnStyle, {
       width: 36,
       height: 36,
       label: "\u2699",
-      labelStyle: { fontSize: 20, fill: 0xcbd5e0 },
-      radius: 8,
-      fillColor: 0x1e293b,
-      fillAlpha: 0.7,
-      strokeColor: 0x475569,
     });
     settingsBtn.onPress(() => {
       for (const cb of this._settingsListeners) cb();
@@ -158,15 +161,14 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private _makeTowerCard(typeId: TowerTypeId, name: string, cost: number, color: number): ButtonComponent {
     const { SHOP_CARD_W, SHOP_CARD_H } = GameScreenView;
 
-    const card = new ButtonComponent({
+    // Each tower type carries its own color identity, so tint the default
+    // skin per-card to preserve the visual distinction between tower types.
+    const cardStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button);
+    const card = new ButtonComponent(this.assetLoader, cardStyle, {
       width: SHOP_CARD_W,
       height: SHOP_CARD_H,
-      radius: 6,
-      fillColor: color,
-      fillAlpha: 0.85,
-      strokeColor: 0x000000,
-      strokeWidth: 0,
     });
+    card.tint = color;
 
     const nameText = new PIXI.Text({
       text: name,

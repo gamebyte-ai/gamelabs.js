@@ -15,9 +15,9 @@ import { MainScreenUIIds } from "./MainScreenUIIds.js";
 export class MainScreenBinding extends ModuleBinding {
   //  FIELDS
   private _backgroundPreset = '{"bgTextureId":"MainScreen.Background"}';
-  private _playButtonPreset = '{"width":400,"height":200,"radius":14,"bgTextureId":"MainScreen.PlayButtonBg"}';
+  private _playButtonPreset = '{"width":400,"height":200,"skin":{"idle":"MainScreen.PlayButtonBg"}}';
   private _settingsButtonPreset =
-    '{"width":400,"height":100,"label":"SETTINGS","labelStyle":{"fontSize":24,"fontWeight":"800","letterSpacing":1.5},"bgTextureId":"MainScreen.SettingsButtonBg"}';
+    '{"width":400,"height":100,"label":"SETTINGS","labelStyle":{"fontSize":24,"fontWeight":"800","letterSpacing":1.5},"skin":{"idle":"MainScreen.SettingsButtonBg"}}';
   private _buttonsColPreset = '{"width":400,"gap":18}';
 
   //  CONSTRUCTORS

@@ -1,14 +1,25 @@
 import * as PIXI from "pixi.js";
-import type { Layout } from "@pixi/layout";
 import { PopupView } from "../../../../core/ui/PopupView.pixi.js";
 import { ButtonComponent } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
+import { HorizontalLayoutComponent } from "../../../uicomponents/src/views/HorizontalLayoutComponent.pixi.js";
+import { ImageComponent } from "../../../uicomponents/src/views/ImageComponent.pixi.js";
+import { LabelComponent } from "../../../uicomponents/src/views/LabelComponent.pixi.js";
 import { ToggleComponent } from "../../../uicomponents/src/views/ToggleComponent.pixi.js";
 import { SliderComponent } from "../../../uicomponents/src/views/SliderComponent.pixi.js";
+import {
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type ImageComponentStyle,
+  type LabelComponentStyle,
+  type SliderComponentStyle,
+  type ToggleComponentStyle,
+} from "../../../uicomponents/src/UIComponentsStyleTypes.js";
+import { SettingsAssetIds } from "../constants/SettingsAssetIds.js";
 import type { ISettingsPopupView } from "./ISettingsPopupView.js";
 
 type FieldRow = {
   name: string;
-  container: PIXI.Container;
+  container: HorizontalLayoutComponent;
 };
 
 type BooleanRow = FieldRow & {
@@ -18,8 +29,6 @@ type BooleanRow = FieldRow & {
 
 type NumberRow = FieldRow & {
   slider: SliderComponent;
-  valueText: PIXI.Text;
-  step: number;
 };
 
 export class SettingsPopupView extends PopupView implements ISettingsPopupView {
@@ -32,7 +41,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
   private static readonly TOGGLE_HEIGHT = 24;
 
   private _panel: PIXI.Container | null = null;
-  private _panelBg: PIXI.Graphics | null = null;
+  private _panelBg: ImageComponent | null = null;
   private _rowsContainer: PIXI.Container | null = null;
   private _closeBtn: ButtonComponent | null = null;
 
@@ -59,24 +68,23 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
       gap: 8,
     };
 
-    const panelBg = new PIXI.Graphics();
-    panelBg.eventMode = "static";
+    // 9-slice rounded panel bg via ImageComponent. Both the texture id
+    // and the visual override (alpha, 9-slice border) live in the
+    // binding — the texture as a `HudTexture` request, the override as
+    // a `Text` style asset that points back at the texture id by string.
+    const panelBgStyle = this._resolveStyleFromTextAsset<ImageComponentStyle>(UIComponentsStyleIds.Image, SettingsAssetIds.PanelBgStyle);
+    const panelBg = new ImageComponent(this.assetLoader, panelBgStyle, { fit: "stretch" });
     panelBg.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
+    panelBg.eventMode = "static";
     panel.addChild(panelBg);
     this._panelBg = panelBg;
 
-    // Title
-    const title = new PIXI.Text({
-      text: "Settings",
-      style: {
-        fill: 0x2d3748,
-        fontSize: 22,
-        fontWeight: "800",
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      },
-    });
-    title.anchor.set(0.5, 0.5);
-    title.layout = {};
+    // Title — `LabelComponent` with the popup's heading style. Yoga
+    // (`alignItems: "center"` on the panel) handles horizontal centering;
+    // anchor stays at the default (0, 0) so the label's local origin
+    // is its top-left, which matches Yoga's positive-bounds expectation.
+    const titleStyle = this._resolveStyleFromTextAsset<LabelComponentStyle>(UIComponentsStyleIds.Label, SettingsAssetIds.TitleStyle);
+    const title = new LabelComponent(this.assetLoader, titleStyle, { text: "Settings" });
     panel.addChild(title);
 
     // Rows container
@@ -89,16 +97,17 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     };
     panel.addChild(this._rowsContainer);
 
-    // Close button
-    this._closeBtn = new ButtonComponent({
+    // Close button — style override shipped as a Text asset. Apps
+    // re-theme by overriding the request URL or replacing the inline
+    // JSON content on the binding before app boot.
+    const closeButtonStyle = this._resolveStyleFromTextAsset<ButtonComponentStyle>(
+      UIComponentsStyleIds.Button,
+      SettingsAssetIds.CloseButtonStyle,
+    );
+    this._closeBtn = new ButtonComponent(this.assetLoader, closeButtonStyle, {
       width: 120,
       height: 38,
       label: "Close",
-      labelStyle: { fontSize: 14, fontWeight: "600", fill: 0x4a5568 },
-      radius: 19,
-      fillColor: 0xe2e8f0,
-      fillAlpha: 0.8,
-      strokeColor: 0xcbd5e0,
     });
     this._closeBtn.layout = { marginTop: 8 };
     panel.addChild(this._closeBtn);
@@ -113,39 +122,26 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     this.addChild(wrapper);
 
     this._panel = panel;
-
-    // Redraw panel background whenever the panel's layout recomputes
-    // (fields added, resize, etc.). Listen on panel, not panelBg, because
-    // the panel's height is computed from its children and panelBg is just
-    // 100%x100% of that.
-    panel.on("layout", (l: Layout) => this._handlePanelLayout(l));
   }
 
   // ── Field creation ──
 
   public addBooleanField(name: string, label: string, value: boolean): void {
-    const row = this._createRowContainer();
-    const W = SettingsPopupView.PANEL_WIDTH - 40;
+    const row = this._createRow();
 
-    const labelText = new PIXI.Text({
-      text: label,
-      style: {
-        fill: 0x4a5568,
-        fontSize: 14,
-        fontWeight: "600",
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      },
-    });
-    labelText.position.set(0, SettingsPopupView.ROW_HEIGHT / 2);
-    labelText.anchor.set(0, 0.5);
-    row.addChild(labelText);
+    // Default anchor (0, 0) keeps the label's layout-box origin aligned
+    // with its rendered-pixel origin. Row's `justifyContent: "space-
+    // between"` puts the label at the row's left edge and the toggle
+    // at the row's right edge — no need to touch the label's layout.
+    const labelComp = new LabelComponent(this.assetLoader, this._fieldLabelStyle(), { text: label });
+    row.addChild(labelComp);
 
-    const toggle = new ToggleComponent({
+    const toggleStyle = this.styleManager.resolve<ToggleComponentStyle>(UIComponentsStyleIds.Toggle);
+    const toggle = new ToggleComponent(this.assetLoader, toggleStyle, {
       width: SettingsPopupView.TOGGLE_WIDTH,
       height: SettingsPopupView.TOGGLE_HEIGHT,
       value,
     });
-    toggle.position.set(W - SettingsPopupView.TOGGLE_WIDTH, (SettingsPopupView.ROW_HEIGHT - SettingsPopupView.TOGGLE_HEIGHT) / 2);
     row.addChild(toggle);
 
     const boolRow: BooleanRow = { name, container: row, toggle, value };
@@ -160,36 +156,15 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
   }
 
   public addNumberField(name: string, label: string, value: number, min: number, max: number, step: number): void {
-    const row = this._createRowContainer();
-    const W = SettingsPopupView.PANEL_WIDTH - 40;
+    // `min`, `max`, `step`, `value` flow through to SliderComponent;
+    // the popup itself doesn't display the numeric value any longer.
+    const row = this._createRow();
 
-    const labelText = new PIXI.Text({
-      text: label,
-      style: {
-        fill: 0x4a5568,
-        fontSize: 14,
-        fontWeight: "600",
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      },
-    });
-    labelText.position.set(0, SettingsPopupView.ROW_HEIGHT / 2);
-    labelText.anchor.set(0, 0.5);
-    row.addChild(labelText);
+    const labelComp = new LabelComponent(this.assetLoader, this._fieldLabelStyle(), { text: label });
+    row.addChild(labelComp);
 
-    const valueText = new PIXI.Text({
-      text: this._formatNumber(value, step),
-      style: {
-        fill: 0x718096,
-        fontSize: 13,
-        fontWeight: "600",
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      },
-    });
-    valueText.anchor.set(1, 0.5);
-    valueText.position.set(W, SettingsPopupView.ROW_HEIGHT / 2);
-    row.addChild(valueText);
-
-    const slider = new SliderComponent({
+    const sliderStyle = this.styleManager.resolve<SliderComponentStyle>(UIComponentsStyleIds.Slider);
+    const slider = new SliderComponent(this.assetLoader, sliderStyle, {
       trackWidth: SettingsPopupView.TRACK_WIDTH,
       trackHeight: SettingsPopupView.TRACK_HEIGHT,
       thumbRadius: SettingsPopupView.THUMB_RADIUS,
@@ -198,14 +173,36 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
       step,
       value,
     });
-    slider.position.set(W - SettingsPopupView.TRACK_WIDTH - 45, SettingsPopupView.ROW_HEIGHT / 2);
+    // SliderComponent's internal contents are centered around its local
+    // `y=0` (track at `±trackHeight/2`, thumb at `±thumbRadius`), so
+    // declaring a fixed-height layout box would put the slider's
+    // local origin at the box's top-left and the visible content
+    // would render *above* the row. `height: 0` collapses the layout
+    // box vertically; combined with the row's `alignItems: "center"`,
+    // Yoga places the slider's local `y=0` at the row's vertical
+    // centerline — which is exactly where the slider's content
+    // expects to render.
+    //
+    // Width matches the bare track (no thumb-overflow allowance) so
+    // the slider's *track* right edge lines up with the toggle's
+    // right edge under the row's `justifyContent: "space-between"` —
+    // both right-side controls sit the same distance from the panel
+    // edge. The thumb's value=max position overflows the layout box
+    // by `thumbRadius`, which lands inside the panel's 20px right
+    // padding (safe). The thumb's value=min position similarly
+    // overflows left by `thumbRadius`, which sits in the empty space
+    // between the field label and the slider track (also safe given
+    // typical field-label widths).
+    slider.layout = {
+      width: SettingsPopupView.TRACK_WIDTH,
+      height: 0,
+    };
     row.addChild(slider);
 
-    const numRow: NumberRow = { name, container: row, slider, valueText, step };
+    const numRow: NumberRow = { name, container: row, slider };
     this._numberRows.push(numRow);
 
     slider.onChange((v) => {
-      valueText.text = this._formatNumber(v, step);
       for (const cb of this._numberChangedListeners) cb(name, v);
     });
 
@@ -223,7 +220,6 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     for (const nr of this._numberRows) {
       if (nr.name === name && typeof value === "number") {
         nr.slider.setValue(value);
-        nr.valueText.text = this._formatNumber(value, nr.step);
         return;
       }
     }
@@ -248,26 +244,44 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
 
   // ── Drawing helpers ──
 
-  private _createRowContainer(): PIXI.Container {
-    const row = new PIXI.Container();
-    row.layout = { width: "100%", height: SettingsPopupView.ROW_HEIGHT };
-    return row;
+  /**
+   * Builds a fresh field row as a flex `HorizontalLayoutComponent`.
+   * `justifyContent: "space-between"` puts the first child at the
+   * row's left edge and the last child at the row's right edge — so
+   * boolean rows (label + toggle) and number rows (label + slider +
+   * value readout) all share a consistent right-edge x without us
+   * having to mutate any child's `.layout` after construction.
+   * `alignItems: "center"` handles vertical centering.
+   */
+  private _createRow(): HorizontalLayoutComponent {
+    return new HorizontalLayoutComponent({
+      width: "100%",
+      height: SettingsPopupView.ROW_HEIGHT,
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: 0,
+    });
   }
 
-  private _handlePanelLayout(l: Layout): void {
-    if (!this._panelBg) return;
-    const w = Math.max(1, Math.floor(l.computedLayout.width));
-    const h = Math.max(1, Math.floor(l.computedLayout.height));
-    this._panelBg.clear();
-    this._panelBg.roundRect(0, 0, w, h, 16);
-    this._panelBg.fill({ color: 0xffffff, alpha: 0.95 });
-    this._panelBg.stroke({ color: 0xe2e8f0, width: 2 });
+  /**
+   * Resolves a UIComponent style by deep-merging the JSON override
+   * stored as a Text asset on top of the registered defaults. Missing
+   * asset → empty `{}` so the resolved style falls through to the
+   * framework defaults verbatim (defensive against the binding not
+   * being installed).
+   */
+  private _resolveStyleFromTextAsset<T extends object>(styleId: string, assetId: string): T {
+    const json = this.assetLoader.getAsset<string>(assetId) ?? "{}";
+    return this.styleManager.resolve<T>(styleId, JSON.parse(json) as T);
   }
 
-  private _formatNumber(value: number, step: number): string {
-    if (step >= 1) return String(Math.round(value));
-    const decimals = Math.max(0, -Math.floor(Math.log10(step)));
-    return value.toFixed(decimals);
+  /**
+   * Resolved `LabelComponentStyle` for field-name labels (left side of
+   * each row). Source JSON shipped by `SettingsBinding` as
+   * `SettingsAssetIds.FieldLabelStyle`.
+   */
+  private _fieldLabelStyle(): LabelComponentStyle {
+    return this._resolveStyleFromTextAsset<LabelComponentStyle>(UIComponentsStyleIds.Label, SettingsAssetIds.FieldLabelStyle);
   }
 
   public override preDestroy(): void {

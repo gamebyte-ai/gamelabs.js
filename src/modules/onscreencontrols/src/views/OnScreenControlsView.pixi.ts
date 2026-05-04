@@ -1,7 +1,5 @@
 import type * as PIXI from "pixi.js";
 import { HudViewBase } from "../../../../core/hud/HudViewBase.js";
-import type { IInstanceResolver } from "../../../../core/di/IInstanceResolver.js";
-import { StyleManager } from "../../../../core/styles/StyleManager.js";
 import type { IOnScreenControlsView } from "./IOnScreenControlsView.js";
 import { OscButton } from "./OscButton.pixi.js";
 import { OscJoystick } from "./OscJoystick.pixi.js";
@@ -56,18 +54,12 @@ type LabelEntry = {
 export class OnScreenControlsView extends HudViewBase implements IOnScreenControlsView {
   private _screenWidth = 0;
   private _screenHeight = 0;
-  private _styleManager: StyleManager | null = null;
 
   private readonly _buttons: ButtonEntry[] = [];
   private readonly _joysticks: JoystickEntry[] = [];
   private readonly _labels: LabelEntry[] = [];
   private readonly _buttonStateListeners = new Set<(id: string, isDown: boolean) => void>();
   private readonly _joystickDirListeners = new Set<(id: string, nx: number, ny: number) => void>();
-
-  public override inject(resolver: IInstanceResolver): void {
-    super.inject(resolver);
-    this._styleManager = resolver.getInstance(StyleManager);
-  }
 
   public override postInitialize(): void {
     super.postInitialize();
@@ -211,8 +203,7 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
    * (`config.up`, `.down`, `.disabled`, `.icon`, `.progress`).
    */
   private _resolveButtonStyle(config: VirtualButtonConfig): OscButtonStyle {
-    if (!this._styleManager) throw new Error("OnScreenControlsView: not initialized");
-    return this._styleManager.resolve<OscButtonStyle>(OscStyleIds.Button, {
+    return this.styleManager.resolve<OscButtonStyle>(OscStyleIds.Button, {
       up: config.up,
       down: config.down,
       disabled: config.disabled,
@@ -227,8 +218,7 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
    * (`config.base`, `.knob`).
    */
   private _resolveJoystickStyle(config: VirtualJoystickConfig): OscJoystickStyle {
-    if (!this._styleManager) throw new Error("OnScreenControlsView: not initialized");
-    return this._styleManager.resolve<OscJoystickStyle>(OscStyleIds.Joystick, {
+    return this.styleManager.resolve<OscJoystickStyle>(OscStyleIds.Joystick, {
       base: config.base,
       knob: config.knob,
     });
@@ -240,8 +230,7 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
    * (`config.text`, `.bg`).
    */
   private _resolveLabelStyle(config: VirtualLabelConfig): OscLabelStyle {
-    if (!this._styleManager) throw new Error("OnScreenControlsView: not initialized");
-    return this._styleManager.resolve<OscLabelStyle>(OscStyleIds.Label, {
+    return this.styleManager.resolve<OscLabelStyle>(OscStyleIds.Label, {
       text: config.text,
       bg: config.bg,
     });

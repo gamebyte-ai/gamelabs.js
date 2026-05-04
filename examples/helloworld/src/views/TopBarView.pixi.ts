@@ -1,6 +1,14 @@
 import * as PIXI from "pixi.js";
 import type { Layout } from "@pixi/layout";
-import { HudViewBase, ButtonComponent, VerticalLayoutComponent, HorizontalLayoutComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  HudViewBase,
+  ButtonComponent,
+  VerticalLayoutComponent,
+  HorizontalLayoutComponent,
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { ITopBarView } from "./ITopBarView";
 
 export class TopBarView extends HudViewBase implements ITopBarView {
@@ -37,36 +45,35 @@ export class TopBarView extends HudViewBase implements ITopBarView {
     justifyContent: "flex-start",
   });
 
-  private readonly toggleColorButton = new ButtonComponent({
-    width: 200,
-    height: TopBarView.buttonHeight,
-    label: "Toggle cube color",
-    labelStyle: { fontSize: 14, fontWeight: "400" },
-    radius: 12,
-    fillAlpha: 0.85,
-  });
-
-  private readonly toggleRotationButton = new ButtonComponent({
-    width: 200,
-    height: TopBarView.buttonHeight,
-    label: "Toggle cube rotation",
-    labelStyle: { fontSize: 14, fontWeight: "400" },
-    radius: 12,
-    fillAlpha: 0.85,
-  });
-
-  private readonly debugButton = new ButtonComponent({
-    width: 100,
-    height: TopBarView.buttonHeight,
-    label: "Debug",
-    labelStyle: { fontSize: 14 },
-    radius: 12,
-    fillAlpha: 0.85,
-  });
+  private toggleColorButton!: ButtonComponent;
+  private toggleRotationButton!: ButtonComponent;
+  private debugButton!: ButtonComponent;
 
   public override postInitialize(): void {
     super.postInitialize();
     this.layout = { width: "100%", padding: 16 };
+
+    const labelButtonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 14, fontWeight: "400" },
+    });
+    const debugButtonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 14 },
+    });
+    this.toggleColorButton = new ButtonComponent(this.assetLoader, labelButtonStyle, {
+      width: 200,
+      height: TopBarView.buttonHeight,
+      label: "Toggle cube color",
+    });
+    this.toggleRotationButton = new ButtonComponent(this.assetLoader, labelButtonStyle, {
+      width: 200,
+      height: TopBarView.buttonHeight,
+      label: "Toggle cube rotation",
+    });
+    this.debugButton = new ButtonComponent(this.assetLoader, debugButtonStyle, {
+      width: 100,
+      height: TopBarView.buttonHeight,
+      label: "Debug",
+    });
 
     this.bar.addChild(this.barBg);
 

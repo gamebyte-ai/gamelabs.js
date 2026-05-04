@@ -1,64 +1,124 @@
+import type { LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
+import type { AssetManager } from "../../../../core/assets/AssetManager.js";
+import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
+import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
+import type { ToggleComponentStyle } from "../UIComponentsStyleTypes.js";
 
-export type ToggleComponentPreset = {
+/**
+ * Geometry / value options for a {@link ToggleComponent}. Visual styling
+ * lives on the {@link ToggleComponentStyle} passed alongside the asset
+ * manager and is owned by the framework's `StyleManager`.
+ */
+export type ToggleComponentOpts = {
   /** Toggle width. @default 44 */
   width?: number;
   /** Toggle height. @default 24 */
   height?: number;
-  /** Background color when on. @default 0x48bb78 */
-  onColor?: number;
-  /** Background color when off. @default 0xcbd5e0 */
-  offColor?: number;
-  /** Thumb color. @default 0xffffff */
-  thumbColor?: number;
-  /** Thumb inset from edge. @default 3 */
+  /**
+   * Inset from the track edge to the thumb. The thumb renders at
+   * `(height - 2 * thumbInset)` square. @default 3
+   */
   thumbInset?: number;
   /** Initial value. @default false */
   value?: boolean;
 };
 
-/**
- * Parse a JSON string into ToggleComponentPreset.
- */
-export function parseToggleComponentPreset(json: string): ToggleComponentPreset {
-  return JSON.parse(json) as ToggleComponentPreset;
-}
+const DEFAULT_WIDTH = 44;
+const DEFAULT_HEIGHT = 24;
+const DEFAULT_THUMB_INSET = 3;
+
+type TrackState = "on" | "off";
 
 /**
- * Reusable toggle (on/off switch) component.
+ * Reusable on/off toggle, themed via the framework's style system.
  *
- * - Renders a pill-shaped track with a sliding circle thumb.
- * - Tap to toggle. Value changes are emitted via `onChange(cb)`.
- * - `onChange(cb)` returns an `Unsubscribe` for easy cleanup.
+ * Construction takes an `AssetManager`, a
+ * {@link ToggleComponentStyle}, and geometry / value opts:
+ *
+ * ```ts
+ * const toggleStyle = this.styleManager.resolve<ToggleComponentStyle>(
+ *   UIComponentsStyleIds.Toggle,
+ * );
+ * const enabled = new ToggleComponent(this.assetLoader, toggleStyle, {
+ *   value: true,
+ * });
+ * enabled.onChange((v) => console.log("enabled:", v));
+ * ```
+ *
+ * Renders two layered sprites — a stretched track (whose texture swaps
+ * between the resolved `trackOn` / `trackOff` slots when the value
+ * changes) and a thumb that slides between the off and on positions.
+ * Tap anywhere on the toggle to flip the value; subscribers via
+ * `onChange(cb)` receive the new boolean. `setValue` is silent on
+ * purpose — programmatic updates don't echo back through `onChange`.
+ *
+ * The bg sprite type (`PIXI.Sprite` vs `PIXI.NineSliceSprite`) is fixed
+ * at construction by the resolved track-on style's `border`. The default
+ * skin's pill track ships with a rounded outline so it sticks with
+ * `border: 0` (plain stretch); custom skins with straight track edges
+ * can opt into 9-slice via the style override.
  */
-export class ToggleComponent extends PIXI.Graphics {
+export class ToggleComponent extends StyledHudObject<ToggleComponentStyle> {
+  private readonly _track: PIXI.Sprite | PIXI.NineSliceSprite;
+  private readonly _thumb: PIXI.Sprite | PIXI.NineSliceSprite;
+
+  private readonly _trackStyles: Record<TrackState, SpriteStyle | undefined>;
+  private readonly _thumbStyle: SpriteStyle | undefined;
+
   private readonly _width: number;
   private readonly _height: number;
-  private readonly _onColor: number;
-  private readonly _offColor: number;
-  private readonly _thumbColor: number;
   private readonly _thumbInset: number;
   private readonly _changeListeners = new Set<(value: boolean) => void>();
 
   private _value: boolean;
 
-  public constructor(opts: ToggleComponentPreset = {}) {
-    super();
+  public constructor(assetManager: AssetManager, style: ToggleComponentStyle, opts: ToggleComponentOpts = {}) {
+    super(assetManager, style);
 
-    this._width = opts.width ?? 44;
-    this._height = opts.height ?? 24;
-    this._onColor = opts.onColor ?? 0x48bb78;
-    this._offColor = opts.offColor ?? 0xcbd5e0;
-    this._thumbColor = opts.thumbColor ?? 0xffffff;
-    this._thumbInset = opts.thumbInset ?? 3;
+    this._width = opts.width ?? DEFAULT_WIDTH;
+    this._height = opts.height ?? DEFAULT_HEIGHT;
+    this._thumbInset = opts.thumbInset ?? DEFAULT_THUMB_INSET;
     this._value = opts.value ?? false;
+
+    this._trackStyles = {
+      on: style.trackOn,
+      off: style.trackOff,
+    };
+    this._thumbStyle = style.thumb;
+
+    // Track — single sprite whose texture swaps on value change. Build
+    // from the initial state's slot; its `border` decides whether we
+    // end up with Sprite or NineSliceSprite (sprite type is fixed at
+    // construction).
+    const initialTrackState: TrackState = this._value ? "on" : "off";
+    this._track = this._buildStyledSprite(this._trackStyles[initialTrackState], this._width, this._height);
+    this._track.anchor.set(0, 0);
+    this._track.position.set(0, 0);
+    this.addChild(this._track);
+
+    // Thumb — sized to fit between the track edges. The slide position
+    // is recomputed from `_value` on every visual refresh.
+    const thumbSize = this._height - this._thumbInset * 2;
+    this._thumb = this._buildStyledSprite(this._thumbStyle, thumbSize, thumbSize);
+    this._thumb.anchor.set(0.5, 0.5);
+    this.addChild(this._thumb);
+
+    // Self-set layout so the toggle participates in `@pixi/layout` flex
+    // flows (parent VerticalLayoutComponent / HorizontalLayoutComponent
+    // would otherwise hand it a zero-sized box and the toggle would
+    // render at (0, 0) on top of its siblings — same trap as
+    // RadioButtonComponent).
+    const layout: Omit<LayoutOptions, "target"> = { width: this._width, height: this._height };
+    this.layout = layout;
 
     this.eventMode = "static";
     this.cursor = "pointer";
+    this.hitArea = new PIXI.Rectangle(0, 0, this._width, this._height);
     this.on("pointertap", () => this.toggle());
 
-    this.redraw();
+    this._refreshThumb();
   }
 
   public get value(): boolean {
@@ -68,12 +128,14 @@ export class ToggleComponent extends PIXI.Graphics {
   public setValue(value: boolean): void {
     if (this._value === value) return;
     this._value = value;
-    this.redraw();
+    this._refreshTrack();
+    this._refreshThumb();
   }
 
   public toggle(): void {
     this._value = !this._value;
-    this.redraw();
+    this._refreshTrack();
+    this._refreshThumb();
     for (const cb of this._changeListeners) cb(this._value);
   }
 
@@ -83,17 +145,20 @@ export class ToggleComponent extends PIXI.Graphics {
     return () => this._changeListeners.delete(cb);
   }
 
-  private redraw(): void {
-    const w = this._width;
-    const h = this._height;
-    const r = h / 2;
+  // ── Internals ──────────────────────────────────────────────────────
 
-    this.clear();
-    this.roundRect(0, 0, w, h, r);
-    this.fill({ color: this._value ? this._onColor : this._offColor });
+  private _refreshTrack(): void {
+    const state: TrackState = this._value ? "on" : "off";
+    this._applyPartialSpriteStyle(this._track, this._trackStyles[state], this._width, this._height);
+  }
 
-    const thumbX = this._value ? w - r : r;
-    this.circle(thumbX, r, r - this._thumbInset);
-    this.fill({ color: this._thumbColor });
+  private _refreshThumb(): void {
+    const thumbSize = this._height - this._thumbInset * 2;
+    // Off → centered at the left edge inset; On → centered at the right
+    // edge inset. The thumb is anchored at its centre, so the position
+    // values point at the thumb's centre coordinate.
+    const thumbCx = this._value ? this._width - this._height / 2 : this._height / 2;
+    this._applyPartialSpriteStyle(this._thumb, this._thumbStyle, thumbSize, thumbSize);
+    this._thumb.position.set(thumbCx, this._height / 2);
   }
 }

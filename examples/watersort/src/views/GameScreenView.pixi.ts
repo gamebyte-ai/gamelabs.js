@@ -1,6 +1,12 @@
 import * as PIXI from "pixi.js";
 import gsap from "gsap";
-import { ScreenView, ButtonComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  ScreenView,
+  ButtonComponent,
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView";
 import type { Bottle } from "../models/Bottle.js";
 import { WaterSortConfig } from "../WaterSortConfig.js";
@@ -60,14 +66,12 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._movesText.position.set(20, 50);
     this.addChild(this._movesText);
 
-    this._restartBtn = new ButtonComponent({
+    const restartBtnStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 14, color: 0xe8eef6 },
+    });
+    this._restartBtn = new ButtonComponent(this.assetLoader, restartBtnStyle, {
       width: 100, height: 36,
       label: "Restart",
-      labelStyle: { fontSize: 14, fill: 0x4a5568 },
-      radius: 18,
-      fillColor: 0xffffff,
-      fillAlpha: 0.6,
-      strokeColor: 0xcbd5e0,
     });
     this.addChild(this._restartBtn);
     this._restartBtn.onPress(() => {

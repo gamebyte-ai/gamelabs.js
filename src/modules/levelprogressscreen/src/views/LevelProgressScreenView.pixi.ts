@@ -1,11 +1,16 @@
 import * as PIXI from "pixi.js";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
-import { ButtonComponent, parseButtonComponentPreset } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
-import { BackgroundComponent, parseBackgroundComponentPreset } from "../../../uicomponents/src/views/BackgroundComponent.pixi.js";
+import { ButtonComponent } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
+import { BackgroundComponent } from "../../../uicomponents/src/views/BackgroundComponent.pixi.js";
 import {
   VerticalLayoutComponent,
   parseVerticalLayoutComponentPreset,
 } from "../../../uicomponents/src/views/VerticalLayoutComponent.pixi.js";
+import {
+  UIComponentsStyleIds,
+  type BackgroundComponentStyle,
+  type ButtonComponentStyle,
+} from "../../../uicomponents/src/UIComponentsStyleTypes.js";
 import type { ILevelProgressScreenView } from "./ILevelProgressScreenView.js";
 import { LevelProgressScreenAssetIds } from "../LevelProgressScreenAssetIds.js";
 
@@ -63,16 +68,30 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       this.currentLevel = Math.max(1, Math.floor(this.initialCurrentLevel));
     }
 
-    // Background component.
-    const bgPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackgroundPreset) ?? "{}";
-    this.background = new BackgroundComponent(parseBackgroundComponentPreset(bgPresetJson));
-    this.background.resolveAssets(this.assetLoader);
+    // Background component — override the framework default's bg slot
+    // with the screen's own backdrop texture. Apps re-theme via
+    // `styleManager.modify(UIComponentsStyleIds.Background, …)`.
+    const backgroundStyle = this.styleManager.resolve<BackgroundComponentStyle>(UIComponentsStyleIds.Background, {
+      bg: { textureId: LevelProgressScreenAssetIds.Background },
+    });
+    this.background = new BackgroundComponent(this.assetLoader, backgroundStyle);
     this.addChild(this.background);
 
-    // Top-right back button.
-    const backButtonPresetJson = this.assetLoader.getAsset<string>(LevelProgressScreenAssetIds.BackButtonPreset) ?? "{}";
-    this.backButton = new ButtonComponent(parseButtonComponentPreset(backButtonPresetJson));
-    this.backButton.resolveAssets(this.assetLoader);
+    // Top-right back button — all four pointer states share the
+    // BackButtonBg texture; the registered default skin's `border: 2`
+    // remains in effect for crisp 9-slice corners.
+    const backButtonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      idle: { textureId: LevelProgressScreenAssetIds.BackButtonBg },
+      hover: { textureId: LevelProgressScreenAssetIds.BackButtonBg },
+      pressed: { textureId: LevelProgressScreenAssetIds.BackButtonBg },
+      disabled: { textureId: LevelProgressScreenAssetIds.BackButtonBg },
+      label: { fontSize: 16, fontWeight: "800", letterSpacing: 1 },
+    });
+    this.backButton = new ButtonComponent(this.assetLoader, backButtonStyle, {
+      width: 220,
+      height: 88,
+      label: "BACK",
+    });
     const initialWidth = this.layout?.style?.width;
     this.applyBackButtonLayout(typeof initialWidth === "number" ? initialWidth : 1);
     this.addChild(this.backButton);
@@ -175,16 +194,15 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
   }
 
   private createLevelItem(index: number): LevelItemRefs {
-    const isActive = index === this.getCurrentIndex();
-
-    const button = new ButtonComponent({
+    const itemStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      idle: { textureId: LevelProgressScreenAssetIds.LevelItemBg },
+      hover: { textureId: LevelProgressScreenAssetIds.LevelItemBg },
+      pressed: { textureId: LevelProgressScreenAssetIds.LevelItemBg },
+      disabled: { textureId: LevelProgressScreenAssetIds.LevelItemBg },
+    });
+    const button = new ButtonComponent(this.assetLoader, itemStyle, {
       width: LevelProgressScreenView.itemWidth,
       height: LevelProgressScreenView.itemHeight,
-      radius: 18,
-      fillColor: isActive ? 0x052e16 : 0x0b1220,
-      fillAlpha: isActive ? 0.78 : 0.72,
-      strokeColor: isActive ? 0x22c55e : 0x475569,
-      strokeWidth: 2,
     });
 
     const text = new PIXI.Text({
@@ -230,13 +248,11 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     if (!this.items.length) return;
 
     const { currentIndex } = this.computeWindow();
-    const normal = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssetIds.LevelItemBg);
 
     for (let i = 0; i < this.items.length; i++) {
       const it = this.items[i]!;
       const isActive = i === currentIndex;
 
-      if (normal) it.button.setTexture(normal);
       it.button.tint = isActive ? LevelProgressScreenView.itemActiveTint : 0xffffff;
 
       const baseW = LevelProgressScreenView.itemWidth;

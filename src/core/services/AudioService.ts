@@ -62,6 +62,25 @@ export class AudioService {
     else this.resumeAll();
   };
 
+  /**
+   * One-shot user-gesture handler installed at `initialize` time to
+   * wake the `AudioContext` on the first interaction. Browsers' auto-
+   * play policy keeps the context in `"suspended"` state until a user
+   * gesture is in scope when `resume()` is called; without this, music
+   * queued via `playMusic` at boot is silent until some other
+   * interaction path explicitly calls `resume()` from a gesture
+   * handler (which not every example app does).
+   *
+   * Defined as a class property so we can pass the same reference to
+   * `addEventListener` and `removeEventListener`. Auto-removes both
+   * listeners after the first gesture fires.
+   */
+  private readonly _onFirstGesture = (): void => {
+    if (this._ctx?.state === "suspended") this._ctx.resume();
+    document.removeEventListener("pointerdown", this._onFirstGesture);
+    document.removeEventListener("keydown", this._onFirstGesture);
+  };
+
   public initialize(assetManager: IAssetManager): void {
     if (this._ctx) {
       throw new Error("AudioService already initialized");
@@ -84,6 +103,12 @@ export class AudioService {
     this._applyVolumes();
 
     document.addEventListener("visibilitychange", this._onVisibility);
+    // Wake the suspended `AudioContext` on the first user gesture.
+    // Both `pointerdown` and `keydown` are listened to so mouse, touch,
+    // pen, and keyboard all qualify; the handler removes both
+    // listeners after the first fire.
+    document.addEventListener("pointerdown", this._onFirstGesture);
+    document.addEventListener("keydown", this._onFirstGesture);
   }
 
   public get context(): AudioContext | null {

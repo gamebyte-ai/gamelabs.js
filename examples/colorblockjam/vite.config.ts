@@ -1,23 +1,25 @@
 import { defineConfig } from "vite";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 
-const distIndexPath = decodeURIComponent(new URL("../../dist/index.js", import.meta.url).pathname);
-const repoRootPath = decodeURIComponent(new URL("../..", import.meta.url).pathname);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export default defineConfig({
   base: "./",
   optimizeDeps: {
-    exclude: ["@gamebyte/gamelabsjs"]
+    exclude: ["@gamebyte/gamelabsjs"],
   },
   resolve: {
     preserveSymlinks: true,
     alias: {
-      "@gamebyte/gamelabsjs": distIndexPath
+      "@gamebyte/gamelabsjs": resolve(__dirname, "../../dist/index.js"),
     },
-    dedupe: ["three", "pixi.js", "@pixi/layout", "@pixi/ui"]
+    dedupe: ["three", "pixi.js", "@pixi/layout", "@pixi/ui"],
   },
   server: {
     port: 5183,
     strictPort: true,
-    fs: { allow: [repoRootPath] }
-  }
+    fs: { allow: [resolve(__dirname, "../..")] },
+  },
 });

@@ -1,5 +1,11 @@
 import * as PIXI from "pixi.js";
-import { ButtonComponent, ScreenView, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  ButtonComponent,
+  ScreenView,
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView.js";
 
 /**
@@ -40,15 +46,13 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._subtitleText.position.set(20, 48);
     this.addChild(this._subtitleText);
 
-    this._settingsBtn = new ButtonComponent({
+    const settingsBtnStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 22, color: 0xe8eef6 },
+    });
+    this._settingsBtn = new ButtonComponent(this.assetLoader, settingsBtnStyle, {
       width: 44,
       height: 44,
       label: "⚙", // ⚙ — cog glyph
-      labelStyle: { fontSize: 22, fill: 0xe8eef6 },
-      radius: 12,
-      fillColor: 0x1e293b,
-      fillAlpha: 0.75,
-      strokeColor: 0x475569,
     });
     this.addChild(this._settingsBtn);
     this._settingsBtn.onPress(() => {

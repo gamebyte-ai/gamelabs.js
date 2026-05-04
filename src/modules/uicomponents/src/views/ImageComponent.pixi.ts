@@ -1,8 +1,17 @@
+import "@pixi/layout";
 import type { Layout, LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
-import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
+import type { AssetManager } from "../../../../core/assets/AssetManager.js";
+import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
+import type { ImageComponentStyle } from "../UIComponentsStyleTypes.js";
 
-export type ImageComponentPreset = {
+/**
+ * Geometry / fit options for an {@link ImageComponent}. Visual styling
+ * (tint, alpha, per-axis scale, optional default `textureId`) lives on
+ * the {@link ImageComponentStyle} passed alongside the asset manager
+ * and is owned by the framework's `StyleManager`.
+ */
+export type ImageComponentOpts = {
   /** X position. */
   x?: number;
   /** Y position. */
@@ -11,7 +20,13 @@ export type ImageComponentPreset = {
   width?: LayoutOptions["width"];
   /** Fixed height. Accepts a number or a percentage string like "100%". */
   height?: LayoutOptions["height"];
-  /** Asset ID for the texture. Resolved via `resolveAssets()`. */
+  /**
+   * Asset id for the per-instance content texture. Resolved eagerly at
+   * construction. Wins over `style.image.textureId` when both are set.
+   * Use `style.image.textureId` instead when you want a default that
+   * apps can re-theme via `styleManager.modify(...)`; use this opt when
+   * the texture is purely per-screen content (e.g. a logo).
+   */
   textureId?: string;
   /**
    * How to fit the texture inside the component bounds.
@@ -22,49 +37,114 @@ export type ImageComponentPreset = {
    */
   fit?: "contain" | "cover" | "stretch";
   /**
-   * Padding factor applied to the fit calculation (0-1).
-   * E.g. 0.96 leaves a 4% margin around the image. Ignored when fit is "stretch".
+   * Padding factor applied to the fit calculation (0-1). E.g. 0.96
+   * leaves a 4% margin around the image. Ignored when fit is "stretch".
    * @default 1
    */
   padding?: number;
 };
 
 /**
- * Parse a JSON string into ImageComponentPreset.
- */
-export function parseImageComponentPreset(json: string): ImageComponentPreset {
-  return JSON.parse(json) as ImageComponentPreset;
-}
-
-/**
- * Reusable image component.
+ * Reusable image component, themed via the framework's style system.
  *
- * - Fits a texture into a layout-managed box using contain/cover/stretch.
- * - Redraws on layout changes and when a new texture is set.
- * - Texture can be resolved from an `IAssetManager` via `resolveAssets()`.
+ * Construction takes an `AssetManager`, an
+ * {@link ImageComponentStyle}, and geometry / fit options:
+ *
+ * ```ts
+ * // In a HudViewBase / ScreenView / PopupView subclass — the base class
+ * // exposes `styleManager` and `assetLoader` getters for free:
+ * const imageStyle = this.styleManager.resolve<ImageComponentStyle>(UIComponentsStyleIds.Image);
+ * const logo = new ImageComponent(this.assetLoader, imageStyle, {
+ *   width: 520,
+ *   height: 140,
+ *   textureId: MyAppAssetIds.Logo,
+ *   fit: "contain",
+ *   padding: 0.96,
+ * });
+ *
+ * // Theme tint app-wide:
+ * styleManager.modify(UIComponentsStyleIds.Image, { image: { color: 0xf59e0b } });
+ *
+ * // Per-instance tint without touching the global default:
+ * const tintedStyle = this.styleManager.resolve<ImageComponentStyle>(
+ *   UIComponentsStyleIds.Image,
+ *   { image: { color: 0xf59e0b, alpha: 0.85 } },
+ * );
+ * const tinted = new ImageComponent(this.assetLoader, tintedStyle, {
+ *   textureId: MyAppAssetIds.Hero,
+ *   width: 200, height: 200,
+ * });
+ * ```
+ *
+ * The texture is *content*, not skin — most apps supply it per-call
+ * via `ImageComponentOpts.textureId` (or pre-resolved `texture` later
+ * with {@link setTexture}). The style mostly carries cosmetic defaults
+ * (tint, alpha) that flow through the framework's `StyleManager` so
+ * apps can re-theme every Image at once. `style.image.textureId` is
+ * still honoured when set — useful for default placeholders or theme
+ * skins — but `opts.textureId` always wins when both are present.
+ *
+ * Fit / cover / stretch math runs in the component itself rather than
+ * via `_buildStyledSprite`'s slot sizing, because the helper stretches
+ * to a fixed slot whereas Image preserves aspect ratio (or matches the
+ * box exactly) based on `opts.fit`.
+ *
+ * The bg sprite type is fixed at construction by the resolved `border`:
+ * `border > 0` builds a `PIXI.NineSliceSprite` with a symmetric inset
+ * so corner detail (e.g. a rounded panel chrome) stays crisp at any
+ * size; `border === 0` (the default) builds a plain `PIXI.Sprite`. The
+ * fit math is identical for both — the helper assigns `width` /
+ * `height` directly, which Pixi maps to scale on plain Sprites and to
+ * 9-slice dimensions on NineSliceSprites.
  */
-export class ImageComponent extends PIXI.Container {
-  private readonly _sprite: PIXI.Sprite;
-  private readonly _textureId: string | undefined;
+export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
+  private readonly _sprite: PIXI.Sprite | PIXI.NineSliceSprite;
+  private readonly _styleScaleX: number;
+  private readonly _styleScaleY: number;
   private readonly _fit: "contain" | "cover" | "stretch";
   private readonly _padding: number;
 
   private _boxWidth = 0;
   private _boxHeight = 0;
 
-  public constructor(opts: ImageComponentPreset = {}) {
-    super();
+  public constructor(assetManager: AssetManager, style: ImageComponentStyle, opts: ImageComponentOpts = {}) {
+    super(assetManager, style);
 
-    this._textureId = opts.textureId;
     this._fit = opts.fit ?? "contain";
     this._padding = opts.padding ?? 1;
 
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
 
-    this._sprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
+    // Image's contract differs from other StyledHudObject subclasses:
+    // when no `textureId` is supplied (neither in opts nor on the
+    // style slot), the sprite is built with `PIXI.Texture.EMPTY` and
+    // hidden until the consumer calls `setTexture` / `setTextureId`.
+    // We deliberately don't fall back to the asset manager's default
+    // HUD texture here — that would render the magenta placeholder for
+    // every image awaiting its texture. Per-instance `opts.textureId`
+    // wins over the style's `textureId` — content beats skin defaults.
+    const slot = style.image;
+    const resolvedTextureId = opts.textureId ?? slot?.textureId;
+    this._styleScaleX = slot?.scaleX ?? 1;
+    this._styleScaleY = slot?.scaleY ?? 1;
+
+    const initialTexture = resolvedTextureId !== undefined ? this._getTexture(resolvedTextureId) : PIXI.Texture.EMPTY;
+    const border = slot?.border ?? 0;
+    this._sprite =
+      border > 0
+        ? new PIXI.NineSliceSprite({
+            texture: initialTexture,
+            leftWidth: border,
+            topHeight: border,
+            rightWidth: border,
+            bottomHeight: border,
+          })
+        : new PIXI.Sprite(initialTexture);
     this._sprite.anchor.set(0.5, 0.5);
-    this._sprite.visible = false;
+    if (slot?.color !== undefined) this._sprite.tint = slot.color;
+    if (slot?.alpha !== undefined) this._sprite.alpha = slot.alpha;
+    this._sprite.visible = initialTexture !== PIXI.Texture.EMPTY;
     this.addChild(this._sprite);
 
     this.layout = {
@@ -72,30 +152,34 @@ export class ImageComponent extends PIXI.Container {
       ...(opts.height !== undefined ? { height: opts.height } : {}),
     };
 
-    this.on("layout", (l: Layout) => this.handleLayout(l));
+    this.on("layout", (l: Layout) => this._handleLayout(l));
   }
 
-  /** Resolve the texture from the asset manager. */
-  public resolveAssets(assetManager: IAssetManager): void {
-    if (!this._textureId) return;
-    const texture = assetManager.getAsset<PIXI.Texture>(this._textureId);
-    if (texture) this.setTexture(texture);
-  }
-
-  /** Set the texture directly. */
+  /**
+   * Replace the rendered texture at runtime. The fit / cover / stretch
+   * math re-runs against the current layout box.
+   */
   public setTexture(texture: PIXI.Texture): void {
     this._sprite.texture = texture;
     this._sprite.visible = texture !== PIXI.Texture.EMPTY;
-    this.applyFit();
+    this._applyFit();
   }
 
-  private handleLayout(l: Layout): void {
+  /**
+   * Convenience: look up a texture by id via the asset manager and
+   * apply it. Throws if the asset isn't loaded.
+   */
+  public setTextureId(textureId: string): void {
+    this.setTexture(this._getTexture(textureId));
+  }
+
+  private _handleLayout(l: Layout): void {
     this._boxWidth = Math.max(1, Math.floor(l.computedLayout.width));
     this._boxHeight = Math.max(1, Math.floor(l.computedLayout.height));
-    this.applyFit();
+    this._applyFit();
   }
 
-  private applyFit(): void {
+  private _applyFit(): void {
     if (this._sprite.texture === PIXI.Texture.EMPTY) return;
     if (this._boxWidth <= 0 || this._boxHeight <= 0) return;
 
@@ -119,7 +203,14 @@ export class ImageComponent extends PIXI.Container {
       scaleY = scale;
     }
 
-    this._sprite.scale.set(scaleX, scaleY);
+    // The style's per-axis scale composes on top of the fit scale —
+    // useful for apps that want a bit of zoom or letterboxing tuning
+    // without overriding the chosen fit semantics. Assign width/height
+    // directly so the same code path works for both `PIXI.Sprite`
+    // (Pixi's setter maps width/height onto scale) and
+    // `PIXI.NineSliceSprite` (which sizes via width/height natively).
+    this._sprite.width = tw * scaleX * this._styleScaleX;
+    this._sprite.height = th * scaleY * this._styleScaleY;
     this._sprite.position.set(w / 2, h / 2);
   }
 }

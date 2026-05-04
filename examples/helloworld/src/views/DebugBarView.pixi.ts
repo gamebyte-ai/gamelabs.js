@@ -1,6 +1,13 @@
 import * as PIXI from "pixi.js";
 import type { Layout } from "@pixi/layout";
-import { HudViewBase, ButtonComponent, HorizontalLayoutComponent, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  HudViewBase,
+  ButtonComponent,
+  HorizontalLayoutComponent,
+  UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { IDebugBarView } from "./IDebugBarView";
 
 export class DebugBarView extends HudViewBase implements IDebugBarView {
@@ -22,33 +29,32 @@ export class DebugBarView extends HudViewBase implements IDebugBarView {
     layout: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" },
   });
 
-  private readonly gridButton = new ButtonComponent({
-    width: DebugBarView.barButtonWidth,
-    height: DebugBarView.barButtonHeight,
-    label: "Grid:Off",
-    labelStyle: { fontSize: 13 },
-    radius: 10,
-  });
-
-  private readonly statsButton = new ButtonComponent({
-    width: DebugBarView.barButtonWidth,
-    height: DebugBarView.barButtonHeight,
-    label: "Stats:Off",
-    labelStyle: { fontSize: 13 },
-    radius: 10,
-  });
-
-  private readonly logButton = new ButtonComponent({
-    width: DebugBarView.barButtonWidth,
-    height: DebugBarView.barButtonHeight,
-    label: "Log:Off",
-    labelStyle: { fontSize: 13 },
-    radius: 10,
-  });
+  private gridButton!: ButtonComponent;
+  private statsButton!: ButtonComponent;
+  private logButton!: ButtonComponent;
 
   public override postInitialize(): void {
     super.postInitialize();
     this.layout = { width: "100%", padding: 16 };
+
+    const buttonStyle = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: 13 },
+    });
+    this.gridButton = new ButtonComponent(this.assetLoader, buttonStyle, {
+      width: DebugBarView.barButtonWidth,
+      height: DebugBarView.barButtonHeight,
+      label: "Grid:Off",
+    });
+    this.statsButton = new ButtonComponent(this.assetLoader, buttonStyle, {
+      width: DebugBarView.barButtonWidth,
+      height: DebugBarView.barButtonHeight,
+      label: "Stats:Off",
+    });
+    this.logButton = new ButtonComponent(this.assetLoader, buttonStyle, {
+      width: DebugBarView.barButtonWidth,
+      height: DebugBarView.barButtonHeight,
+      label: "Log:Off",
+    });
 
     this.bar.addChild(this.barBg);
     this.bar.addChild(this.gridButton);

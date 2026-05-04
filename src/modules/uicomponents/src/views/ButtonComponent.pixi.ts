@@ -1,10 +1,18 @@
 import type { Layout, LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import type * as PIXI from "pixi.js";
 import { Button } from "@pixi/ui";
+import type { AssetManager } from "../../../../core/assets/AssetManager.js";
+import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
+import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import type { IAssetManager } from "../../../../core/assets/IAssetManager.js";
+import type { ButtonComponentStyle } from "../UIComponentsStyleTypes.js";
 
-export type ButtonComponentPreset = {
+/**
+ * Geometry / content options for a {@link ButtonComponent}. Visual
+ * styling lives on the {@link ButtonComponentStyle} passed alongside
+ * the asset manager and is owned by the framework's `StyleManager`.
+ */
+export type ButtonComponentOpts = {
   /** X position. */
   x?: number;
   /** Y position. */
@@ -15,84 +23,88 @@ export type ButtonComponentPreset = {
   height?: number;
   /** Label text. Omit for an icon-only button. */
   label?: string;
-  /** Label style overrides merged on top of the defaults. */
-  labelStyle?: Partial<PIXI.TextStyleOptions>;
-  /** Corner radius for the placeholder background. @default 12 */
-  radius?: number;
-  /** Placeholder fill color. @default 0x111827 */
-  fillColor?: number;
-  /** Placeholder fill alpha. @default 0.92 */
-  fillAlpha?: number;
-  /** Placeholder stroke color. @default 0x334155 */
-  strokeColor?: number;
-  /** Placeholder stroke width. @default 1 */
-  strokeWidth?: number;
-  /** Asset ID for the background texture. Resolved via `resolveAssets()`. */
-  bgTextureId?: string;
 };
 
-/**
- * Parse a JSON string into ButtonComponentPreset.
- * All fields are JSON-safe primitives (numbers, strings).
- */
-export function parseButtonComponentPreset(json: string): ButtonComponentPreset {
-  return JSON.parse(json) as ButtonComponentPreset;
-}
-
-const DEFAULT_LABEL_STYLE: Partial<PIXI.TextStyleOptions> = {
-  fill: 0xe8eef6,
-  fontSize: 16,
-  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-  fontWeight: "600",
-};
+type ButtonState = "idle" | "hover" | "pressed" | "disabled";
 
 /**
- * Reusable Pixi button component.
+ * Reusable Pixi button component, themed via the framework's style
+ * system.
  *
- * - Renders a rounded-rect placeholder background that redraws on layout changes.
- * - Optionally displays a background texture (set via `setTexture`) that replaces the placeholder.
- * - Optionally displays a centered label.
- * - Wraps `@pixi/ui` `Button` for press handling.
- * - `onPress(cb)` returns an `Unsubscribe` for easy cleanup.
+ * Construction takes an `AssetManager`, a
+ * {@link ButtonComponentStyle}, and geometry / label options. The
+ * idiomatic call site looks like:
+ *
+ * ```ts
+ * const style = this.styleManager.resolve<ButtonComponentStyle>(
+ *   UIComponentsStyleIds.Button,
+ *   // optional per-button override
+ * );
+ * const button = new ButtonComponent(this.assetLoader, style, {
+ *   width: 120, height: 40, label: "Close",
+ * });
+ * ```
+ *
+ * Renders a single background sprite whose texture / tint / alpha are
+ * swapped based on pointer state (idle / hover / pressed / disabled).
+ * When the resolved idle-state style has `border > 0` the bg renders
+ * via `PIXI.NineSliceSprite` so the four corners stay crisp at any
+ * size; otherwise it's a plain `PIXI.Sprite`. The bg type is fixed at
+ * construction (driven by the idle state) so all four states share the
+ * same NineSliceSprite / Sprite instance.
+ *
+ * Pointer / keyboard interaction is delegated to `@pixi/ui` `Button`;
+ * `onPress(cb)` returns an `Unsubscribe`. Disabling stops `onPress`
+ * from firing and swaps to the `disabled` state.
+ *
+ * Per-button colour identity (e.g. tower-defence shop cards, "Next
+ * Level" CTAs) flows through `Container.tint` on the component itself,
+ * which propagates to the bg sprite — no per-state override required.
  */
-export class ButtonComponent extends PIXI.Container {
-  private readonly _placeholder: PIXI.Graphics;
-  private readonly _bgSprite: PIXI.Sprite;
+export class ButtonComponent extends StyledHudObject<ButtonComponentStyle> {
+  private readonly _bg: PIXI.Sprite | PIXI.NineSliceSprite;
   private readonly _label: PIXI.Text | null;
   private readonly _button: Button;
-  private readonly _opts: Required<Pick<ButtonComponentPreset, "radius" | "fillColor" | "fillAlpha" | "strokeColor" | "strokeWidth">>;
-  private readonly _bgTextureId: string | undefined;
+  private readonly _stateStyles: Record<ButtonState, SpriteStyle | undefined>;
 
-  private _layoutWidth = 0;
-  private _layoutHeight = 0;
+  private _state: ButtonState = "idle";
+  private _enabled = true;
+  private _pointerOver = false;
 
-  public constructor(opts: ButtonComponentPreset = {}) {
-    super();
+  private _layoutWidth = 1;
+  private _layoutHeight = 1;
 
-    this._opts = {
-      radius: opts.radius ?? 12,
-      fillColor: opts.fillColor ?? 0x111827,
-      fillAlpha: opts.fillAlpha ?? 0.92,
-      strokeColor: opts.strokeColor ?? 0x334155,
-      strokeWidth: opts.strokeWidth ?? 1,
+  public constructor(assetManager: AssetManager, style: ButtonComponentStyle, opts: ButtonComponentOpts = {}) {
+    super(assetManager, style);
+
+    // Cache the per-state slots from the supplied style. Partial-apply
+    // semantics: any field a slot omits stays at the sprite's current
+    // value (Pixi defaults at construction; preserved across state
+    // swaps in `_applyState`). Apps that want fully-themed buttons
+    // register a complete style entry via UIComponentsBinding.
+    this._stateStyles = {
+      idle: style.idle,
+      hover: style.hover,
+      pressed: style.pressed,
+      disabled: style.disabled,
     };
-    this._bgTextureId = opts.bgTextureId;
 
-    // Placeholder background
-    this._placeholder = new PIXI.Graphics();
-    this._placeholder.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
-    this.addChild(this._placeholder);
+    // Build the bg sprite from the idle slot — its `border` decides
+    // whether we end up with a Sprite or NineSliceSprite. Slot dim 1
+    // is a placeholder; the real width/height come from the layout
+    // event below via `_applyState`. Helper centers the sprite at
+    // (0.5, 0.5) — override to (0, 0) so it fills the layout box from
+    // the top-left.
+    this._bg = this._buildStyledSprite(this._stateStyles.idle, 1, 1);
+    this._bg.anchor.set(0, 0);
+    this._bg.position.set(0, 0);
+    this.addChild(this._bg);
 
-    // Texture background (hidden until a texture is set)
-    this._bgSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
-    this._bgSprite.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
-    this._bgSprite.visible = false;
-    this.addChild(this._bgSprite);
-
-    // Label
+    // Label: built only when opts.label is supplied. The label slot
+    // applies as a partial — apps register the desired font defaults
+    // via UIComponentsBinding so the resolved label style is complete.
     if (opts.label !== undefined) {
-      const mergedStyle = { ...DEFAULT_LABEL_STYLE, ...opts.labelStyle };
-      this._label = new PIXI.Text({ text: opts.label, style: mergedStyle });
+      this._label = this._buildStyledText(opts.label, style.label);
       this._label.anchor.set(0.5, 0.5);
       this._label.layout = {};
       this.addChild(this._label);
@@ -100,11 +112,9 @@ export class ButtonComponent extends PIXI.Container {
       this._label = null;
     }
 
-    // Position
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
 
-    // Layout
     const layout: Omit<LayoutOptions, "target"> = { justifyContent: "center", alignItems: "center" };
     if (opts.width !== undefined) layout.width = opts.width;
     if (opts.height !== undefined) layout.height = opts.height;
@@ -112,18 +122,12 @@ export class ButtonComponent extends PIXI.Container {
 
     this.on("layout", (l: Layout) => this.handleLayout(l));
 
-    // @pixi/ui Button wrapper
     this._button = new Button(this);
-  }
-
-  /** Replace the placeholder with a texture background. */
-  public setTexture(texture: PIXI.Texture): void {
-    this._bgSprite.texture = texture;
-    this._bgSprite.visible = true;
-    this._placeholder.visible = false;
-    if (this._layoutWidth > 0 && this._layoutHeight > 0) {
-      this.applySpriteSize(this._layoutWidth, this._layoutHeight);
-    }
+    this._button.onDown.connect(() => this.onPointerDown());
+    this._button.onUp.connect(() => this.onPointerUp());
+    this._button.onUpOut.connect(() => this.onPointerUpOut());
+    this._button.onHover.connect(() => this.onPointerHover());
+    this._button.onOut.connect(() => this.onPointerOut());
   }
 
   /** Update the label text. No-op if the button was created without a label. */
@@ -131,42 +135,78 @@ export class ButtonComponent extends PIXI.Container {
     if (this._label) this._label.text = text;
   }
 
-  /** Subscribe to press events. Returns an unsubscribe function. */
-  public onPress(cb: () => void): Unsubscribe {
-    this._button.onPress.connect(cb);
-    return () => this._button.onPress.disconnect(cb);
-  }
-
-  /** Resolve preset asset references (e.g. bgTextureId) from the asset manager. */
-  public resolveAssets(assetManager: IAssetManager): void {
-    if (this._bgTextureId) {
-      const texture = assetManager.getAsset<PIXI.Texture>(this._bgTextureId);
-      if (texture) this.setTexture(texture);
+  /**
+   * Enable or disable interaction. Disabling swaps to the `disabled`
+   * texture and prevents `onPress` from firing; re-enabling resets to
+   * `idle` (or `hover` if the pointer is currently over the button).
+   */
+  public setEnabled(enabled: boolean): void {
+    if (this._enabled === enabled) return;
+    this._enabled = enabled;
+    this._button.enabled = enabled;
+    if (!enabled) {
+      this._setState("disabled");
+    } else {
+      this._setState(this._pointerOver ? "hover" : "idle");
     }
   }
+
+  /** Subscribe to press events. Returns an unsubscribe function. */
+  public onPress(cb: () => void): Unsubscribe {
+    const guarded = (): void => {
+      if (this._enabled) cb();
+    };
+    this._button.onPress.connect(guarded);
+    return () => this._button.onPress.disconnect(guarded);
+  }
+
+  // ── Internal: state machine ────────────────────────────────────────
+
+  private onPointerDown(): void {
+    if (!this._enabled) return;
+    this._setState("pressed");
+  }
+
+  private onPointerUp(): void {
+    if (!this._enabled) return;
+    this._setState(this._pointerOver ? "hover" : "idle");
+  }
+
+  private onPointerUpOut(): void {
+    if (!this._enabled) return;
+    this._setState("idle");
+  }
+
+  private onPointerHover(): void {
+    this._pointerOver = true;
+    if (!this._enabled) return;
+    if (this._state !== "pressed") this._setState("hover");
+  }
+
+  private onPointerOut(): void {
+    this._pointerOver = false;
+    if (!this._enabled) return;
+    if (this._state !== "pressed") this._setState("idle");
+  }
+
+  private _setState(state: ButtonState): void {
+    if (this._state === state) return;
+    this._state = state;
+    this._applyState();
+  }
+
+  private _applyState(): void {
+    if (this._layoutWidth <= 0 || this._layoutHeight <= 0) return;
+    this._applyPartialSpriteStyle(this._bg, this._stateStyles[this._state], this._layoutWidth, this._layoutHeight);
+  }
+
+  // ── Internal: layout ──────────────────────────────────────────────
 
   private handleLayout(l: Layout): void {
     const w = Math.max(1, Math.floor(l.computedLayout.width));
     const h = Math.max(1, Math.floor(l.computedLayout.height));
     this._layoutWidth = w;
     this._layoutHeight = h;
-    this.redrawPlaceholder(w, h);
-    this.applySpriteSize(w, h);
-  }
-
-  private redrawPlaceholder(w: number, h: number): void {
-    if (!this._placeholder.visible) return;
-    this._placeholder.clear();
-    this._placeholder
-      .roundRect(0, 0, w, h, this._opts.radius)
-      .fill({ color: this._opts.fillColor, alpha: this._opts.fillAlpha })
-      .stroke({ color: this._opts.strokeColor, width: this._opts.strokeWidth });
-  }
-
-  private applySpriteSize(w: number, h: number): void {
-    if (this._bgSprite.texture === PIXI.Texture.EMPTY) return;
-    this._bgSprite.scale.set(1, 1);
-    this._bgSprite.width = w;
-    this._bgSprite.height = h;
+    this._applyState();
   }
 }
