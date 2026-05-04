@@ -2,7 +2,13 @@ import { OnScreenControlManager, UnsubscribeBag, type IInstanceResolver, type IV
 import type { IGameScreenView } from "../views/IGameScreenView";
 import { GameEvents } from "../events/GameEvents";
 import { GameOperations } from "../utilities/GameOperations";
-import { SCORE_CONTROL_ID } from "../BubbleShooterApp";
+import {
+  BOMB_BUTTON_ID,
+  BOMB_COUNT_LABEL_ID,
+  FIREBALL_BUTTON_ID,
+  FIREBALL_COUNT_LABEL_ID,
+  SCORE_CONTROL_ID,
+} from "../BubbleShooterApp";
 
 export class GameScreenViewController implements IViewController<IGameScreenView> {
   private _view: IGameScreenView | null = null;
@@ -20,7 +26,19 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   public initialize(view: IGameScreenView): void {
     this._view = view;
     this._subs.add(this._gameEvents!.onScoreChanged((value) => this._osc?.setLabelText(SCORE_CONTROL_ID, `Score: ${value}`)));
+    this._subs.add(this._gameEvents!.onBombCountChanged((count) => this._onBombCountChanged(count)));
+    this._subs.add(this._gameEvents!.onFireballCountChanged((count) => this._onFireballCountChanged(count)));
     this._subs.add(this._view.onLevelChanged((id) => this._ops?.loadLevel(id)));
+  }
+
+  private _onBombCountChanged(count: number): void {
+    this._osc?.setLabelText(BOMB_COUNT_LABEL_ID, `${count}`);
+    this._osc?.setControlEnabled(BOMB_BUTTON_ID, count > 0);
+  }
+
+  private _onFireballCountChanged(count: number): void {
+    this._osc?.setLabelText(FIREBALL_COUNT_LABEL_ID, `${count}`);
+    this._osc?.setControlEnabled(FIREBALL_BUTTON_ID, count > 0);
   }
 
   public destroy(): void {

@@ -59,6 +59,8 @@ export class BubbleShooterConfig {
   public readonly aimDotRadius = 3.5;
   public readonly aimDotSpacing = 15;
   public readonly aimDotColor = 0xffffff;
+  /** Aim dot colour while a power-up (bomb / fireball) is loaded into the held slot. */
+  public readonly aimDotPowerUpColor = 0xff3030;
   public readonly aimDotAlpha = 0.6;
   /** Arc-length speed of the dot march, in world units per second. */
   public readonly aimDotFlowSpeed = 60;
@@ -78,6 +80,26 @@ export class BubbleShooterConfig {
 
   /** Minimum same-colour group size that pops on snap. */
   public readonly matchPopThreshold = 3;
+
+  /** Bomb power-up inventory at game / level start. */
+  public readonly initialBombCount = 3;
+  /**
+   * Number of hex rings the bomb explosion covers around its landing
+   * cell. `1` = centre + 6 neighbours (7 cells). `2` = centre + 6 +
+   * the next-out 12-cell ring (19 cells). `3` would be 37, etc.
+   */
+  public readonly bombBlastRingCount = 2;
+
+  /** Fireball power-up inventory at game / level start. */
+  public readonly initialFireballCount = 3;
+  /** Fireball flight speed in world units per second. */
+  public readonly fireballSpeed = 1500;
+  /**
+   * Centre-to-centre distance at which the fireball pops a cluster bubble
+   * along its straight-line path. Default `2 · bubbleRadius` (= a clean
+   * touch); raise to vacuum bubbles slightly off-axis.
+   */
+  public readonly fireballCollisionRadius = 40;
 
   /** Seconds between sequential bubble pops within a single match group. */
   public readonly popDelaySeconds = 0.05;
@@ -100,7 +122,7 @@ export class BubbleShooterConfig {
    * visibly breaks apart for a beat instead of dropping as a frozen
    * blob.
    */
-  public readonly fallingBubbleSeparationImpulse = 50;
+  public readonly fallingBubbleSeparationImpulse = 100;
   /**
    * Extra upward velocity added on top of the radial separation impulse,
    * giving the disconnect a tiny "burst" feel before gravity pulls

@@ -64,6 +64,10 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
    *  index K-1 = K-th from the end (least faded). Earlier dots reuse
    *  {@link _aimDotMaterial} at full opacity. */
   private readonly _aimDotFadeMaterials: THREE.MeshBasicMaterial[] = [];
+  /** Power-up colour variants — same palette structure, red instead of white. */
+  private _aimDotMaterialPowerUp: THREE.MeshBasicMaterial | null = null;
+  private readonly _aimDotFadeMaterialsPowerUp: THREE.MeshBasicMaterial[] = [];
+  private _aimDotPowerUpMode = false;
   private readonly _aimDotPool: THREE.Mesh[] = [];
   private _activeAimDots = 0;
 
@@ -81,6 +85,16 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   private _landingPreviewColor: BubbleColor | null = null;
 
   private _flyingBubbleMesh: THREE.Mesh | null = null;
+
+  /** Shared bomb material; reused for both shooter-held bomb and in-flight bomb. */
+  private _bombMaterial: THREE.MeshBasicMaterial | null = null;
+  private _shooterBombMesh: THREE.Mesh | null = null;
+  private _flyingBombMesh: THREE.Mesh | null = null;
+
+  /** Shared fireball material for held + flying meshes. */
+  private _fireballMaterial: THREE.MeshBasicMaterial | null = null;
+  private _shooterFireballMesh: THREE.Mesh | null = null;
+  private _flyingFireballMesh: THREE.Mesh | null = null;
 
   /** Live falling-bubble meshes keyed by ops-side falling-bubble id. */
   private readonly _fallingBubbleMeshes = new Map<number, THREE.Mesh>();
@@ -135,6 +149,8 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._buildAimDotResources(config);
     this._buildLandingPreview(config);
     this._buildFlyingBubble();
+    this._buildBombResources(layout);
+    this._buildFireballResources(layout);
     this._buildParticleResources(config);
     this._attachPointerListener();
   }
@@ -192,6 +208,23 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     }
   }
 
+  public setShooterIsBomb(active: boolean): void {
+    if (!this._shooterBombMesh) return;
+    this._shooterBombMesh.visible = active;
+    if (active && this._shooterBubbleMesh) {
+      // Bomb takes over the held slot — hide the colour bubble. The
+      // matching `setShooterHeldColor(null)` event already hides it,
+      // but be defensive in case the order arrives reversed.
+      this._shooterBubbleMesh.visible = false;
+    }
+  }
+
+  public setShooterIsFireball(active: boolean): void {
+    if (!this._shooterFireballMesh) return;
+    this._shooterFireballMesh.visible = active;
+    if (active && this._shooterBubbleMesh) this._shooterBubbleMesh.visible = false;
+  }
+
   public setShooterAimAngle(angle: number): void {
     if (!this._shooterGroup) return;
     // Group's local +y is "forward". Aim angle is measured from world +x,
@@ -223,6 +256,14 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     if (spacing <= 0) return;
     this._aimPhaseOffset = (this._aimPhaseOffset + this._config.aimDotFlowSpeed * dt) % spacing;
     if (this._aimPhaseOffset < 0) this._aimPhaseOffset += spacing;
+    this._refreshAimDotsAtPhase();
+  }
+
+  public setAimPowerUpMode(active: boolean): void {
+    if (this._aimDotPowerUpMode === active) return;
+    this._aimDotPowerUpMode = active;
+    // Re-paint the active dots with the new material set without
+    // disturbing the marching phase.
     this._refreshAimDotsAtPhase();
   }
 
@@ -297,6 +338,26 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
       p.mesh.position.y += p.vy * dt;
       p.material.opacity = 1 - p.age / p.lifetime;
     }
+  }
+
+  public setFlyingBomb(active: boolean, x: number, y: number): void {
+    if (!this._flyingBombMesh) return;
+    if (!active) {
+      this._flyingBombMesh.visible = false;
+      return;
+    }
+    this._flyingBombMesh.position.set(x, y, 0);
+    this._flyingBombMesh.visible = true;
+  }
+
+  public setFireball(active: boolean, x: number, y: number): void {
+    if (!this._flyingFireballMesh) return;
+    if (!active) {
+      this._flyingFireballMesh.visible = false;
+      return;
+    }
+    this._flyingFireballMesh.position.set(x, y, 0);
+    this._flyingFireballMesh.visible = true;
   }
 
   public setFlyingBubble(color: BubbleColor | null, x: number, y: number): void {
@@ -451,12 +512,14 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   private _buildAimDotResources(config: BubbleShooterConfig): void {
     this._aimDotGeometry = new THREE.CircleGeometry(config.aimDotRadius, AIM_DOT_SEGMENTS);
     this._aimDotMaterial = this._createAimDotMaterial(config.aimDotColor, config.aimDotAlpha);
+    this._aimDotMaterialPowerUp = this._createAimDotMaterial(config.aimDotPowerUpColor, config.aimDotAlpha);
     const K = Math.max(0, config.aimDotFadeTailCount);
     for (let i = 0; i < K; i++) {
       // i = 0 is the last dot (most faded); ramp linearly up to K/(K+1)
       // for the K-th-from-end so the gradient reads as smooth.
       const factor = (i + 1) / (K + 1);
       this._aimDotFadeMaterials.push(this._createAimDotMaterial(config.aimDotColor, config.aimDotAlpha * factor));
+      this._aimDotFadeMaterialsPowerUp.push(this._createAimDotMaterial(config.aimDotPowerUpColor, config.aimDotAlpha * factor));
     }
   }
 
@@ -531,6 +594,44 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this.add(bubble);
   }
 
+  private _buildBombResources(layout: BubbleGridLayout): void {
+    if (!this._bubbleGeometry) return;
+    const tex = this.assetLoader.getAsset<THREE.Texture>(BubbleShooterAssetIds.BombBubble);
+    this._bombMaterial = tex
+      ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+      : new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, depthWrite: false });
+
+    const heldBomb = new THREE.Mesh(this._bubbleGeometry, this._bombMaterial);
+    heldBomb.position.set(layout.shooterX, layout.shooterY, SHOOTER_Z);
+    heldBomb.visible = false;
+    this._shooterBombMesh = heldBomb;
+    this.add(heldBomb);
+
+    const flyingBomb = new THREE.Mesh(this._bubbleGeometry, this._bombMaterial);
+    flyingBomb.visible = false;
+    this._flyingBombMesh = flyingBomb;
+    this.add(flyingBomb);
+  }
+
+  private _buildFireballResources(layout: BubbleGridLayout): void {
+    if (!this._bubbleGeometry) return;
+    const tex = this.assetLoader.getAsset<THREE.Texture>(BubbleShooterAssetIds.FireballBubble);
+    this._fireballMaterial = tex
+      ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+      : new THREE.MeshBasicMaterial({ color: 0xff5522, transparent: true, depthWrite: false });
+
+    const heldFireball = new THREE.Mesh(this._bubbleGeometry, this._fireballMaterial);
+    heldFireball.position.set(layout.shooterX, layout.shooterY, SHOOTER_Z);
+    heldFireball.visible = false;
+    this._shooterFireballMesh = heldFireball;
+    this.add(heldFireball);
+
+    const flyingFireball = new THREE.Mesh(this._bubbleGeometry, this._fireballMaterial);
+    flyingFireball.visible = false;
+    this._flyingFireballMesh = flyingFireball;
+    this.add(flyingFireball);
+  }
+
   private _buildParticleResources(config: BubbleShooterConfig): void {
     this._particleGeometry = new THREE.CircleGeometry(config.popParticleRadius, PARTICLE_SEGMENTS);
   }
@@ -593,12 +694,15 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     }
 
     const total = positions.length;
-    const fadeCount = this._aimDotFadeMaterials.length;
+    const fullMat = this._aimDotPowerUpMode ? this._aimDotMaterialPowerUp : this._aimDotMaterial;
+    const fadeMats = this._aimDotPowerUpMode ? this._aimDotFadeMaterialsPowerUp : this._aimDotFadeMaterials;
+    if (!fullMat) return;
+    const fadeCount = fadeMats.length;
     for (let i = 0; i < total; i++) {
       const dot = this._acquireAimDot();
       dot.position.set(positions[i]!.x, positions[i]!.y, AIM_DOT_Z);
       const tailIndex = total - 1 - i;
-      dot.material = tailIndex < fadeCount ? this._aimDotFadeMaterials[tailIndex]! : this._aimDotMaterial;
+      dot.material = tailIndex < fadeCount ? fadeMats[tailIndex]! : fullMat;
       dot.visible = true;
     }
   }
@@ -730,6 +834,32 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
       this._flyingBubbleMesh = null;
     }
 
+    if (this._shooterBombMesh) {
+      this.remove(this._shooterBombMesh);
+      this._shooterBombMesh = null;
+    }
+    if (this._flyingBombMesh) {
+      this.remove(this._flyingBombMesh);
+      this._flyingBombMesh = null;
+    }
+    if (this._bombMaterial) {
+      this._bombMaterial.dispose();
+      this._bombMaterial = null;
+    }
+
+    if (this._shooterFireballMesh) {
+      this.remove(this._shooterFireballMesh);
+      this._shooterFireballMesh = null;
+    }
+    if (this._flyingFireballMesh) {
+      this.remove(this._flyingFireballMesh);
+      this._flyingFireballMesh = null;
+    }
+    if (this._fireballMaterial) {
+      this._fireballMaterial.dispose();
+      this._fireballMaterial = null;
+    }
+
     for (const mesh of this._fallingBubbleMeshes.values()) this.remove(mesh);
     this._fallingBubbleMeshes.clear();
 
@@ -750,6 +880,10 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._aimDotMaterial = null;
     for (const mat of this._aimDotFadeMaterials) mat.dispose();
     this._aimDotFadeMaterials.length = 0;
+    this._aimDotMaterialPowerUp?.dispose();
+    this._aimDotMaterialPowerUp = null;
+    for (const mat of this._aimDotFadeMaterialsPowerUp) mat.dispose();
+    this._aimDotFadeMaterialsPowerUp.length = 0;
 
     if (this._landingPreviewMesh) {
       this.remove(this._landingPreviewMesh);

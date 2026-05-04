@@ -18,6 +18,8 @@ export class Shooter implements IShooter {
   private _heldColor: BubbleColor | null = null;
   private _nextColor: BubbleColor | null = null;
   private _aimAngle: number = Math.PI / 2;
+  private _isBomb: boolean = false;
+  private _isFireball: boolean = false;
 
   public get heldColor(): BubbleColor | null {
     return this._heldColor;
@@ -31,6 +33,14 @@ export class Shooter implements IShooter {
     return this._aimAngle;
   }
 
+  public get isBomb(): boolean {
+    return this._isBomb;
+  }
+
+  public get isFireball(): boolean {
+    return this._isFireball;
+  }
+
   public setHeldColor(color: BubbleColor | null): void {
     this._heldColor = color;
   }
@@ -41,5 +51,13 @@ export class Shooter implements IShooter {
 
   public setAimAngle(angle: number): void {
     this._aimAngle = angle;
+  }
+
+  public setIsBomb(isBomb: boolean): void {
+    this._isBomb = isBomb;
+  }
+
+  public setIsFireball(isFireball: boolean): void {
+    this._isFireball = isFireball;
   }
 }

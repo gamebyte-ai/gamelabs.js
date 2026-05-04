@@ -14,7 +14,10 @@ import { LEVELS } from "../constants/Levels";
 const EMPTY_TRAJECTORY: IAimTrajectory = { segments: [], end: "none", landing: null };
 
 interface IFlyingBubbleState {
-  readonly color: BubbleColor;
+  /** Colour of the in-flight bubble. `null` when {@link isBomb} is true. */
+  readonly color: BubbleColor | null;
+  /** Bomb power-up flight; `_completeFlight` runs the explosion path instead of a snap. */
+  readonly isBomb: boolean;
   readonly segments: readonly IAimTrajectorySegment[];
   readonly segLengths: readonly number[];
   readonly segDirX: readonly number[];
@@ -31,6 +34,13 @@ interface IFallingBubbleState {
   y: number;
   vx: number;
   vy: number;
+}
+
+interface IFireballState {
+  x: number;
+  y: number;
+  readonly vx: number;
+  readonly vy: number;
 }
 
 /**
@@ -54,8 +64,9 @@ export class GameOperations implements IInjectionTarget {
   private _floatingFinder: FloatingBubbleFinder | null = null;
   private _score: Score | null = null;
 
-  private _state: "idle" | "flying" | "popping" = "idle";
+  private _state: "idle" | "flying" | "popping" | "flying-fireball" = "idle";
   private _flying: IFlyingBubbleState | null = null;
+  private _fireball: IFireballState | null = null;
   private _popQueue: IMatchedCell[] = [];
   private _popTimer = 0;
   /** Per-pop-session counter used to compute the (n+1)·popPointsStep score per bubble. */
@@ -63,6 +74,10 @@ export class GameOperations implements IInjectionTarget {
   /** Disconnected bubbles in mid-fall. Lives independently of the main state machine. */
   private _falling: IFallingBubbleState[] = [];
   private _nextFallingId = 0;
+  /** Remaining bomb power-ups. Decremented on bomb fire, refilled at level start. */
+  private _bombCount = 0;
+  /** Remaining fireball power-ups. Decremented on fireball fire. */
+  private _fireballCount = 0;
   private _lastAimX = 0;
   private _lastAimY = 0;
 
@@ -83,6 +98,10 @@ export class GameOperations implements IInjectionTarget {
     this.buildInitialLayout();
     this._score!.reset();
     this._events!.emitScoreChanged(this._score!.value);
+    this._bombCount = this._config!.initialBombCount;
+    this._events!.emitBombCountChanged(this._bombCount);
+    this._fireballCount = this._config!.initialFireballCount;
+    this._events!.emitFireballCountChanged(this._fireballCount);
     this._initShooterBubbles();
     const layout = this._layout!;
     this.aimAt(layout.shooterX, layout.shooterY + 1);
@@ -127,21 +146,38 @@ export class GameOperations implements IInjectionTarget {
 
     this._score!.reset();
     this._events!.emitScoreChanged(0);
+    this._bombCount = this._config!.initialBombCount;
+    this._events!.emitBombCountChanged(this._bombCount);
+    this._fireballCount = this._config!.initialFireballCount;
+    this._events!.emitFireballCountChanged(this._fireballCount);
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
-  /** Wipe transient flight / pop / falling state and notify the view. */
+  /** Wipe transient flight / pop / falling / bomb / fireball state and notify the view. */
   private _cancelTransientState(): void {
     const events = this._events!;
     if (this._flying) {
-      events.emitFlyingBubbleChanged(null, 0, 0);
+      if (this._flying.isBomb) events.emitFlyingBombChanged(false, 0, 0);
+      else events.emitFlyingBubbleChanged(null, 0, 0);
       this._flying = null;
+    }
+    if (this._fireball) {
+      events.emitFireballChanged(false, 0, 0);
+      this._fireball = null;
     }
     this._popQueue.length = 0;
     this._popTimer = 0;
     this._popIndexInSession = 0;
     for (const f of this._falling) events.emitFallingBubbleChanged(f.id, null, f.x, f.y);
     this._falling.length = 0;
+    if (this._shooter?.isBomb) {
+      this._shooter.setIsBomb(false);
+      events.emitShooterBombChanged(false);
+    }
+    if (this._shooter?.isFireball) {
+      this._shooter.setIsFireball(false);
+      events.emitShooterFireballChanged(false);
+    }
     this._state = "idle";
   }
 
@@ -258,8 +294,16 @@ export class GameOperations implements IInjectionTarget {
     // Aim disabled while the cursor is below the shooter centre.
     if (this._lastAimY < this._layout!.shooterY) return;
     const shooter = this._shooter!;
+    const isBomb = shooter.isBomb;
+    const isFireball = shooter.isFireball;
     const heldColor = shooter.heldColor;
-    if (heldColor === null) return;
+    // Fireball flight bypasses the trajectory / snap pipeline entirely.
+    if (isFireball) {
+      this._fireFireball();
+      return;
+    }
+    // Either a coloured held bubble or a bomb power-up must be loaded.
+    if (!isBomb && heldColor === null) return;
 
     const trajectory = this._aimCalculator!.compute(shooter.aimAngle);
     if (trajectory.segments.length === 0 || trajectory.landing === null) return;
@@ -277,7 +321,8 @@ export class GameOperations implements IInjectionTarget {
     }
 
     this._flying = {
-      color: heldColor,
+      color: isBomb ? null : heldColor,
+      isBomb,
       segments: trajectory.segments,
       segLengths,
       segDirX,
@@ -290,12 +335,63 @@ export class GameOperations implements IInjectionTarget {
 
     // Aim line off; landing preview off.
     this._events!.emitAimTrajectoryChanged(EMPTY_TRAJECTORY);
-    // Push the flying bubble visual to its starting position.
+    // Push the flying visual to its starting position.
     const start = trajectory.segments[0]!;
-    this._events!.emitFlyingBubbleChanged(heldColor, start.fromX, start.fromY);
+    if (isBomb) {
+      this._events!.emitFlyingBombChanged(true, start.fromX, start.fromY);
+      // Bomb consumed — decrement the inventory and clear bomb mode so
+      // the new bubble can flow into the held slot.
+      shooter.setIsBomb(false);
+      this._events!.emitShooterBombChanged(false);
+      this._bombCount = Math.max(0, this._bombCount - 1);
+      this._events!.emitBombCountChanged(this._bombCount);
+    } else {
+      this._events!.emitFlyingBubbleChanged(heldColor, start.fromX, start.fromY);
+    }
     // Promote next → held and generate a fresh next; firing stays
     // blocked until snap.
     this._promoteNextBubble();
+  }
+
+  /**
+   * Load a bomb power-up into the shooter's held slot, replacing the
+   * current held colour. Quietly ignored unless we're idle and bomb
+   * mode isn't already on. The held colour is discarded — fire to use
+   * the bomb, then the next bubble flows in normally.
+   */
+  public activateBomb(): void {
+    if (this._state !== "idle") return;
+    if (this._bombCount <= 0) return;
+    const shooter = this._shooter!;
+    if (shooter.isBomb) return;
+    // Power-ups are mutually exclusive — activating a different one
+    // clears any current power-up first.
+    if (shooter.isFireball) {
+      shooter.setIsFireball(false);
+      this._events!.emitShooterFireballChanged(false);
+    }
+    this._setHeldColor(null);
+    shooter.setIsBomb(true);
+    this._events!.emitShooterBombChanged(true);
+  }
+
+  /**
+   * Load a fireball power-up into the shooter's held slot. Same idle /
+   * inventory rules as {@link activateBomb}; clears any active bomb
+   * first since the two power-ups share the held slot.
+   */
+  public activateFireball(): void {
+    if (this._state !== "idle") return;
+    if (this._fireballCount <= 0) return;
+    const shooter = this._shooter!;
+    if (shooter.isFireball) return;
+    if (shooter.isBomb) {
+      shooter.setIsBomb(false);
+      this._events!.emitShooterBombChanged(false);
+    }
+    this._setHeldColor(null);
+    shooter.setIsFireball(true);
+    this._events!.emitShooterFireballChanged(true);
   }
 
   public update(dt: number): void {
@@ -306,6 +402,10 @@ export class GameOperations implements IInjectionTarget {
 
     if (this._state === "popping") {
       this._updatePopping(dt);
+      return;
+    }
+    if (this._state === "flying-fireball") {
+      this._updateFireball(dt);
       return;
     }
     if (this._state !== "flying" || !this._flying) return;
@@ -335,15 +435,30 @@ export class GameOperations implements IInjectionTarget {
     const seg = this._flying.segments[idx]!;
     const x = seg.fromX + this._flying.segDirX[idx]! * this._flying.traveledInSegment;
     const y = seg.fromY + this._flying.segDirY[idx]! * this._flying.traveledInSegment;
-    this._events!.emitFlyingBubbleChanged(this._flying.color, x, y);
+    if (this._flying.isBomb) {
+      this._events!.emitFlyingBombChanged(true, x, y);
+    } else {
+      this._events!.emitFlyingBubbleChanged(this._flying.color, x, y);
+    }
   }
 
   private _completeFlight(): void {
     if (!this._flying) return;
-    const { landing, color } = this._flying;
-    const grid = this._grid!;
+    const { landing, color, isBomb } = this._flying;
     const events = this._events!;
 
+    // Bomb path: skip the snap-into-grid step, hide the flying bomb,
+    // and run the synchronous explosion.
+    if (isBomb) {
+      events.emitFlyingBombChanged(false, 0, 0);
+      this._flying = null;
+      this._explodeBomb(landing);
+      return;
+    }
+
+    // Below the bomb branch the bubble is always coloured.
+    if (color === null) return;
+    const grid = this._grid!;
     grid.setColor(landing.row, landing.col, color);
     events.emitBubblePlaced(landing.row, landing.col, color);
     events.emitFlyingBubbleChanged(null, 0, 0);
@@ -364,6 +479,165 @@ export class GameOperations implements IInjectionTarget {
 
     this._state = "idle";
     this.aimAt(this._lastAimX, this._lastAimY);
+  }
+
+  /**
+   * Detonate a bomb at the given landing cell. Pops every occupied cell
+   * within `bombBlastRingCount` hex rings around the centre at once —
+   * no popping queue, all bursts fire on the same frame. Standard
+   * post-pop logic (floating-bubble drop, score, re-aim) runs after.
+   */
+  private _explodeBomb(landing: IAimLanding): void {
+    const grid = this._grid!;
+    const layout = this._layout!;
+    const events = this._events!;
+    const config = this._config!;
+
+    const targets = this._collectBombBlastCells(landing.row, landing.col, config.bombBlastRingCount);
+
+    // Same per-cell scoring rule as cluster pops (5/10/15/...). Reset
+    // the session counter so each bomb starts at index 1.
+    this._popIndexInSession = 0;
+    for (const cell of targets) {
+      const color = grid.getColor(cell.row, cell.col);
+      if (color === null) continue;
+      this._popIndexInSession++;
+      this._score!.add(this._popIndexInSession * config.popPointsStep);
+      events.emitScoreChanged(this._score!.value);
+      const pos = layout.getCellWorldPosition(cell.row, cell.col);
+      events.emitBubblePopped(pos.x, pos.y, color);
+      grid.setColor(cell.row, cell.col, null);
+      events.emitBubbleRemoved(cell.row, cell.col);
+    }
+
+    // Reuse the floating-drop machinery so disconnected chunks fall
+    // exactly like they do after a normal cluster pop.
+    this._spawnFallingForFloating();
+    this._state = "idle";
+    this.aimAt(this._lastAimX, this._lastAimY);
+  }
+
+  /**
+   * Fire a fireball: a straight-line projectile that pops every
+   * cluster bubble its centre passes within
+   * `fireballCollisionRadius` of, and continues until it exits the
+   * play area. Walls are ignored — the fireball plows straight through.
+   */
+  private _fireFireball(): void {
+    const layout = this._layout!;
+    const config = this._config!;
+    const shooter = this._shooter!;
+    const events = this._events!;
+
+    const angle = shooter.aimAngle;
+    const dirX = Math.cos(angle);
+    const dirY = Math.sin(angle);
+    const speed = config.fireballSpeed;
+    const startX = layout.shooterX + dirX * config.shooterRadius;
+    const startY = layout.shooterY + dirY * config.shooterRadius;
+
+    this._fireball = { x: startX, y: startY, vx: dirX * speed, vy: dirY * speed };
+    this._state = "flying-fireball";
+    // Reset per-pop session so this fireball's pops start at index 1
+    // (= 5 points), matching cluster + bomb scoring conventions.
+    this._popIndexInSession = 0;
+
+    events.emitAimTrajectoryChanged(EMPTY_TRAJECTORY);
+    events.emitFireballChanged(true, startX, startY);
+
+    // Clear held-slot fireball mode + decrement inventory + flow next
+    // bubble in, mirroring the bomb fire path.
+    shooter.setIsFireball(false);
+    events.emitShooterFireballChanged(false);
+    this._fireballCount = Math.max(0, this._fireballCount - 1);
+    events.emitFireballCountChanged(this._fireballCount);
+    this._promoteNextBubble();
+  }
+
+  private _updateFireball(dt: number): void {
+    const f = this._fireball;
+    if (!f) return;
+    const config = this._config!;
+    const layout = this._layout!;
+    const grid = this._grid!;
+    const events = this._events!;
+
+    f.x += f.vx * dt;
+    f.y += f.vy * dt;
+    events.emitFireballChanged(true, f.x, f.y);
+
+    // Pop every occupied cell whose centre is within collision radius
+    // of the fireball's current position. `_popOneCell` increments the
+    // session counter and emits the standard burst + score events.
+    const r = config.fireballCollisionRadius;
+    const r2 = r * r;
+    for (let row = 0; row < grid.rowCount; row++) {
+      const cols = grid.getColumnCount(row);
+      for (let col = 0; col < cols; col++) {
+        if (!grid.isOccupied(row, col)) continue;
+        const cell = layout.getCellWorldPosition(row, col);
+        const dx = cell.x - f.x;
+        const dy = cell.y - f.y;
+        if (dx * dx + dy * dy <= r2) this._popOneCell({ row, col });
+      }
+    }
+
+    // Exit check: a margin past the play-area extents so the fireball
+    // visibly clears the frame before vanishing.
+    const halfW = layout.halfAreaWidth + config.bubbleRadius;
+    const halfH = layout.halfAreaHeight + config.bubbleRadius;
+    if (f.x < -halfW || f.x > halfW || f.y > halfH || f.y < -halfH) {
+      this._endFireball();
+    }
+  }
+
+  private _endFireball(): void {
+    this._events!.emitFireballChanged(false, 0, 0);
+    this._fireball = null;
+    // Standard post-pop logic — disconnected chunks fall + pop on the
+    // threshold, score keeps accumulating per the falling-pop rule.
+    this._spawnFallingForFloating();
+    this._state = "idle";
+    this.aimAt(this._lastAimX, this._lastAimY);
+  }
+
+  /**
+   * BFS the hex grid out to `ringCount` from `(centerRow, centerCol)`,
+   * collecting every in-bounds cell. ringCount=1 → 7 cells (centre + 6
+   * neighbours); ringCount=2 → 19 cells; etc. Out-of-bounds neighbours
+   * are skipped but never re-expanded, so an explosion near the edge of
+   * the board doesn't wrap around.
+   */
+  private _collectBombBlastCells(centerRow: number, centerCol: number, ringCount: number): IMatchedCell[] {
+    const layout = this._layout!;
+    const visited = new Set<string>();
+    const result: IMatchedCell[] = [];
+    const key = (r: number, c: number): string => `${r}|${c}`;
+
+    let frontier: IMatchedCell[] = [];
+    if (layout.isInBounds(centerRow, centerCol)) {
+      visited.add(key(centerRow, centerCol));
+      result.push({ row: centerRow, col: centerCol });
+      frontier.push({ row: centerRow, col: centerCol });
+    }
+
+    for (let depth = 1; depth <= ringCount; depth++) {
+      const next: IMatchedCell[] = [];
+      for (const cur of frontier) {
+        for (const off of layout.getNeighborOffsets(cur.row)) {
+          const nr = cur.row + off.dRow;
+          const nc = cur.col + off.dCol;
+          const k = key(nr, nc);
+          if (visited.has(k)) continue;
+          visited.add(k);
+          if (!layout.isInBounds(nr, nc)) continue;
+          result.push({ row: nr, col: nc });
+          next.push({ row: nr, col: nc });
+        }
+      }
+      frontier = next;
+    }
+    return result;
   }
 
   private _updatePopping(dt: number): void {
@@ -394,10 +668,18 @@ export class GameOperations implements IInjectionTarget {
   }
 
   private _finishPopping(): void {
-    // Anything no longer anchored to the top row detaches and starts
-    // falling. Each falling bubble gets a fresh id so the view tracks
-    // its mesh independently from any cluster mesh that may later
-    // occupy the same cell.
+    this._spawnFallingForFloating();
+    this._state = "idle";
+    this.aimAt(this._lastAimX, this._lastAimY);
+  }
+
+  /**
+   * Detect floating cells, remove them from the grid, and spawn falling
+   * visuals with an outward radial impulse from the group's centre of
+   * mass. Shared by cluster-pop completion and bomb-explosion
+   * completion.
+   */
+  private _spawnFallingForFloating(): void {
     const grid = this._grid!;
     const layout = this._layout!;
     const events = this._events!;
@@ -457,8 +739,6 @@ export class GameOperations implements IInjectionTarget {
       this._falling.push({ id, color: p.color, x: p.x, y: p.y, vx, vy });
       events.emitFallingBubbleChanged(id, p.color, p.x, p.y);
     }
-    this._state = "idle";
-    this.aimAt(this._lastAimX, this._lastAimY);
   }
 
   private _updateFalling(dt: number): void {
@@ -467,12 +747,27 @@ export class GameOperations implements IInjectionTarget {
     const events = this._events!;
     const popY = layout.shooterY - config.fallingBubblePopDepth;
     const gravity = config.fallingBubbleGravity;
+    const leftWall = layout.leftWallX;
+    const rightWall = layout.rightWallX;
 
     const remaining: IFallingBubbleState[] = [];
     for (const f of this._falling) {
       f.vy -= gravity * dt;
       f.x += f.vx * dt;
       f.y += f.vy * dt;
+
+      // Bounce off the play-area side walls. Clamp first so a fast
+      // bubble can't tunnel past in a single frame, then flip vx only
+      // when actually moving into the wall (avoids re-triggering on
+      // the next frame after a bounce).
+      if (f.x < leftWall && f.vx < 0) {
+        f.x = leftWall;
+        f.vx = -f.vx;
+      } else if (f.x > rightWall && f.vx > 0) {
+        f.x = rightWall;
+        f.vx = -f.vx;
+      }
+
       if (f.y <= popY) {
         this._score!.add(config.fallingBubblePopPoints);
         events.emitScoreChanged(this._score!.value);

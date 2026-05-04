@@ -14,6 +14,8 @@ import {
   UIComponentsBinding,
   UIEvents,
   World,
+  type VirtualButtonConfig,
+  type VirtualLabelConfig,
 } from "@gamebyte/gamelabsjs";
 
 import { BubbleShooterAssetIds } from "./BubbleShooterAssetIds";
@@ -37,7 +39,22 @@ import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 
 const SCORE_CONTROL_ID = "score";
-export { SCORE_CONTROL_ID };
+const BOMB_BUTTON_ID = "bomb";
+const BOMB_COUNT_LABEL_ID = "bomb-count";
+const FIREBALL_BUTTON_ID = "fireball";
+const FIREBALL_COUNT_LABEL_ID = "fireball-count";
+export { SCORE_CONTROL_ID, BOMB_BUTTON_ID, BOMB_COUNT_LABEL_ID, FIREBALL_BUTTON_ID, FIREBALL_COUNT_LABEL_ID };
+
+// Power-up button layout. Bomb is anchored to BottomRight; future
+// power-ups stack to its LEFT by adding `(POWER_UP_SIZE + GAP)` to
+// the offsetX of each successive button.
+const POWER_UP_SIZE = 60;
+const POWER_UP_GAP = 14;
+const POWER_UP_OFFSET_Y = 70;
+const POWER_UP_BOMB_OFFSET_X = 60;
+const POWER_UP_FIREBALL_OFFSET_X = POWER_UP_BOMB_OFFSET_X + POWER_UP_SIZE + POWER_UP_GAP;
+/** Half-button inset toward the top-right corner of a button (where the count badge sits). */
+const POWER_UP_COUNT_INSET = 22;
 
 /**
  * Bubble Shooter scaffold.
@@ -63,6 +80,15 @@ export class BubbleShooterApp extends GamelabsApp {
   private _gameAreaView: GameAreaView | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _cameraController: Front2dCameraController | null = null;
+
+  // Power-up button + count configs are kept by reference so resize can
+  // reposition them against the play area's bottom-right corner (rather
+  // than the screen's), by mutating offsetX/Y in place. The OSC view
+  // re-reads these on its next reposition (driven by AppEvents.onResize).
+  private _bombButtonConfig: VirtualButtonConfig | null = null;
+  private _bombCountConfig: VirtualLabelConfig | null = null;
+  private _fireballButtonConfig: VirtualButtonConfig | null = null;
+  private _fireballCountConfig: VirtualLabelConfig | null = null;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -101,6 +127,59 @@ export class BubbleShooterApp extends GamelabsApp {
       content: "Score: 0",
       text: { color: 0xffffff, fontSize: 22, fontWeight: "700" },
     });
+    // Power-up buttons stack at the bottom-right. Bomb is rightmost;
+    // future power-ups (currently fireball) sit to its LEFT by
+    // increasing offsetX (BottomRight: bigger offsetX = further LEFT).
+    // Each button gets a separate count Label sitting at the top-right
+    // corner of the button — the framework Button widget has no text
+    // overlay, so a Label per badge is the cleanest path.
+    // Power-up buttons + count badges. Offsets here are placeholders;
+    // _layoutPowerUpButtons computes the real values against the play
+    // area's bottom-right corner on each resize.
+    this._bombButtonConfig = {
+      type: ControlType.Button,
+      id: BOMB_BUTTON_ID,
+      anchor: ControlAnchor.BottomRight,
+      offsetX: POWER_UP_BOMB_OFFSET_X,
+      offsetY: POWER_UP_OFFSET_Y,
+      size: POWER_UP_SIZE,
+      icon: { textureId: BubbleShooterAssetIds.BombIcon, scaleX: 0.7, scaleY: 0.7 },
+    };
+    osc.addControl(this._bombButtonConfig);
+    this._bombCountConfig = {
+      type: ControlType.Label,
+      id: BOMB_COUNT_LABEL_ID,
+      anchor: ControlAnchor.BottomRight,
+      offsetX: POWER_UP_BOMB_OFFSET_X - POWER_UP_COUNT_INSET,
+      offsetY: POWER_UP_OFFSET_Y + POWER_UP_COUNT_INSET,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      content: "3",
+      text: { color: 0xffffff, fontSize: 18, fontWeight: "700" },
+    };
+    osc.addControl(this._bombCountConfig);
+    this._fireballButtonConfig = {
+      type: ControlType.Button,
+      id: FIREBALL_BUTTON_ID,
+      anchor: ControlAnchor.BottomRight,
+      offsetX: POWER_UP_FIREBALL_OFFSET_X,
+      offsetY: POWER_UP_OFFSET_Y,
+      size: POWER_UP_SIZE,
+      icon: { textureId: BubbleShooterAssetIds.FireballIcon, scaleX: 0.7, scaleY: 0.7 },
+    };
+    osc.addControl(this._fireballButtonConfig);
+    this._fireballCountConfig = {
+      type: ControlType.Label,
+      id: FIREBALL_COUNT_LABEL_ID,
+      anchor: ControlAnchor.BottomRight,
+      offsetX: POWER_UP_FIREBALL_OFFSET_X - POWER_UP_COUNT_INSET,
+      offsetY: POWER_UP_OFFSET_Y + POWER_UP_COUNT_INSET,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      content: "3",
+      text: { color: 0xffffff, fontSize: 18, fontWeight: "700" },
+    };
+    osc.addControl(this._fireballCountConfig);
     this.diContainer.bindSingleton(AimTrajectoryCalculator, () => new AimTrajectoryCalculator());
     this.diContainer.bindSingleton(MatchFinder, () => new MatchFinder());
     this.diContainer.bindSingleton(FloatingBubbleFinder, () => new FloatingBubbleFinder());
@@ -131,6 +210,22 @@ export class BubbleShooterApp extends GamelabsApp {
     this._assetRequestList.addRequest(
       new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.SwapIcon, new URL("../assets/swap-icon.svg", import.meta.url).href),
     );
+    // Power-up sprites: each SVG is loaded twice (world for the
+    // held / flying mesh, HUD for the OSC button icon).
+    const bombUrl = new URL("../assets/bomb.svg", import.meta.url).href;
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.BombBubble, bombUrl),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.HudTexture, BubbleShooterAssetIds.BombIcon, bombUrl),
+    );
+    const fireballUrl = new URL("../assets/fireball.svg", import.meta.url).href;
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.FireballBubble, fireballUrl),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.HudTexture, BubbleShooterAssetIds.FireballIcon, fireballUrl),
+    );
     this.assetManager.loadAll(this._assetRequestList.getRequests());
   }
 
@@ -148,14 +243,76 @@ export class BubbleShooterApp extends GamelabsApp {
     this._cameraController = new Front2dCameraController(this._cameraManager).register();
     this._cameraController.followPosition(0, 0, this._config.cameraFocusZ);
     this._fitCamera(this.width, this.height);
+    this._layoutPowerUpButtons(this.width, this.height);
 
     this.diContainer.getInstance(UIEvents).createScreen(BubbleShooterUIIds.GameScreen, this._config.transitions.gameScreenEnter);
+
+    // Wire the bomb button: ops is resolvable now that DI is fully
+    // configured. Single-shot on press; the manager's key handler
+    // pattern fires both on press and release with `isPressed`.
+    const osc = this.diContainer.getInstance(OnScreenControlManager);
+    const ops = this.diContainer.getInstance(GameOperations);
+    osc.addKeyHandler(BOMB_BUTTON_ID, (isPressed) => {
+      if (isPressed) ops.activateBomb();
+    });
+    osc.addKeyHandler(FIREBALL_BUTTON_ID, (isPressed) => {
+      if (isPressed) ops.activateFireball();
+    });
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
     this._cameraManager?.resize(width, height);
     this._fitCamera(width, height);
+    this._layoutPowerUpButtons(width, height);
+  }
+
+  /**
+   * Reposition the power-up buttons + count badges against the play
+   * area's bottom-right corner (in screen pixels), not the screen's.
+   * The OSC manager re-reads `config.offsetX/Y` on every reposition,
+   * so mutating them in place + relying on the screen view's onResize
+   * → OSC reposition flow is enough to update visuals.
+   *
+   * Math: with the camera ortho-fit so `pxPerWorld = h / orthoSize`,
+   * the play area's right edge sits at `w/2 + halfAreaW * pxPerWorld`
+   * and its bottom at `h/2 + halfAreaH * pxPerWorld`. BottomRight
+   * offsets are measured from the screen's right / bottom edges
+   * inward, so subtract that span and add an inset to land button
+   * centres just inside the play-area corner.
+   */
+  private _layoutPowerUpButtons(width: number, height: number): void {
+    if (width <= 0 || height <= 0) return;
+    const aspect = width / height;
+    const requiredW = this._layout.areaWidth + 2 * this._config.cameraMargin;
+    const requiredH = this._layout.areaHeight + 2 * this._config.cameraMargin;
+    const orthoSize = Math.max(requiredH, requiredW / aspect);
+    const pxPerWorld = height / orthoSize;
+
+    const offsetXBase = width / 2 - this._layout.halfAreaWidth * pxPerWorld;
+    const offsetYBase = height / 2 - this._layout.halfAreaHeight * pxPerWorld;
+    const inset = POWER_UP_SIZE / 2 + 8;
+    const bombOffsetX = offsetXBase + inset;
+    const bombOffsetY = offsetYBase + inset;
+    const fireballOffsetX = bombOffsetX + POWER_UP_SIZE + POWER_UP_GAP;
+    const fireballOffsetY = bombOffsetY;
+
+    if (this._bombButtonConfig) {
+      this._bombButtonConfig.offsetX = bombOffsetX;
+      this._bombButtonConfig.offsetY = bombOffsetY;
+    }
+    if (this._bombCountConfig) {
+      this._bombCountConfig.offsetX = bombOffsetX - POWER_UP_COUNT_INSET;
+      this._bombCountConfig.offsetY = bombOffsetY + POWER_UP_COUNT_INSET;
+    }
+    if (this._fireballButtonConfig) {
+      this._fireballButtonConfig.offsetX = fireballOffsetX;
+      this._fireballButtonConfig.offsetY = fireballOffsetY;
+    }
+    if (this._fireballCountConfig) {
+      this._fireballCountConfig.offsetX = fireballOffsetX - POWER_UP_COUNT_INSET;
+      this._fireballCountConfig.offsetY = fireballOffsetY + POWER_UP_COUNT_INSET;
+    }
   }
 
   /**

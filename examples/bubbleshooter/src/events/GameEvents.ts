@@ -11,6 +11,10 @@ type FlyingBubbleCb = (color: BubbleColor | null, x: number, y: number) => void;
 type BubblePoppedCb = (x: number, y: number, color: BubbleColor) => void;
 type FallingBubbleCb = (id: number, color: BubbleColor | null, x: number, y: number) => void;
 type ScoreCb = (value: number) => void;
+type BoolCb = (active: boolean) => void;
+type FlyingBombCb = (active: boolean, x: number, y: number) => void;
+type FireballCb = (active: boolean, x: number, y: number) => void;
+type CountCb = (count: number) => void;
 
 export class GameEvents {
   private readonly _bubblePlacedListeners = new Set<BubblePlacedCb>();
@@ -23,6 +27,12 @@ export class GameEvents {
   private readonly _bubblePoppedListeners = new Set<BubblePoppedCb>();
   private readonly _fallingBubbleListeners = new Set<FallingBubbleCb>();
   private readonly _scoreListeners = new Set<ScoreCb>();
+  private readonly _shooterBombListeners = new Set<BoolCb>();
+  private readonly _flyingBombListeners = new Set<FlyingBombCb>();
+  private readonly _bombCountListeners = new Set<CountCb>();
+  private readonly _shooterFireballListeners = new Set<BoolCb>();
+  private readonly _fireballListeners = new Set<FireballCb>();
+  private readonly _fireballCountListeners = new Set<CountCb>();
 
   public onBubblePlaced(cb: BubblePlacedCb): Unsubscribe {
     this._bubblePlacedListeners.add(cb);
@@ -126,5 +136,65 @@ export class GameEvents {
 
   public emitScoreChanged(value: number): void {
     for (const cb of this._scoreListeners) cb(value);
+  }
+
+  /** Bomb power-up loaded into the shooter's held slot. */
+  public onShooterBombChanged(cb: BoolCb): Unsubscribe {
+    this._shooterBombListeners.add(cb);
+    return () => this._shooterBombListeners.delete(cb);
+  }
+
+  public emitShooterBombChanged(active: boolean): void {
+    for (const cb of this._shooterBombListeners) cb(active);
+  }
+
+  /** Bomb mid-flight. Same lifecycle as `onFlyingBubbleChanged` but for bombs. */
+  public onFlyingBombChanged(cb: FlyingBombCb): Unsubscribe {
+    this._flyingBombListeners.add(cb);
+    return () => this._flyingBombListeners.delete(cb);
+  }
+
+  public emitFlyingBombChanged(active: boolean, x: number, y: number): void {
+    for (const cb of this._flyingBombListeners) cb(active, x, y);
+  }
+
+  /** Remaining bomb power-ups in the player's inventory. */
+  public onBombCountChanged(cb: CountCb): Unsubscribe {
+    this._bombCountListeners.add(cb);
+    return () => this._bombCountListeners.delete(cb);
+  }
+
+  public emitBombCountChanged(count: number): void {
+    for (const cb of this._bombCountListeners) cb(count);
+  }
+
+  /** Fireball power-up loaded into the shooter's held slot. */
+  public onShooterFireballChanged(cb: BoolCb): Unsubscribe {
+    this._shooterFireballListeners.add(cb);
+    return () => this._shooterFireballListeners.delete(cb);
+  }
+
+  public emitShooterFireballChanged(active: boolean): void {
+    for (const cb of this._shooterFireballListeners) cb(active);
+  }
+
+  /** Fireball mid-flight. Straight-line motion; `active=false` ends the visual. */
+  public onFireballChanged(cb: FireballCb): Unsubscribe {
+    this._fireballListeners.add(cb);
+    return () => this._fireballListeners.delete(cb);
+  }
+
+  public emitFireballChanged(active: boolean, x: number, y: number): void {
+    for (const cb of this._fireballListeners) cb(active, x, y);
+  }
+
+  /** Remaining fireball power-ups in the player's inventory. */
+  public onFireballCountChanged(cb: CountCb): Unsubscribe {
+    this._fireballCountListeners.add(cb);
+    return () => this._fireballCountListeners.delete(cb);
+  }
+
+  public emitFireballCountChanged(count: number): void {
+    for (const cb of this._fireballCountListeners) cb(count);
   }
 }
