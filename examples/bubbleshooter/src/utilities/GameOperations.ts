@@ -92,6 +92,12 @@ export class GameOperations implements IInjectionTarget {
    * event so it doesn't appear over still-falling debris.
    */
   private _winLatched = false;
+  /**
+   * Loss latch — true the moment any bubble's cell touches shooter
+   * level. Disables every input and emits `onGameOverChanged(true)`;
+   * mutually exclusive with the win flow.
+   */
+  private _isLost = false;
   private _lastAimX = 0;
   private _lastAimY = 0;
 
@@ -177,6 +183,11 @@ export class GameOperations implements IInjectionTarget {
       this._winLatched = false;
       this._events!.emitGameWonChanged(false);
     }
+    if (this._isLost) {
+      this._isLost = false;
+      this._events!.emitGameOverChanged(false);
+      this._events!.emitShooterControlsLocked(false);
+    }
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
@@ -228,7 +239,7 @@ export class GameOperations implements IInjectionTarget {
    * to idle after _completeFlight finishes).
    */
   public swap(): void {
-    if (this._isWon) return;
+    if (this._isWon || this._isLost) return;
     if (this._state !== "idle") return;
     const shooter = this._shooter!;
     const a = shooter.heldColor;
@@ -332,6 +343,35 @@ export class GameOperations implements IInjectionTarget {
   }
 
   /**
+   * Loss check. Fires the moment any cell in the bottom row is
+   * occupied — that's the row immediately above the shooter, so a
+   * bubble there has reached shooter level by definition. Mirrors
+   * the win lock: emits `onShooterControlsLocked(true)` so power-up
+   * buttons disable, and `onGameOverChanged(true)` for the screen
+   * controller to react. Idempotent and mutually exclusive with the
+   * win flow.
+   */
+  private _checkLoss(): void {
+    if (this._isLost) return;
+    if (this._winLatched || this._isWon) return;
+    const grid = this._grid!;
+    const lastRow = grid.rowCount - 1;
+    const cols = grid.getColumnCount(lastRow);
+    let reached = false;
+    for (let col = 0; col < cols; col++) {
+      if (grid.isOccupied(lastRow, col)) {
+        reached = true;
+        break;
+      }
+    }
+    if (!reached) return;
+    this._isLost = true;
+    this._events!.emitAimTrajectoryChanged(EMPTY_TRAJECTORY);
+    this._events!.emitShooterControlsLocked(true);
+    this._events!.emitGameOverChanged(true);
+  }
+
+  /**
    * Re-roll the held / next slots if their colour is no longer present
    * on the grid. Run after every pop sequence so the player can never
    * end up holding a colour that's been fully cleared.
@@ -355,7 +395,7 @@ export class GameOperations implements IInjectionTarget {
    * landing preview hide. {@link fire} likewise refuses while disabled.
    */
   public aimAt(worldX: number, worldY: number): void {
-    if (this._isWon) return;
+    if (this._isWon || this._isLost) return;
     this._lastAimX = worldX;
     this._lastAimY = worldY;
 
@@ -394,7 +434,7 @@ export class GameOperations implements IInjectionTarget {
    * the in-flight bubble snaps.
    */
   public fire(): void {
-    if (this._isWon) return;
+    if (this._isWon || this._isLost) return;
     if (this._state !== "idle") return;
     // Aim disabled while the cursor is below the shooter centre.
     if (this._lastAimY < this._layout!.shooterY) return;
@@ -452,6 +492,7 @@ export class GameOperations implements IInjectionTarget {
       this._events!.emitBombCountChanged(this._bombCount);
     } else {
       this._events!.emitFlyingBubbleChanged(heldColor, start.fromX, start.fromY);
+      this._events!.emitBubbleShotFired();
     }
     // Promote next → held and generate a fresh next; firing stays
     // blocked until snap.
@@ -465,7 +506,7 @@ export class GameOperations implements IInjectionTarget {
    * the bomb, then the next bubble flows in normally.
    */
   public activateBomb(): void {
-    if (this._isWon) return;
+    if (this._isWon || this._isLost) return;
     if (this._state !== "idle") return;
     if (this._bombCount <= 0) return;
     const shooter = this._shooter!;
@@ -487,7 +528,7 @@ export class GameOperations implements IInjectionTarget {
    * first since the two power-ups share the held slot.
    */
   public activateFireball(): void {
-    if (this._isWon) return;
+    if (this._isWon || this._isLost) return;
     if (this._state !== "idle") return;
     if (this._fireballCount <= 0) return;
     const shooter = this._shooter!;
@@ -577,6 +618,7 @@ export class GameOperations implements IInjectionTarget {
     grid.setColor(landing.row, landing.col, color);
     events.emitBubblePlaced(landing.row, landing.col, color);
     events.emitFlyingBubbleChanged(null, 0, 0);
+    events.emitBubbleSnapped();
 
     const group = this._matchFinder!.findConnectedGroup(landing.row, landing.col);
     this._flying = null;
@@ -593,6 +635,8 @@ export class GameOperations implements IInjectionTarget {
     }
 
     this._state = "idle";
+    this._checkLoss();
+    if (this._isLost) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
@@ -609,6 +653,8 @@ export class GameOperations implements IInjectionTarget {
     const config = this._config!;
 
     const targets = this._collectBombBlastCells(landing.row, landing.col, config.bombBlastRingCount);
+
+    events.emitBombExploded();
 
     // Same per-cell scoring rule as cluster pops (5/10/15/...). Reset
     // the session counter so each bomb starts at index 1.
@@ -663,6 +709,7 @@ export class GameOperations implements IInjectionTarget {
 
     events.emitAimTrajectoryChanged(EMPTY_TRAJECTORY);
     events.emitFireballChanged(true, startX, startY);
+    events.emitFireballFired();
 
     // Clear held-slot fireball mode + decrement inventory + flow next
     // bubble in, mirroring the bomb fire path.

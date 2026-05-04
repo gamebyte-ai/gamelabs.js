@@ -17,6 +17,13 @@ export enum BubbleShooterAssetIds {
   FireballBubble = "BubbleShooter.FireballBubble",
   /** Fireball sprite for the HUD button icon. */
   FireballIcon = "BubbleShooter.FireballIcon",
+  /** Procedurally synthesised SFX, registered as `AudioBuffer` assets. */
+  SoundPop = "BubbleShooter.SoundPop",
+  SoundSnap = "BubbleShooter.SoundSnap",
+  SoundShoot = "BubbleShooter.SoundShoot",
+  SoundBomb = "BubbleShooter.SoundBomb",
+  SoundFireball = "BubbleShooter.SoundFireball",
+  SoundSwap = "BubbleShooter.SoundSwap",
 }
 
 export const BUBBLE_COLOR_TO_ASSET_ID: Readonly<Record<BubbleColor, BubbleShooterAssetIds>> = {

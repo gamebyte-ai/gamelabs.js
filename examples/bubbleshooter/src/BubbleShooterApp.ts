@@ -37,6 +37,8 @@ import { GameAreaView } from "./views/GameAreaView.three";
 import { GameAreaViewController } from "./controllers/GameAreaViewController";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
+import { GameSoundController } from "./controllers/GameSoundController";
+import { SoundSynth } from "./utilities/SoundSynth";
 
 const SCORE_CONTROL_ID = "score";
 const BOMB_BUTTON_ID = "bomb";
@@ -44,7 +46,8 @@ const BOMB_COUNT_LABEL_ID = "bomb-count";
 const FIREBALL_BUTTON_ID = "fireball";
 const FIREBALL_COUNT_LABEL_ID = "fireball-count";
 const WIN_LABEL_ID = "win";
-export { SCORE_CONTROL_ID, BOMB_BUTTON_ID, BOMB_COUNT_LABEL_ID, FIREBALL_BUTTON_ID, FIREBALL_COUNT_LABEL_ID, WIN_LABEL_ID };
+const GAME_OVER_LABEL_ID = "game-over";
+export { SCORE_CONTROL_ID, BOMB_BUTTON_ID, BOMB_COUNT_LABEL_ID, FIREBALL_BUTTON_ID, FIREBALL_COUNT_LABEL_ID, WIN_LABEL_ID, GAME_OVER_LABEL_ID };
 
 // Power-up button layout. Bomb is anchored to BottomRight; future
 // power-ups stack to its LEFT by adding `(POWER_UP_SIZE + GAP)` to
@@ -81,6 +84,7 @@ export class BubbleShooterApp extends GamelabsApp {
   private _gameAreaView: GameAreaView | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _cameraController: Front2dCameraController | null = null;
+  private _soundController: GameSoundController | null = null;
 
   // Power-up button + count configs are kept by reference so resize can
   // reposition them against the play area's bottom-right corner (rather
@@ -141,6 +145,20 @@ export class BubbleShooterApp extends GamelabsApp {
       text: { color: 0xfff2a0, fontSize: 64, fontWeight: "800" },
     });
     osc.setControlVisible(WIN_LABEL_ID, false);
+    // Centre-of-screen "GAME OVER" overlay, hidden until a bubble
+    // settles in the bottom row.
+    osc.addControl({
+      type: ControlType.Label,
+      id: GAME_OVER_LABEL_ID,
+      anchor: ControlAnchor.Center,
+      offsetX: 0,
+      offsetY: 0,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      content: "GAME OVER",
+      text: { color: 0xff6464, fontSize: 64, fontWeight: "800" },
+    });
+    osc.setControlVisible(GAME_OVER_LABEL_ID, false);
     // Power-up buttons stack at the bottom-right. Bomb is rightmost;
     // future power-ups (currently fireball) sit to its LEFT by
     // increasing offsetX (BottomRight: bigger offsetX = further LEFT).
@@ -244,6 +262,29 @@ export class BubbleShooterApp extends GamelabsApp {
       new AssetRequest(AssetTypes.HudTexture, BubbleShooterAssetIds.FireballIcon, fireballUrl),
     );
     this.assetManager.loadAll(this._assetRequestList.getRequests());
+    this._registerSoundBuffers();
+  }
+
+  /**
+   * Synthesise SFX buffers off the AudioContext and register them
+   * directly with the AssetManager. We bypass the normal request /
+   * load pipeline because the buffers are generated in-process — no
+   * network fetch needed — and `setAsset` makes them visible to
+   * `AudioService.playSfx(assetId)` immediately.
+   */
+  private _registerSoundBuffers(): void {
+    const ctx = this.audioService.context;
+    if (!ctx) {
+      this.logger.log("AudioContext unavailable; SFX disabled", LogTypes.Warning);
+      return;
+    }
+    const am = this.assetManager;
+    am.setAsset(BubbleShooterAssetIds.SoundPop, SoundSynth.buildPop(ctx));
+    am.setAsset(BubbleShooterAssetIds.SoundSnap, SoundSynth.buildSnap(ctx));
+    am.setAsset(BubbleShooterAssetIds.SoundShoot, SoundSynth.buildShoot(ctx));
+    am.setAsset(BubbleShooterAssetIds.SoundBomb, SoundSynth.buildBomb(ctx));
+    am.setAsset(BubbleShooterAssetIds.SoundFireball, SoundSynth.buildFireball(ctx));
+    am.setAsset(BubbleShooterAssetIds.SoundSwap, SoundSynth.buildSwap(ctx));
   }
 
   protected override postInitialize(): void {
@@ -275,6 +316,10 @@ export class BubbleShooterApp extends GamelabsApp {
     osc.addKeyHandler(FIREBALL_BUTTON_ID, (isPressed) => {
       if (isPressed) ops.activateFireball();
     });
+
+    this._soundController = new GameSoundController();
+    this._soundController.inject(this.diContainer);
+    this._soundController.start();
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {

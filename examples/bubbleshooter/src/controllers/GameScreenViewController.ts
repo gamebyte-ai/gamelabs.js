@@ -7,6 +7,7 @@ import {
   BOMB_COUNT_LABEL_ID,
   FIREBALL_BUTTON_ID,
   FIREBALL_COUNT_LABEL_ID,
+  GAME_OVER_LABEL_ID,
   SCORE_CONTROL_ID,
   WIN_LABEL_ID,
 } from "../BubbleShooterApp";
@@ -34,6 +35,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._subs.add(this._gameEvents!.onFireballCountChanged((count) => this._onFireballCountChanged(count)));
     this._subs.add(this._gameEvents!.onShooterControlsLocked((locked) => this._onControlsLocked(locked)));
     this._subs.add(this._gameEvents!.onGameWonChanged((won) => this._osc?.setControlVisible(WIN_LABEL_ID, won)));
+    this._subs.add(this._gameEvents!.onGameOverChanged((over) => this._osc?.setControlVisible(GAME_OVER_LABEL_ID, over)));
     this._subs.add(this._view.onLevelChanged((id) => this._ops?.loadLevel(id)));
   }
 

@@ -16,8 +16,10 @@ type FlyingBombCb = (active: boolean, x: number, y: number) => void;
 type FireballCb = (active: boolean, x: number, y: number) => void;
 type CountCb = (count: number) => void;
 type GameWonCb = (won: boolean) => void;
+type GameOverCb = (over: boolean) => void;
 type ControlsLockedCb = (locked: boolean) => void;
 type ShooterSwapCb = (newHeld: BubbleColor, newNext: BubbleColor) => void;
+type VoidCb = () => void;
 
 export class GameEvents {
   private readonly _bubblePlacedListeners = new Set<BubblePlacedCb>();
@@ -37,8 +39,13 @@ export class GameEvents {
   private readonly _fireballListeners = new Set<FireballCb>();
   private readonly _fireballCountListeners = new Set<CountCb>();
   private readonly _gameWonListeners = new Set<GameWonCb>();
+  private readonly _gameOverListeners = new Set<GameOverCb>();
   private readonly _controlsLockedListeners = new Set<ControlsLockedCb>();
   private readonly _shooterSwapListeners = new Set<ShooterSwapCb>();
+  private readonly _bubbleShotFiredListeners = new Set<VoidCb>();
+  private readonly _bombExplodedListeners = new Set<VoidCb>();
+  private readonly _fireballFiredListeners = new Set<VoidCb>();
+  private readonly _bubbleSnappedListeners = new Set<VoidCb>();
 
   public onBubblePlaced(cb: BubblePlacedCb): Unsubscribe {
     this._bubblePlacedListeners.add(cb);
@@ -215,6 +222,20 @@ export class GameEvents {
   }
 
   /**
+   * Game-over state. Fires `true` when any bubble reaches shooter
+   * level; mutually exclusive with the win flow. Fires `false` on
+   * level reset.
+   */
+  public onGameOverChanged(cb: GameOverCb): Unsubscribe {
+    this._gameOverListeners.add(cb);
+    return () => this._gameOverListeners.delete(cb);
+  }
+
+  public emitGameOverChanged(over: boolean): void {
+    for (const cb of this._gameOverListeners) cb(over);
+  }
+
+  /**
    * Power-up controls lock. Fires `true` the moment the grid empties
    * (well before the win message is allowed to show), so the UI can
    * disable bomb / fireball buttons during the fall-out wait. Fires
@@ -244,5 +265,49 @@ export class GameEvents {
 
   public emitShooterSwap(newHeld: BubbleColor, newNext: BubbleColor): void {
     for (const cb of this._shooterSwapListeners) cb(newHeld, newNext);
+  }
+
+  /** A regular (non-power-up) bubble was just fired. Cue the shoot SFX. */
+  public onBubbleShotFired(cb: VoidCb): Unsubscribe {
+    this._bubbleShotFiredListeners.add(cb);
+    return () => this._bubbleShotFiredListeners.delete(cb);
+  }
+
+  public emitBubbleShotFired(): void {
+    for (const cb of this._bubbleShotFiredListeners) cb();
+  }
+
+  /** A bomb has just detonated at its landing cell. Cue the boom SFX. */
+  public onBombExploded(cb: VoidCb): Unsubscribe {
+    this._bombExplodedListeners.add(cb);
+    return () => this._bombExplodedListeners.delete(cb);
+  }
+
+  public emitBombExploded(): void {
+    for (const cb of this._bombExplodedListeners) cb();
+  }
+
+  /** A fireball has just been launched. Cue the hissy whoosh SFX. */
+  public onFireballFired(cb: VoidCb): Unsubscribe {
+    this._fireballFiredListeners.add(cb);
+    return () => this._fireballFiredListeners.delete(cb);
+  }
+
+  public emitFireballFired(): void {
+    for (const cb of this._fireballFiredListeners) cb();
+  }
+
+  /**
+   * A fired bubble has just settled into its landing cell (non-bomb
+   * snap). Cue the tink SFX. Distinct from `onBubblePlaced` so initial
+   * level layout doesn't fire a snap per cell.
+   */
+  public onBubbleSnapped(cb: VoidCb): Unsubscribe {
+    this._bubbleSnappedListeners.add(cb);
+    return () => this._bubbleSnappedListeners.delete(cb);
+  }
+
+  public emitBubbleSnapped(): void {
+    for (const cb of this._bubbleSnappedListeners) cb();
   }
 }
