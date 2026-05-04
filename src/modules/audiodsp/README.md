@@ -59,7 +59,7 @@ underwater.connectTo(audio.sfxGain);
 const filter = new FilterEffect({ type: "lowpass", frequency: 400 });
 chain.addEffect(filter);
 // later:
-filter.bypassed = true;  // dry signal passes through
+filter.bypassed = true; // dry signal passes through
 filter.bypassed = false; // effect re-engages
 ```
 
@@ -67,7 +67,7 @@ filter.bypassed = false; // effect re-engages
 
 ```ts
 const reverb = new ReverbEffect({ impulseAssetId: "MyGame.HallReverb", mix: 0.4 });
-chain.addEffect(reverb);   // chain re-wires itself
+chain.addEffect(reverb); // chain re-wires itself
 chain.removeEffect(reverb); // ditto, and reverb.destroy() is called
 ```
 
@@ -82,13 +82,13 @@ chain.destroy();
 
 ## Effects
 
-| Effect              | Wraps                                  | Key options                                 |
-| ------------------- | -------------------------------------- | ------------------------------------------- |
-| `FilterEffect`      | `BiquadFilterNode`                     | `type` (low/high/bandpass/…), `frequency`, `Q`, `gain` |
-| `ReverbEffect`      | `ConvolverNode` (+ dry/wet gains)      | `impulseAssetId` (AudioBuffer asset), `mix` |
-| `DelayEffect`       | `DelayNode` + feedback / dry / wet     | `time`, `feedback`, `mix`                   |
-| `DistortionEffect`  | `WaveShaperNode` + dry / wet           | `drive`, `mix`                              |
-| `CompressorEffect`  | `DynamicsCompressorNode`               | `threshold`, `ratio`, `attack`, `release`, `knee` |
+| Effect             | Wraps                              | Key options                                            |
+| ------------------ | ---------------------------------- | ------------------------------------------------------ |
+| `FilterEffect`     | `BiquadFilterNode`                 | `type` (low/high/bandpass/…), `frequency`, `Q`, `gain` |
+| `ReverbEffect`     | `ConvolverNode` (+ dry/wet gains)  | `impulseAssetId` (AudioBuffer asset), `mix`            |
+| `DelayEffect`      | `DelayNode` + feedback / dry / wet | `time`, `feedback`, `mix`                              |
+| `DistortionEffect` | `WaveShaperNode` + dry / wet       | `drive`, `mix`                                         |
+| `CompressorEffect` | `DynamicsCompressorNode`           | `threshold`, `ratio`, `attack`, `release`, `knee`      |
 
 All effects extend `DspEffect`. Custom effects subclass `DspEffect` and implement `_createNodes(ctx)`, connecting `_input → [nodes] → _output`.
 
@@ -96,13 +96,13 @@ All effects extend `DspEffect`. Custom effects subclass `DspEffect` and implemen
 
 `DspPresets` provides one-call factories that return a configured `DspChain`:
 
-| Preset              | Configuration                                             | Use case                                  |
-| ------------------- | --------------------------------------------------------- | ----------------------------------------- |
-| `underwater(ctx)`   | low-pass @ 400 Hz, Q 2                                    | submerged / muffled                       |
-| `occluded(ctx)`     | low-pass @ 800 Hz, Q 0.7                                  | behind a wall                             |
-| `echo(ctx)`         | delay 0.25 s, feedback 0.4, mix 0.3                       | spacey echo                               |
-| `radio(ctx)`        | bandpass @ 2 kHz Q 5 → distortion drive 20, mix 0.6       | radio / walkie-talkie                     |
-| `lofi(ctx)`         | distortion drive 80, mix 0.8 → high-pass @ 300 Hz         | lo-fi / 8-bit                             |
+| Preset                  | Configuration                                                         | Use case                              |
+| ----------------------- | --------------------------------------------------------------------- | ------------------------------------- |
+| `underwater(ctx)`       | low-pass @ 400 Hz, Q 2                                                | submerged / muffled                   |
+| `occluded(ctx)`         | low-pass @ 800 Hz, Q 0.7                                              | behind a wall                         |
+| `echo(ctx)`             | delay 0.25 s, feedback 0.4, mix 0.3                                   | spacey echo                           |
+| `radio(ctx)`            | bandpass @ 2 kHz Q 5 → distortion drive 20, mix 0.6                   | radio / walkie-talkie                 |
+| `lofi(ctx)`             | distortion drive 80, mix 0.8 → high-pass @ 300 Hz                     | lo-fi / 8-bit                         |
 | `masterCompressor(ctx)` | compressor (threshold −24 dB, ratio 4:1, attack 3 ms, release 250 ms) | master bus glue / clipping prevention |
 
 ## Notes & limits

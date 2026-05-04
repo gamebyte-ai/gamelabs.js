@@ -98,7 +98,7 @@ timelineManager.add(new BossWarningTrack({ duration: 0.5, delay: 1.0 }));
 ### Cancel
 
 ```ts
-timelineManager.cancel(uniqueId);          // returns true if the track was found
+timelineManager.cancel(uniqueId); // returns true if the track was found
 timelineManager.cancelByType("screen-flash"); // returns count of tracks canceled
 timelineManager.cancelAll();
 ```
@@ -113,10 +113,10 @@ Read access is on `ITimelineModel`. Resolve it from DI in any controller or util
 import { ITimelineModel } from "@gamebyte/gamelabsjs";
 
 const model = resolver.getInstance(ITimelineModel);
-model.currentTime;                           // seconds since the timeline started
-model.getTrack(uniqueId);                    // Track | null
-model.getTracksByType("camera-shake");       // Track[]
-model.getAllTracks();                        // Track[]
+model.currentTime; // seconds since the timeline started
+model.getTrack(uniqueId); // Track | null
+model.getTracksByType("camera-shake"); // Track[]
+model.getAllTracks(); // Track[]
 ```
 
 ### Observe lifecycle events
@@ -136,12 +136,12 @@ Domain code that owns the track usually doesn't need events — it puts logic in
 
 ## Track lifecycle
 
-| State      | Entry condition                             | Hooks fired before exit                                                |
-| ---------- | ------------------------------------------- | ---------------------------------------------------------------------- |
-| `pending`  | `add(track)`                                | none (pending tracks haven't started)                                  |
-| `active`   | `currentTime >= startTime`                  | `onStart`, then `onUpdate` once per `update` tick while in this state  |
-| `ended`    | `elapsed >= duration` (and `duration > 0`)  | `onEnd` (track is removed from the model immediately after)            |
-| `canceled` | `cancel` / `cancelByType` / `cancelAll`     | `onCancel` (track is removed from the model immediately after)         |
+| State      | Entry condition                            | Hooks fired before exit                                               |
+| ---------- | ------------------------------------------ | --------------------------------------------------------------------- |
+| `pending`  | `add(track)`                               | none (pending tracks haven't started)                                 |
+| `active`   | `currentTime >= startTime`                 | `onStart`, then `onUpdate` once per `update` tick while in this state |
+| `ended`    | `elapsed >= duration` (and `duration > 0`) | `onEnd` (track is removed from the model immediately after)           |
+| `canceled` | `cancel` / `cancelByType` / `cancelAll`    | `onCancel` (track is removed from the model immediately after)        |
 
 Notes:
 
