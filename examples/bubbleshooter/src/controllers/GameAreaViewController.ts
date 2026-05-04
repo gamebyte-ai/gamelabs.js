@@ -25,6 +25,7 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
     this._subs.add(this._gameEvents!.onBubbleRemoved((r, c) => this._view?.removeBubble(r, c)));
     this._subs.add(this._gameEvents!.onShooterColorChanged((color) => this._view?.setShooterHeldColor(color)));
     this._subs.add(this._gameEvents!.onShooterNextColorChanged((color) => this._view?.setShooterNextColor(color)));
+    this._subs.add(this._gameEvents!.onShooterSwap((newHeld, newNext) => this._view?.playShooterSwap(newHeld, newNext)));
     this._subs.add(this._gameEvents!.onShooterBombChanged((active) => this._onBombChanged(active)));
     this._subs.add(this._gameEvents!.onShooterFireballChanged((active) => this._onFireballChanged(active)));
     this._subs.add(this._gameEvents!.onShooterAimChanged((angle) => this._view?.setShooterAimAngle(angle)));
@@ -46,6 +47,7 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
     this._view?.updateAimDots(dt);
     this._view?.updateParticles(dt);
     this._view?.updateScorePopups(dt);
+    this._view?.updateShooterAnim(dt);
   }
 
   private _onBubblePopped(x: number, y: number, color: BubbleColor, points: number): void {

@@ -31,6 +31,25 @@ interface IPopParticle {
   active: boolean;
 }
 
+interface IShooterSwapAnim {
+  age: number;
+  readonly duration: number;
+  readonly newHeldColor: BubbleColor;
+  readonly newNextColor: BubbleColor;
+  readonly heldFromX: number;
+  readonly heldFromY: number;
+  readonly heldToX: number;
+  readonly heldToY: number;
+  readonly heldFromScale: number;
+  readonly heldToScale: number;
+  readonly nextFromX: number;
+  readonly nextFromY: number;
+  readonly nextToX: number;
+  readonly nextToY: number;
+  readonly nextFromScale: number;
+  readonly nextToScale: number;
+}
+
 interface IScorePopup {
   readonly mesh: THREE.Mesh;
   readonly geometry: THREE.PlaneGeometry;
@@ -120,6 +139,8 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
 
   private _nextSlotIconMesh: THREE.Mesh | null = null;
   private _nextBubbleMesh: THREE.Mesh | null = null;
+  /** Active swap animation; lerps held + next mesh positions/scales past each other. */
+  private _shooterSwapAnim: IShooterSwapAnim | null = null;
 
   private readonly _aimListeners = new Set<(worldX: number, worldY: number) => void>();
   private readonly _fireListeners = new Set<() => void>();
@@ -239,6 +260,96 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     if (!this._shooterFireballMesh) return;
     this._shooterFireballMesh.visible = active;
     if (active && this._shooterBubbleMesh) this._shooterBubbleMesh.visible = false;
+  }
+
+  public playShooterSwap(newHeld: BubbleColor, newNext: BubbleColor): void {
+    const config = this._config;
+    const layout = this._layout;
+    if (!config || !layout || !this._shooterBubbleMesh || !this._nextBubbleMesh) return;
+    // If a previous swap is still mid-flight, snap it to its end state
+    // before starting a new one. (In practice the ops state machine
+    // gates new swaps on `swapping`, but be defensive.)
+    if (this._shooterSwapAnim) this._finalizeShooterSwap();
+
+    // Update the landing preview to the new held colour right away so
+    // the aim line reflects the post-swap state during the animation.
+    const previewMat = this._landingPreviewMaterials.get(newHeld);
+    if (previewMat && this._landingPreviewMesh) {
+      this._landingPreviewMesh.material = previewMat;
+    }
+    this._landingPreviewColor = newHeld;
+
+    const heldX = layout.shooterX;
+    const heldY = layout.shooterY;
+    const nextX = layout.nextSlotX;
+    const nextY = layout.nextSlotY;
+    const heldScale = 1;
+    const nextScale = config.nextBubbleRadiusScale;
+
+    this._shooterSwapAnim = {
+      age: 0,
+      duration: config.shooterSwapDurationSeconds,
+      newHeldColor: newHeld,
+      newNextColor: newNext,
+      heldFromX: heldX,
+      heldFromY: heldY,
+      heldToX: nextX,
+      heldToY: nextY,
+      heldFromScale: heldScale,
+      heldToScale: nextScale,
+      nextFromX: nextX,
+      nextFromY: nextY,
+      nextToX: heldX,
+      nextToY: heldY,
+      nextFromScale: nextScale,
+      nextToScale: heldScale,
+    };
+  }
+
+  public updateShooterAnim(dt: number): void {
+    const a = this._shooterSwapAnim;
+    if (!a) return;
+    a.age += dt;
+    const t = Math.min(1, a.age / a.duration);
+    const heldMesh = this._shooterBubbleMesh;
+    const nextMesh = this._nextBubbleMesh;
+    if (heldMesh) {
+      heldMesh.position.x = a.heldFromX + (a.heldToX - a.heldFromX) * t;
+      heldMesh.position.y = a.heldFromY + (a.heldToY - a.heldFromY) * t;
+      heldMesh.scale.setScalar(a.heldFromScale + (a.heldToScale - a.heldFromScale) * t);
+    }
+    if (nextMesh) {
+      nextMesh.position.x = a.nextFromX + (a.nextToX - a.nextFromX) * t;
+      nextMesh.position.y = a.nextFromY + (a.nextToY - a.nextFromY) * t;
+      nextMesh.scale.setScalar(a.nextFromScale + (a.nextToScale - a.nextFromScale) * t);
+    }
+    if (t >= 1) this._finalizeShooterSwap();
+  }
+
+  /**
+   * End-of-animation reset: snap meshes back to their slot positions
+   * + scales and apply the post-swap materials. Visually invisible
+   * because the materials at the swapped positions match what the
+   * meshes were already showing one frame earlier.
+   */
+  private _finalizeShooterSwap(): void {
+    const a = this._shooterSwapAnim;
+    if (!a) return;
+    const heldMesh = this._shooterBubbleMesh;
+    const nextMesh = this._nextBubbleMesh;
+    if (heldMesh) {
+      heldMesh.position.set(a.heldFromX, a.heldFromY, SHOOTER_Z);
+      heldMesh.scale.setScalar(a.heldFromScale);
+      const mat = this._bubbleMaterials.get(a.newHeldColor);
+      if (mat) heldMesh.material = mat;
+    }
+    if (nextMesh) {
+      nextMesh.position.set(a.nextFromX, a.nextFromY, SHOOTER_Z);
+      nextMesh.scale.setScalar(a.nextFromScale);
+      const mat = this._bubbleMaterials.get(a.newNextColor);
+      if (mat) nextMesh.material = mat;
+    }
+    this._shooterSwapAnim = null;
   }
 
   public setShooterAimAngle(angle: number): void {
@@ -974,6 +1085,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
       p.texture.dispose();
     }
     this._scorePopups.length = 0;
+    this._shooterSwapAnim = null;
 
     for (const dot of this._aimDotPool) this.remove(dot);
     this._aimDotPool.length = 0;

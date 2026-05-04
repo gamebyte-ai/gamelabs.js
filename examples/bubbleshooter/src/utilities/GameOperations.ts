@@ -64,7 +64,8 @@ export class GameOperations implements IInjectionTarget {
   private _floatingFinder: FloatingBubbleFinder | null = null;
   private _score: Score | null = null;
 
-  private _state: "idle" | "flying" | "popping" | "flying-fireball" = "idle";
+  private _state: "idle" | "flying" | "popping" | "flying-fireball" | "swapping" = "idle";
+  private _swapTimer = 0;
   private _flying: IFlyingBubbleState | null = null;
   private _fireball: IFireballState | null = null;
   private _popQueue: IMatchedCell[] = [];
@@ -78,6 +79,19 @@ export class GameOperations implements IInjectionTarget {
   private _bombCount = 0;
   /** Remaining fireball power-ups. Decremented on fireball fire. */
   private _fireballCount = 0;
+  /**
+   * Input lock — true the moment the grid clears (well before the win
+   * message is allowed to show). Disables every input so the player
+   * can't fire / swap / pop a power-up during the falling-bubble
+   * wind-down.
+   */
+  private _isWon = false;
+  /**
+   * Final win latch — true once the grid is empty AND every falling
+   * bubble has finished. Gates the win message + the public game-won
+   * event so it doesn't appear over still-falling debris.
+   */
+  private _winLatched = false;
   private _lastAimX = 0;
   private _lastAimY = 0;
 
@@ -155,6 +169,14 @@ export class GameOperations implements IInjectionTarget {
     this._events!.emitBombCountChanged(this._bombCount);
     this._fireballCount = this._config!.initialFireballCount;
     this._events!.emitFireballCountChanged(this._fireballCount);
+    if (this._isWon) {
+      this._isWon = false;
+      this._events!.emitShooterControlsLocked(false);
+    }
+    if (this._winLatched) {
+      this._winLatched = false;
+      this._events!.emitGameWonChanged(false);
+    }
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
@@ -206,16 +228,26 @@ export class GameOperations implements IInjectionTarget {
    * to idle after _completeFlight finishes).
    */
   public swap(): void {
+    if (this._isWon) return;
     if (this._state !== "idle") return;
     const shooter = this._shooter!;
     const a = shooter.heldColor;
     const b = shooter.nextColor;
     if (a === null || b === null) return;
-    this._setHeldColor(b);
-    this._setNextColor(a);
+    // Mutate the model directly (skip `_setHeldColor` / `_setNextColor`
+    // so we don't emit the per-slot colour-changed events). The view
+    // gets a single coordinated `onShooterSwap` event and applies
+    // materials atomically when its position-swap animation finishes.
+    shooter.setHeldColor(b);
+    shooter.setNextColor(a);
+    this._state = "swapping";
+    this._swapTimer = this._config!.shooterSwapDurationSeconds;
+    this._events!.emitShooterSwap(b, a);
   }
 
   private _initShooterBubbles(): void {
+    // `_randomColor` returns null when only stones (or nothing) remain
+    // on the grid; the held / next slots show empty in that case.
     this._setHeldColor(this._randomColor());
     this._setNextColor(this._randomColor());
   }
@@ -241,9 +273,75 @@ export class GameOperations implements IInjectionTarget {
     this._events!.emitShooterNextColorChanged(color);
   }
 
-  private _randomColor(): BubbleColor {
-    const palette = BUBBLE_COLORS;
-    return palette[Math.floor(Math.random() * palette.length)]!;
+  /**
+   * Pick a colour from those currently present on the grid (excluding
+   * stones). Returns `null` when no colour bubbles remain — at that
+   * point the held / next slots show empty and the game is winding
+   * down toward the win condition.
+   */
+  private _randomColor(): BubbleColor | null {
+    const present = this._collectPresentColors();
+    if (present.length === 0) return null;
+    return present[Math.floor(Math.random() * present.length)]!;
+  }
+
+  private _collectPresentColors(): BubbleColor[] {
+    const grid = this._grid!;
+    const set = new Set<BubbleColor>();
+    for (let row = 0; row < grid.rowCount; row++) {
+      const cols = grid.getColumnCount(row);
+      for (let col = 0; col < cols; col++) {
+        const c = grid.getColor(row, col);
+        if (c !== null && c !== BubbleColor.Stone) set.add(c);
+      }
+    }
+    return [...set];
+  }
+
+  private _isGridEmpty(): boolean {
+    const grid = this._grid!;
+    for (let row = 0; row < grid.rowCount; row++) {
+      const cols = grid.getColumnCount(row);
+      for (let col = 0; col < cols; col++) {
+        if (grid.isOccupied(row, col)) return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Two-stage win check. Stage 1 fires the moment the grid empties:
+   * locks shooter controls (so the player can't activate power-ups
+   * during the fall-out wait) but leaves any falling bubbles to play
+   * out. Stage 2 latches the win — and emits the public game-won
+   * event — only once the grid is empty *and* every falling bubble
+   * has finished, so the win message never appears over still-moving
+   * debris. Re-entered from {@link _updateFalling} when the last fall
+   * resolves.
+   */
+  private _checkWin(): void {
+    if (this._winLatched) return;
+    if (!this._isGridEmpty()) return;
+    if (!this._isWon) {
+      this._isWon = true;
+      this._events!.emitShooterControlsLocked(true);
+    }
+    if (this._falling.length > 0) return;
+    this._winLatched = true;
+    this._events!.emitGameWonChanged(true);
+  }
+
+  /**
+   * Re-roll the held / next slots if their colour is no longer present
+   * on the grid. Run after every pop sequence so the player can never
+   * end up holding a colour that's been fully cleared.
+   */
+  private _validateShooterColors(): void {
+    const present = new Set(this._collectPresentColors());
+    const held = this._shooter!.heldColor;
+    const next = this._shooter!.nextColor;
+    if (held !== null && !present.has(held)) this._setHeldColor(this._randomColor());
+    if (next !== null && !present.has(next)) this._setNextColor(this._randomColor());
   }
 
   /**
@@ -257,6 +355,7 @@ export class GameOperations implements IInjectionTarget {
    * landing preview hide. {@link fire} likewise refuses while disabled.
    */
   public aimAt(worldX: number, worldY: number): void {
+    if (this._isWon) return;
     this._lastAimX = worldX;
     this._lastAimY = worldY;
 
@@ -295,6 +394,7 @@ export class GameOperations implements IInjectionTarget {
    * the in-flight bubble snaps.
    */
   public fire(): void {
+    if (this._isWon) return;
     if (this._state !== "idle") return;
     // Aim disabled while the cursor is below the shooter centre.
     if (this._lastAimY < this._layout!.shooterY) return;
@@ -365,6 +465,7 @@ export class GameOperations implements IInjectionTarget {
    * the bomb, then the next bubble flows in normally.
    */
   public activateBomb(): void {
+    if (this._isWon) return;
     if (this._state !== "idle") return;
     if (this._bombCount <= 0) return;
     const shooter = this._shooter!;
@@ -386,6 +487,7 @@ export class GameOperations implements IInjectionTarget {
    * first since the two power-ups share the held slot.
    */
   public activateFireball(): void {
+    if (this._isWon) return;
     if (this._state !== "idle") return;
     if (this._fireballCount <= 0) return;
     const shooter = this._shooter!;
@@ -405,6 +507,14 @@ export class GameOperations implements IInjectionTarget {
     // independently.
     if (this._falling.length > 0) this._updateFalling(dt);
 
+    if (this._state === "swapping") {
+      this._swapTimer -= dt;
+      if (this._swapTimer <= 0) {
+        this._swapTimer = 0;
+        this._state = "idle";
+      }
+      return;
+    }
     if (this._state === "popping") {
       this._updatePopping(dt);
       return;
@@ -520,6 +630,9 @@ export class GameOperations implements IInjectionTarget {
     // exactly like they do after a normal cluster pop.
     this._spawnFallingForFloating();
     this._state = "idle";
+    this._validateShooterColors();
+    this._checkWin();
+    if (this._isWon) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
@@ -604,6 +717,9 @@ export class GameOperations implements IInjectionTarget {
     // threshold, score keeps accumulating per the falling-pop rule.
     this._spawnFallingForFloating();
     this._state = "idle";
+    this._validateShooterColors();
+    this._checkWin();
+    if (this._isWon) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
@@ -677,6 +793,9 @@ export class GameOperations implements IInjectionTarget {
   private _finishPopping(): void {
     this._spawnFallingForFloating();
     this._state = "idle";
+    this._validateShooterColors();
+    this._checkWin();
+    if (this._isWon) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
@@ -789,6 +908,9 @@ export class GameOperations implements IInjectionTarget {
       remaining.push(f);
     }
     this._falling = remaining;
+    // Stage-2 win re-entry: if the last fall just finished and the
+    // grid is empty, this latches the win and shows the message.
+    if (this._falling.length === 0 && this._isWon) this._checkWin();
   }
 
   /**

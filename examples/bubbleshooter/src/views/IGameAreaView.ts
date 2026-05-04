@@ -10,6 +10,8 @@ export interface IGameAreaView extends IView {
   setShooterIsBomb(active: boolean): void;
   setShooterIsFireball(active: boolean): void;
   setShooterAimAngle(angle: number): void;
+  playShooterSwap(newHeld: BubbleColor, newNext: BubbleColor): void;
+  updateShooterAnim(dt: number): void;
   setAimTrajectory(trajectory: IAimTrajectory): void;
   setAimPowerUpMode(active: boolean): void;
   updateAimDots(dt: number): void;

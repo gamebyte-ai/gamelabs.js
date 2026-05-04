@@ -43,7 +43,8 @@ const BOMB_BUTTON_ID = "bomb";
 const BOMB_COUNT_LABEL_ID = "bomb-count";
 const FIREBALL_BUTTON_ID = "fireball";
 const FIREBALL_COUNT_LABEL_ID = "fireball-count";
-export { SCORE_CONTROL_ID, BOMB_BUTTON_ID, BOMB_COUNT_LABEL_ID, FIREBALL_BUTTON_ID, FIREBALL_COUNT_LABEL_ID };
+const WIN_LABEL_ID = "win";
+export { SCORE_CONTROL_ID, BOMB_BUTTON_ID, BOMB_COUNT_LABEL_ID, FIREBALL_BUTTON_ID, FIREBALL_COUNT_LABEL_ID, WIN_LABEL_ID };
 
 // Power-up button layout. Bomb is anchored to BottomRight; future
 // power-ups stack to its LEFT by adding `(POWER_UP_SIZE + GAP)` to
@@ -127,6 +128,19 @@ export class BubbleShooterApp extends GamelabsApp {
       content: "Score: 0",
       text: { color: 0xffffff, fontSize: 22, fontWeight: "700" },
     });
+    // Centre-of-screen "YOU WIN!" overlay, hidden until the grid clears.
+    osc.addControl({
+      type: ControlType.Label,
+      id: WIN_LABEL_ID,
+      anchor: ControlAnchor.Center,
+      offsetX: 0,
+      offsetY: 0,
+      anchorX: 0.5,
+      anchorY: 0.5,
+      content: "YOU WIN!",
+      text: { color: 0xfff2a0, fontSize: 64, fontWeight: "800" },
+    });
+    osc.setControlVisible(WIN_LABEL_ID, false);
     // Power-up buttons stack at the bottom-right. Bomb is rightmost;
     // future power-ups (currently fireball) sit to its LEFT by
     // increasing offsetX (BottomRight: bigger offsetX = further LEFT).

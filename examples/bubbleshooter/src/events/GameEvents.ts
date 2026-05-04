@@ -15,6 +15,9 @@ type BoolCb = (active: boolean) => void;
 type FlyingBombCb = (active: boolean, x: number, y: number) => void;
 type FireballCb = (active: boolean, x: number, y: number) => void;
 type CountCb = (count: number) => void;
+type GameWonCb = (won: boolean) => void;
+type ControlsLockedCb = (locked: boolean) => void;
+type ShooterSwapCb = (newHeld: BubbleColor, newNext: BubbleColor) => void;
 
 export class GameEvents {
   private readonly _bubblePlacedListeners = new Set<BubblePlacedCb>();
@@ -33,6 +36,9 @@ export class GameEvents {
   private readonly _shooterFireballListeners = new Set<BoolCb>();
   private readonly _fireballListeners = new Set<FireballCb>();
   private readonly _fireballCountListeners = new Set<CountCb>();
+  private readonly _gameWonListeners = new Set<GameWonCb>();
+  private readonly _controlsLockedListeners = new Set<ControlsLockedCb>();
+  private readonly _shooterSwapListeners = new Set<ShooterSwapCb>();
 
   public onBubblePlaced(cb: BubblePlacedCb): Unsubscribe {
     this._bubblePlacedListeners.add(cb);
@@ -196,5 +202,47 @@ export class GameEvents {
 
   public emitFireballCountChanged(count: number): void {
     for (const cb of this._fireballCountListeners) cb(count);
+  }
+
+  /** Game-won state. Fires `true` when the grid is fully cleared, `false` on level reset. */
+  public onGameWonChanged(cb: GameWonCb): Unsubscribe {
+    this._gameWonListeners.add(cb);
+    return () => this._gameWonListeners.delete(cb);
+  }
+
+  public emitGameWonChanged(won: boolean): void {
+    for (const cb of this._gameWonListeners) cb(won);
+  }
+
+  /**
+   * Power-up controls lock. Fires `true` the moment the grid empties
+   * (well before the win message is allowed to show), so the UI can
+   * disable bomb / fireball buttons during the fall-out wait. Fires
+   * `false` on level reset.
+   */
+  public onShooterControlsLocked(cb: ControlsLockedCb): Unsubscribe {
+    this._controlsLockedListeners.add(cb);
+    return () => this._controlsLockedListeners.delete(cb);
+  }
+
+  public emitShooterControlsLocked(locked: boolean): void {
+    for (const cb of this._controlsLockedListeners) cb(locked);
+  }
+
+  /**
+   * Held ↔ next swap. Driven by `swap()`; carries the new (post-swap)
+   * colours so the view can run a position-swap animation and apply
+   * the materials at the end. Standard `onShooterColorChanged` /
+   * `onShooterNextColorChanged` events are NOT emitted during a swap —
+   * the view handles material updates atomically as part of the
+   * animation finalisation.
+   */
+  public onShooterSwap(cb: ShooterSwapCb): Unsubscribe {
+    this._shooterSwapListeners.add(cb);
+    return () => this._shooterSwapListeners.delete(cb);
+  }
+
+  public emitShooterSwap(newHeld: BubbleColor, newNext: BubbleColor): void {
+    for (const cb of this._shooterSwapListeners) cb(newHeld, newNext);
   }
 }

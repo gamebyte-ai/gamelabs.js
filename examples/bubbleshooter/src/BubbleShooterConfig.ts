@@ -41,6 +41,8 @@ export class BubbleShooterConfig {
   public readonly shooterBarrelLength = 28;
   public readonly shooterBarrelThickness = 6;
   public readonly shooterBarrelColor = 0x6b86a8;
+  /** Duration of the swap animation that moves held + next bubbles past each other. */
+  public readonly shooterSwapDurationSeconds = 0.25;
 
   /** Next-bubble preview slot, drawn beside the shooter. */
   public readonly nextSlotOffsetX = 78;
