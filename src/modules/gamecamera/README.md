@@ -141,48 +141,23 @@ Per frame, the manager:
 - **Vectors are stored by reference.** If you keep mutating the same `Vector3` between frames and call `setOffset` again, the manager picks up the new values. Don't share a single `Vector3` across multiple channel ids.
 - **No TTL / auto-clear.** A forgotten offset persists forever — drivers own the lifecycle.
 
-### Example: screen shake driver
+### Built-in shake: `CameraShakeTrack`
+
+For screen shake, this module ships `CameraShakeTrack` — a `Track` (from the `timeline` module) that writes a randomized `localPosition` offset that decays linearly to 0 over its duration, then clears itself. Each instance owns a unique offset slot keyed by its `uniqueId`, so concurrent shakes stack additively.
 
 ```ts
-import * as THREE from "three";
-import { GameCameraManager, UpdateManager } from "@gamebyte/gamelabsjs";
+import { CameraShakeTrack, GameCameraManager, TimelineManager } from "@gamebyte/gamelabsjs";
 
-const SHAKE_ID = "shake";
-
-export class CameraShakeDriver {
-  private _camera: GameCameraManager;
-  private _amplitude = 0;
-  private _durationMs = 0;
-  private _remainingMs = 0;
-  private _vec = new THREE.Vector3();
-
-  public constructor(camera: GameCameraManager, updateManager: UpdateManager) {
-    this._camera = camera;
-    updateManager.register((dt) => this._tick(dt));
-  }
-
-  public shake(amplitude: number, durationMs: number): void {
-    if (this._remainingMs > 0 && amplitude < this._amplitude) return;
-    this._amplitude = amplitude;
-    this._durationMs = durationMs;
-    this._remainingMs = durationMs;
-  }
-
-  private _tick(dt: number): void {
-    if (this._remainingMs <= 0) return;
-    this._remainingMs -= dt * 1000;
-    if (this._remainingMs <= 0) {
-      this._camera.clearOffset(SHAKE_ID);
-      return;
-    }
-    const a = this._amplitude * (this._remainingMs / this._durationMs);
-    this._vec.set((Math.random() * 2 - 1) * a, (Math.random() * 2 - 1) * a, 0);
-    this._camera.setOffset(SHAKE_ID, { localPosition: this._vec });
-  }
-}
+const camera = resolver.getInstance(GameCameraManager);
+const timeline = resolver.getInstance(TimelineManager);
+timeline.add(new CameraShakeTrack(camera, { amplitude: 22, duration: 0.45 }));
 ```
 
-The same shape works for recoil (`localPosition` back + `rotation` pitch up), look-ahead (`focus` driven by target velocity), zoom punch (`fov` blip), or any combination — different ids on different drivers, no coordination needed.
+Requires the `timeline` module. See `src/modules/timeline/README.md` for the binding setup and update-ordering notes (tick the timeline before the camera so shake offsets land on the same frame), and `examples/avoidance/src/AvoidanceApp.ts` for full wiring.
+
+### Other effects
+
+The same offset shape works for recoil (`localPosition` back + `rotation` pitch up), look-ahead (`focus` driven by target velocity), zoom punch (`fov` blip), or any combination — different ids on different drivers, no coordination needed. For time-bounded effects, model them as `Track` subclasses on the timeline; for continuously-driven effects (e.g. look-ahead from velocity), update the offset each frame from your own controller.
 
 ## Camera modes
 
@@ -215,6 +190,8 @@ Mode-specific controllers wrap `GameCameraManager` and expose restricted APIs:
 
 - `GameCameraManager` — Main camera controller. Use `setController(controller)` to set the active controller.
 - `CameraOffset` — Type for the named-channel offset system (`focus`, `localPosition`, `worldPosition`, `rotation`, `fov`, `orthoSize`).
+- `CameraShakeTrack` — Time-bounded shake effect; subclass of `Track` from the `timeline` module. Constructor: `(camera, { amplitude, duration, delay? })`.
+- `CameraShakeTrackOptions` — Options type for `CameraShakeTrack`.
 - `ICameraController` — Interface for camera controllers (`isOrtho`, `getMode`, `applyPositionToCamera`, `getFocusFromOrthoPosition`).
 - `GameCameraMode` — Mode enum (used by controllers; the manager does not use it).
 - `GameCameraBinding` — Module binding.

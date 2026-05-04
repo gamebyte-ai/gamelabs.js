@@ -6,6 +6,7 @@ import {
   AssetRequestList,
   GameCameraBinding,
   GameCameraManager,
+  CameraShakeTrack,
   Topdown2dCameraController,
   OnScreenControlsBinding,
   OnScreenControlManager,
@@ -14,6 +15,8 @@ import {
   OscStyleIds,
   type OscButtonStyle,
   StyleManager,
+  TimelineBinding,
+  TimelineManager,
   UIComponentsBinding,
 } from "@gamebyte/gamelabsjs";
 
@@ -30,7 +33,6 @@ import { IGameModel } from "./models/IGameModel";
 import { WaveManager } from "./utilities/WaveManager";
 import { GameOperations } from "./utilities/GameOperations";
 import { PlayerInputManager } from "./utilities/PlayerInputManager";
-import { CameraShakeManager } from "./utilities/CameraShakeManager";
 import { AvoidanceConfig } from "./AvoidanceConfig";
 import { AvoidanceAssetIds } from "./AvoidanceAssetIds";
 import { AvoidanceUIIds } from "./AvoidanceUIIds";
@@ -40,6 +42,7 @@ export class AvoidanceApp extends GamelabsApp {
   private readonly _assetRequestList = new AssetRequestList();
   private readonly _gameEvents = new GameEvents();
   private readonly _gameCameraBinding = new GameCameraBinding();
+  private readonly _timelineBinding = new TimelineBinding();
   private readonly _onScreenControlsBinding = new OnScreenControlsBinding();
   // UIComponentsBinding ships the framework default Button skin asset
   // requests + style entry — `GameOverPopupView` resolves
@@ -50,7 +53,7 @@ export class AvoidanceApp extends GamelabsApp {
   private _gameAreaView: GameAreaView | null = null;
   private _cameraController: Topdown2dCameraController | null = null;
   private _cameraManager: GameCameraManager | null = null;
-  private readonly _cameraShake = new CameraShakeManager();
+  private _timelineManager: TimelineManager | null = null;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -58,6 +61,7 @@ export class AvoidanceApp extends GamelabsApp {
 
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
+    this.addModule(this._timelineBinding);
     this.addModule(this._onScreenControlsBinding);
     this.addModule(this._uiComponentsBinding);
   }
@@ -107,9 +111,15 @@ export class AvoidanceApp extends GamelabsApp {
     const playerInput = new PlayerInputManager();
     playerInput.inject(this.diContainer);
 
-    this._cameraShake.inject(this.diContainer);
+    this._timelineManager = this.diContainer.getInstance(TimelineManager);
+    const camera = this.diContainer.getInstance(GameCameraManager);
     this._gameEvents.onGameOver(() =>
-      this._cameraShake.shake(this._config.cameraShakeAmplitude, this._config.cameraShakeDurationMs),
+      this._timelineManager?.add(
+        new CameraShakeTrack(camera, {
+          amplitude: this._config.cameraShakeAmplitude,
+          duration: this._config.cameraShakeDurationMs / 1000,
+        }),
+      ),
     );
   }
 
@@ -159,11 +169,12 @@ export class AvoidanceApp extends GamelabsApp {
 
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
+    this._timelineManager?.update(timestepSeconds);
     this._cameraManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {
-    this._cameraShake.destroy();
+    this._timelineManager?.cancelAll();
     this._cameraController = null;
     this._gameAreaView?.destroy();
     this._gameAreaView = null;
