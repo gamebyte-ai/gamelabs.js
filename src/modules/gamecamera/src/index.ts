@@ -1,4 +1,5 @@
 export { GameCameraManager } from "./utilities/GameCameraManager.js";
+export type { CameraOffset } from "./utilities/GameCameraManager.js";
 export { GameCameraMode } from "./constants/GameCameraMode.js";
 export { GameCameraBinding } from "./GameCameraBinding.js";
 export type { ICameraController } from "./controllers/ICameraController.js";

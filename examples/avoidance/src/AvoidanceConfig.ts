@@ -25,6 +25,10 @@ export class AvoidanceConfig {
   readonly slowAbilityCooldownMs = 10000;
   readonly slowAbilityFactor = 0.5;
 
+  // Camera shake on death
+  readonly cameraShakeAmplitude = 22;
+  readonly cameraShakeDurationMs = 450;
+
   // Waves
   readonly waveAnnounceDurationMs = 1500;
   readonly waveBaseEnemyCount = 10;
