@@ -1,0 +1,5 @@
+{
+  "name": "gamegrid",
+  "description": "Grid model + 3D render pipeline for board / puzzle games. Supports rectangular and hexagonal grids through one shape-agnostic core; per-cell item stacks for piles; group ids for multi-cell shapes.",
+  "dependencies": []
+}

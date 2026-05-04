@@ -1,0 +1,5 @@
+{
+  "name": "levelprogressscreen",
+  "description": "Level selection / progress screen that shows a vertical list of level numbers with the current level highlighted and clickable. Includes a back button to return to the previous screen.",
+  "dependencies": ["uicomponents"]
+}
