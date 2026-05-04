@@ -6,11 +6,18 @@ export interface ILevelCellPlacement {
   readonly color: BubbleColor;
 }
 
+export interface ILevelStonePlacement {
+  readonly row: number;
+  readonly col: number;
+}
+
 export interface ILevel {
   readonly id: string;
   readonly label: string;
   /** `null` means "use the deterministic procedural fill"; an array places exactly those cells. */
   readonly placements: readonly ILevelCellPlacement[] | null;
+  /** Cells overridden to {@link BubbleColor.Stone} after the colour fill. */
+  readonly stoneCells?: readonly ILevelStonePlacement[];
 }
 
 const R = BubbleColor.Red;
@@ -27,7 +34,20 @@ const P = BubbleColor.Purple;
  * cluster). Levels 3–5 are placeholders.
  */
 export const LEVELS: readonly ILevel[] = [
-  { id: "level-1", label: "Level 1", placements: null },
+  {
+    id: "level-1",
+    label: "Level 1",
+    placements: null,
+    // Four stones scattered through the procedural fill so the player
+    // sees how they survive matches/bombs/fireballs and only clear via
+    // the disconnect-and-fall path.
+    stoneCells: [
+      { row: 2, col: 3 },
+      { row: 4, col: 7 },
+      { row: 6, col: 5 },
+      { row: 9, col: 8 },
+    ],
+  },
   {
     id: "level-2",
     label: "Level 2",

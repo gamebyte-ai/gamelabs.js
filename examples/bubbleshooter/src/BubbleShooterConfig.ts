@@ -113,6 +113,13 @@ export class BubbleShooterConfig {
   public readonly popParticleLifetimeSeconds = 0.45;
   public readonly popParticleRadius = 3;
 
+  /** Score-popup lifetime in seconds (text fades to zero opacity by then). */
+  public readonly scorePopupLifetimeSeconds = 0.75;
+  /** World units the score popup rises over its lifetime. */
+  public readonly scorePopupRise = 36;
+  /** Score popup plane width (world units); height auto-scales to canvas aspect. */
+  public readonly scorePopupWidth = 50;
+
   /** Acceleration for disconnected falling bubbles, world units per second squared. */
   public readonly fallingBubbleGravity = 1200;
   /**

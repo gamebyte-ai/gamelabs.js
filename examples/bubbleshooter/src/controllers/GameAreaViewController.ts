@@ -1,5 +1,6 @@
 import { UnsubscribeBag, UpdateManager, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
 import type { IGameAreaView } from "../views/IGameAreaView";
+import type { BubbleColor } from "../constants/BubbleColor";
 import { GameEvents } from "../events/GameEvents";
 import { GameOperations } from "../utilities/GameOperations";
 
@@ -31,7 +32,7 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
     this._subs.add(this._gameEvents!.onFlyingBubbleChanged((color, x, y) => this._view?.setFlyingBubble(color, x, y)));
     this._subs.add(this._gameEvents!.onFlyingBombChanged((active, x, y) => this._view?.setFlyingBomb(active, x, y)));
     this._subs.add(this._gameEvents!.onFireballChanged((active, x, y) => this._view?.setFireball(active, x, y)));
-    this._subs.add(this._gameEvents!.onBubblePopped((x, y, color) => this._view?.playPopBurst(x, y, color)));
+    this._subs.add(this._gameEvents!.onBubblePopped((x, y, color, points) => this._onBubblePopped(x, y, color, points)));
     this._subs.add(this._gameEvents!.onFallingBubbleChanged((id, color, x, y) => this._view?.setFallingBubble(id, color, x, y)));
     this._subs.add(this._view.onAimAtWorld((x, y) => this._ops?.aimAt(x, y)));
     this._subs.add(this._view.onFire(() => this._ops?.fire()));
@@ -44,6 +45,12 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
     this._ops?.update(dt);
     this._view?.updateAimDots(dt);
     this._view?.updateParticles(dt);
+    this._view?.updateScorePopups(dt);
+  }
+
+  private _onBubblePopped(x: number, y: number, color: BubbleColor, points: number): void {
+    this._view?.playPopBurst(x, y, color);
+    this._view?.playScorePopup(x, y, color, points);
   }
 
   private _onBombChanged(active: boolean): void {

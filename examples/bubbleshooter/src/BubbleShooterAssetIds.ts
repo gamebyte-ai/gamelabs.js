@@ -6,6 +6,7 @@ export enum BubbleShooterAssetIds {
   BubbleGreen = "BubbleShooter.BubbleGreen",
   BubbleYellow = "BubbleShooter.BubbleYellow",
   BubblePurple = "BubbleShooter.BubblePurple",
+  BubbleStone = "BubbleShooter.BubbleStone",
   /** Refresh-style icon framing the next-bubble preview (swap affordance). */
   SwapIcon = "BubbleShooter.SwapIcon",
   /** Bomb sprite for the world (held / flying bomb visual). */
@@ -24,4 +25,5 @@ export const BUBBLE_COLOR_TO_ASSET_ID: Readonly<Record<BubbleColor, BubbleShoote
   [BubbleColor.Green]: BubbleShooterAssetIds.BubbleGreen,
   [BubbleColor.Yellow]: BubbleShooterAssetIds.BubbleYellow,
   [BubbleColor.Purple]: BubbleShooterAssetIds.BubblePurple,
+  [BubbleColor.Stone]: BubbleShooterAssetIds.BubbleStone,
 };

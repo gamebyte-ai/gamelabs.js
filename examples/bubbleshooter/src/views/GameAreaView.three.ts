@@ -4,7 +4,7 @@ import type { IGameAreaView } from "./IGameAreaView";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BubbleGridLayout } from "../utilities/BubbleGridLayout";
 import type { IAimTrajectory, IAimTrajectorySegment } from "../utilities/AimTrajectoryCalculator";
-import { BUBBLE_COLOR_HEX, BUBBLE_COLORS, type BubbleColor } from "../constants/BubbleColor";
+import { ALL_BUBBLE_COLORS, BUBBLE_COLOR_HEX, BUBBLE_COLORS, type BubbleColor } from "../constants/BubbleColor";
 import { BUBBLE_COLOR_TO_ASSET_ID, BubbleShooterAssetIds } from "../BubbleShooterAssetIds";
 
 const CELL_RING_SEGMENTS = 32;
@@ -17,6 +17,9 @@ const PARTICLE_SEGMENTS = 10;
 const SHOOTER_Z = 0.2;
 const AIM_DOT_Z = 0.4;
 const PARTICLE_Z = 0.5;
+const SCORE_POPUP_Z = 0.6;
+const SCORE_POPUP_CANVAS_W = 192;
+const SCORE_POPUP_CANVAS_H = 72;
 
 interface IPopParticle {
   readonly mesh: THREE.Mesh;
@@ -26,6 +29,17 @@ interface IPopParticle {
   age: number;
   lifetime: number;
   active: boolean;
+}
+
+interface IScorePopup {
+  readonly mesh: THREE.Mesh;
+  readonly geometry: THREE.PlaneGeometry;
+  readonly material: THREE.MeshBasicMaterial;
+  readonly texture: THREE.CanvasTexture;
+  readonly startY: number;
+  readonly rise: number;
+  age: number;
+  readonly lifetime: number;
 }
 
 /**
@@ -101,6 +115,8 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
 
   private _particleGeometry: THREE.CircleGeometry | null = null;
   private readonly _particles: IPopParticle[] = [];
+
+  private readonly _scorePopups: IScorePopup[] = [];
 
   private _nextSlotIconMesh: THREE.Mesh | null = null;
   private _nextBubbleMesh: THREE.Mesh | null = null;
@@ -340,6 +356,86 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     }
   }
 
+  public playScorePopup(x: number, y: number, color: BubbleColor, points: number): void {
+    if (points <= 0) return;
+    const config = this._config;
+    if (!config) return;
+
+    // Per-popup canvas + texture so each popup carries its own number
+    // and tint. Modest cost (a few hundred bytes + one upload per pop)
+    // — pop bursts in this game are bounded by `bombBlastRingCount`.
+    const cw = SCORE_POPUP_CANVAS_W;
+    const ch = SCORE_POPUP_CANVAS_H;
+    const canvas = document.createElement("canvas");
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const colorHex = BUBBLE_COLOR_HEX[color];
+    const r = (colorHex >> 16) & 0xff;
+    const g = (colorHex >> 8) & 0xff;
+    const b = colorHex & 0xff;
+    ctx.font = "bold 52px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    // Black outline for legibility against any cluster colour.
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.85)";
+    ctx.lineWidth = 6;
+    const text = `+${points}`;
+    ctx.strokeText(text, cw / 2, ch / 2);
+    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    ctx.fillText(text, cw / 2, ch / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearFilter;
+    texture.needsUpdate = true;
+
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+    });
+    const planeWidth = config.scorePopupWidth;
+    const planeHeight = (planeWidth * ch) / cw;
+    const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, SCORE_POPUP_Z);
+    mesh.renderOrder = 15;
+    this.add(mesh);
+
+    this._scorePopups.push({
+      mesh,
+      geometry,
+      material,
+      texture,
+      startY: y,
+      rise: config.scorePopupRise,
+      age: 0,
+      lifetime: config.scorePopupLifetimeSeconds,
+    });
+  }
+
+  public updateScorePopups(dt: number): void {
+    // Reverse iteration so removals don't disturb the index walk.
+    for (let i = this._scorePopups.length - 1; i >= 0; i--) {
+      const p = this._scorePopups[i]!;
+      p.age += dt;
+      if (p.age >= p.lifetime) {
+        this.remove(p.mesh);
+        p.geometry.dispose();
+        p.material.dispose();
+        p.texture.dispose();
+        this._scorePopups.splice(i, 1);
+        continue;
+      }
+      const t = p.age / p.lifetime;
+      p.mesh.position.y = p.startY + p.rise * t;
+      p.material.opacity = 1 - t;
+    }
+  }
+
   public setFlyingBomb(active: boolean, x: number, y: number): void {
     if (!this._flyingBombMesh) return;
     if (!active) {
@@ -452,7 +548,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     // gradient. Textures are owned by AssetManager — the view only owns
     // the materials.
     this._bubbleGeometry = new THREE.CircleGeometry(bubbleRadius * BUBBLE_VISUAL_RADIUS_FACTOR, BUBBLE_DISC_SEGMENTS);
-    for (const color of BUBBLE_COLORS) {
+    for (const color of ALL_BUBBLE_COLORS) {
       const assetId = BUBBLE_COLOR_TO_ASSET_ID[color];
       const tex = this.assetLoader.getAsset<THREE.Texture>(assetId);
       if (tex) {
@@ -870,6 +966,14 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._particles.length = 0;
     this._particleGeometry?.dispose();
     this._particleGeometry = null;
+
+    for (const p of this._scorePopups) {
+      this.remove(p.mesh);
+      p.geometry.dispose();
+      p.material.dispose();
+      p.texture.dispose();
+    }
+    this._scorePopups.length = 0;
 
     for (const dot of this._aimDotPool) this.remove(dot);
     this._aimDotPool.length = 0;

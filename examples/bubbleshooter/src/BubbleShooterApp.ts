@@ -208,6 +208,9 @@ export class BubbleShooterApp extends GamelabsApp {
       new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.BubblePurple, new URL("../assets/bubbles/purple.svg", import.meta.url).href),
     );
     this._assetRequestList.addRequest(
+      new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.BubbleStone, new URL("../assets/bubbles/stone.svg", import.meta.url).href),
+    );
+    this._assetRequestList.addRequest(
       new AssetRequest(AssetTypes.WorldTexture, BubbleShooterAssetIds.SwapIcon, new URL("../assets/swap-icon.svg", import.meta.url).href),
     );
     // Power-up sprites: each SVG is loaded twice (world for the

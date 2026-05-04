@@ -1,4 +1,5 @@
 import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { BubbleColor } from "../constants/BubbleColor";
 import { IBubbleGrid } from "../models/IBubbleGrid";
 import { BubbleGridLayout } from "./BubbleGridLayout";
 
@@ -29,7 +30,8 @@ export class MatchFinder implements IInjectionTarget {
     const layout = this._layout;
     if (!grid || !layout) return [];
     const seedColor = grid.getColor(row, col);
-    if (seedColor === null) return [];
+    // Stones never participate in colour matches.
+    if (seedColor === null || seedColor === BubbleColor.Stone) return [];
 
     const visited = new Set<string>();
     const result: IMatchedCell[] = [];

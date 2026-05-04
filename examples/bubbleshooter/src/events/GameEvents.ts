@@ -8,7 +8,7 @@ type ShooterColorCb = (color: BubbleColor | null) => void;
 type ShooterAimCb = (angle: number) => void;
 type AimTrajectoryCb = (trajectory: IAimTrajectory) => void;
 type FlyingBubbleCb = (color: BubbleColor | null, x: number, y: number) => void;
-type BubblePoppedCb = (x: number, y: number, color: BubbleColor) => void;
+type BubblePoppedCb = (x: number, y: number, color: BubbleColor, points: number) => void;
 type FallingBubbleCb = (id: number, color: BubbleColor | null, x: number, y: number) => void;
 type ScoreCb = (value: number) => void;
 type BoolCb = (active: boolean) => void;
@@ -111,8 +111,8 @@ export class GameEvents {
     return () => this._bubblePoppedListeners.delete(cb);
   }
 
-  public emitBubblePopped(x: number, y: number, color: BubbleColor): void {
-    for (const cb of this._bubblePoppedListeners) cb(x, y, color);
+  public emitBubblePopped(x: number, y: number, color: BubbleColor, points: number): void {
+    for (const cb of this._bubblePoppedListeners) cb(x, y, color, points);
   }
 
   /**

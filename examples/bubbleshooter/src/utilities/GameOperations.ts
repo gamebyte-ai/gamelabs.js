@@ -1,5 +1,5 @@
 import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
-import { BUBBLE_COLORS, type BubbleColor } from "../constants/BubbleColor";
+import { BUBBLE_COLORS, BubbleColor } from "../constants/BubbleColor";
 import { GameEvents } from "../events/GameEvents";
 import { BubbleGrid } from "../models/BubbleGrid";
 import { Shooter } from "../models/Shooter";
@@ -93,15 +93,9 @@ export class GameOperations implements IInjectionTarget {
     this._score = resolver.getInstance(Score);
   }
 
-  /** Build initial layout, load shooter held + next, point straight up. */
+  /** Build the default level, load shooter held + next, point straight up. */
   public start(): void {
-    this.buildInitialLayout();
-    this._score!.reset();
-    this._events!.emitScoreChanged(this._score!.value);
-    this._bombCount = this._config!.initialBombCount;
-    this._events!.emitBombCountChanged(this._bombCount);
-    this._fireballCount = this._config!.initialFireballCount;
-    this._events!.emitFireballCountChanged(this._fireballCount);
+    this.loadLevel("level-1");
     this._initShooterBubbles();
     const layout = this._layout!;
     this.aimAt(layout.shooterX, layout.shooterY + 1);
@@ -141,6 +135,17 @@ export class GameOperations implements IInjectionTarget {
       for (const p of level.placements) {
         grid.setColor(p.row, p.col, p.color);
         events.emitBubblePlaced(p.row, p.col, p.color);
+      }
+    }
+
+    // Stone overrides go on AFTER the colour fill so they can sit
+    // anywhere — including cells the procedural fill just placed.
+    if (level.stoneCells) {
+      const grid = this._grid!;
+      const events = this._events!;
+      for (const sc of level.stoneCells) {
+        grid.setColor(sc.row, sc.col, BubbleColor.Stone);
+        events.emitBubblePlaced(sc.row, sc.col, BubbleColor.Stone);
       }
     }
 
@@ -502,10 +507,11 @@ export class GameOperations implements IInjectionTarget {
       const color = grid.getColor(cell.row, cell.col);
       if (color === null) continue;
       this._popIndexInSession++;
-      this._score!.add(this._popIndexInSession * config.popPointsStep);
+      const points = this._popIndexInSession * config.popPointsStep;
+      this._score!.add(points);
       events.emitScoreChanged(this._score!.value);
       const pos = layout.getCellWorldPosition(cell.row, cell.col);
-      events.emitBubblePopped(pos.x, pos.y, color);
+      events.emitBubblePopped(pos.x, pos.y, color, points);
       grid.setColor(cell.row, cell.col, null);
       events.emitBubbleRemoved(cell.row, cell.col);
     }
@@ -658,11 +664,12 @@ export class GameOperations implements IInjectionTarget {
     if (color === null) return;
 
     this._popIndexInSession++;
-    this._score!.add(this._popIndexInSession * this._config!.popPointsStep);
+    const points = this._popIndexInSession * this._config!.popPointsStep;
+    this._score!.add(points);
     events.emitScoreChanged(this._score!.value);
 
     const pos = layout.getCellWorldPosition(cell.row, cell.col);
-    events.emitBubblePopped(pos.x, pos.y, color);
+    events.emitBubblePopped(pos.x, pos.y, color, points);
     grid.setColor(cell.row, cell.col, null);
     events.emitBubbleRemoved(cell.row, cell.col);
   }
@@ -769,9 +776,12 @@ export class GameOperations implements IInjectionTarget {
       }
 
       if (f.y <= popY) {
-        this._score!.add(config.fallingBubblePopPoints);
+        // Every falling bubble (including stones) awards the same
+        // points and emits the standard burst.
+        const points = config.fallingBubblePopPoints;
+        this._score!.add(points);
         events.emitScoreChanged(this._score!.value);
-        events.emitBubblePopped(f.x, f.y, f.color);
+        events.emitBubblePopped(f.x, f.y, f.color, points);
         events.emitFallingBubbleChanged(f.id, null, f.x, f.y);
         continue;
       }

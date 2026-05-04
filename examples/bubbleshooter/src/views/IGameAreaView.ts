@@ -18,7 +18,9 @@ export interface IGameAreaView extends IView {
   setFireball(active: boolean, x: number, y: number): void;
   setFallingBubble(id: number, color: BubbleColor | null, x: number, y: number): void;
   playPopBurst(x: number, y: number, color: BubbleColor): void;
+  playScorePopup(x: number, y: number, color: BubbleColor, points: number): void;
   updateParticles(dt: number): void;
+  updateScorePopups(dt: number): void;
   onAimAtWorld(cb: (worldX: number, worldY: number) => void): Unsubscribe;
   onFire(cb: () => void): Unsubscribe;
   onSwap(cb: () => void): Unsubscribe;
