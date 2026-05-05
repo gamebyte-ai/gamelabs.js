@@ -74,6 +74,31 @@ Important: Any visible UI element that should block world pointer input must hav
 - Use `UnsubscribeBag` for event cleanup in classes. Do not track unsubscribe functions manually.
 
 
+## App-wide state and events
+
+`IApp` is a readonly snapshot of app-level state — `width`, `height`, `dpr` — bound in **both** DI containers. Anything that needs to know "how big is the canvas right now?" resolves `IApp` instead of plumbing values through constructors.
+
+`AppEvents` is the app-level event bus (currently exposes `onResize`). `HudViewBase` and `WorldViewBase` inject both `IApp` and `AppEvents` and auto-subscribe in `postInitialize`, then call the subclass's `onResize(width, height, dpr)` — subclasses just override that method.
+
+This replaces the older pattern where `ViewFactory.resize()` walked screens + popups; resize now flows through events, and views opt in by calling `super.postInitialize()`.
+
+
+## Styles
+
+Cross-cutting visual style is owned by `StyleManager`, bound in `viewDiContainer`. Modules ship default style entries via their bindings (e.g. `OnScreenControlsBinding` registers `OscStyleIds.Button`). Apps customize visuals by calling `styleManager.modify<TStyle>(id, partial)` — partials are deep-merged onto the existing entry, so apps can re-theme one property without redeclaring the whole style.
+
+Style IDs follow the same namespaced-enum pattern as Asset IDs:
+
+```ts
+export enum OscStyleIds {
+  Button = "Osc.Button",
+  Joystick = "Osc.Joystick",
+}
+```
+
+`StyledHudObject` is the base for HUD objects whose visuals come from a registered style entry — it resolves the style on construction and re-applies on changes. Most `uicomponents` widgets extend it.
+
+
 ## Managers / Services / Rules  (Where logic lives)
 Pick the bucket **before** writing a class. The key question is: does it fail
 because of the *environment* (network down, quota exceeded, permission denied)?
@@ -82,13 +107,17 @@ If yes, it's a service. If no, it's a rules class or a manager.
 | Bucket | Folder | Suffix | Holds state? | Talks to outside world? | Examples |
 |---|---|---|---|---|---|
 | **Domain rules / operations** | `utilities/` | `*Operations` / `*Rules` / `*Solver` / `*Calculator` / `*Finder` | Yes or no | **No** | `GameOperations` (the per-game operations class in match3 and 2048), `WaterSortOperations`, `TicTacToeTurnManager` (actually a manager), match-finders, move solvers |
-| **State managers** | `utilities/` | `*Manager` | Yes | **No** (uses rules + services as inputs) | `TurnManager`, `WaveManager`, `UpdateManager`, `GameCameraManager`, `SettingsManager` |
+| **State managers** | `utilities/` | `*Manager` | Yes | **No** (uses rules + services as inputs) | `TurnManager`, `WaveManager`, `UpdateManager`, `GameCameraManager`, `SettingsManager`, `TimelineManager`, `ParticleManager` |
+| **Tracks** (timeline-driven effects) | `utilities/` | `*Track` | Yes — short-lived, lifecycle-bounded | **No** | `CameraShakeTrack`, `ZoomPunchTrack`, `HitStopTrack`, `CinematicPathTrack`, `ParticleBurstTrack` |
+| **Strategies** (pluggable behaviour) | `utilities/` | role-named (no generic suffix) | Yes | **No** | `FollowObject`, `FollowPosition`, `PathFollow`, `BoundsConstraint`, `DeadZoneFocusConstraint`, `WorldParticleEmitter`, `HudParticleEmitter` |
 | **Services** | `services/` | `*Service` | Usually minimal (cache) | **Yes** — browser APIs, network, OS, sensors, file system | `StorageService`, `AudioService`, `NotificationService`, `GeolocationService`, `ShareService`, `AnalyticsService`, `*ApiService` |
 
 #### Acid tests:
 
 - **Rules / operations:** *can I unit-test it with `expect(ops.findMatches(grid)).toEqual(...)` — no DOM, no THREE/PIXI, no network stub?* If yes → it's rules. If you need to stub fetch/localStorage/audio context, it's not rules, it's a service.
 - **Manager:** *does it own mutable state that outlives any single controller method?* Turn order, wave spawn state, camera rig position, settings values. Manager is the catch-all for in-app coordinators that are neither pure rules nor external boundaries.
+- **Track:** *is it driven by `TimelineManager` with a duration and `onStart` / `onUpdate` / `onEnd` / `onCancel` hooks?* If yes → it's a track. Put it in `utilities/` with the `*Track` suffix; concurrent tracks of the same type are allowed and queryable through `ITimelineModel`.
+- **Strategy:** *is it a swap-out implementation of an interface consumed by a manager (`ICameraFollow`, `ICameraConstraint`, `IParticleEmitter`)?* If yes → it's a strategy. Name it after the role (`FollowObject`, `BoundsConstraint`), not after a generic suffix, and put it next to the manager that consumes it.
 - **Service:** *can this fail because of the environment and not because of the inputs?* Network timeout, quota exceeded, autoplay policy, permission denied. If yes → service. Services must be mockable for tests (tests should never actually hit the network or localStorage).
 
 
@@ -135,23 +164,26 @@ If yes, it's a service. If no, it's a rules class or a manager.
 ```
 src
 ├──core
-│   ├──constants/          Enums, constant types 
-│   ├──assets/            AssetManager, AssetRequest, AssetTypes, IAssetManager
-│   ├──dev/               Logger, LogPanel, DevUtils, StatsPanel, GroundGrid
-│   ├──di/                DIContainer, InjectionToken, IInstanceResolver
-│   ├──events/            Unsubscribe, UnsubscribeBag
-│   ├──hud/               Hud, HudViewBase, IHud
-│   ├──input/             InputManager, IPointerInputHandler
-│   ├──services/          StorageService, AudioService   (external-boundary code)
-│   ├──utilities/         UpdateManager                  (in-app coordinators)
-│   ├──ui/                ScreenView, ScreenTransition, IScreenView
-│   ├──views/             ViewFactory, IView, IViewController, IViewFactory
-│   ├──world/             World, WorldViewBase, IWorld
-│   ├──GamelabsApp.ts     Base app class
-│   └──ModuleBinding.ts   Base module binding class
+│   ├──app/                IApp, AppEvents
+│   ├──assets/             AssetManager, AssetRequest, AssetTypes, IAssetManager
+│   ├──dev/                Logger, LogPanel, DevUtils, StatsPanel, GroundGrid
+│   ├──di/                 DIContainer, InjectionToken, IInstanceResolver
+│   ├──events/             Unsubscribe, UnsubscribeBag
+│   ├──hud/                Hud, HudViewBase, IHud
+│   ├──input/              InputManager, InputMapper, KeyboardListener, IPointerInputHandler
+│   ├──services/           StorageService, AudioService                  (external-boundary code)
+│   ├──styles/             StyleManager, StyledHudObject, SpriteStyle, TextStyle
+│   ├──ui/                 ScreenView, PopupView, IScreenView, IPopupView, ScreenTransition, UIEvents, UIUtils
+│   ├──utilities/          UpdateManager                                 (in-app coordinators)
+│   ├──views/              ViewFactory, IView, IViewController, IViewFactory
+│   ├──world/              World, WorldViewBase, IWorld
+│   ├──GamelabsApp.ts      Base app class
+│   ├──ModuleBinding.ts    Base module binding class
+│   ├──types.ts            Shared types
+│   └──version.ts          Version constant
 ├──modules
-│   ├── ...               Various modules, they are explained in their own readme file
-└──index.ts               Barrel exports
+│   ├── ...                Various modules, they are explained in their own readme file
+└──index.ts                Barrel exports
 ```
 
 ## Game project folder structure
@@ -193,6 +225,7 @@ Your `MyGameApp` class extends `GamelabsApp` and implements following methods:
     - `postInitialize()`: create initial screens/views, load levels and hook event subscriptions (called after assets are loaded)
 - Runtime methods
     - `onStep(timestepSeconds)`: per-frame logic hook (called after `updateManager.tick()`)
+    - `onResize(width, height, dpr)`: viewport-dependent updates (called when the canvas resizes; views also receive this through `AppEvents.onResize` via `HudViewBase` / `WorldViewBase`)
 - Uninitialization
     - `preDestroy()`: unsubscribe + cleanup owned resources
 
@@ -200,12 +233,16 @@ Your `MyGameApp` class extends `GamelabsApp` and implements following methods:
 ### Modules
 
 Modules are a contained, configurable, feature-mechanic set for common purposes.
-They are **static, boot-time bundles**. They are created once at app construction and never unloaded, reloaded, or destroyed independently. 
+They are **static, boot-time bundles**. They are created once at app construction and never unloaded, reloaded, or destroyed independently.
 
-They replicate folder structure of project
+A `ModuleBinding` is **decorator-only**: it contributes DI registrations, view registrations, and asset requests. Runtime orchestration (init-with-world, per-frame update, resize, teardown) lives in the `GamelabsApp` subclass — the binding never holds runtime state, never exposes getters for bound instances, and never adds forwarding methods (`addControl`, `addField`, ...) that proxy to bound instances. Callers resolve managers from the DI container directly (typically in `postInitialize`) and call methods on them.
+
+Modules replicate the folder structure of a project:
 ```
 MyModule
 ├──assets
+├──module.json
+├──README.md
 └──src
     ├──controllers
     ├──events
@@ -216,18 +253,74 @@ MyModule
     ├──MyModuleAssetIds.ts
     └──index.ts
 ```
-- Modules must not have instances, unless it is neccessary to construct with parameters and/or initialize with methods before adding to di containers.
-- Do not expose bound instances via getters or methods
-- Modules may have an asset id enums as described above (`enum MyModuleAssetIds ...`)
-- Modules must have a bindings class (`class MyModuleBinding extends ModuleBinding ...`)
- - `assetRequestList` is list of assets
- - `configureDI` method is for adding di bindings from module
- - `configureViews` method is for view - view controller registration from module
 
-Modules must be added in app `registerModules()` method before it can be used.
-Before registration it can be modified
-- Asset urls can be overridden in `assetRequestList`
-- Di and view configuration items can be altered
+#### Binding shape
+
+Bindings hold no runtime state. Bind classes through the DI container, not through binding-class fields or forwarding methods.
+
+- **Zero-arg class** → construct and bind eagerly inside `configureDI`: `diContainer.bindInstance(Class, new Class())`. Do not store the instance in a binding field.
+- **Class with dependencies** → bind as a factory that resolves from DI: `diContainer.bindSingleton(Class, (r) => new Class(r.getInstance(Dep)))`. `bindSingleton` will also call `inject(resolver)` on `IInjectionTarget`s automatically.
+
+Legitimate fields / constructor args on a binding:
+- Asset request data (presets, config strings) used to populate `_assetRequestList`.
+- Class or factory overrides passed via the binding's constructor for customization.
+- Optional pre-built dependencies the app supplies to the binding (e.g. an app-provided model implementation).
+
+#### `module.json`
+
+Every built-in module has a sibling `module.json` next to its `README.md`:
+
+```json
+{
+  "name": "gamecamera",
+  "description": "...",
+  "dependencies": ["timeline"]
+}
+```
+
+The `dependencies` array lists other built-in modules whose bindings must be registered before this one. The framework does not enforce ordering at runtime — it's the app's `registerModules()` that has to respect it.
+
+#### Module assets and bindings
+
+- Modules may have an asset id enum (`enum MyModuleAssetIds ...`).
+- Modules must have a binding class (`class MyModuleBinding extends ModuleBinding`).
+  - `assetRequestList` lists assets to load.
+  - `configureDI` adds DI bindings.
+  - `configureViews` registers view/controller pairs.
+
+#### Wiring runtime hooks
+
+If a bound manager needs `initialize` / `update` / `resize` / `destroy` calls, the **app** is responsible for calling them from its lifecycle hooks. The module's README documents the wiring. Example: an app using `gamecamera` resolves `GameCameraManager` in `postInitialize`, calls `cameraManager.update(dt)` in `onStep`, and `cameraManager.resize(w, h)` in `onResize`.
+
+Modules must be added in the app's `registerModules()` method before the rest of `configureDI()` runs. Before registration the binding can be configured:
+
+- Asset urls can be overridden in `assetRequestList`.
+- Class / factory overrides supplied via the binding constructor.
+
+#### Update ordering across modules
+
+When several module managers need per-frame updates, the app's `onStep` decides the order. Some orderings matter:
+
+- `TimelineManager.update(dt)` should tick **before** any consumer that reads timeline state for the current frame. Cinematic tracks (e.g. `CameraShakeTrack`) write to consumer-side state during their `onUpdate`; consumers then need to apply that state on the same frame.
+- `GameCameraManager.update(dt)` should run **after** the timeline tick, so camera offsets written by tracks land on the camera before render.
+- `ParticleManager.update(dt)` is independent of camera and timeline ordering and can run last.
+
+The framework deliberately does not auto-register module managers with `UpdateManager` — keeping ordering in the app makes ordering bugs (a track writing offsets after the camera already applied them) explicit and visible in one place.
+
+#### Built-in modules
+
+| Module | Purpose |
+|---|---|
+| `uicomponents` | Button, Background, Image, layout, list, scrollview, dropdown, toggle, slider, label widgets backed by `StyledHudObject` |
+| `gamecamera` | Camera controllers (front/topdown/isometric/orbital, 2d/3d) + named-channel offsets, follow strategies, constraints, cinematic tracks |
+| `gamegrid` | Grid system with grids/cells/items models, views, and per-board object creators |
+| `mainscreen` | Main menu screen with play/settings buttons |
+| `levelprogressscreen` | Level selection screen with progress |
+| `onscreencontrols` | Virtual joystick and buttons for touch input |
+| `settings` | Settings manager with persistence and a popup UI |
+| `audiodsp` | DSP effects chain (filter, reverb, delay, distortion, compressor) |
+| `timeline` | Time-bounded `Track` lifecycle (start/update/end/cancel) for effects and cutscene beats |
+| `particles` | View-side particle plumbing (THREE + Pixi emitters, pooling, global budget) |
 
 ### Customizing Modules
 When a project extends a bound module (custom binding, controllers, views, models, utilities), place all related files in a subfolder under `src/modules/<module-name>/` that mirrors the module's internal structure. This keeps module overrides grouped and separated from app-level code.
