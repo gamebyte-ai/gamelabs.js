@@ -130,6 +130,16 @@ export class BubbleShooterConfig {
    */
   public readonly gridDescentDurationSeconds = 0.25;
   /**
+   * Auto-descent target after a successful pop: the lowest occupied
+   * cluster row should sit at this visual row index from the top of
+   * the grid (1-indexed). When pops shrink the cluster too far
+   * upward, the grid auto-slides down so the bottom of the cluster
+   * lands at this position — keeps the play area populated and
+   * matches the level's starting feel. Set high to disable
+   * (cluster will never be auto-pushed down).
+   */
+  public readonly clusterBottomTargetRowsFromTop = 8;
+  /**
    * World-space distance from the shooter's centre up to the lose
    * line. A bubble with `cell.y ≤ shooterY + loseLineDistanceFromShooter`
    * triggers loss.
@@ -224,12 +234,6 @@ export class BubbleShooterConfig {
   public readonly fallingBubbleSeparationUpBias = 70;
   /** Bonus points awarded when a falling bubble pops at the threshold. */
   public readonly fallingBubblePopPoints = 40;
-  /**
-   * World-Y threshold (relative to the shooter) at which a falling bubble
-   * pops. Default: just below the shooter level so the player sees the
-   * full drop before the burst.
-   */
-  public readonly fallingBubblePopDepth = -50;
 
   /**
    * Shrink applied to the bubble-vs-bubble collision radius (world units).

@@ -264,19 +264,22 @@ export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
   }
 
   /**
-   * Kick off the smooth-descent animation for one row pitch.
+   * Kick off the smooth-descent animation for `rows` row pitches.
    * Logical layout has already advanced (`getCellWorldPosition`
-   * returns post-descent positions); we add `rowPitch` to the
-   * visual offset so the meshes momentarily stay at their old
-   * spot, then `tickGridAnimation` decays it to zero. Snap shakes
-   * keep playing — the per-frame tick composes shake offsets on
-   * top of the live layout + descent offset, so a wobble started
-   * just before the descent continues smoothly through it.
+   * returns post-descent positions); we add `rows * rowPitch` to
+   * the visual offset so the meshes momentarily stay at their old
+   * spot, then `tickGridAnimation` decays it to zero. Multi-row
+   * auto-descents stack here naturally — N rows means a single
+   * continuous slide that takes N×duration to complete. Snap
+   * shakes keep playing — the per-frame tick composes shake
+   * offsets on top of the live layout + descent offset, so a
+   * wobble started just before the descent continues smoothly
+   * through it.
    */
-  public playDescent(): void {
+  public playDescent(rows: number): void {
     const layout = this._layout;
-    if (!layout) return;
-    this._descentAnimVisualOffset += layout.rowPitch;
+    if (!layout || rows <= 0) return;
+    this._descentAnimVisualOffset += rows * layout.rowPitch;
   }
 
   /**

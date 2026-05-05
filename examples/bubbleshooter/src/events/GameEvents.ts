@@ -22,6 +22,7 @@ type PowerUpAvailabilityCb = (bombEnabled: boolean, fireballEnabled: boolean) =>
 type ShooterSwapCb = (newHeld: BubbleColor, newNext: BubbleColor) => void;
 type VoidCb = () => void;
 type CellCb = (row: number, col: number) => void;
+type RowsCb = (rows: number) => void;
 
 export class GameEvents {
   private readonly _bubblePlacedListeners = new Set<BubblePlacedCb>();
@@ -51,7 +52,7 @@ export class GameEvents {
   private readonly _fireballFiredListeners = new Set<VoidCb>();
   private readonly _bubbleSnappedListeners = new Set<CellCb>();
   private readonly _layoutChangedListeners = new Set<VoidCb>();
-  private readonly _gridDescendedListeners = new Set<VoidCb>();
+  private readonly _gridDescendedListeners = new Set<RowsCb>();
 
   public onBubblePlaced(cb: BubblePlacedCb): Unsubscribe {
     this._bubblePlacedListeners.add(cb);
@@ -368,17 +369,19 @@ export class GameEvents {
 
   /**
    * The grid origin has shifted vertically (descending-ceiling
-   * mechanic). The grid model's row indices and chrome dimensions
+   * mechanic). Carries the row count of the descent so the view
+   * can stack a multi-row auto-descent into one continuous
+   * animation. The grid model's row indices and chrome dimensions
    * are unchanged; only the world Y of each cluster cell moves.
    * The bubble grid view repositions its meshes; trajectory and
    * loss-check pick up the new positions on their next read.
    */
-  public onGridDescended(cb: VoidCb): Unsubscribe {
+  public onGridDescended(cb: RowsCb): Unsubscribe {
     this._gridDescendedListeners.add(cb);
     return () => this._gridDescendedListeners.delete(cb);
   }
 
-  public emitGridDescended(): void {
-    for (const cb of this._gridDescendedListeners) cb();
+  public emitGridDescended(rows: number): void {
+    for (const cb of this._gridDescendedListeners) cb(rows);
   }
 }

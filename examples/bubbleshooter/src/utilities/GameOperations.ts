@@ -106,6 +106,15 @@ export class GameOperations implements IInjectionTarget {
    * one row pitch and the counter resets.
    */
   private _shotsSinceDescend = 0;
+  /**
+   * Held bubble colour at the moment a power-up was activated —
+   * restored when the player cancels (right-click or clicks the
+   * power-up button again). `null` means there's no power-up
+   * currently held, OR the player had an empty held slot when
+   * they activated. Cleared on fire (the next bubble flows in
+   * via `_promoteNextBubble`) and on level reset.
+   */
+  private _preHeldColor: BubbleColor | null = null;
   private _lastAimX = 0;
   private _lastAimY = 0;
 
@@ -256,23 +265,74 @@ export class GameOperations implements IInjectionTarget {
   /**
    * Hook called at the end of each fully-resolved shot (regular
    * snap, cluster pop completion, bomb explosion, fireball exit).
-   * Advances the descending-ceiling counter only when the shot
-   * didn't pop any bubble; pop shots leave the counter unchanged
-   * (no increment, no reset). Triggers a descent + loss re-check
-   * when the counter reaches the threshold.
+   * Two paths:
+   *
+   * - **Pop shot** (`poppedAny = true`): leave the dry-shot
+   *   counter unchanged (pops neither advance nor reset it) and
+   *   run the auto-descent check — if the cluster has shrunk too
+   *   far upward, the grid slides down to keep the play area
+   *   populated.
+   * - **Non-pop shot**: advance the dry-shot counter; on the
+   *   third consecutive non-pop, descend by one row and reset.
    */
   private _onShotResolved(poppedAny: boolean): void {
     if (this._isWon || this._isLost) return;
-    if (poppedAny) return;
+    if (poppedAny) {
+      this._maybeAutoDescend();
+      return;
+    }
     this._shotsSinceDescend++;
     if (this._shotsSinceDescend < this._config!.shotsPerDescend) return;
     this._shotsSinceDescend = 0;
+    this._descendBy(1);
+  }
+
+  /**
+   * Descending-ceiling step. Advances the layout's logical descend
+   * offset by `rows`, fires the event with the row count so the
+   * view can stack the animation, and re-runs the loss check (a
+   * descent might push an existing bubble across the lose line).
+   */
+  private _descendBy(rows: number): void {
+    if (rows <= 0) return;
     const layout = this._layout!;
-    layout.setDescendOffsetRows(layout.descendOffsetRows + 1);
-    this._events!.emitGridDescended();
-    // Descent might have pushed an existing bubble across the lose
-    // line. Re-check loss with the new world Ys.
+    layout.setDescendOffsetRows(layout.descendOffsetRows + rows);
+    this._events!.emitGridDescended(rows);
     this._checkLoss();
+  }
+
+  /**
+   * Auto-descent after a successful pop: locate the lowest
+   * occupied row in the grid model and bring it down to the
+   * configured target visual row from the top. With descent `D`
+   * applied, the model's row `R` displays at visual row index
+   * `R + D` (0-indexed) from the grid origin, so to pin row R at
+   * visual row `(target - 1)` we need `D_target = target - 1 - R`.
+   * Only descends if more rows are needed than currently applied —
+   * we never anti-descend (a too-low cluster keeps its position).
+   */
+  private _maybeAutoDescend(): void {
+    const grid = this._grid!;
+    const layout = this._layout!;
+    const config = this._config!;
+
+    let lowestRow = -1;
+    for (let row = grid.rowCount - 1; row >= 0; row--) {
+      const cols = grid.getColumnCount(row);
+      for (let col = 0; col < cols; col++) {
+        if (grid.isOccupied(row, col)) {
+          lowestRow = row;
+          break;
+        }
+      }
+      if (lowestRow >= 0) break;
+    }
+    if (lowestRow < 0) return;
+
+    const desiredDescend = config.clusterBottomTargetRowsFromTop - 1 - lowestRow;
+    const additional = desiredDescend - layout.descendOffsetRows;
+    if (additional <= 0) return;
+    this._descendBy(additional);
   }
 
   /** Wipe transient flight / pop / falling / bomb / fireball state and notify the view. */
@@ -304,6 +364,9 @@ export class GameOperations implements IInjectionTarget {
       modeChanged = true;
     }
     if (modeChanged) this._emitAimPowerUpMode();
+    // Level reset wipes any saved pre-power-up colour — the new
+    // level reinitialises the held slot via `_initShooterBubbles`.
+    this._preHeldColor = null;
     this._state = "idle";
   }
 
@@ -330,6 +393,14 @@ export class GameOperations implements IInjectionTarget {
     if (this._isWon || this._isLost) return;
     if (this._state !== "idle") return;
     const shooter = this._shooter!;
+    // Right-click + the swap-icon click both feed this. If a
+    // power-up is loaded, swap input cancels it (restoring the
+    // pre-power-up colour) instead of trying to swap a null held
+    // slot — the user's "right-click cancels" affordance.
+    if (shooter.isBomb || shooter.isFireball) {
+      this._cancelPowerUp();
+      return;
+    }
     const a = shooter.heldColor;
     const b = shooter.nextColor;
     if (a === null || b === null) return;
@@ -611,6 +682,10 @@ export class GameOperations implements IInjectionTarget {
       this._events!.emitBombCountChanged(this._bombCount);
       this._emitPowerUpAvailability();
       this._emitAimPowerUpMode();
+      // Pre-power-up colour is no longer reachable — the next bubble
+      // flows in via `_promoteNextBubble` and there's no path back
+      // to the saved colour after a successful fire.
+      this._preHeldColor = null;
     } else {
       this._events!.emitFlyingBubbleChanged(heldColor, start.fromX, start.fromY);
       this._events!.emitBubbleShotFired();
@@ -629,11 +704,21 @@ export class GameOperations implements IInjectionTarget {
   public activateBomb(): void {
     if (this._isWon || this._isLost) return;
     if (this._state !== "idle") return;
-    if (this._bombCount <= 0) return;
     const shooter = this._shooter!;
-    if (shooter.isBomb) return;
-    // Power-ups are mutually exclusive — activating a different one
-    // clears any current power-up first.
+    // Toggle: clicking the bomb button while bomb is held cancels
+    // it and restores the pre-power-up regular bubble.
+    if (shooter.isBomb) {
+      this._cancelPowerUp();
+      return;
+    }
+    if (this._bombCount <= 0) return;
+    // Save the held colour only when transitioning from a regular
+    // shot into a power-up. Switching between power-ups
+    // (fireball → bomb) keeps the original pre-power-up colour
+    // intact so cancel still restores it.
+    if (!shooter.isFireball) {
+      this._preHeldColor = shooter.heldColor;
+    }
     if (shooter.isFireball) {
       shooter.setIsFireball(false);
       this._events!.emitShooterFireballChanged(false);
@@ -647,14 +732,21 @@ export class GameOperations implements IInjectionTarget {
   /**
    * Load a fireball power-up into the shooter's held slot. Same idle /
    * inventory rules as {@link activateBomb}; clears any active bomb
-   * first since the two power-ups share the held slot.
+   * first since the two power-ups share the held slot. Toggles —
+   * a second click cancels and restores the pre-power-up bubble.
    */
   public activateFireball(): void {
     if (this._isWon || this._isLost) return;
     if (this._state !== "idle") return;
-    if (this._fireballCount <= 0) return;
     const shooter = this._shooter!;
-    if (shooter.isFireball) return;
+    if (shooter.isFireball) {
+      this._cancelPowerUp();
+      return;
+    }
+    if (this._fireballCount <= 0) return;
+    if (!shooter.isBomb) {
+      this._preHeldColor = shooter.heldColor;
+    }
     if (shooter.isBomb) {
       shooter.setIsBomb(false);
       this._events!.emitShooterBombChanged(false);
@@ -663,6 +755,35 @@ export class GameOperations implements IInjectionTarget {
     shooter.setIsFireball(true);
     this._events!.emitShooterFireballChanged(true);
     this._emitAimPowerUpMode();
+  }
+
+  /**
+   * Cancel any active power-up: clear bomb / fireball mode, restore
+   * the pre-power-up held colour, re-aim so the trajectory
+   * recomputes for regular-bubble mode (different `onlyVisible` /
+   * `requireConnection` flags). The power-up's inventory count is
+   * not deducted on activation, so cancellation is a clean no-op
+   * for inventory.
+   */
+  private _cancelPowerUp(): void {
+    const shooter = this._shooter;
+    if (!shooter) return;
+    let cleared = false;
+    if (shooter.isBomb) {
+      shooter.setIsBomb(false);
+      this._events!.emitShooterBombChanged(false);
+      cleared = true;
+    }
+    if (shooter.isFireball) {
+      shooter.setIsFireball(false);
+      this._events!.emitShooterFireballChanged(false);
+      cleared = true;
+    }
+    if (!cleared) return;
+    this._setHeldColor(this._preHeldColor);
+    this._preHeldColor = null;
+    this._emitAimPowerUpMode();
+    this.aimAt(this._lastAimX, this._lastAimY);
   }
 
   public update(dt: number): void {
@@ -856,6 +977,9 @@ export class GameOperations implements IInjectionTarget {
     events.emitFireballCountChanged(this._fireballCount);
     this._emitPowerUpAvailability();
     this._emitAimPowerUpMode();
+    // Pre-power-up colour is no longer reachable after a fire —
+    // see the matching note in the bomb fire path.
+    this._preHeldColor = null;
     this._promoteNextBubble();
   }
 
@@ -1068,7 +1192,10 @@ export class GameOperations implements IInjectionTarget {
     const config = this._config!;
     const layout = this._layout!;
     const events = this._events!;
-    const popY = layout.shooterY - config.fallingBubblePopDepth;
+    // Falling-bubble pops fire at the lose-line — same Y reference
+    // as the loss check, so the threshold tracks any tuning of
+    // `loseLineDistanceFromShooter` automatically.
+    const popY = layout.loseLineY;
     const gravity = config.fallingBubbleGravity;
     const leftWall = layout.leftWallX;
     const rightWall = layout.rightWallX;

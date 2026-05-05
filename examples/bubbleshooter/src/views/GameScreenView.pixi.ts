@@ -12,13 +12,17 @@ import { LEVELS } from "../constants/Levels";
 
 const LEVEL_DROPDOWN_WIDTH = 130;
 const LEVEL_DROPDOWN_HEIGHT = 32;
+// Pinned just below the OSC settings (gear) button — see
+// `SETTINGS_OFFSET_Y` (16) + `SETTINGS_SIZE` (50) + 8px gap in
+// BubbleShooterApp. Keep these values in sync if either changes.
+const LEVEL_DROPDOWN_TOP = 74;
 
 /**
  * HUD screen for the bubble shooter. Hosts the OnScreenControlsView so
  * label widgets registered on `OnScreenControlManager` (e.g. the score
  * readout in the top-left) actually render, plus a dev-only Level
- * dropdown in the top-right used to switch between hand-crafted test
- * layouts.
+ * dropdown sitting under the top-right OSC settings button used to
+ * switch between hand-crafted test layouts.
  */
 export class GameScreenView extends ScreenView implements IGameScreenView {
   private readonly _overlay = new PIXI.Graphics();
@@ -79,10 +83,12 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       items,
       selectedId: items[0]?.id,
     });
-    // Pinned to the top-right via Yoga absolute layout.
+    // Pinned via Yoga absolute layout, sitting just under the OSC
+    // settings button so the corner cluster reads as gear-on-top /
+    // dropdown-below.
     dropdown.layout = {
       position: "absolute",
-      top: 16,
+      top: LEVEL_DROPDOWN_TOP,
       right: 16,
       width: LEVEL_DROPDOWN_WIDTH,
       height: LEVEL_DROPDOWN_HEIGHT,

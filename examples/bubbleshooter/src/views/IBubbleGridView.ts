@@ -14,8 +14,12 @@ export interface IBubbleGridView extends IView {
   setBubble(row: number, col: number, color: BubbleColor): void;
   removeBubble(row: number, col: number): void;
   playSnapShake(row: number, col: number): void;
-  /** Trigger the smooth-descent animation for one row pitch. */
-  playDescent(): void;
+  /**
+   * Trigger the smooth-descent animation for `rows` row pitches.
+   * Multi-row descents (e.g. auto-descent after a pop) are stacked
+   * into a single continuous slide instead of N separate steps.
+   */
+  playDescent(rows: number): void;
   /**
    * Snap visual state to the current layout (instant, no
    * animation). Called on level load + per-level width changes;

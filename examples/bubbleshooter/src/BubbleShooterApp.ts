@@ -11,6 +11,11 @@ import {
   LogTypes,
   OnScreenControlManager,
   OnScreenControlsBinding,
+  SettingsBinding,
+  SettingsBooleanField,
+  SettingsManager,
+  SettingsNumberField,
+  SettingsUIIds,
   UIComponentsBinding,
   UIEvents,
   World,
@@ -51,6 +56,7 @@ import { BubbleGridViewController } from "./controllers/BubbleGridViewController
 import { ShooterView } from "./views/ShooterView.three";
 import { ShooterViewController } from "./controllers/ShooterViewController";
 import { HudHookupManager } from "./utilities/HudHookupManager";
+import { SettingsHookupManager } from "./utilities/SettingsHookupManager";
 import { SoundManager } from "./utilities/SoundManager";
 import { SoundSynth } from "./utilities/SoundSynth";
 
@@ -64,6 +70,16 @@ const POWER_UP_BOMB_OFFSET_X = 60;
 const POWER_UP_FIREBALL_OFFSET_X = POWER_UP_BOMB_OFFSET_X + POWER_UP_SIZE + POWER_UP_GAP;
 /** Half-button inset toward the top-right corner of a button (where the count badge sits). */
 const POWER_UP_COUNT_INSET = 22;
+
+// Settings (gear) button layout — TopRight, screen-anchored. Sized
+// slightly smaller than the power-up buttons so the corner badge feels
+// like a secondary affordance. The level dropdown in `GameScreenView`
+// is positioned just below this button (top = SETTINGS_OFFSET_Y +
+// SETTINGS_SIZE + small gap), so changing this size needs the
+// dropdown's `top` re-tuned to match.
+const SETTINGS_SIZE = 50;
+const SETTINGS_OFFSET_X = 16;
+const SETTINGS_OFFSET_Y = 16;
 
 /**
  * Bubble Shooter scaffold.
@@ -85,12 +101,18 @@ export class BubbleShooterApp extends GamelabsApp {
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _onScreenControlsBinding = new OnScreenControlsBinding();
   private readonly _uiComponentsBinding = new UIComponentsBinding();
+  // SettingsBinding registers the framework SettingsManager + popup
+  // view/controller. We pass `defaults: false` because the bubble
+  // shooter only exposes SFX-related fields (no music yet) — the
+  // matching `addField(...)` calls live in postInitialize.
+  private readonly _settingsBinding = new SettingsBinding();
 
   private _gameAreaView: GameAreaView | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _cameraController: Front2dCameraController | null = null;
   private _soundManager: SoundManager | null = null;
   private _hudHookupManager: HudHookupManager | null = null;
+  private _settingsHookupManager: SettingsHookupManager | null = null;
   private _layoutChangedUnsub: (() => void) | null = null;
 
   // Power-up button + count configs are kept by reference so resize can
@@ -110,6 +132,7 @@ export class BubbleShooterApp extends GamelabsApp {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._onScreenControlsBinding);
     this.addModule(this._uiComponentsBinding);
+    this.addModule(this._settingsBinding);
   }
 
   protected override configureDI(): void {
@@ -223,6 +246,19 @@ export class BubbleShooterApp extends GamelabsApp {
       text: { color: 0xffffff, fontSize: 18, fontWeight: "700" },
     };
     osc.addControl(this._fireballCountConfig);
+    // Top-right settings (gear) button. Opens the framework
+    // SettingsPopup via UIEvents.createPopup in postInitialize. The
+    // dev-only level dropdown in GameScreenView is positioned to sit
+    // just below this button.
+    osc.addControl({
+      type: ControlType.Button,
+      id: BubbleShooterUIIds.SettingsButton,
+      anchor: ControlAnchor.TopRight,
+      offsetX: SETTINGS_OFFSET_X,
+      offsetY: SETTINGS_OFFSET_Y,
+      size: SETTINGS_SIZE,
+      icon: { textureId: BubbleShooterAssetIds.SettingsIcon, scaleX: 0.7, scaleY: 0.7 },
+    });
     this.diContainer.bindSingleton(AimTrajectoryCalculator, () => new AimTrajectoryCalculator());
     this.diContainer.bindSingleton(MatchFinder, () => new MatchFinder());
     this.diContainer.bindSingleton(FloatingBubbleFinder, () => new FloatingBubbleFinder());
@@ -277,6 +313,13 @@ export class BubbleShooterApp extends GamelabsApp {
     );
     this._assetRequestList.addRequest(
       new AssetRequest(AssetTypes.HudTexture, BubbleShooterAssetIds.FireballIcon, fireballUrl),
+    );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        BubbleShooterAssetIds.SettingsIcon,
+        new URL("../assets/settings.svg", import.meta.url).href,
+      ),
     );
     this.assetManager.loadAll(this._assetRequestList.getRequests());
     this._registerSoundBuffers();
@@ -333,6 +376,18 @@ export class BubbleShooterApp extends GamelabsApp {
     osc.addKeyHandler(BubbleShooterUIIds.FireballButton, (isPressed) => {
       if (isPressed) ops.activateFireball();
     });
+    // Register SFX-only settings fields, then wire the gear button to
+    // open the framework SettingsPopup. Field names match the
+    // framework defaults so a future switch to `SettingsBinding({
+    // defaults: true })` would override these without breaking the
+    // hookup manager.
+    const settingsManager = this.diContainer.getInstance(SettingsManager);
+    settingsManager.addField(new SettingsBooleanField("sfx", "Sound Effects", true));
+    settingsManager.addField(new SettingsNumberField("sfxVolume", "SFX Volume", 100, 0, 100, 5));
+    const uiEvents = this.diContainer.getInstance(UIEvents);
+    osc.addKeyHandler(BubbleShooterUIIds.SettingsButton, (isPressed) => {
+      if (isPressed) uiEvents.createPopup(SettingsUIIds.SettingsPopup);
+    });
 
     this._soundManager = new SoundManager();
     this._soundManager.inject(this.diContainer);
@@ -341,6 +396,12 @@ export class BubbleShooterApp extends GamelabsApp {
     this._hudHookupManager = new HudHookupManager();
     this._hudHookupManager.inject(this.diContainer);
     this._hudHookupManager.start();
+
+    // Settings → AudioService bridge. Applies persisted sfx + volume
+    // values up front and re-applies on every settings change.
+    this._settingsHookupManager = new SettingsHookupManager();
+    this._settingsHookupManager.inject(this.diContainer);
+    this._settingsHookupManager.start();
 
     // Camera fit + power-up button positions both depend on the
     // play area's width. Re-run them on every layout change so a
@@ -434,6 +495,8 @@ export class BubbleShooterApp extends GamelabsApp {
   protected override preDestroy(): void {
     this._layoutChangedUnsub?.();
     this._layoutChangedUnsub = null;
+    this._settingsHookupManager?.destroy();
+    this._settingsHookupManager = null;
     this._hudHookupManager?.destroy();
     this._hudHookupManager = null;
     this._soundManager?.destroy();

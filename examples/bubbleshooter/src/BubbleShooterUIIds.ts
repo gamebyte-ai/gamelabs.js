@@ -17,4 +17,5 @@ export enum BubbleShooterUIIds {
   BombCountLabel = "BubbleShooter.BombCountLabel",
   FireballButton = "BubbleShooter.FireballButton",
   FireballCountLabel = "BubbleShooter.FireballCountLabel",
+  SettingsButton = "BubbleShooter.SettingsButton",
 }
