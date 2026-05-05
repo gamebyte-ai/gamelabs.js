@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { WorldViewBase, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import type { IBubbleGridView } from "./IBubbleGridView";
+import { PlayAreaClipping } from "./PlayAreaClipping";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BubbleGridLayout } from "../utilities/BubbleGridLayout";
 import { ALL_BUBBLE_COLORS, BUBBLE_COLOR_HEX, type BubbleColor } from "../constants/BubbleColor";
@@ -8,6 +9,7 @@ import { BUBBLE_COLOR_TO_ASSET_ID } from "../BubbleShooterAssetIds";
 
 const BUBBLE_DISC_SEGMENTS = 48;
 const BUBBLE_VISUAL_RADIUS_FACTOR = 0.94;
+const CELL_RING_SEGMENTS = 32;
 
 interface IBubbleShake {
   readonly mesh: THREE.Mesh;
@@ -32,16 +34,36 @@ interface IBubbleShake {
 export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
   private _config: BubbleShooterConfig | null = null;
   private _layout: BubbleGridLayout | null = null;
+  private _clipping: PlayAreaClipping | null = null;
 
   private _bubbleGeometry: THREE.CircleGeometry | null = null;
   private readonly _bubbleMaterials = new Map<BubbleColor, THREE.MeshBasicMaterial>();
   private readonly _bubbleMeshes = new Map<string, THREE.Mesh>();
   private readonly _bubbleShakes = new Map<string, IBubbleShake>();
 
+  /**
+   * Cell-outline rings drawn at every empty grid cell (and behind
+   * the placed bubbles). Owned alongside the bubble meshes so they
+   * follow the same descent + width updates — cell outlines must
+   * stay aligned with the bubbles they back.
+   */
+  private _cellOutlineGeometry: THREE.RingGeometry | null = null;
+  private _cellOutlineMaterial: THREE.MeshBasicMaterial | null = null;
+  private readonly _cellOutlines: { row: number; col: number; mesh: THREE.Mesh }[] = [];
+
+  /**
+   * Thin strip drawn at the grid's top edge — makes the
+   * descending ceiling visible. Travels with the grid (descents
+   * shift its Y); rebuilt on width change because its X-extent
+   * matches `gridWidth`.
+   */
+  private _ceilingStripMesh: THREE.Mesh | null = null;
+
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
     this._config = resolver.getInstance(BubbleShooterConfig);
     this._layout = resolver.getInstance(BubbleGridLayout);
+    this._clipping = resolver.getInstance(PlayAreaClipping);
   }
 
   public override postInitialize(): void {
@@ -52,15 +74,95 @@ export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
       config.bubbleRadius * BUBBLE_VISUAL_RADIUS_FACTOR,
       BUBBLE_DISC_SEGMENTS,
     );
+    const clippingPlanes = this._clipping?.planes;
     for (const color of ALL_BUBBLE_COLORS) {
       const tex = this.assetLoader.getAsset<THREE.Texture>(BUBBLE_COLOR_TO_ASSET_ID[color]);
       this._bubbleMaterials.set(
         color,
         tex
-          ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
-          : new THREE.MeshBasicMaterial({ color: BUBBLE_COLOR_HEX[color], transparent: true, depthWrite: false }),
+          ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, clippingPlanes })
+          : new THREE.MeshBasicMaterial({ color: BUBBLE_COLOR_HEX[color], transparent: true, depthWrite: false, clippingPlanes }),
       );
     }
+    this._buildCellOutlines();
+    this._buildCeilingStrip();
+  }
+
+  private _buildCeilingStrip(): void {
+    const layout = this._layout;
+    const config = this._config;
+    if (!layout || !config) return;
+    const geo = new THREE.PlaneGeometry(layout.gridWidth, config.gridCeilingStripThickness);
+    const mat = new THREE.MeshBasicMaterial({
+      color: config.gridCeilingStripColor,
+      transparent: true,
+      opacity: 0.85,
+      clippingPlanes: this._clipping?.planes,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(0, layout.gridOriginY, 0);
+    this._ceilingStripMesh = mesh;
+    this.add(mesh);
+  }
+
+  private _disposeCeilingStrip(): void {
+    if (!this._ceilingStripMesh) return;
+    this.remove(this._ceilingStripMesh);
+    this._ceilingStripMesh.geometry.dispose();
+    (this._ceilingStripMesh.material as THREE.MeshBasicMaterial).dispose();
+    this._ceilingStripMesh = null;
+  }
+
+  /**
+   * Build a ring outline for every grid cell at the layout's
+   * current row/col counts and world Ys (which include the active
+   * descend offset). Called on first init AND on width change
+   * (`rebuildCellOutlines`) — the cell count varies per level.
+   */
+  private _buildCellOutlines(): void {
+    const layout = this._layout;
+    const config = this._config;
+    if (!layout || !config) return;
+    const r = layout.bubbleRadius;
+    const inner = Math.max(0, r - config.cellOutlineThickness);
+    this._cellOutlineGeometry = new THREE.RingGeometry(inner, r, CELL_RING_SEGMENTS);
+    this._cellOutlineMaterial = new THREE.MeshBasicMaterial({
+      color: config.cellOutlineColor,
+      side: THREE.DoubleSide,
+      clippingPlanes: this._clipping?.planes,
+    });
+    for (let row = 0; row < layout.rowCount; row++) {
+      const colCount = layout.getColumnCount(row);
+      for (let col = 0; col < colCount; col++) {
+        const pos = layout.getCellWorldPosition(row, col);
+        const mesh = new THREE.Mesh(this._cellOutlineGeometry, this._cellOutlineMaterial);
+        mesh.position.set(pos.x, pos.y, 0);
+        this.add(mesh);
+        this._cellOutlines.push({ row, col, mesh });
+      }
+    }
+  }
+
+  private _disposeCellOutlines(): void {
+    for (const o of this._cellOutlines) this.remove(o.mesh);
+    this._cellOutlines.length = 0;
+    this._cellOutlineGeometry?.dispose();
+    this._cellOutlineGeometry = null;
+    this._cellOutlineMaterial?.dispose();
+    this._cellOutlineMaterial = null;
+  }
+
+  /**
+   * Rebuild the grid's chrome (cell-outline rings + ceiling
+   * strip) for the current layout. Called by the controller on
+   * `onLayoutChanged` — the per-row column count and the strip's
+   * X-extent both depend on the layout's width.
+   */
+  public rebuildCellOutlines(): void {
+    this._disposeCellOutlines();
+    this._disposeCeilingStrip();
+    this._buildCellOutlines();
+    this._buildCeilingStrip();
   }
 
   public setBubble(row: number, col: number, color: BubbleColor): void {
@@ -160,6 +262,35 @@ export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
     }
   }
 
+  public repositionAllBubbles(): void {
+    const layout = this._layout;
+    if (!layout) return;
+    // The grid origin shifted (descending-ceiling). Re-query each
+    // mesh's world position from the layout and snap. Also clear
+    // any in-flight snap shakes — their captured `baseX/baseY`
+    // values are now stale.
+    this._bubbleShakes.clear();
+    for (const [key, mesh] of this._bubbleMeshes) {
+      const sep = key.indexOf("|");
+      const row = Number.parseInt(key.slice(0, sep), 10);
+      const col = Number.parseInt(key.slice(sep + 1), 10);
+      const pos = layout.getCellWorldPosition(row, col);
+      mesh.position.set(pos.x, pos.y, 0);
+    }
+    // Cell outlines are part of the grid visualisation — they must
+    // travel with the bubbles, otherwise the outlines and bubbles
+    // visually drift apart after a descent.
+    for (const o of this._cellOutlines) {
+      const pos = layout.getCellWorldPosition(o.row, o.col);
+      o.mesh.position.set(pos.x, pos.y, 0);
+    }
+    // Ceiling strip sits at the grid's top edge (= gridOriginY).
+    // gridOriginY already factors in the descend offset, so a
+    // single Y assignment keeps it pinned to the grid as it
+    // scrolls.
+    if (this._ceilingStripMesh) this._ceilingStripMesh.position.y = layout.gridOriginY;
+  }
+
   public updateBubbleShakes(dt: number): void {
     if (this._bubbleShakes.size === 0) return;
     for (const [key, shake] of this._bubbleShakes) {
@@ -182,6 +313,8 @@ export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
   }
 
   public override preDestroy(): void {
+    this._disposeCeilingStrip();
+    this._disposeCellOutlines();
     for (const mesh of this._bubbleMeshes.values()) this.remove(mesh);
     this._bubbleMeshes.clear();
     this._bubbleShakes.clear();

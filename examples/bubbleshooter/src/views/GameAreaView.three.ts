@@ -7,10 +7,10 @@ import { EffectsView } from "./EffectsView.three";
 import { FallingBubblesView } from "./FallingBubblesView.three";
 import { FlightView } from "./FlightView.three";
 import { ShooterView } from "./ShooterView.three";
+import { PlayAreaClipping } from "./PlayAreaClipping";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BubbleGridLayout } from "../utilities/BubbleGridLayout";
 
-const CELL_RING_SEGMENTS = 32;
 
 /**
  * Parent of the world-side game area. Owns only the play-area chrome
@@ -25,11 +25,12 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   private _config: BubbleShooterConfig | null = null;
   private _layout: BubbleGridLayout | null = null;
   private _world: World | null = null;
+  private _clipping: PlayAreaClipping | null = null;
   private _previousSceneFog: THREE.Fog | THREE.FogExp2 | null = null;
 
   private _backgroundMesh: THREE.Mesh | null = null;
   private readonly _borderMeshes: THREE.Mesh[] = [];
-  private readonly _cellMeshes: THREE.Mesh[] = [];
+  private _loseLineMesh: THREE.Mesh | null = null;
 
   private _bubbleGridView: BubbleGridView | null = null;
   private _shooterView: ShooterView | null = null;
@@ -49,6 +50,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._config = resolver.getInstance(BubbleShooterConfig);
     this._layout = resolver.getInstance(BubbleGridLayout);
     this._world = resolver.getInstance(World);
+    this._clipping = resolver.getInstance(PlayAreaClipping);
   }
 
   public override postInitialize(): void {
@@ -64,11 +66,13 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     if (this._world) {
       this._previousSceneFog = this._world.scene.fog ?? null;
       this._world.scene.fog = null;
+      // Per-material clipping is opt-in on the renderer. Bubble
+      // sub-views set `clippingPlanes` on their materials; this
+      // flag tells WebGLRenderer to honour them.
+      this._world.renderer.localClippingEnabled = true;
     }
 
-    this._buildBackground(layout.areaWidth, layout.areaHeight, config.playAreaBgColor);
-    this._buildBorder(layout.areaWidth, layout.areaHeight, config.playAreaBorderWidth, config.playAreaBorderColor);
-    this._buildCellOutlines(layout, config);
+    this._buildPlayAreaChrome();
 
     // Sub-view composition. Each sub-view registers its own controller
     // via `viewFactory.register()` (in `BubbleShooterApp.configureViews`)
@@ -105,6 +109,61 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     return () => this._swapListeners.delete(cb);
   }
 
+  /**
+   * Rebuild the play-area chrome (background, border, cell outlines)
+   * from the current layout dimensions. Called on layout change
+   * (per-level width override) — disposes the old geometry first so
+   * a wider grid doesn't leave a smaller background showing through.
+   */
+  public rebuildPlayArea(): void {
+    this._disposePlayAreaChrome();
+    this._buildPlayAreaChrome();
+    // Bubble materials reference the same plane instances, so a
+    // single in-place update propagates to every clipped material.
+    if (this._clipping && this._layout) this._clipping.refreshFromLayout(this._layout);
+  }
+
+  private _buildPlayAreaChrome(): void {
+    const config = this._config;
+    const layout = this._layout;
+    if (!config || !layout) return;
+    this._buildBackground(layout.areaWidth, layout.areaHeight, config.playAreaBgColor);
+    this._buildBorder(layout.areaWidth, layout.areaHeight, config.playAreaBorderWidth, config.playAreaBorderColor);
+    this._buildLoseLine(layout, config);
+  }
+
+  private _buildLoseLine(layout: BubbleGridLayout, config: BubbleShooterConfig): void {
+    const geo = new THREE.PlaneGeometry(layout.areaWidth, config.loseLineThickness);
+    const mat = new THREE.MeshBasicMaterial({ color: config.loseLineColor, transparent: true, opacity: 0.85 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(0, layout.loseLineY, 0);
+    this._loseLineMesh = mesh;
+    this.add(mesh);
+  }
+
+  private _disposePlayAreaChrome(): void {
+    if (this._loseLineMesh) {
+      this.remove(this._loseLineMesh);
+      this._loseLineMesh.geometry.dispose();
+      (this._loseLineMesh.material as THREE.MeshBasicMaterial).dispose();
+      this._loseLineMesh = null;
+    }
+    for (const mesh of this._borderMeshes) {
+      this.remove(mesh);
+      mesh.geometry.dispose();
+    }
+    if (this._borderMeshes.length > 0) {
+      (this._borderMeshes[0]!.material as THREE.MeshBasicMaterial).dispose();
+    }
+    this._borderMeshes.length = 0;
+    if (this._backgroundMesh) {
+      this.remove(this._backgroundMesh);
+      this._backgroundMesh.geometry.dispose();
+      (this._backgroundMesh.material as THREE.MeshBasicMaterial).dispose();
+      this._backgroundMesh = null;
+    }
+  }
+
   private _buildBackground(width: number, height: number, color: number): void {
     const mat = new THREE.MeshBasicMaterial({ color });
     const geo = new THREE.PlaneGeometry(width, height);
@@ -132,22 +191,6 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     make(t, height, halfW + t / 2, 0);
   }
 
-  private _buildCellOutlines(layout: BubbleGridLayout, config: BubbleShooterConfig): void {
-    const r = layout.bubbleRadius;
-    const inner = Math.max(0, r - config.cellOutlineThickness);
-    const ringGeo = new THREE.RingGeometry(inner, r, CELL_RING_SEGMENTS);
-    const ringMat = new THREE.MeshBasicMaterial({ color: config.cellOutlineColor, side: THREE.DoubleSide });
-    for (let row = 0; row < layout.rowCount; row++) {
-      const colCount = layout.getColumnCount(row);
-      for (let col = 0; col < colCount; col++) {
-        const pos = layout.getCellWorldPosition(row, col);
-        const mesh = new THREE.Mesh(ringGeo, ringMat);
-        mesh.position.set(pos.x, pos.y, 0);
-        this._cellMeshes.push(mesh);
-        this.add(mesh);
-      }
-    }
-  }
 
   private _attachPointerListener(): void {
     if (!this._world) return;
@@ -255,28 +298,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
       this._bubbleGridView = null;
     }
 
-    for (const mesh of this._cellMeshes) this.remove(mesh);
-    if (this._cellMeshes.length > 0) {
-      this._cellMeshes[0]!.geometry.dispose();
-      (this._cellMeshes[0]!.material as THREE.MeshBasicMaterial).dispose();
-    }
-    this._cellMeshes.length = 0;
-
-    for (const mesh of this._borderMeshes) {
-      this.remove(mesh);
-      mesh.geometry.dispose();
-    }
-    if (this._borderMeshes.length > 0) {
-      (this._borderMeshes[0]!.material as THREE.MeshBasicMaterial).dispose();
-    }
-    this._borderMeshes.length = 0;
-
-    if (this._backgroundMesh) {
-      this.remove(this._backgroundMesh);
-      this._backgroundMesh.geometry.dispose();
-      (this._backgroundMesh.material as THREE.MeshBasicMaterial).dispose();
-      this._backgroundMesh = null;
-    }
+    this._disposePlayAreaChrome();
 
     if (this._world) {
       this._world.scene.fog = this._previousSceneFog;

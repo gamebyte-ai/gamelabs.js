@@ -9,6 +9,30 @@ interface ICellPos {
   readonly y: number;
 }
 
+/**
+ * Per-call options for {@link AimTrajectoryCalculator.compute}.
+ *
+ * The descending-ceiling mechanic places some grid rows above the
+ * visible play area (off-screen). Regular bubbles must treat the
+ * whole grid as collision space — otherwise a fired bubble would
+ * snap to an empty cell below the cluster and end up floating
+ * once the grid descends. Power-ups (bomb projectile, fireball)
+ * only affect the visible play area, so they pass `onlyVisible`
+ * to skip hidden cells in collision + landing.
+ */
+export interface IComputeTrajectoryOptions {
+  readonly onlyVisible?: boolean;
+  /**
+   * When true, the landing snap is restricted to empty cells that
+   * are in physical contact with the cluster — at least one
+   * occupied hex neighbour, OR in row 0 (touching the grid's
+   * ceiling). Used for regular bubbles so they can't snap to an
+   * empty cell floating in the middle of nowhere; bombs / other
+   * power-ups don't need adjacency and pass `false`.
+   */
+  readonly requireConnection?: boolean;
+}
+
 const EMPTY_TRAJECTORY: IAimTrajectory = { segments: [], end: "none", landing: null };
 
 /**
@@ -33,11 +57,13 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
     this._grid = resolver.getInstance(IBubbleGrid);
   }
 
-  public compute(angle: number): IAimTrajectory {
+  public compute(angle: number, options: IComputeTrajectoryOptions = {}): IAimTrajectory {
     const config = this._config;
     const layout = this._layout;
     const grid = this._grid;
     if (!config || !layout || !grid) return EMPTY_TRAJECTORY;
+    const onlyVisible = options.onlyVisible ?? false;
+    const requireConnection = options.requireConnection ?? false;
 
     const dirX = Math.cos(angle);
     const dirY = Math.sin(angle);
@@ -51,7 +77,10 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
 
     const leftWall = layout.leftWallX;
     const rightWall = layout.rightWallX;
-    const topWall = layout.topWallY;
+    // Once the grid's ceiling descends into the viewport it
+    // becomes the effective upper limit instead of the viewport
+    // top wall — the bubble can't go above the ceiling.
+    const topWall = layout.effectiveTopWallY;
     // Shrink the centre-to-centre collision threshold by the configured
     // tolerance so the flying bubble can squeeze through gaps slightly
     // tighter than `2 · bubbleRadius`. Clamp at 0 so an over-large
@@ -59,7 +88,7 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
     const collisionRadius = Math.max(0, 2 * config.bubbleRadius - config.bubbleCollisionTolerance);
     const collisionR2 = collisionRadius * collisionRadius;
 
-    const cells = this._snapshotOccupiedCells(grid, layout);
+    const cells = this._snapshotOccupiedCells(grid, layout, onlyVisible);
     const segments: IAimTrajectorySegment[] = [];
     let end: AimTrajectoryEnd = "max-bounces";
 
@@ -100,7 +129,7 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
       curDirX = -curDirX;
     }
 
-    const landing = this._findLanding(segments, end, grid, layout, config.bubbleRadius);
+    const landing = this._findLanding(segments, end, grid, layout, config.bubbleRadius, onlyVisible, requireConnection);
     return { segments, end, landing };
   }
 
@@ -120,6 +149,8 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
     grid: IBubbleGrid,
     layout: BubbleGridLayout,
     bubbleRadius: number,
+    onlyVisible: boolean,
+    requireConnection: boolean,
   ): IAimLanding | null {
     if (segments.length === 0) return null;
     if (endKind !== "top" && endKind !== "bubble") return null;
@@ -135,11 +166,20 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
     let bestX = 0;
     let bestY = 0;
 
+    // For regular bubbles (`onlyVisible = false`), the full grid is
+    // valid landing space — the bubble travels up through empty
+    // cells until it touches the cluster (visible or hidden). For
+    // power-up projectiles (`onlyVisible = true`), hidden cells are
+    // filtered so the bomb / fireball stays within the viewport.
+    const visibleCutoff = layout.topWallY + layout.bubbleRadius;
+
     for (let row = 0; row < grid.rowCount; row++) {
       const colCount = grid.getColumnCount(row);
       for (let col = 0; col < colCount; col++) {
         if (grid.isOccupied(row, col)) continue;
         const pos = layout.getCellWorldPosition(row, col);
+        if (onlyVisible && pos.y > visibleCutoff) continue;
+        if (requireConnection && !this._isConnectedCell(row, col, grid, layout)) continue;
         const dx = pos.x - endX;
         const dy = pos.y - endY;
         const d2 = dx * dx + dy * dy;
@@ -157,12 +197,41 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
     return { row: bestRow, col: bestCol, worldX: bestX, worldY: bestY };
   }
 
-  private _snapshotOccupiedCells(grid: IBubbleGrid, layout: BubbleGridLayout): ICellPos[] {
+  /**
+   * An empty cell is a valid landing for a regular bubble only if
+   * it physically touches the cluster — at least one occupied
+   * hex neighbour, OR sits in row 0 (the top of the grid, where a
+   * bubble snaps against the ceiling). Without this rule, a fired
+   * bubble could land in an empty pocket below the cluster and end
+   * up floating once the grid descends.
+   */
+  private _isConnectedCell(row: number, col: number, grid: IBubbleGrid, layout: BubbleGridLayout): boolean {
+    if (row === 0) return true;
+    for (const off of layout.getNeighborOffsets(row)) {
+      const nr = row + off.dRow;
+      const nc = col + off.dCol;
+      if (!layout.isInBounds(nr, nc)) continue;
+      if (grid.isOccupied(nr, nc)) return true;
+    }
+    return false;
+  }
+
+  private _snapshotOccupiedCells(grid: IBubbleGrid, layout: BubbleGridLayout, onlyVisible: boolean): ICellPos[] {
+    // Regular bubbles (`onlyVisible = false`) treat the full grid as
+    // collision space — they should travel up through empty cells
+    // until touching the cluster, even if part of it sits above the
+    // viewport. Power-up projectiles (`onlyVisible = true`) only
+    // see visible bubbles so their effects stay confined to the
+    // play area.
     const cells: ICellPos[] = [];
+    const visibleCutoff = layout.topWallY + layout.bubbleRadius;
     for (let row = 0; row < grid.rowCount; row++) {
       const colCount = grid.getColumnCount(row);
       for (let col = 0; col < colCount; col++) {
-        if (grid.isOccupied(row, col)) cells.push(layout.getCellWorldPosition(row, col));
+        if (!grid.isOccupied(row, col)) continue;
+        const pos = layout.getCellWorldPosition(row, col);
+        if (onlyVisible && pos.y > visibleCutoff) continue;
+        cells.push(pos);
       }
     }
     return cells;

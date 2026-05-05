@@ -10,17 +10,34 @@ import type { IBubbleGrid } from "./IBubbleGrid";
  * The {@link IBubbleGrid} interface exposes only readonly accessors;
  * mutation goes through {@link setColor} on the concrete class, which is
  * resolved only by `GameOperations`.
+ *
+ * Per-row column counts are sourced from the layout at construction
+ * and again on every {@link rebuild} call. Levels can override the
+ * layout's wide-row column count, so the grid must rebuild whenever
+ * a level swap changes the width.
  */
 export class BubbleGrid implements IBubbleGrid {
+  private readonly _layout: BubbleGridLayout;
   public readonly rowCount: number;
-  private readonly _columnCounts: readonly number[];
-  private readonly _cells: (BubbleColor | null)[][];
+  private _columnCounts: readonly number[] = [];
+  private _cells: (BubbleColor | null)[][] = [];
 
   public constructor(layout: BubbleGridLayout) {
+    this._layout = layout;
     this.rowCount = layout.rowCount;
+    this.rebuild();
+  }
+
+  /**
+   * Re-read per-row column counts from the layout and reset every
+   * cell to empty. Call after `BubbleGridLayout.setWideRowColumns`
+   * so the stored column counts match the new width.
+   */
+  public rebuild(): void {
+    const layout = this._layout;
     const columnCounts: number[] = [];
     const cells: (BubbleColor | null)[][] = [];
-    for (let r = 0; r < layout.rowCount; r++) {
+    for (let r = 0; r < this.rowCount; r++) {
       const cols = layout.getColumnCount(r);
       columnCounts.push(cols);
       cells.push(new Array<BubbleColor | null>(cols).fill(null));

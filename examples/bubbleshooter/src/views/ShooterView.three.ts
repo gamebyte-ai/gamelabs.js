@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { WorldViewBase, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import type { IShooterView } from "./IShooterView";
+import { PlayAreaClipping } from "./PlayAreaClipping";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BubbleGridLayout } from "../utilities/BubbleGridLayout";
 import { ALL_BUBBLE_COLORS, BUBBLE_COLOR_HEX, BUBBLE_COLORS, type BubbleColor } from "../constants/BubbleColor";
@@ -41,6 +42,7 @@ interface IShooterSwapAnim {
 export class ShooterView extends WorldViewBase implements IShooterView {
   private _config: BubbleShooterConfig | null = null;
   private _layout: BubbleGridLayout | null = null;
+  private _clipping: PlayAreaClipping | null = null;
 
   private _bubbleGeometry: THREE.CircleGeometry | null = null;
   private readonly _bubbleMaterials = new Map<BubbleColor, THREE.MeshBasicMaterial>();
@@ -65,6 +67,7 @@ export class ShooterView extends WorldViewBase implements IShooterView {
     super.inject(resolver);
     this._config = resolver.getInstance(BubbleShooterConfig);
     this._layout = resolver.getInstance(BubbleGridLayout);
+    this._clipping = resolver.getInstance(PlayAreaClipping);
   }
 
   public override postInitialize(): void {
@@ -205,13 +208,14 @@ export class ShooterView extends WorldViewBase implements IShooterView {
 
   private _buildBubbleResources(bubbleRadius: number): void {
     this._bubbleGeometry = new THREE.CircleGeometry(bubbleRadius * BUBBLE_VISUAL_RADIUS_FACTOR, BUBBLE_DISC_SEGMENTS);
+    const clippingPlanes = this._clipping?.planes;
     for (const color of ALL_BUBBLE_COLORS) {
       const tex = this.assetLoader.getAsset<THREE.Texture>(BUBBLE_COLOR_TO_ASSET_ID[color]);
       this._bubbleMaterials.set(
         color,
         tex
-          ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
-          : new THREE.MeshBasicMaterial({ color: BUBBLE_COLOR_HEX[color], transparent: true, depthWrite: false }),
+          ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, clippingPlanes })
+          : new THREE.MeshBasicMaterial({ color: BUBBLE_COLOR_HEX[color], transparent: true, depthWrite: false, clippingPlanes }),
       );
     }
   }
@@ -272,10 +276,11 @@ export class ShooterView extends WorldViewBase implements IShooterView {
 
   private _buildBombResources(layout: BubbleGridLayout): void {
     if (!this._bubbleGeometry) return;
+    const clippingPlanes = this._clipping?.planes;
     const tex = this.assetLoader.getAsset<THREE.Texture>(BubbleShooterAssetIds.BombBubble);
     this._bombMaterial = tex
-      ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
-      : new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, depthWrite: false });
+      ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, clippingPlanes })
+      : new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, depthWrite: false, clippingPlanes });
     const heldBomb = new THREE.Mesh(this._bubbleGeometry, this._bombMaterial);
     heldBomb.position.set(layout.shooterX, layout.shooterY, SHOOTER_Z);
     heldBomb.visible = false;
@@ -285,10 +290,11 @@ export class ShooterView extends WorldViewBase implements IShooterView {
 
   private _buildFireballResources(layout: BubbleGridLayout): void {
     if (!this._bubbleGeometry) return;
+    const clippingPlanes = this._clipping?.planes;
     const tex = this.assetLoader.getAsset<THREE.Texture>(BubbleShooterAssetIds.FireballBubble);
     this._fireballMaterial = tex
-      ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
-      : new THREE.MeshBasicMaterial({ color: 0xff5522, transparent: true, depthWrite: false });
+      ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, clippingPlanes })
+      : new THREE.MeshBasicMaterial({ color: 0xff5522, transparent: true, depthWrite: false, clippingPlanes });
     const heldFireball = new THREE.Mesh(this._bubbleGeometry, this._fireballMaterial);
     heldFireball.position.set(layout.shooterX, layout.shooterY, SHOOTER_Z);
     heldFireball.visible = false;

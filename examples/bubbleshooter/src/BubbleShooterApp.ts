@@ -35,6 +35,7 @@ import { MatchFinder } from "./utilities/MatchFinder";
 import { FloatingBubbleFinder } from "./utilities/FloatingBubbleFinder";
 import { GameAreaView } from "./views/GameAreaView.three";
 import { GameAreaViewController } from "./controllers/GameAreaViewController";
+import { PlayAreaClipping } from "./views/PlayAreaClipping";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { EffectsView } from "./views/EffectsView.three";
@@ -90,6 +91,7 @@ export class BubbleShooterApp extends GamelabsApp {
   private _cameraController: Front2dCameraController | null = null;
   private _soundManager: SoundManager | null = null;
   private _hudHookupManager: HudHookupManager | null = null;
+  private _layoutChangedUnsub: (() => void) | null = null;
 
   // Power-up button + count configs are kept by reference so resize can
   // reposition them against the play area's bottom-right corner (rather
@@ -125,6 +127,10 @@ export class BubbleShooterApp extends GamelabsApp {
     this.diContainer.bindInstance(Shooter, this._shooter, [IShooter]);
     this.diContainer.bindInstance(Score, this._score, [IScore]);
     this.diContainer.bindInstance(GameEvents, this._gameEvents);
+    // Shared bubble-clipping planes — view-side only, so just the
+    // viewDiContainer. Each bubble-drawing sub-view pulls the same
+    // instance and assigns its `.planes` to every bubble material.
+    this.viewDiContainer.bindInstance(PlayAreaClipping, new PlayAreaClipping(this._layout));
 
     // Top-left score readout via the on-screen-controls Label widget.
     const osc = this.diContainer.getInstance(OnScreenControlManager);
@@ -335,6 +341,17 @@ export class BubbleShooterApp extends GamelabsApp {
     this._hudHookupManager = new HudHookupManager();
     this._hudHookupManager.inject(this.diContainer);
     this._hudHookupManager.start();
+
+    // Camera fit + power-up button positions both depend on the
+    // play area's width. Re-run them on every layout change so a
+    // per-level `wideRowColumns` override resizes the visible area
+    // and re-anchors the HUD buttons to the new corner.
+    this._layoutChangedUnsub = this._gameEvents.onLayoutChanged(() => this._onLayoutChanged());
+  }
+
+  private _onLayoutChanged(): void {
+    this._fitCamera(this.width, this.height);
+    this._layoutPowerUpButtons(this.width, this.height);
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
@@ -415,6 +432,8 @@ export class BubbleShooterApp extends GamelabsApp {
   }
 
   protected override preDestroy(): void {
+    this._layoutChangedUnsub?.();
+    this._layoutChangedUnsub = null;
     this._hudHookupManager?.destroy();
     this._hudHookupManager = null;
     this._soundManager?.destroy();

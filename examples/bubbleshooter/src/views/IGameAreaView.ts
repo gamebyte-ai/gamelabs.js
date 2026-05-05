@@ -9,6 +9,9 @@ import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
  * controllers — the parent does not route to children.
  */
 export interface IGameAreaView extends IView {
+  /** Rebuild play-area chrome (background, border, cell outlines)
+   *  after the layout's width has changed (per-level override). */
+  rebuildPlayArea(): void;
   onAimAtWorld(cb: (worldX: number, worldY: number) => void): Unsubscribe;
   onFire(cb: () => void): Unsubscribe;
   onSwap(cb: () => void): Unsubscribe;

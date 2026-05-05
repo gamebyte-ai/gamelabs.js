@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { WorldViewBase, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import type { IAimLineView } from "./IAimLineView";
+import { PlayAreaClipping } from "./PlayAreaClipping";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import type { IAimTrajectory, IAimTrajectorySegment } from "../models/IAimTrajectory";
 import { BUBBLE_COLOR_HEX, BUBBLE_COLORS, type BubbleColor } from "../constants/BubbleColor";
@@ -19,6 +20,7 @@ const AIM_DOT_Z = 0.4;
  */
 export class AimLineView extends WorldViewBase implements IAimLineView {
   private _config: BubbleShooterConfig | null = null;
+  private _clipping: PlayAreaClipping | null = null;
 
   private _aimDotGeometry: THREE.CircleGeometry | null = null;
   private _aimDotMaterial: THREE.MeshBasicMaterial | null = null;
@@ -35,6 +37,13 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
   private readonly _aimSegLengths: number[] = [];
   private readonly _aimSegCumLengths: number[] = [];
   private _aimTotalLength = 0;
+  /**
+   * Length actually rendered as dots — capped at
+   * {@link BubbleShooterConfig.aimMaxLength} so the aim line has a
+   * visible reach limit. Equals {@link _aimTotalLength} when the
+   * cap is unset or the trajectory is shorter than it.
+   */
+  private _aimVisibleLength = 0;
   /** Persistent phase offset in [0, spacing); preserved across re-emits. */
   private _aimPhaseOffset = 0;
 
@@ -45,6 +54,7 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
     this._config = resolver.getInstance(BubbleShooterConfig);
+    this._clipping = resolver.getInstance(PlayAreaClipping);
   }
 
   public override postInitialize(): void {
@@ -69,12 +79,21 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
       this._aimSegCumLengths.push(total);
     }
     this._aimTotalLength = total;
+    const cap = this._config?.aimMaxLength ?? 0;
+    this._aimVisibleLength = cap > 0 ? Math.min(total, cap) : total;
     this._refreshAimDotsAtPhase();
-    this._updateLandingPreview(trajectory);
+    // The landing preview only makes sense if the actual landing
+    // is within the visible aim-line span — otherwise the player
+    // would see a snap target the dotted line never reaches.
+    if (this._aimVisibleLength < total) {
+      if (this._landingPreviewMesh) this._landingPreviewMesh.visible = false;
+    } else {
+      this._updateLandingPreview(trajectory);
+    }
   }
 
   public updateAimDots(dt: number): void {
-    if (this._aimTotalLength <= 0 || !this._config) return;
+    if (this._aimVisibleLength <= 0 || !this._config) return;
     const spacing = this._config.aimDotSpacing;
     if (spacing <= 0) return;
     this._aimPhaseOffset = (this._aimPhaseOffset + this._config.aimDotFlowSpeed * dt) % spacing;
@@ -104,10 +123,10 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
   private _refreshAimDotsAtPhase(): void {
     this._hideAllAimDots();
     if (!this._config || !this._aimDotGeometry || !this._aimDotMaterial) return;
-    if (this._aimTotalLength <= 0) return;
+    if (this._aimVisibleLength <= 0) return;
     const spacing = this._config.aimDotSpacing;
     const positions: { x: number; y: number }[] = [];
-    for (let s = this._aimPhaseOffset; s < this._aimTotalLength; s += spacing) {
+    for (let s = this._aimPhaseOffset; s < this._aimVisibleLength; s += spacing) {
       const pos = this._arcLengthToWorldPoint(s);
       if (pos) positions.push(pos);
     }
@@ -182,6 +201,7 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
       opacity,
       depthTest: false,
       depthWrite: false,
+      clippingPlanes: this._clipping?.planes,
     });
   }
 
@@ -189,6 +209,7 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
     const outer = config.bubbleRadius * BUBBLE_VISUAL_RADIUS_FACTOR;
     const inner = Math.max(0, outer - config.landingPreviewRingThickness);
     this._landingPreviewGeometry = new THREE.RingGeometry(inner, outer, LANDING_PREVIEW_SEGMENTS);
+    const clippingPlanes = this._clipping?.planes;
     for (const color of BUBBLE_COLORS) {
       this._landingPreviewMaterials.set(
         color,
@@ -198,6 +219,7 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
           opacity: config.landingPreviewOpacity,
           side: THREE.DoubleSide,
           depthWrite: false,
+          clippingPlanes,
         }),
       );
     }

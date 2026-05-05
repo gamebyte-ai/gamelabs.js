@@ -23,6 +23,8 @@ export class BubbleGridViewController implements IViewController<IBubbleGridView
     this._subs.add(e.onBubblePlaced((r, c, color) => this._view?.setBubble(r, c, color)));
     this._subs.add(e.onBubbleRemoved((r, c) => this._view?.removeBubble(r, c)));
     this._subs.add(e.onBubbleSnapped((r, c) => this._view?.playSnapShake(r, c)));
+    this._subs.add(e.onGridDescended(() => this._view?.repositionAllBubbles()));
+    this._subs.add(e.onLayoutChanged(() => this._view?.rebuildCellOutlines()));
     this._subs.add(this._updateManager!.register((dt) => this._view?.updateBubbleShakes(dt), 0));
   }
 

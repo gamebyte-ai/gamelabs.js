@@ -9,12 +9,26 @@ import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "@gamebyte/gamela
 export class BubbleShooterConfig {
   public readonly bubbleRadius = 20;
   public readonly wideRowColumns = 11;
-  public readonly rowCount = 20;
   /**
-   * Bottom rows left empty in the initial layout (still valid cells).
-   * The lowest of these are the lose-line area for later steps.
+   * Total rows in the grid model. Larger than {@link visibleRowCount}
+   * so the grid extends below the play-area bottom — bubbles can
+   * keep stacking past the lose line and trigger loss on snap,
+   * instead of getting wedged at the natural grid bottom.
    */
-  public readonly initialEmptyBottomRows = 7;
+  public readonly rowCount = 24;
+  /**
+   * Rows that determine the play-area visual extents (background,
+   * border, camera fit). The grid model has more rows below this;
+   * the extra ones extend off-screen so stacking doesn't run out
+   * of valid landing cells before reaching the lose line.
+   */
+  public readonly visibleRowCount = 20;
+  /**
+   * Bottom rows left empty in the procedural initial layout. Tuned
+   * against the total {@link rowCount} so the visible filled
+   * portion stays the same as before the grid was extended.
+   */
+  public readonly initialEmptyBottomRows = 11;
 
   public readonly playAreaPaddingX = 16;
   public readonly playAreaPaddingTop = 16;
@@ -31,6 +45,15 @@ export class BubbleShooterConfig {
 
   public readonly cellOutlineColor = 0x2f4769;
   public readonly cellOutlineThickness = 1.5;
+
+  /**
+   * Thin horizontal strip drawn along the grid's top edge —
+   * makes the ceiling boundary clearly visible so the player can
+   * read the descending-ceiling mechanic. Travels with the grid
+   * (descents shift its Y), spans the full grid width.
+   */
+  public readonly gridCeilingStripColor = 0x88a0c8;
+  public readonly gridCeilingStripThickness = 3;
 
   public readonly cameraMargin = 24;
 
@@ -76,12 +99,35 @@ export class BubbleShooterConfig {
   public readonly aimMaxBounces = 4;
   /** Minimum angle from horizontal so aim never points sideways or down. */
   public readonly aimMinAngleFromHorizontalRad = (15 * Math.PI) / 180;
+  /**
+   * Maximum visible aim-line length, in world units. Trajectory
+   * beyond this arc length is hidden by default — the dots stop
+   * partway and the landing-preview ring is suppressed when the
+   * actual landing sits past the cap. Future aim-extension power-
+   * ups may temporarily increase this value.
+   */
+  public readonly aimMaxLength = 500;
 
   /** World units per second for the bubble's straight-line flight. */
   public readonly firedBubbleSpeed = 1500;
 
   /** Minimum same-colour group size that pops on snap. */
   public readonly matchPopThreshold = 3;
+
+  /**
+   * Descending-ceiling cadence — every N shots, the entire grid
+   * shifts down by one `rowPitch`. Hidden upper rows come into view;
+   * any bubble crossing the lose line ends the game.
+   */
+  public readonly shotsPerDescend = 3;
+  /**
+   * World-space distance from the shooter's centre up to the lose
+   * line. A bubble with `cell.y ≤ shooterY + loseLineDistanceFromShooter`
+   * triggers loss.
+   */
+  public readonly loseLineDistanceFromShooter = 50;
+  public readonly loseLineColor = 0xff5060;
+  public readonly loseLineThickness = 2;
 
   /** Bomb power-up inventory at game / level start. */
   public readonly initialBombCount = 3;

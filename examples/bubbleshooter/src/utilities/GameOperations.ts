@@ -99,6 +99,13 @@ export class GameOperations implements IInjectionTarget {
    * mutually exclusive with the win flow.
    */
   private _isLost = false;
+  /**
+   * Descending-ceiling counter — increments at the end of each
+   * resolved shot. When it reaches
+   * {@link BubbleShooterConfig.shotsPerDescend}, the grid descends
+   * one row pitch and the counter resets.
+   */
+  private _shotsSinceDescend = 0;
   private _lastAimX = 0;
   private _lastAimY = 0;
 
@@ -147,6 +154,31 @@ export class GameOperations implements IInjectionTarget {
 
     this._cancelTransientState();
     this._clearGrid();
+
+    // Apply per-level layout overrides BEFORE any new placements so
+    // wall positions, cell coordinates, and grid shape all reflect
+    // the new width. Falls back to the config default when the level
+    // doesn't override. Order: clear old grid (using old shape) →
+    // update layout → rebuild grid (new shape) → emit so views
+    // rebuild their layout-derived geometry → apply placements.
+    const targetWidth = level.wideRowColumns ?? this._config!.wideRowColumns;
+    if (targetWidth !== this._layout!.wideRowColumns) {
+      this._layout!.setWideRowColumns(targetWidth);
+      this._grid!.rebuild();
+      this._events!.emitLayoutChanged();
+    }
+
+    // Initial descend offset: a positive `initialHiddenRows` value
+    // shifts the grid UP by that many rows, hiding the top N rows
+    // above the viewport. Stored as a NEGATIVE descend offset so
+    // each subsequent descent moves toward zero and beyond.
+    const initialHidden = level.initialHiddenRows ?? 0;
+    const targetDescend = -initialHidden;
+    if (targetDescend !== this._layout!.descendOffsetRows) {
+      this._layout!.setDescendOffsetRows(targetDescend);
+      this._events!.emitGridDescended();
+    }
+    this._shotsSinceDescend = 0;
 
     if (level.placements === null) {
       this.buildInitialLayout();
@@ -215,6 +247,25 @@ export class GameOperations implements IInjectionTarget {
     const shooter = this._shooter;
     if (!shooter) return;
     this._events!.emitAimPowerUpModeChanged(shooter.isBomb || shooter.isFireball);
+  }
+
+  /**
+   * Hook called at the end of each fully-resolved shot (regular
+   * snap, cluster pop completion, bomb explosion, fireball exit).
+   * Advances the descending-ceiling counter and triggers a descent
+   * + loss re-check when the threshold is reached.
+   */
+  private _onShotResolved(): void {
+    if (this._isWon || this._isLost) return;
+    this._shotsSinceDescend++;
+    if (this._shotsSinceDescend < this._config!.shotsPerDescend) return;
+    this._shotsSinceDescend = 0;
+    const layout = this._layout!;
+    layout.setDescendOffsetRows(layout.descendOffsetRows + 1);
+    this._events!.emitGridDescended();
+    // Descent might have pushed an existing bubble across the lose
+    // line. Re-check loss with the new world Ys.
+    this._checkLoss();
   }
 
   /** Wipe transient flight / pop / falling / bomb / fireball state and notify the view. */
@@ -374,25 +425,33 @@ export class GameOperations implements IInjectionTarget {
   }
 
   /**
-   * Loss check. Fires the moment any cell in the bottom row is
-   * occupied — that's the row immediately above the shooter, so a
-   * bubble there has reached shooter level by definition. Mirrors
-   * the win lock: emits `onShooterControlsLocked(true)` so power-up
-   * buttons disable, and `onGameOverChanged(true)` for the screen
-   * controller to react. Idempotent and mutually exclusive with the
-   * win flow.
+   * Loss check. Fires the moment any occupied bubble's BOTTOM
+   * EDGE touches or crosses {@link BubbleGridLayout.loseLineY} —
+   * the visible line just above the shooter. The bottom edge is
+   * the cell centre minus a bubble radius, so the comparison is
+   * `cell.y - r ≤ loseLineY`, i.e. `cell.y ≤ loseLineY + r`.
+   * Checking by edge (not centre) means a bubble whose bottom
+   * touches the line triggers loss immediately, not the
+   * stack-position later when its centre drops past the line.
+   * Mirrors the win lock: emits `onShooterControlsLocked(true)`
+   * and `onGameOverChanged(true)`. Idempotent and mutually
+   * exclusive with the win flow.
    */
   private _checkLoss(): void {
     if (this._isLost) return;
     if (this._winLatched || this._isWon) return;
     const grid = this._grid!;
-    const lastRow = grid.rowCount - 1;
-    const cols = grid.getColumnCount(lastRow);
+    const layout = this._layout!;
+    const threshold = layout.loseLineY + layout.bubbleRadius;
     let reached = false;
-    for (let col = 0; col < cols; col++) {
-      if (grid.isOccupied(lastRow, col)) {
-        reached = true;
-        break;
+    outer: for (let row = 0; row < grid.rowCount; row++) {
+      const cols = grid.getColumnCount(row);
+      for (let col = 0; col < cols; col++) {
+        if (!grid.isOccupied(row, col)) continue;
+        if (layout.getCellWorldPosition(row, col).y <= threshold) {
+          reached = true;
+          break outer;
+        }
       }
     }
     if (!reached) return;
@@ -454,7 +513,16 @@ export class GameOperations implements IInjectionTarget {
     this._events!.emitShooterAimChanged(angle);
 
     if (this._state !== "idle") return;
-    const trajectory = this._aimCalculator!.compute(angle);
+    // Bomb mode is restricted to visible bubbles (its blast must
+    // stay in the play area); a regular bubble travels through the
+    // full grid (including hidden upper rows) to reach the cluster
+    // and must snap connected (cluster-adjacent or row 0) so it
+    // never floats in an empty pocket after a descent.
+    const isBomb = this._shooter!.isBomb;
+    const trajectory = this._aimCalculator!.compute(angle, {
+      onlyVisible: isBomb,
+      requireConnection: !isBomb,
+    });
     this._events!.emitAimTrajectoryChanged(trajectory);
   }
 
@@ -482,7 +550,15 @@ export class GameOperations implements IInjectionTarget {
     // Either a coloured held bubble or a bomb power-up must be loaded.
     if (!isBomb && heldColor === null) return;
 
-    const trajectory = this._aimCalculator!.compute(shooter.aimAngle);
+    // Power-up projectiles (bomb) only see visible cells; regular
+    // bubbles see the full grid so they snap to the cluster even
+    // when its upper rows are off-screen, and must land connected
+    // (cluster-adjacent or row 0) so they never float free after
+    // a descent.
+    const trajectory = this._aimCalculator!.compute(shooter.aimAngle, {
+      onlyVisible: isBomb,
+      requireConnection: !isBomb,
+    });
     if (trajectory.segments.length === 0 || trajectory.landing === null) return;
 
     const segLengths: number[] = [];
@@ -673,6 +749,8 @@ export class GameOperations implements IInjectionTarget {
     this._state = "idle";
     this._checkLoss();
     if (this._isLost) return;
+    this._onShotResolved();
+    if (this._isLost) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
@@ -692,17 +770,24 @@ export class GameOperations implements IInjectionTarget {
 
     events.emitBombExploded();
 
+    // Power-up effects are confined to the visible play area —
+    // hidden upper-row bubbles must not be affected. Anything at
+    // or below the visible cutoff (centre within one bubble radius
+    // of `topWallY`) counts as visible.
+    const visibleCutoff = layout.topWallY + layout.bubbleRadius;
+
     // Same per-cell scoring rule as cluster pops (5/10/15/...). Reset
     // the session counter so each bomb starts at index 1.
     this._popIndexInSession = 0;
     for (const cell of targets) {
       const color = grid.getColor(cell.row, cell.col);
       if (color === null) continue;
+      const pos = layout.getCellWorldPosition(cell.row, cell.col);
+      if (pos.y > visibleCutoff) continue;
       this._popIndexInSession++;
       const points = this._popIndexInSession * config.popPointsStep;
       this._score!.add(points);
       events.emitScoreChanged(this._score!.value);
-      const pos = layout.getCellWorldPosition(cell.row, cell.col);
       events.emitBubblePopped(pos.x, pos.y, color, points);
       grid.setColor(cell.row, cell.col, null);
       events.emitBubbleRemoved(cell.row, cell.col);
@@ -715,6 +800,8 @@ export class GameOperations implements IInjectionTarget {
     this._validateShooterColors();
     this._checkWin();
     if (this._isWon) return;
+    this._onShotResolved();
+    if (this._isLost) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
@@ -770,16 +857,19 @@ export class GameOperations implements IInjectionTarget {
     f.y += f.vy * dt;
     events.emitFireballChanged(true, f.x, f.y);
 
-    // Pop every occupied cell whose centre is within collision radius
-    // of the fireball's current position. `_popOneCell` increments the
-    // session counter and emits the standard burst + score events.
+    // Pop every visible occupied cell whose centre is within
+    // collision radius of the fireball's current position. Hidden
+    // upper-row bubbles are excluded — power-ups only affect the
+    // visible play area.
     const r = config.fireballCollisionRadius;
     const r2 = r * r;
+    const visibleCutoff = layout.topWallY + layout.bubbleRadius;
     for (let row = 0; row < grid.rowCount; row++) {
       const cols = grid.getColumnCount(row);
       for (let col = 0; col < cols; col++) {
         if (!grid.isOccupied(row, col)) continue;
         const cell = layout.getCellWorldPosition(row, col);
+        if (cell.y > visibleCutoff) continue;
         const dx = cell.x - f.x;
         const dy = cell.y - f.y;
         if (dx * dx + dy * dy <= r2) this._popOneCell({ row, col });
@@ -805,6 +895,8 @@ export class GameOperations implements IInjectionTarget {
     this._validateShooterColors();
     this._checkWin();
     if (this._isWon) return;
+    this._onShotResolved();
+    if (this._isLost) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
@@ -881,6 +973,8 @@ export class GameOperations implements IInjectionTarget {
     this._validateShooterColors();
     this._checkWin();
     if (this._isWon) return;
+    this._onShotResolved();
+    if (this._isLost) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 

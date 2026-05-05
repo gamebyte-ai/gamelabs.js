@@ -50,6 +50,8 @@ export class GameEvents {
   private readonly _bombExplodedListeners = new Set<VoidCb>();
   private readonly _fireballFiredListeners = new Set<VoidCb>();
   private readonly _bubbleSnappedListeners = new Set<CellCb>();
+  private readonly _layoutChangedListeners = new Set<VoidCb>();
+  private readonly _gridDescendedListeners = new Set<VoidCb>();
 
   public onBubblePlaced(cb: BubblePlacedCb): Unsubscribe {
     this._bubblePlacedListeners.add(cb);
@@ -344,5 +346,39 @@ export class GameEvents {
 
   public emitBubbleSnapped(row: number, col: number): void {
     for (const cb of this._bubbleSnappedListeners) cb(row, col);
+  }
+
+  /**
+   * The play-area layout has changed (e.g. a new level applied a
+   * different `wideRowColumns`). Listeners rebuild any geometry
+   * whose vertex data depends on layout dimensions: the play-area
+   * chrome, cell outlines, camera fit, HUD positioning anchored to
+   * the play area's corners. The grid model + bubble meshes are
+   * cleared via the standard `onBubbleRemoved` pipeline before this
+   * event fires.
+   */
+  public onLayoutChanged(cb: VoidCb): Unsubscribe {
+    this._layoutChangedListeners.add(cb);
+    return () => this._layoutChangedListeners.delete(cb);
+  }
+
+  public emitLayoutChanged(): void {
+    for (const cb of this._layoutChangedListeners) cb();
+  }
+
+  /**
+   * The grid origin has shifted vertically (descending-ceiling
+   * mechanic). The grid model's row indices and chrome dimensions
+   * are unchanged; only the world Y of each cluster cell moves.
+   * The bubble grid view repositions its meshes; trajectory and
+   * loss-check pick up the new positions on their next read.
+   */
+  public onGridDescended(cb: VoidCb): Unsubscribe {
+    this._gridDescendedListeners.add(cb);
+    return () => this._gridDescendedListeners.delete(cb);
+  }
+
+  public emitGridDescended(): void {
+    for (const cb of this._gridDescendedListeners) cb();
   }
 }

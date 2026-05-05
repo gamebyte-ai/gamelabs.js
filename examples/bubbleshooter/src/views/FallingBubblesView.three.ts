@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { WorldViewBase, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import type { IFallingBubblesView } from "./IFallingBubblesView";
+import { PlayAreaClipping } from "./PlayAreaClipping";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { ALL_BUBBLE_COLORS, BUBBLE_COLOR_HEX, type BubbleColor } from "../constants/BubbleColor";
 import { BUBBLE_COLOR_TO_ASSET_ID } from "../BubbleShooterAssetIds";
@@ -20,6 +21,7 @@ const BUBBLE_VISUAL_RADIUS_FACTOR = 0.94;
  */
 export class FallingBubblesView extends WorldViewBase implements IFallingBubblesView {
   private _config: BubbleShooterConfig | null = null;
+  private _clipping: PlayAreaClipping | null = null;
   private _bubbleGeometry: THREE.CircleGeometry | null = null;
   private readonly _bubbleMaterials = new Map<BubbleColor, THREE.MeshBasicMaterial>();
   private readonly _meshes = new Map<number, THREE.Mesh>();
@@ -27,6 +29,7 @@ export class FallingBubblesView extends WorldViewBase implements IFallingBubbles
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
     this._config = resolver.getInstance(BubbleShooterConfig);
+    this._clipping = resolver.getInstance(PlayAreaClipping);
   }
 
   public override postInitialize(): void {
@@ -37,13 +40,14 @@ export class FallingBubblesView extends WorldViewBase implements IFallingBubbles
       config.bubbleRadius * BUBBLE_VISUAL_RADIUS_FACTOR,
       BUBBLE_DISC_SEGMENTS,
     );
+    const clippingPlanes = this._clipping?.planes;
     for (const color of ALL_BUBBLE_COLORS) {
       const tex = this.assetLoader.getAsset<THREE.Texture>(BUBBLE_COLOR_TO_ASSET_ID[color]);
       this._bubbleMaterials.set(
         color,
         tex
-          ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
-          : new THREE.MeshBasicMaterial({ color: BUBBLE_COLOR_HEX[color], transparent: true, depthWrite: false }),
+          ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, clippingPlanes })
+          : new THREE.MeshBasicMaterial({ color: BUBBLE_COLOR_HEX[color], transparent: true, depthWrite: false, clippingPlanes }),
       );
     }
   }

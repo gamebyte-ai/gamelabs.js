@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { WorldViewBase, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import type { IFlightView } from "./IFlightView";
+import { PlayAreaClipping } from "./PlayAreaClipping";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { ALL_BUBBLE_COLORS, BUBBLE_COLOR_HEX, type BubbleColor } from "../constants/BubbleColor";
 import { BUBBLE_COLOR_TO_ASSET_ID, BubbleShooterAssetIds } from "../BubbleShooterAssetIds";
@@ -17,6 +18,7 @@ const BUBBLE_VISUAL_RADIUS_FACTOR = 0.94;
  */
 export class FlightView extends WorldViewBase implements IFlightView {
   private _config: BubbleShooterConfig | null = null;
+  private _clipping: PlayAreaClipping | null = null;
   private _bubbleGeometry: THREE.CircleGeometry | null = null;
   private readonly _bubbleMaterials = new Map<BubbleColor, THREE.MeshBasicMaterial>();
   private _bombMaterial: THREE.MeshBasicMaterial | null = null;
@@ -28,12 +30,14 @@ export class FlightView extends WorldViewBase implements IFlightView {
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
     this._config = resolver.getInstance(BubbleShooterConfig);
+    this._clipping = resolver.getInstance(PlayAreaClipping);
   }
 
   public override postInitialize(): void {
     super.postInitialize();
     const config = this._config;
     if (!config) return;
+    const clippingPlanes = this._clipping?.planes;
     this._bubbleGeometry = new THREE.CircleGeometry(
       config.bubbleRadius * BUBBLE_VISUAL_RADIUS_FACTOR,
       BUBBLE_DISC_SEGMENTS,
@@ -43,19 +47,19 @@ export class FlightView extends WorldViewBase implements IFlightView {
       this._bubbleMaterials.set(
         color,
         tex
-          ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
-          : new THREE.MeshBasicMaterial({ color: BUBBLE_COLOR_HEX[color], transparent: true, depthWrite: false }),
+          ? new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, clippingPlanes })
+          : new THREE.MeshBasicMaterial({ color: BUBBLE_COLOR_HEX[color], transparent: true, depthWrite: false, clippingPlanes }),
       );
     }
 
     const bombTex = this.assetLoader.getAsset<THREE.Texture>(BubbleShooterAssetIds.BombBubble);
     this._bombMaterial = bombTex
-      ? new THREE.MeshBasicMaterial({ map: bombTex, transparent: true, depthWrite: false })
-      : new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, depthWrite: false });
+      ? new THREE.MeshBasicMaterial({ map: bombTex, transparent: true, depthWrite: false, clippingPlanes })
+      : new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, depthWrite: false, clippingPlanes });
     const fireballTex = this.assetLoader.getAsset<THREE.Texture>(BubbleShooterAssetIds.FireballBubble);
     this._fireballMaterial = fireballTex
-      ? new THREE.MeshBasicMaterial({ map: fireballTex, transparent: true, depthWrite: false })
-      : new THREE.MeshBasicMaterial({ color: 0xff5522, transparent: true, depthWrite: false });
+      ? new THREE.MeshBasicMaterial({ map: fireballTex, transparent: true, depthWrite: false, clippingPlanes })
+      : new THREE.MeshBasicMaterial({ color: 0xff5522, transparent: true, depthWrite: false, clippingPlanes });
 
     const bubbleStartMat = this._bubbleMaterials.values().next().value;
     if (bubbleStartMat) {
