@@ -157,27 +157,31 @@ export class GameOperations implements IInjectionTarget {
 
     // Apply per-level layout overrides BEFORE any new placements so
     // wall positions, cell coordinates, and grid shape all reflect
-    // the new width. Falls back to the config default when the level
-    // doesn't override. Order: clear old grid (using old shape) →
-    // update layout → rebuild grid (new shape) → emit so views
-    // rebuild their layout-derived geometry → apply placements.
+    // the new width and initial-hidden-rows offset. A single
+    // `onLayoutChanged` emit covers both width and descent resets —
+    // the view snaps its visual state to the new layout. The
+    // `onGridDescended` event is reserved for IN-GAME single-row
+    // descents (which animate); level loads must NOT animate.
+    let layoutChanged = false;
+
     const targetWidth = level.wideRowColumns ?? this._config!.wideRowColumns;
     if (targetWidth !== this._layout!.wideRowColumns) {
       this._layout!.setWideRowColumns(targetWidth);
       this._grid!.rebuild();
-      this._events!.emitLayoutChanged();
+      layoutChanged = true;
     }
 
-    // Initial descend offset: a positive `initialHiddenRows` value
-    // shifts the grid UP by that many rows, hiding the top N rows
-    // above the viewport. Stored as a NEGATIVE descend offset so
-    // each subsequent descent moves toward zero and beyond.
+    // Positive `initialHiddenRows` shifts the grid UP by that many
+    // rows; stored as a NEGATIVE descend offset so subsequent
+    // descents climb back toward zero.
     const initialHidden = level.initialHiddenRows ?? 0;
     const targetDescend = -initialHidden;
     if (targetDescend !== this._layout!.descendOffsetRows) {
       this._layout!.setDescendOffsetRows(targetDescend);
-      this._events!.emitGridDescended();
+      layoutChanged = true;
     }
+
+    if (layoutChanged) this._events!.emitLayoutChanged();
     this._shotsSinceDescend = 0;
 
     if (level.placements === null) {
@@ -252,11 +256,14 @@ export class GameOperations implements IInjectionTarget {
   /**
    * Hook called at the end of each fully-resolved shot (regular
    * snap, cluster pop completion, bomb explosion, fireball exit).
-   * Advances the descending-ceiling counter and triggers a descent
-   * + loss re-check when the threshold is reached.
+   * Advances the descending-ceiling counter only when the shot
+   * didn't pop any bubble; pop shots leave the counter unchanged
+   * (no increment, no reset). Triggers a descent + loss re-check
+   * when the counter reaches the threshold.
    */
-  private _onShotResolved(): void {
+  private _onShotResolved(poppedAny: boolean): void {
     if (this._isWon || this._isLost) return;
+    if (poppedAny) return;
     this._shotsSinceDescend++;
     if (this._shotsSinceDescend < this._config!.shotsPerDescend) return;
     this._shotsSinceDescend = 0;
@@ -513,16 +520,20 @@ export class GameOperations implements IInjectionTarget {
     this._events!.emitShooterAimChanged(angle);
 
     if (this._state !== "idle") return;
-    // Bomb mode is restricted to visible bubbles (its blast must
-    // stay in the play area); a regular bubble travels through the
-    // full grid (including hidden upper rows) to reach the cluster
-    // and must snap connected (cluster-adjacent or row 0) so it
-    // never floats in an empty pocket after a descent.
-    const isBomb = this._shooter!.isBomb;
-    const trajectory = this._aimCalculator!.compute(angle, {
-      onlyVisible: isBomb,
-      requireConnection: !isBomb,
-    });
+    // Three trajectory modes per held-slot kind:
+    //   - regular bubble: full grid (visible + hidden) is collision
+    //     space, snap must be cluster-connected, side walls bounce.
+    //   - bomb: visible cells only (blast stays in viewport), side
+    //     walls bounce, snap can be any close empty cell.
+    //   - fireball: straight line, no bounces, no landing snap —
+    //     mirrors the actual fireball flight.
+    const shooter = this._shooter!;
+    const trajectory = shooter.isFireball
+      ? this._aimCalculator!.computeStraightLine(angle)
+      : this._aimCalculator!.compute(angle, {
+          onlyVisible: shooter.isBomb,
+          requireConnection: !shooter.isBomb,
+        });
     this._events!.emitAimTrajectoryChanged(trajectory);
   }
 
@@ -749,7 +760,9 @@ export class GameOperations implements IInjectionTarget {
     this._state = "idle";
     this._checkLoss();
     if (this._isLost) return;
-    this._onShotResolved();
+    // Snap without forming a popping cluster — counts as a non-pop
+    // shot toward the descent threshold.
+    this._onShotResolved(false);
     if (this._isLost) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
@@ -800,7 +813,8 @@ export class GameOperations implements IInjectionTarget {
     this._validateShooterColors();
     this._checkWin();
     if (this._isWon) return;
-    this._onShotResolved();
+    // Bomb counts as a pop shot if it actually destroyed any cells.
+    this._onShotResolved(this._popIndexInSession > 0);
     if (this._isLost) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
@@ -895,7 +909,9 @@ export class GameOperations implements IInjectionTarget {
     this._validateShooterColors();
     this._checkWin();
     if (this._isWon) return;
-    this._onShotResolved();
+    // Fireball counts as a pop shot if its straight-line flight
+    // popped at least one cluster cell.
+    this._onShotResolved(this._popIndexInSession > 0);
     if (this._isLost) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }
@@ -973,7 +989,9 @@ export class GameOperations implements IInjectionTarget {
     this._validateShooterColors();
     this._checkWin();
     if (this._isWon) return;
-    this._onShotResolved();
+    // Cluster pop always destroyed at least `matchPopThreshold`
+    // cells (the bubble + its match group), so this is a pop shot.
+    this._onShotResolved(true);
     if (this._isLost) return;
     this.aimAt(this._lastAimX, this._lastAimY);
   }

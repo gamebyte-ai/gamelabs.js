@@ -57,6 +57,44 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
     this._grid = resolver.getInstance(IBubbleGrid);
   }
 
+  /**
+   * Straight-line aim preview for power-ups whose actual flight
+   * doesn't bounce — currently the fireball, which plows through
+   * the play area in a single straight line. Single segment from
+   * the shooter tip to the first play-area edge the ray crosses;
+   * no reflections, no landing snap (the projectile doesn't
+   * settle into a cell). Uses the viewport `topWallY` rather
+   * than the grid ceiling because fireballs travel through the
+   * ceiling region and exit at the play-area top edge.
+   */
+  public computeStraightLine(angle: number): IAimTrajectory {
+    const config = this._config;
+    const layout = this._layout;
+    if (!config || !layout) return EMPTY_TRAJECTORY;
+
+    const dirX = Math.cos(angle);
+    const dirY = Math.sin(angle);
+    if (dirY <= 0) return EMPTY_TRAJECTORY;
+
+    const posX = layout.shooterX + dirX * config.shooterRadius;
+    const posY = layout.shooterY + dirY * config.shooterRadius;
+
+    const wallHit = this._nearestWallHit(posX, posY, dirX, dirY, layout.leftWallX, layout.rightWallX, layout.topWallY);
+    if (!wallHit) return EMPTY_TRAJECTORY;
+
+    const segment: IAimTrajectorySegment = {
+      fromX: posX,
+      fromY: posY,
+      toX: posX + dirX * wallHit.t,
+      toY: posY + dirY * wallHit.t,
+    };
+    return {
+      segments: [segment],
+      end: wallHit.kind === "top" ? "top" : "max-bounces",
+      landing: null,
+    };
+  }
+
   public compute(angle: number, options: IComputeTrajectoryOptions = {}): IAimTrajectory {
     const config = this._config;
     const layout = this._layout;

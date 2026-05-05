@@ -12,9 +12,10 @@ const BUBBLE_VISUAL_RADIUS_FACTOR = 0.94;
 const CELL_RING_SEGMENTS = 32;
 
 interface IBubbleShake {
-  readonly mesh: THREE.Mesh;
-  readonly baseX: number;
-  readonly baseY: number;
+  // Base position is no longer cached on the shake — the per-frame
+  // tick re-queries `layout.getCellWorldPosition` and adds the
+  // descent visual offset, so the shake composes correctly while
+  // the grid is mid-animation.
   readonly dirX: number;
   readonly dirY: number;
   readonly peak: number;
@@ -58,6 +59,15 @@ export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
    * matches `gridWidth`.
    */
   private _ceilingStripMesh: THREE.Mesh | null = null;
+
+  /**
+   * Visual lag for the descent animation. Positive Y offset added
+   * on top of the layout's logical position so meshes visually
+   * sit at their pre-descent location and slide down to zero over
+   * `gridDescentDurationSeconds`. Logical layout is the source of
+   * truth for trajectory + loss check; this is purely cosmetic.
+   */
+  private _descentAnimVisualOffset = 0;
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
@@ -129,6 +139,8 @@ export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
     this._cellOutlineMaterial = new THREE.MeshBasicMaterial({
       color: config.cellOutlineColor,
       side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0,
       clippingPlanes: this._clipping?.planes,
     });
     for (let row = 0; row < layout.rowCount; row++) {
@@ -152,19 +164,6 @@ export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
     this._cellOutlineMaterial = null;
   }
 
-  /**
-   * Rebuild the grid's chrome (cell-outline rings + ceiling
-   * strip) for the current layout. Called by the controller on
-   * `onLayoutChanged` — the per-row column count and the strip's
-   * X-extent both depend on the layout's width.
-   */
-  public rebuildCellOutlines(): void {
-    this._disposeCellOutlines();
-    this._disposeCeilingStrip();
-    this._buildCellOutlines();
-    this._buildCeilingStrip();
-  }
-
   public setBubble(row: number, col: number, color: BubbleColor): void {
     const layout = this._layout;
     const geometry = this._bubbleGeometry;
@@ -172,15 +171,20 @@ export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
     const material = this._bubbleMaterials.get(color);
     if (!material) return;
     const pos = layout.getCellWorldPosition(row, col);
+    // Apply the active descent visual offset so a freshly-snapped
+    // bubble sits in the same animated frame as the rest of the
+    // grid (otherwise it would render at the post-descent target
+    // while the cluster is still mid-animation).
+    const y = pos.y + this._descentAnimVisualOffset;
     const key = this._key(row, col);
     let mesh = this._bubbleMeshes.get(key);
     if (mesh) {
       mesh.material = material;
-      mesh.position.set(pos.x, pos.y, 0);
+      mesh.position.set(pos.x, y, 0);
       return;
     }
     mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(pos.x, pos.y, 0);
+    mesh.position.set(pos.x, y, 0);
     this._bubbleMeshes.set(key, mesh);
     this.add(mesh);
   }
@@ -245,9 +249,6 @@ export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
             dy /= len;
           }
           this._bubbleShakes.set(key, {
-            mesh,
-            baseX: cellPos.x,
-            baseY: cellPos.y,
             dirX: dx,
             dirY: dy,
             peak: ringPeak,
@@ -262,50 +263,103 @@ export class BubbleGridView extends WorldViewBase implements IBubbleGridView {
     }
   }
 
-  public repositionAllBubbles(): void {
+  /**
+   * Kick off the smooth-descent animation for one row pitch.
+   * Logical layout has already advanced (`getCellWorldPosition`
+   * returns post-descent positions); we add `rowPitch` to the
+   * visual offset so the meshes momentarily stay at their old
+   * spot, then `tickGridAnimation` decays it to zero. Snap shakes
+   * keep playing — the per-frame tick composes shake offsets on
+   * top of the live layout + descent offset, so a wobble started
+   * just before the descent continues smoothly through it.
+   */
+  public playDescent(): void {
     const layout = this._layout;
     if (!layout) return;
-    // The grid origin shifted (descending-ceiling). Re-query each
-    // mesh's world position from the layout and snap. Also clear
-    // any in-flight snap shakes — their captured `baseX/baseY`
-    // values are now stale.
+    this._descentAnimVisualOffset += layout.rowPitch;
+  }
+
+  /**
+   * Snap visual state to the current layout — instant, no
+   * animation. Called when the layout itself changes (level load,
+   * width override): rebuilds chrome with the new dimensions,
+   * clears any in-flight shakes (their kinematics are tied to
+   * cells that may no longer exist), and resets the descent
+   * visual offset so meshes sit at logical positions immediately.
+   */
+  public applyLayoutReset(): void {
+    this._disposeCellOutlines();
+    this._disposeCeilingStrip();
+    this._buildCellOutlines();
+    this._buildCeilingStrip();
+    this._descentAnimVisualOffset = 0;
     this._bubbleShakes.clear();
+    this._applyVisualPositions();
+  }
+
+  /**
+   * Per-frame tick for descent + shake animation. Decays the
+   * descent visual offset toward zero (linear over
+   * `gridDescentDurationSeconds` per row), advances each shake's
+   * age + drops finished ones, and re-applies positions to every
+   * bubble mesh, cell outline, and the ceiling strip. Skips work
+   * when nothing is animating.
+   */
+  public tickGridAnimation(dt: number): void {
+    const layout = this._layout;
+    const config = this._config;
+    if (!layout || !config) return;
+
+    const animatingDescent = this._descentAnimVisualOffset > 0;
+    const animatingShake = this._bubbleShakes.size > 0;
+    if (!animatingDescent && !animatingShake) return;
+
+    if (animatingDescent) {
+      const speed = layout.rowPitch / Math.max(0.001, config.gridDescentDurationSeconds);
+      this._descentAnimVisualOffset = Math.max(0, this._descentAnimVisualOffset - speed * dt);
+    }
+
+    if (animatingShake) {
+      for (const [key, shake] of this._bubbleShakes) {
+        shake.age += dt;
+        if (shake.age >= shake.lifetime) this._bubbleShakes.delete(key);
+      }
+    }
+
+    this._applyVisualPositions();
+  }
+
+  /**
+   * Push the current logical layout + descent visual offset +
+   * (optional shake offset) out to every bubble mesh, cell outline
+   * and the ceiling strip. Called both from the per-frame tick and
+   * from `applyLayoutReset` to snap straight to the new layout.
+   */
+  private _applyVisualPositions(): void {
+    const layout = this._layout;
+    if (!layout) return;
+    const offset = this._descentAnimVisualOffset;
     for (const [key, mesh] of this._bubbleMeshes) {
       const sep = key.indexOf("|");
       const row = Number.parseInt(key.slice(0, sep), 10);
       const col = Number.parseInt(key.slice(sep + 1), 10);
       const pos = layout.getCellWorldPosition(row, col);
-      mesh.position.set(pos.x, pos.y, 0);
+      let x = pos.x;
+      let y = pos.y + offset;
+      const shake = this._bubbleShakes.get(key);
+      if (shake) {
+        const t = shake.age;
+        const sineOffset = shake.peak * Math.exp(-shake.decay * t) * Math.sin(shake.omega * t);
+        x += shake.dirX * sineOffset;
+        y += shake.dirY * sineOffset;
+      }
+      mesh.position.set(x, y, 0);
     }
-    // Cell outlines are part of the grid visualisation — they must
-    // travel with the bubbles, otherwise the outlines and bubbles
-    // visually drift apart after a descent.
     for (const o of this._cellOutlines) {
       const pos = layout.getCellWorldPosition(o.row, o.col);
-      o.mesh.position.set(pos.x, pos.y, 0);
+      o.mesh.position.set(pos.x, pos.y + offset, 0);
     }
-    // Ceiling strip sits at the grid's top edge (= gridOriginY).
-    // gridOriginY already factors in the descend offset, so a
-    // single Y assignment keeps it pinned to the grid as it
-    // scrolls.
-    if (this._ceilingStripMesh) this._ceilingStripMesh.position.y = layout.gridOriginY;
-  }
-
-  public updateBubbleShakes(dt: number): void {
-    if (this._bubbleShakes.size === 0) return;
-    for (const [key, shake] of this._bubbleShakes) {
-      shake.age += dt;
-      if (shake.age >= shake.lifetime) {
-        shake.mesh.position.x = shake.baseX;
-        shake.mesh.position.y = shake.baseY;
-        this._bubbleShakes.delete(key);
-        continue;
-      }
-      const t = shake.age;
-      const offset = shake.peak * Math.exp(-shake.decay * t) * Math.sin(shake.omega * t);
-      shake.mesh.position.x = shake.baseX + shake.dirX * offset;
-      shake.mesh.position.y = shake.baseY + shake.dirY * offset;
-    }
+    if (this._ceilingStripMesh) this._ceilingStripMesh.position.y = layout.gridOriginY + offset;
   }
 
   private _key(row: number, col: number): string {

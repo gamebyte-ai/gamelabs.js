@@ -115,11 +115,20 @@ export class BubbleShooterConfig {
   public readonly matchPopThreshold = 3;
 
   /**
-   * Descending-ceiling cadence — every N shots, the entire grid
-   * shifts down by one `rowPitch`. Hidden upper rows come into view;
-   * any bubble crossing the lose line ends the game.
+   * Descending-ceiling cadence — every N consecutive non-pop shots
+   * (shots that didn't pop any bubble), the grid shifts down by one
+   * `rowPitch`. Pops don't reset or advance the counter; only
+   * non-pop shots advance it, and a successful descent resets it
+   * to zero.
    */
   public readonly shotsPerDescend = 3;
+  /**
+   * Duration of the descent animation — the time the grid takes to
+   * smoothly slide down by one `rowPitch`. Logical layout offsets
+   * update instantly so trajectory + loss check use the new state;
+   * the visual lag interpolates over this duration.
+   */
+  public readonly gridDescentDurationSeconds = 0.25;
   /**
    * World-space distance from the shooter's centre up to the lose
    * line. A bubble with `cell.y ≤ shooterY + loseLineDistanceFromShooter`
