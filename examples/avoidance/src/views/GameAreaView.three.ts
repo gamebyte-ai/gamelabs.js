@@ -1,11 +1,14 @@
 import * as THREE from "three";
-import { WorldViewBase, type IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { ParticleBudget, WorldViewBase, type IInstanceResolver, type IParticleEmitter } from "@gamebyte/gamelabsjs";
 import type { IGameAreaView } from "./IGameAreaView";
 import { AvoidanceConfig } from "../AvoidanceConfig.js";
 import { AvoidanceAssetIds } from "../AvoidanceAssetIds.js";
+import { PropulsionEmitter } from "./PropulsionEmitter.js";
+import { ExplosionEmitter } from "./ExplosionEmitter.js";
 
 export class GameAreaView extends WorldViewBase implements IGameAreaView {
   private _config: AvoidanceConfig | null = null;
+  private _budget: ParticleBudget | null = null;
   private _areaSize = 0;
 
   // Game area meshes
@@ -19,9 +22,14 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   private readonly _enemies = new Map<number, THREE.Mesh>();
   private _enemyTexture: THREE.Texture | null = null;
 
+  // FX
+  private _propulsion: PropulsionEmitter | null = null;
+  private _explosion: ExplosionEmitter | null = null;
+
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
     this._config = resolver.getInstance(AvoidanceConfig);
+    this._budget = resolver.getInstance(ParticleBudget);
   }
 
   public override postInitialize(): void {
@@ -81,6 +89,48 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
 
     // Cache enemy texture
     this._enemyTexture = this.assetLoader.getAsset<THREE.Texture>(AvoidanceAssetIds.Enemy) ?? null;
+
+    // Particle FX. Both emitters live in world space (parented to this
+    // view, which sits at the world origin) so spawned particles drift
+    // freely instead of being dragged along with the player.
+    const softTex = this.assetLoader.getAsset<THREE.Texture>(AvoidanceAssetIds.ParticleSoft);
+    const sparkTex = this.assetLoader.getAsset<THREE.Texture>(AvoidanceAssetIds.ParticleSpark);
+    if (!softTex || !sparkTex) throw new Error("Particle textures missing — check loadAssets order");
+    this._propulsion = new PropulsionEmitter(this._budget!, config, softTex);
+    this._explosion = new ExplosionEmitter(this._budget!, config, sparkTex);
+    this.add(this._propulsion);
+    this.add(this._explosion);
+  }
+
+  public get propulsionEmitter(): IParticleEmitter {
+    if (!this._propulsion) throw new Error("propulsionEmitter accessed before postInitialize");
+    return this._propulsion;
+  }
+
+  public get explosionEmitter(): IParticleEmitter {
+    if (!this._explosion) throw new Error("explosionEmitter accessed before postInitialize");
+    return this._explosion;
+  }
+
+  public setPropulsionState(vx: number, vy: number): void {
+    if (!this._propulsion || !this._config) return;
+    const speed = Math.sqrt(vx * vx + vy * vy);
+    if (speed < 1) {
+      this._propulsion.setRate(0);
+      return;
+    }
+    const maxSpeed = this._config.playerSpeed;
+    const ratio = Math.min(1, speed / maxSpeed);
+    this._propulsion.setRate(ratio * this._config.propulsionRateAtMaxSpeed);
+    // Eject opposite to motion direction.
+    const px = this._playerMesh?.position.x ?? 0;
+    const py = this._playerMesh?.position.z ?? 0;
+    this._propulsion.setSpawnState(px, py, -vx / speed, -vy / speed);
+  }
+
+  public spawnExplosion(x: number, y: number): void {
+    if (!this._explosion || !this._config) return;
+    this._explosion.burst(x, y, this._config.explosionBurstCount);
   }
 
   public setPlayerPosition(x: number, y: number): void {
@@ -125,6 +175,11 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   }
 
   public override preDestroy(): void {
+    // Emitters are torn down by the controller (which owns ParticleManager)
+    // before this runs, so nothing to do for them here.
+    this._propulsion = null;
+    this._explosion = null;
+
     this.removeAllEnemies();
 
     if (this._playerMesh) {
@@ -144,5 +199,6 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._borderMeshes.length = 0;
     this._enemyTexture = null;
     this._config = null;
+    this._budget = null;
   }
 }

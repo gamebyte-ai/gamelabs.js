@@ -29,6 +29,30 @@ export class AvoidanceConfig {
   readonly cameraShakeAmplitude = 22;
   readonly cameraShakeDurationMs = 450;
 
+  // Particle FX
+  readonly propulsionParticleSize = 8;
+  readonly propulsionParticleColor = 0x88ee88;
+  readonly propulsionMaxParticles = 200;
+  readonly propulsionLifetimeMin = 0.3;
+  readonly propulsionLifetimeMax = 0.6;
+  readonly propulsionRateAtMaxSpeed = 80; // particles/sec when player is at full speed
+  readonly propulsionEjectSpeedMin = 60;
+  readonly propulsionEjectSpeedMax = 140;
+  readonly propulsionAngleJitterRad = 0.4;
+  readonly propulsionDrag = 1.5;
+  readonly propulsionStartScale = 0.25;
+  readonly propulsionEndScale = 2.5;
+
+  readonly explosionParticleSize = 12;
+  readonly explosionParticleColor = 0xff8844;
+  readonly explosionMaxParticles = 80;
+  readonly explosionLifetimeMin = 0.5;
+  readonly explosionLifetimeMax = 1.0;
+  readonly explosionBurstCount = 30;
+  readonly explosionEjectSpeedMin = 100;
+  readonly explosionEjectSpeedMax = 300;
+  readonly explosionDrag = 2.5;
+
   // Waves
   readonly waveAnnounceDurationMs = 1500;
   readonly waveBaseEnemyCount = 10;

@@ -14,6 +14,8 @@ export type ActiveEnemy = {
 export interface IGameModel {
   readonly playerX: number;
   readonly playerY: number;
+  readonly playerVx: number;
+  readonly playerVy: number;
   readonly enemies: readonly ActiveEnemy[];
   readonly gameOver: boolean;
 }

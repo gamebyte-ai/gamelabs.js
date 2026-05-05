@@ -14,6 +14,8 @@ import {
   ControlType,
   OscStyleIds,
   type OscButtonStyle,
+  ParticleManager,
+  ParticlesBinding,
   StyleManager,
   TimelineBinding,
   TimelineManager,
@@ -43,6 +45,7 @@ export class AvoidanceApp extends GamelabsApp {
   private readonly _gameEvents = new GameEvents();
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _timelineBinding = new TimelineBinding();
+  private readonly _particlesBinding = new ParticlesBinding();
   private readonly _onScreenControlsBinding = new OnScreenControlsBinding();
   // UIComponentsBinding ships the framework default Button skin asset
   // requests + style entry — `GameOverPopupView` resolves
@@ -54,6 +57,7 @@ export class AvoidanceApp extends GamelabsApp {
   private _cameraController: Topdown2dCameraController | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _timelineManager: TimelineManager | null = null;
+  private _particleManager: ParticleManager | null = null;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -62,6 +66,7 @@ export class AvoidanceApp extends GamelabsApp {
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._timelineBinding);
+    this.addModule(this._particlesBinding);
     this.addModule(this._onScreenControlsBinding);
     this.addModule(this._uiComponentsBinding);
   }
@@ -112,6 +117,7 @@ export class AvoidanceApp extends GamelabsApp {
     playerInput.inject(this.diContainer);
 
     this._timelineManager = this.diContainer.getInstance(TimelineManager);
+    this._particleManager = this.diContainer.getInstance(ParticleManager);
     const camera = this.diContainer.getInstance(GameCameraManager);
     this._gameEvents.onGameOver(() =>
       this._timelineManager?.add(
@@ -134,6 +140,8 @@ export class AvoidanceApp extends GamelabsApp {
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, AvoidanceAssetIds.Player, new URL("../assets/player.png", import.meta.url).href));
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, AvoidanceAssetIds.Enemy, new URL("../assets/enemy.png", import.meta.url).href));
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.HudTexture, AvoidanceAssetIds.SlowIcon, new URL("../assets/slow-icon.png", import.meta.url).href));
+    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, AvoidanceAssetIds.ParticleSoft, new URL("../assets/particle-soft.png", import.meta.url).href));
+    this._assetRequestList.addRequest(new AssetRequest(AssetTypes.WorldTexture, AvoidanceAssetIds.ParticleSpark, new URL("../assets/particle-spark.png", import.meta.url).href));
     this.assetManager.loadAll(this._assetRequestList.getRequests());
   }
 
@@ -171,10 +179,15 @@ export class AvoidanceApp extends GamelabsApp {
     super.onStep(timestepSeconds);
     this._timelineManager?.update(timestepSeconds);
     this._cameraManager?.update(timestepSeconds);
+    // Particle manager last: controllers (via UpdateManager.tick) have
+    // already pushed propulsion spawn state to the view this frame, so
+    // the emitters consume the freshest position/direction.
+    this._particleManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {
     this._timelineManager?.cancelAll();
+    this._particleManager?.destroyAll();
     this._cameraController = null;
     this._gameAreaView?.destroy();
     this._gameAreaView = null;
