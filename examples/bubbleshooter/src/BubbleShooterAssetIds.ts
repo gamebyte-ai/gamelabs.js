@@ -35,4 +35,8 @@ export const BUBBLE_COLOR_TO_ASSET_ID: Readonly<Record<BubbleColor, BubbleShoote
   [BubbleColor.Yellow]: BubbleShooterAssetIds.BubbleYellow,
   [BubbleColor.Purple]: BubbleShooterAssetIds.BubblePurple,
   [BubbleColor.Stone]: BubbleShooterAssetIds.BubbleStone,
+  // Power-up grid cells reuse the same world textures the in-flight
+  // bomb / fireball projectiles already use.
+  [BubbleColor.Bomb]: BubbleShooterAssetIds.BombBubble,
+  [BubbleColor.Fireball]: BubbleShooterAssetIds.FireballBubble,
 };

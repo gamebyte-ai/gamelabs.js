@@ -6,6 +6,7 @@ import { BubbleGridView } from "./BubbleGridView.three";
 import { EffectsView } from "./EffectsView.three";
 import { FallingBubblesView } from "./FallingBubblesView.three";
 import { FlightView } from "./FlightView.three";
+import { PowerUpCollectionView } from "./PowerUpCollectionView.three";
 import { ShooterView } from "./ShooterView.three";
 import { PlayAreaClipping } from "./PlayAreaClipping";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
@@ -38,6 +39,7 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
   private _flightView: FlightView | null = null;
   private _fallingBubblesView: FallingBubblesView | null = null;
   private _effectsView: EffectsView | null = null;
+  private _powerUpCollectionView: PowerUpCollectionView | null = null;
 
   private readonly _aimListeners = new Set<(worldX: number, worldY: number) => void>();
   private readonly _fireListeners = new Set<() => void>();
@@ -90,6 +92,11 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this.add(this._fallingBubblesView);
     this._effectsView = this.viewFactory.createView(EffectsView);
     this.add(this._effectsView);
+    // Power-up collection icons render on top of the play area
+    // chrome and are intentionally NOT clipped — they fly past the
+    // border into HUD-button territory.
+    this._powerUpCollectionView = this.viewFactory.createView(PowerUpCollectionView);
+    this.add(this._powerUpCollectionView);
 
     this._attachPointerListener();
   }
@@ -267,6 +274,11 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
 
     // Tear down sub-views before chrome so the scene graph empties
     // child-first (matches how they were added).
+    if (this._powerUpCollectionView) {
+      this.remove(this._powerUpCollectionView);
+      this._powerUpCollectionView.preDestroy();
+      this._powerUpCollectionView = null;
+    }
     if (this._effectsView) {
       this.remove(this._effectsView);
       this._effectsView.preDestroy();

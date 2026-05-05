@@ -41,6 +41,9 @@ import { FloatingBubbleFinder } from "./utilities/FloatingBubbleFinder";
 import { GameAreaView } from "./views/GameAreaView.three";
 import { GameAreaViewController } from "./controllers/GameAreaViewController";
 import { PlayAreaClipping } from "./views/PlayAreaClipping";
+import { PowerUpButtonTargets } from "./views/PowerUpButtonTargets";
+import { PowerUpCollectionView } from "./views/PowerUpCollectionView.three";
+import { PowerUpCollectionViewController } from "./controllers/PowerUpCollectionViewController";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { EffectsView } from "./views/EffectsView.three";
@@ -154,6 +157,10 @@ export class BubbleShooterApp extends GamelabsApp {
     // viewDiContainer. Each bubble-drawing sub-view pulls the same
     // instance and assigns its `.planes` to every bubble material.
     this.viewDiContainer.bindInstance(PlayAreaClipping, new PlayAreaClipping(this._layout));
+    // World-space positions of the HUD power-up buttons. App writes
+    // these on every layout / resize pass; PowerUpCollectionView
+    // reads them as the flight destination.
+    this.viewDiContainer.bindInstance(PowerUpButtonTargets, new PowerUpButtonTargets());
 
     // Top-left score readout via the on-screen-controls Label widget.
     const osc = this.diContainer.getInstance(OnScreenControlManager);
@@ -274,6 +281,7 @@ export class BubbleShooterApp extends GamelabsApp {
     this.viewFactory.register(AimLineView, AimLineViewController);
     this.viewFactory.register(BubbleGridView, BubbleGridViewController);
     this.viewFactory.register(ShooterView, ShooterViewController);
+    this.viewFactory.register(PowerUpCollectionView, PowerUpCollectionViewController);
   }
 
   protected override loadAssets(): void {
@@ -468,6 +476,19 @@ export class BubbleShooterApp extends GamelabsApp {
       this._fireballCountConfig.offsetX = fireballOffsetX - POWER_UP_COUNT_INSET;
       this._fireballCountConfig.offsetY = fireballOffsetY + POWER_UP_COUNT_INSET;
     }
+
+    // Project the BottomRight-anchored button centres into world
+    // coordinates so power-up collection icons can fly from a grid
+    // cell to the right HUD button. Ortho centres at (0, 0) with
+    // `pxPerWorld` = h / orthoSize:
+    //   screenX = width - offsetX  →  worldX = (width/2 - offsetX) / pxPerWorld
+    //   screenY = height - offsetY →  worldY = (offsetY - height/2) / pxPerWorld
+    const targets = this.viewDiContainer.getInstance(PowerUpButtonTargets);
+    targets.setBombTarget((width / 2 - bombOffsetX) / pxPerWorld, (bombOffsetY - height / 2) / pxPerWorld);
+    targets.setFireballTarget(
+      (width / 2 - fireballOffsetX) / pxPerWorld,
+      (fireballOffsetY - height / 2) / pxPerWorld,
+    );
   }
 
   /**

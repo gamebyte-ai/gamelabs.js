@@ -35,6 +35,15 @@ export interface ILevel {
    * with no descent runway.
    */
   readonly initialHiddenRows?: number;
+  /**
+   * After the colour fill + stones, randomly overwrite N occupied
+   * non-stone cells with {@link BubbleColor.Bomb} and
+   * {@link BubbleColor.Fireball}. Cells are picked uniformly without
+   * replacement; if the grid has fewer occupied non-stone cells than
+   * requested, all eligible cells get overwritten and the rest are
+   * skipped silently. Omit to leave a level free of seeded power-ups.
+   */
+  readonly randomPowerUps?: { readonly bombs: number; readonly fireballs: number };
 }
 
 const R = BubbleColor.Red;
@@ -68,6 +77,10 @@ export const LEVELS: readonly ILevel[] = [
       { row: 6, col: 5 },
       { row: 9, col: 8 },
     ],
+    // Seed the level with a couple of harvestable power-ups so the
+    // player can experience the collection mechanic on the very
+    // first shot — ahead of the inventory starting at 1 each.
+    randomPowerUps: { bombs: 2, fireballs: 1 },
   },
   {
     id: "level-2",

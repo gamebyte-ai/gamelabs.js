@@ -1,6 +1,6 @@
 import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
-import { BUBBLE_COLORS, BubbleColor } from "../constants/BubbleColor";
-import { GameEvents } from "../events/GameEvents";
+import { BUBBLE_COLORS, BubbleColor, isPowerUpColor } from "../constants/BubbleColor";
+import { GameEvents, type PowerUpKind } from "../events/GameEvents";
 import { BubbleGrid } from "../models/BubbleGrid";
 import { Shooter } from "../models/Shooter";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
@@ -42,6 +42,17 @@ interface IFireballState {
   y: number;
   readonly vx: number;
   readonly vy: number;
+}
+
+/**
+ * In-flight power-up collection — one entry per icon currently animating
+ * from a grid cell toward its HUD button. The model defers the matching
+ * inventory bump until `t` reaches `powerUpCollectDurationSeconds` so the
+ * button's badge ticks up exactly when the visual arrives.
+ */
+interface IPendingCollection {
+  readonly kind: PowerUpKind;
+  t: number;
 }
 
 /**
@@ -115,6 +126,13 @@ export class GameOperations implements IInjectionTarget {
    * via `_promoteNextBubble`) and on level reset.
    */
   private _preHeldColor: BubbleColor | null = null;
+  /**
+   * In-flight power-up collections. Each entry's timer ticks every
+   * frame regardless of state; on completion the matching inventory
+   * bumps and a `count-changed` event fires so the badge label
+   * updates the moment the icon visually arrives at the button.
+   */
+  private readonly _pendingCollections: IPendingCollection[] = [];
   private _lastAimX = 0;
   private _lastAimY = 0;
 
@@ -215,6 +233,13 @@ export class GameOperations implements IInjectionTarget {
       }
     }
 
+    // Power-up seeding goes LAST so bombs / fireballs can land on
+    // any colour cell the previous steps placed (but never overwrite
+    // a stone — the stone marker stays where the level set it).
+    if (level.randomPowerUps) {
+      this._placeRandomPowerUps(level.randomPowerUps.bombs, level.randomPowerUps.fireballs);
+    }
+
     this._score!.reset();
     this._events!.emitScoreChanged(0);
     this._bombCount = this._config!.initialBombCount;
@@ -236,6 +261,52 @@ export class GameOperations implements IInjectionTarget {
     }
     this._emitPowerUpAvailability();
     this.aimAt(this._lastAimX, this._lastAimY);
+  }
+
+  /**
+   * Pick `bombs + fireballs` random occupied non-stone cells and
+   * overwrite each with the matching power-up colour. Cells are
+   * sampled uniformly without replacement; if the grid has fewer
+   * eligible cells than requested, all eligible ones get
+   * overwritten and the remainder is silently skipped. Called once
+   * per level load against an already-populated grid.
+   */
+  private _placeRandomPowerUps(bombs: number, fireballs: number): void {
+    const total = bombs + fireballs;
+    if (total <= 0) return;
+    const grid = this._grid!;
+    const events = this._events!;
+    interface ICell { row: number; col: number }
+    const candidates: ICell[] = [];
+    for (let row = 0; row < grid.rowCount; row++) {
+      const cols = grid.getColumnCount(row);
+      for (let col = 0; col < cols; col++) {
+        const c = grid.getColor(row, col);
+        // Skip empty + stone cells — power-ups overwrite a regular
+        // colour bubble so the cluster topology stays connected.
+        if (c === null || c === BubbleColor.Stone) continue;
+        candidates.push({ row, col });
+      }
+    }
+    // Fisher-Yates shuffle, truncated to `total` picks.
+    const picks = Math.min(total, candidates.length);
+    for (let i = 0; i < picks; i++) {
+      const j = i + Math.floor(Math.random() * (candidates.length - i));
+      const tmp = candidates[i]!;
+      candidates[i] = candidates[j]!;
+      candidates[j] = tmp;
+    }
+    let i = 0;
+    for (let b = 0; b < bombs && i < picks; b++, i++) {
+      const cell = candidates[i]!;
+      grid.setColor(cell.row, cell.col, BubbleColor.Bomb);
+      events.emitBubblePlaced(cell.row, cell.col, BubbleColor.Bomb);
+    }
+    for (let f = 0; f < fireballs && i < picks; f++, i++) {
+      const cell = candidates[i]!;
+      grid.setColor(cell.row, cell.col, BubbleColor.Fireball);
+      events.emitBubblePlaced(cell.row, cell.col, BubbleColor.Fireball);
+    }
   }
 
   /**
@@ -352,6 +423,11 @@ export class GameOperations implements IInjectionTarget {
     this._popIndexInSession = 0;
     for (const f of this._falling) events.emitFallingBubbleChanged(f.id, null, f.x, f.y);
     this._falling.length = 0;
+    // Drop in-flight power-up collections silently — the new level
+    // resets inventory to its initial values, so there's nothing to
+    // credit. The collection view clears its on-screen icons on the
+    // same layout-changed emit that follows.
+    this._pendingCollections.length = 0;
     let modeChanged = false;
     if (this._shooter?.isBomb) {
       this._shooter.setIsBomb(false);
@@ -462,7 +538,8 @@ export class GameOperations implements IInjectionTarget {
       const cols = grid.getColumnCount(row);
       for (let col = 0; col < cols; col++) {
         const c = grid.getColor(row, col);
-        if (c !== null && c !== BubbleColor.Stone) set.add(c);
+        // Stones and power-up cells are not playable shooter colours.
+        if (c !== null && c !== BubbleColor.Stone && !isPowerUpColor(c)) set.add(c);
       }
     }
     return [...set];
@@ -497,7 +574,11 @@ export class GameOperations implements IInjectionTarget {
       this._events!.emitShooterControlsLocked(true);
       this._emitPowerUpAvailability();
     }
+    // Defer the win latch until both falling bubbles AND in-flight
+    // power-up collections have finished — otherwise the win message
+    // can pop up over a still-flying collection icon.
     if (this._falling.length > 0) return;
+    if (this._pendingCollections.length > 0) return;
     this._winLatched = true;
     this._events!.emitGameWonChanged(true);
   }
@@ -787,9 +868,12 @@ export class GameOperations implements IInjectionTarget {
   }
 
   public update(dt: number): void {
-    // Falling bubbles tick every frame regardless of state — they're
-    // already detached from the grid, so flight + popping carry on
-    // independently.
+    // Power-up collections + falling bubbles tick every frame
+    // regardless of state — both are visual pipelines independent of
+    // flight / pop / swap. Collections come first so a finished
+    // collection can re-enter `_checkWin` even when the falling
+    // pipeline is empty.
+    if (this._pendingCollections.length > 0) this._tickCollections(dt);
     if (this._falling.length > 0) this._updateFalling(dt);
 
     if (this._state === "swapping") {
@@ -916,6 +1000,9 @@ export class GameOperations implements IInjectionTarget {
     for (const cell of targets) {
       const color = grid.getColor(cell.row, cell.col);
       if (color === null) continue;
+      // Power-up cells survive direct bomb hits — adjacency
+      // collection picks them up via the neighbour scan below.
+      if (isPowerUpColor(color)) continue;
       const pos = layout.getCellWorldPosition(cell.row, cell.col);
       if (pos.y > visibleCutoff) continue;
       this._popIndexInSession++;
@@ -925,6 +1012,7 @@ export class GameOperations implements IInjectionTarget {
       events.emitBubblePopped(pos.x, pos.y, color, points);
       grid.setColor(cell.row, cell.col, null);
       events.emitBubbleRemoved(cell.row, cell.col);
+      this._collectAdjacentPowerUps(cell.row, cell.col);
     }
 
     // Reuse the floating-drop machinery so disconnected chunks fall
@@ -1095,6 +1183,10 @@ export class GameOperations implements IInjectionTarget {
     const layout = this._layout!;
     const color = grid.getColor(cell.row, cell.col);
     if (color === null) return;
+    // Power-up cells aren't popped by direct hits — fireball passes
+    // and individual cluster pops never destroy them. Adjacency
+    // collection (called below) is what removes them from the grid.
+    if (isPowerUpColor(color)) return;
 
     this._popIndexInSession++;
     const points = this._popIndexInSession * this._config!.popPointsStep;
@@ -1105,6 +1197,80 @@ export class GameOperations implements IInjectionTarget {
     events.emitBubblePopped(pos.x, pos.y, color, points);
     grid.setColor(cell.row, cell.col, null);
     events.emitBubbleRemoved(cell.row, cell.col);
+    this._collectAdjacentPowerUps(cell.row, cell.col);
+  }
+
+  /**
+   * Scan the six hex neighbours of `(row, col)` and trigger a
+   * collection for every Bomb / Fireball cell among them. Each
+   * collection clears the cell synchronously, so a cluster pop where
+   * the same power-up sits adjacent to two popped bubbles only
+   * collects it once (the second neighbour's scan finds an empty
+   * cell). Safe to call from every pop site — cluster pop, bomb
+   * blast, fireball pass.
+   */
+  private _collectAdjacentPowerUps(row: number, col: number): void {
+    const grid = this._grid!;
+    const layout = this._layout!;
+    for (const off of layout.getNeighborOffsets(row)) {
+      const nr = row + off.dRow;
+      const nc = col + off.dCol;
+      if (!layout.isInBounds(nr, nc)) continue;
+      const color = grid.getColor(nr, nc);
+      if (!isPowerUpColor(color)) continue;
+      this._collectPowerUpAt(nr, nc, color);
+    }
+  }
+
+  /**
+   * Remove a power-up cell from the grid and start its flight
+   * animation. Inventory bumps + the `count-changed` event fire
+   * later when {@link _tickCollections} reports the icon has reached
+   * the button — the spec requires the badge to tick up exactly on
+   * arrival.
+   */
+  private _collectPowerUpAt(row: number, col: number, color: BubbleColor): void {
+    const grid = this._grid!;
+    const layout = this._layout!;
+    const events = this._events!;
+    const pos = layout.getCellWorldPosition(row, col);
+    grid.setColor(row, col, null);
+    events.emitBubbleRemoved(row, col);
+    const kind: PowerUpKind = color === BubbleColor.Bomb ? "bomb" : "fireball";
+    this._pendingCollections.push({ kind, t: 0 });
+    events.emitPowerUpCollected(kind, pos.x, pos.y);
+  }
+
+  /**
+   * Advance every in-flight power-up collection. When `t` clears
+   * the configured duration the matching inventory increments and
+   * the count event fires — by then the view's icon has reached the
+   * HUD button. Re-runs `_checkWin` so a collection finishing after
+   * the grid emptied + falling bubbles cleared can still latch the
+   * win.
+   */
+  private _tickCollections(dt: number): void {
+    const duration = this._config!.powerUpCollectDurationSeconds;
+    const events = this._events!;
+    let arrived = false;
+    for (let i = this._pendingCollections.length - 1; i >= 0; i--) {
+      const p = this._pendingCollections[i]!;
+      p.t += dt;
+      if (p.t < duration) continue;
+      if (p.kind === "bomb") {
+        this._bombCount++;
+        events.emitBombCountChanged(this._bombCount);
+      } else {
+        this._fireballCount++;
+        events.emitFireballCountChanged(this._fireballCount);
+      }
+      this._emitPowerUpAvailability();
+      this._pendingCollections.splice(i, 1);
+      arrived = true;
+    }
+    if (arrived && this._isWon && !this._winLatched && this._falling.length === 0) {
+      this._checkWin();
+    }
   }
 
   private _finishPopping(): void {
@@ -1148,6 +1314,12 @@ export class GameOperations implements IInjectionTarget {
     for (const cell of floating) {
       const color = grid.getColor(cell.row, cell.col);
       if (color === null) continue;
+      // Disconnected power-up bubbles fly straight to their button
+      // (rule b) instead of joining the falling-bubble physics.
+      if (isPowerUpColor(color)) {
+        this._collectPowerUpAt(cell.row, cell.col, color);
+        continue;
+      }
       const pos = layout.getCellWorldPosition(cell.row, cell.col);
       pending.push({ row: cell.row, col: cell.col, color, x: pos.x, y: pos.y });
       cx += pos.x;

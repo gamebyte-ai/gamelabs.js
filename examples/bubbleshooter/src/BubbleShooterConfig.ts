@@ -148,8 +148,12 @@ export class BubbleShooterConfig {
   public readonly loseLineColor = 0xff5060;
   public readonly loseLineThickness = 2;
 
-  /** Bomb power-up inventory at game / level start. */
-  public readonly initialBombCount = 3;
+  /**
+   * Bomb power-up inventory at game / level start. Power-ups are
+   * primarily harvested from the grid via collection, so the
+   * starting count is just a single seed.
+   */
+  public readonly initialBombCount = 1;
   /**
    * Number of hex rings the bomb explosion covers around its landing
    * cell. `1` = centre + 6 neighbours (7 cells). `2` = centre + 6 +
@@ -157,8 +161,17 @@ export class BubbleShooterConfig {
    */
   public readonly bombBlastRingCount = 2;
 
-  /** Fireball power-up inventory at game / level start. */
-  public readonly initialFireballCount = 3;
+  /** Fireball power-up inventory at game / level start. See {@link initialBombCount}. */
+  public readonly initialFireballCount = 1;
+  /**
+   * Duration of the power-up collection animation — time from the
+   * grid-cell origin to the matching HUD button. Eased with a cubic
+   * t³ ramp so the icon starts slow and accelerates as it
+   * approaches. The model defers the inventory bump until this
+   * timer expires so the visible badge count always ticks up the
+   * moment the icon arrives.
+   */
+  public readonly powerUpCollectDurationSeconds = 0.6;
   /** Fireball flight speed in world units per second. */
   public readonly fireballSpeed = 1500;
   /**

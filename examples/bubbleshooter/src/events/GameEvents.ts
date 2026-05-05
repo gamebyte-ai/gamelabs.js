@@ -24,6 +24,14 @@ type VoidCb = () => void;
 type CellCb = (row: number, col: number) => void;
 type RowsCb = (rows: number) => void;
 
+/**
+ * Power-up collection identity. The `kind` matches the corresponding
+ * `Bomb` / `Fireball` cell color and routes the visual to the right
+ * HUD button.
+ */
+export type PowerUpKind = "bomb" | "fireball";
+type PowerUpCollectedCb = (kind: PowerUpKind, fromX: number, fromY: number) => void;
+
 export class GameEvents {
   private readonly _bubblePlacedListeners = new Set<BubblePlacedCb>();
   private readonly _bubbleRemovedListeners = new Set<BubbleRemovedCb>();
@@ -53,6 +61,7 @@ export class GameEvents {
   private readonly _bubbleSnappedListeners = new Set<CellCb>();
   private readonly _layoutChangedListeners = new Set<VoidCb>();
   private readonly _gridDescendedListeners = new Set<RowsCb>();
+  private readonly _powerUpCollectedListeners = new Set<PowerUpCollectedCb>();
 
   public onBubblePlaced(cb: BubblePlacedCb): Unsubscribe {
     this._bubblePlacedListeners.add(cb);
@@ -383,5 +392,23 @@ export class GameEvents {
 
   public emitGridDescended(rows: number): void {
     for (const cb of this._gridDescendedListeners) cb(rows);
+  }
+
+  /**
+   * A power-up bubble has just left the grid and started its flight
+   * to the matching HUD button. Carries the world-space cell origin
+   * so the view can spawn an icon there and animate it toward the
+   * button. The model defers its inventory bump (and the matching
+   * `onBombCountChanged` / `onFireballCountChanged` event) until the
+   * animation duration elapses, so the button's badge ticks up
+   * exactly when the icon visually arrives.
+   */
+  public onPowerUpCollected(cb: PowerUpCollectedCb): Unsubscribe {
+    this._powerUpCollectedListeners.add(cb);
+    return () => this._powerUpCollectedListeners.delete(cb);
+  }
+
+  public emitPowerUpCollected(kind: PowerUpKind, fromX: number, fromY: number): void {
+    for (const cb of this._powerUpCollectedListeners) cb(kind, fromX, fromY);
   }
 }
