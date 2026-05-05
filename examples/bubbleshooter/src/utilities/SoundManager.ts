@@ -32,7 +32,7 @@ export class SoundManager implements IInjectionTarget {
   public start(): void {
     const e = this._events!;
     this._subs.add(e.onBubblePopped(() => this._onPop()));
-    this._subs.add(e.onBubbleSnapped(() => this._play(BubbleShooterAssetIds.SoundSnap)));
+    this._subs.add(e.onBubbleSnapped((_r, _c) => this._play(BubbleShooterAssetIds.SoundSnap)));
     this._subs.add(e.onBubbleShotFired(() => this._play(BubbleShooterAssetIds.SoundShoot)));
     this._subs.add(e.onBombExploded(() => this._play(BubbleShooterAssetIds.SoundBomb)));
     this._subs.add(e.onFireballFired(() => this._play(BubbleShooterAssetIds.SoundFireball)));

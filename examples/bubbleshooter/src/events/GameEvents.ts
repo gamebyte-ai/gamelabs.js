@@ -21,6 +21,7 @@ type ControlsLockedCb = (locked: boolean) => void;
 type PowerUpAvailabilityCb = (bombEnabled: boolean, fireballEnabled: boolean) => void;
 type ShooterSwapCb = (newHeld: BubbleColor, newNext: BubbleColor) => void;
 type VoidCb = () => void;
+type CellCb = (row: number, col: number) => void;
 
 export class GameEvents {
   private readonly _bubblePlacedListeners = new Set<BubblePlacedCb>();
@@ -43,11 +44,12 @@ export class GameEvents {
   private readonly _gameOverListeners = new Set<GameOverCb>();
   private readonly _controlsLockedListeners = new Set<ControlsLockedCb>();
   private readonly _powerUpAvailabilityListeners = new Set<PowerUpAvailabilityCb>();
+  private readonly _aimPowerUpModeListeners = new Set<BoolCb>();
   private readonly _shooterSwapListeners = new Set<ShooterSwapCb>();
   private readonly _bubbleShotFiredListeners = new Set<VoidCb>();
   private readonly _bombExplodedListeners = new Set<VoidCb>();
   private readonly _fireballFiredListeners = new Set<VoidCb>();
-  private readonly _bubbleSnappedListeners = new Set<VoidCb>();
+  private readonly _bubbleSnappedListeners = new Set<CellCb>();
 
   public onBubblePlaced(cb: BubblePlacedCb): Unsubscribe {
     this._bubblePlacedListeners.add(cb);
@@ -268,6 +270,20 @@ export class GameEvents {
   }
 
   /**
+   * Combined "any power-up loaded into the held slot" signal — the
+   * OR of bomb-mode and fireball-mode. Drives the aim line's red /
+   * white tint without having a controller mirror the two booleans.
+   */
+  public onAimPowerUpModeChanged(cb: BoolCb): Unsubscribe {
+    this._aimPowerUpModeListeners.add(cb);
+    return () => this._aimPowerUpModeListeners.delete(cb);
+  }
+
+  public emitAimPowerUpModeChanged(active: boolean): void {
+    for (const cb of this._aimPowerUpModeListeners) cb(active);
+  }
+
+  /**
    * Held ↔ next swap. Driven by `swap()`; carries the new (post-swap)
    * colours so the view can run a position-swap animation and apply
    * the materials at the end. Standard `onShooterColorChanged` /
@@ -316,15 +332,17 @@ export class GameEvents {
 
   /**
    * A fired bubble has just settled into its landing cell (non-bomb
-   * snap). Cue the tink SFX. Distinct from `onBubblePlaced` so initial
-   * level layout doesn't fire a snap per cell.
+   * snap). Cues the tink SFX and the neighbour-shake animation;
+   * carries the snapped cell so listeners can find the neighbours.
+   * Distinct from `onBubblePlaced` so initial level layout doesn't
+   * fire a snap per cell.
    */
-  public onBubbleSnapped(cb: VoidCb): Unsubscribe {
+  public onBubbleSnapped(cb: CellCb): Unsubscribe {
     this._bubbleSnappedListeners.add(cb);
     return () => this._bubbleSnappedListeners.delete(cb);
   }
 
-  public emitBubbleSnapped(): void {
-    for (const cb of this._bubbleSnappedListeners) cb();
+  public emitBubbleSnapped(row: number, col: number): void {
+    for (const cb of this._bubbleSnappedListeners) cb(row, col);
   }
 }

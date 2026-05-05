@@ -205,6 +205,18 @@ export class GameOperations implements IInjectionTarget {
     this._events!.emitPowerUpAvailabilityChanged(unlocked && this._bombCount > 0, unlocked && this._fireballCount > 0);
   }
 
+  /**
+   * Combined "any power-up loaded" boolean for the aim line tint —
+   * red while a bomb or fireball is held, white otherwise. Called
+   * from every code path that flips bomb / fireball mode so the
+   * view layer never has to OR the two booleans itself.
+   */
+  private _emitAimPowerUpMode(): void {
+    const shooter = this._shooter;
+    if (!shooter) return;
+    this._events!.emitAimPowerUpModeChanged(shooter.isBomb || shooter.isFireball);
+  }
+
   /** Wipe transient flight / pop / falling / bomb / fireball state and notify the view. */
   private _cancelTransientState(): void {
     const events = this._events!;
@@ -222,14 +234,18 @@ export class GameOperations implements IInjectionTarget {
     this._popIndexInSession = 0;
     for (const f of this._falling) events.emitFallingBubbleChanged(f.id, null, f.x, f.y);
     this._falling.length = 0;
+    let modeChanged = false;
     if (this._shooter?.isBomb) {
       this._shooter.setIsBomb(false);
       events.emitShooterBombChanged(false);
+      modeChanged = true;
     }
     if (this._shooter?.isFireball) {
       this._shooter.setIsFireball(false);
       events.emitShooterFireballChanged(false);
+      modeChanged = true;
     }
+    if (modeChanged) this._emitAimPowerUpMode();
     this._state = "idle";
   }
 
@@ -507,6 +523,7 @@ export class GameOperations implements IInjectionTarget {
       this._bombCount = Math.max(0, this._bombCount - 1);
       this._events!.emitBombCountChanged(this._bombCount);
       this._emitPowerUpAvailability();
+      this._emitAimPowerUpMode();
     } else {
       this._events!.emitFlyingBubbleChanged(heldColor, start.fromX, start.fromY);
       this._events!.emitBubbleShotFired();
@@ -537,6 +554,7 @@ export class GameOperations implements IInjectionTarget {
     this._setHeldColor(null);
     shooter.setIsBomb(true);
     this._events!.emitShooterBombChanged(true);
+    this._emitAimPowerUpMode();
   }
 
   /**
@@ -557,6 +575,7 @@ export class GameOperations implements IInjectionTarget {
     this._setHeldColor(null);
     shooter.setIsFireball(true);
     this._events!.emitShooterFireballChanged(true);
+    this._emitAimPowerUpMode();
   }
 
   public update(dt: number): void {
@@ -635,7 +654,7 @@ export class GameOperations implements IInjectionTarget {
     grid.setColor(landing.row, landing.col, color);
     events.emitBubblePlaced(landing.row, landing.col, color);
     events.emitFlyingBubbleChanged(null, 0, 0);
-    events.emitBubbleSnapped();
+    events.emitBubbleSnapped(landing.row, landing.col);
 
     const group = this._matchFinder!.findConnectedGroup(landing.row, landing.col);
     this._flying = null;
@@ -735,6 +754,7 @@ export class GameOperations implements IInjectionTarget {
     this._fireballCount = Math.max(0, this._fireballCount - 1);
     events.emitFireballCountChanged(this._fireballCount);
     this._emitPowerUpAvailability();
+    this._emitAimPowerUpMode();
     this._promoteNextBubble();
   }
 

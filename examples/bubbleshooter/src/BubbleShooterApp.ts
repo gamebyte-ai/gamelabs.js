@@ -37,6 +37,19 @@ import { GameAreaView } from "./views/GameAreaView.three";
 import { GameAreaViewController } from "./controllers/GameAreaViewController";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
+import { EffectsView } from "./views/EffectsView.three";
+import { EffectsViewController } from "./controllers/EffectsViewController";
+import { FallingBubblesView } from "./views/FallingBubblesView.three";
+import { FallingBubblesViewController } from "./controllers/FallingBubblesViewController";
+import { FlightView } from "./views/FlightView.three";
+import { FlightViewController } from "./controllers/FlightViewController";
+import { AimLineView } from "./views/AimLineView.three";
+import { AimLineViewController } from "./controllers/AimLineViewController";
+import { BubbleGridView } from "./views/BubbleGridView.three";
+import { BubbleGridViewController } from "./controllers/BubbleGridViewController";
+import { ShooterView } from "./views/ShooterView.three";
+import { ShooterViewController } from "./controllers/ShooterViewController";
+import { HudHookupManager } from "./utilities/HudHookupManager";
 import { SoundManager } from "./utilities/SoundManager";
 import { SoundSynth } from "./utilities/SoundSynth";
 
@@ -76,6 +89,7 @@ export class BubbleShooterApp extends GamelabsApp {
   private _cameraManager: GameCameraManager | null = null;
   private _cameraController: Front2dCameraController | null = null;
   private _soundManager: SoundManager | null = null;
+  private _hudHookupManager: HudHookupManager | null = null;
 
   // Power-up button + count configs are kept by reference so resize can
   // reposition them against the play area's bottom-right corner (rather
@@ -212,6 +226,12 @@ export class BubbleShooterApp extends GamelabsApp {
   protected override configureViews(): void {
     this.viewFactory.registerScreen(BubbleShooterUIIds.GameScreen, GameScreenView, GameScreenViewController);
     this.viewFactory.register(GameAreaView, GameAreaViewController);
+    this.viewFactory.register(EffectsView, EffectsViewController);
+    this.viewFactory.register(FallingBubblesView, FallingBubblesViewController);
+    this.viewFactory.register(FlightView, FlightViewController);
+    this.viewFactory.register(AimLineView, AimLineViewController);
+    this.viewFactory.register(BubbleGridView, BubbleGridViewController);
+    this.viewFactory.register(ShooterView, ShooterViewController);
   }
 
   protected override loadAssets(): void {
@@ -311,6 +331,10 @@ export class BubbleShooterApp extends GamelabsApp {
     this._soundManager = new SoundManager();
     this._soundManager.inject(this.diContainer);
     this._soundManager.start();
+
+    this._hudHookupManager = new HudHookupManager();
+    this._hudHookupManager.inject(this.diContainer);
+    this._hudHookupManager.start();
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
@@ -391,6 +415,8 @@ export class BubbleShooterApp extends GamelabsApp {
   }
 
   protected override preDestroy(): void {
+    this._hudHookupManager?.destroy();
+    this._hudHookupManager = null;
     this._soundManager?.destroy();
     this._soundManager = null;
     this._cameraController = null;

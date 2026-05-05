@@ -115,6 +115,35 @@ export class BubbleShooterConfig {
   public readonly popParticleLifetimeSeconds = 0.45;
   public readonly popParticleRadius = 3;
 
+  /**
+   * Snap shake — when a fired bubble settles into the grid, its hex
+   * neighbours wobble outward (away from the snap cell) along a
+   * damped sine, then oscillate through their resting positions a
+   * couple of times before settling back. The motion is
+   * `offset(t) = peak · exp(-decay·t) · sin(2π·freq·t)` so each
+   * bubble starts at rest, snaps out, then jellies in/out with
+   * shrinking amplitude.
+   *
+   * The shake propagates over {@link snapShakeRingCount} hex rings;
+   * each successive ring's peak is scaled by
+   * {@link snapShakeRingFalloff}^(depth-1) so closer bubbles wobble
+   * more strongly.
+   */
+  public readonly snapShakePeakOffset = 8.0;
+  public readonly snapShakeDurationSeconds = 0.82;
+  /** Hex-ring depth the wobble propagates to (1 = immediate neighbours only). */
+  public readonly snapShakeRingCount = 3;
+  /** Per-ring peak multiplier. Ring `d` peak = `peak · falloff^(d-1)`. */
+  public readonly snapShakeRingFalloff = 0.7;
+  /** Wobble frequency in Hz — controls how many times the bubble swings within the lifetime. */
+  public readonly snapShakeFrequencyHz = 4.2;
+  /**
+   * Damping coefficient. Amplitude at time `t` is multiplied by
+   * `exp(-decay·t)`; tuned so that by `snapShakeDurationSeconds` the
+   * bubble has decayed to ~5 % of its peak. Higher = settles faster.
+   */
+  public readonly snapShakeDecayRate = 7.5;
+
   /** Score-popup lifetime in seconds (text fades to zero opacity by then). */
   public readonly scorePopupLifetimeSeconds = 0.75;
   /** World units the score popup rises over its lifetime. */

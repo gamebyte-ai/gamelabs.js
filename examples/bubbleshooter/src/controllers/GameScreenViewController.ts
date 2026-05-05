@@ -4,6 +4,13 @@ import { GameEvents } from "../events/GameEvents";
 import { GameOperations } from "../utilities/GameOperations";
 import { BubbleShooterUIIds } from "../BubbleShooterUIIds";
 
+/**
+ * Thin screen-controller for the HUD: routes the score readout and
+ * the dev-only level-dropdown change. The other HUD writes (bomb /
+ * fireball counts, power-up button enable, win / game-over
+ * overlays) are owned by `HudHookupManager` so this controller
+ * stays under the AGENTS.md decomposition-signal threshold.
+ */
 export class GameScreenViewController implements IViewController<IGameScreenView> {
   private _view: IGameScreenView | null = null;
   private readonly _subs = new UnsubscribeBag();
@@ -19,20 +26,11 @@ export class GameScreenViewController implements IViewController<IGameScreenView
 
   public initialize(view: IGameScreenView): void {
     this._view = view;
-    const e = this._gameEvents!;
     const osc = this._osc!;
-    this._subs.add(e.onScoreChanged((value) => osc.setLabelText(BubbleShooterUIIds.ScoreLabel, `Score: ${value}`)));
-    this._subs.add(e.onBombCountChanged((count) => osc.setLabelText(BubbleShooterUIIds.BombCountLabel, `${count}`)));
-    this._subs.add(e.onFireballCountChanged((count) => osc.setLabelText(BubbleShooterUIIds.FireballCountLabel, `${count}`)));
-    this._subs.add(e.onPowerUpAvailabilityChanged((bomb, fireball) => this._onPowerUpAvailability(bomb, fireball)));
-    this._subs.add(e.onGameWonChanged((won) => osc.setControlVisible(BubbleShooterUIIds.WinLabel, won)));
-    this._subs.add(e.onGameOverChanged((over) => osc.setControlVisible(BubbleShooterUIIds.GameOverLabel, over)));
+    this._subs.add(
+      this._gameEvents!.onScoreChanged((value) => osc.setLabelText(BubbleShooterUIIds.ScoreLabel, `Score: ${value}`)),
+    );
     this._subs.add(this._view.onLevelChanged((id) => this._ops?.loadLevel(id)));
-  }
-
-  private _onPowerUpAvailability(bombEnabled: boolean, fireballEnabled: boolean): void {
-    this._osc?.setControlEnabled(BubbleShooterUIIds.BombButton, bombEnabled);
-    this._osc?.setControlEnabled(BubbleShooterUIIds.FireballButton, fireballEnabled);
   }
 
   public destroy(): void {
