@@ -30,6 +30,10 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private _levelDropdown: DropdownComponent | null = null;
   private _levelDropdownChangeUnsub: Unsubscribe | null = null;
   private readonly _levelChangeListeners = new Set<(levelId: string) => void>();
+  // Latest size from `onResize`, cached so `repositionOnScreenControls`
+  // can re-trigger the OSC reposition without a real resize event.
+  private _lastWidth = 0;
+  private _lastHeight = 0;
 
   public override postInitialize(): void {
     super.postInitialize();
@@ -50,6 +54,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
+    this._lastWidth = width;
+    this._lastHeight = height;
     this.layout = {
       width: Math.max(1, width),
       height: Math.max(1, height),
@@ -61,6 +67,11 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._overlay.clear();
     this._overlay.rect(0, 0, Math.max(1, width), Math.max(1, height)).fill({ color: 0x000000, alpha: 0 });
     this._onScreenControls?.resize(width, height);
+  }
+
+  public repositionOnScreenControls(): void {
+    if (this._lastWidth <= 0 || this._lastHeight <= 0) return;
+    this._onScreenControls?.resize(this._lastWidth, this._lastHeight);
   }
 
   public override preDestroy(): void {

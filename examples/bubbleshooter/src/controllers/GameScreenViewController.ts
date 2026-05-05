@@ -31,6 +31,11 @@ export class GameScreenViewController implements IViewController<IGameScreenView
       this._gameEvents!.onScoreChanged((value) => osc.setLabelText(BubbleShooterUIIds.ScoreLabel, `Score: ${value}`)),
     );
     this._subs.add(this._view.onLevelChanged((id) => this._ops?.loadLevel(id)));
+    // Level changes mutate play-area dimensions, which re-routes the
+    // power-up button offsets in `BubbleShooterApp._layoutPowerUpButtons`.
+    // OnScreenControlsView only repositions on its own `resize`, so
+    // poke it with the cached size after the App has updated configs.
+    this._subs.add(this._gameEvents!.onLayoutChanged(() => this._view?.repositionOnScreenControls()));
   }
 
   public destroy(): void {

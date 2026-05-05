@@ -63,16 +63,19 @@ import { SettingsHookupManager } from "./utilities/SettingsHookupManager";
 import { SoundManager } from "./utilities/SoundManager";
 import { SoundSynth } from "./utilities/SoundSynth";
 
-// Power-up button layout. Bomb is anchored to BottomRight; future
-// power-ups stack to its LEFT by adding `(POWER_UP_SIZE + GAP)` to
-// the offsetX of each successive button.
-const POWER_UP_SIZE = 60;
-const POWER_UP_GAP = 14;
-const POWER_UP_OFFSET_Y = 70;
-const POWER_UP_BOMB_OFFSET_X = 60;
-const POWER_UP_FIREBALL_OFFSET_X = POWER_UP_BOMB_OFFSET_X + POWER_UP_SIZE + POWER_UP_GAP;
-/** Half-button inset toward the top-right corner of a button (where the count badge sits). */
-const POWER_UP_COUNT_INSET = 22;
+// Power-up button strip — sits in the bottom margin of the play area
+// (between the play-area's bottom edge and the shooter's bottom),
+// right-aligned. Bomb is rightmost; future power-ups grow leftward
+// from the bomb anchor in `(POWER_UP_SIZE + POWER_UP_GAP)` increments.
+// Sizes are screen pixels (HUD), so they stay constant across grid
+// widths — no overlap with the shooter or next-bubble icon at any
+// `wideRowColumns`.
+const POWER_UP_SIZE = 44;
+const POWER_UP_GAP = 10;
+/** Inset between the rightmost button's right edge and the play-area right edge. */
+const POWER_UP_EDGE_INSET = 8;
+/** Inset from the button centre to the count-badge anchor (top-right of the button). */
+const POWER_UP_COUNT_INSET = 16;
 
 // Settings (gear) button layout — TopRight, screen-anchored. Sized
 // slightly smaller than the power-up buttons so the corner badge feels
@@ -200,21 +203,19 @@ export class BubbleShooterApp extends GamelabsApp {
       text: { color: 0xff6464, fontSize: 64, fontWeight: "800" },
     });
     osc.setControlVisible(BubbleShooterUIIds.GameOverLabel, false);
-    // Power-up buttons stack at the bottom-right. Bomb is rightmost;
-    // future power-ups (currently fireball) sit to its LEFT by
-    // increasing offsetX (BottomRight: bigger offsetX = further LEFT).
-    // Each button gets a separate count Label sitting at the top-right
-    // corner of the button — the framework Button widget has no text
-    // overlay, so a Label per badge is the cleanest path.
-    // Power-up buttons + count badges. Offsets here are placeholders;
-    // _layoutPowerUpButtons computes the real values against the play
-    // area's bottom-right corner on each resize.
+    // Power-up button strip — bomb is rightmost, fireball sits to its
+    // LEFT, each step-left adds `(POWER_UP_SIZE + POWER_UP_GAP)` to
+    // offsetX (BottomRight: bigger offsetX = further LEFT). Concrete
+    // offsets are placeholders here; `_layoutPowerUpButtons` recomputes
+    // them on every resize / layout-change against the play area's
+    // bottom edge so the strip always sits in the gap below the
+    // shooter regardless of grid width.
     this._bombButtonConfig = {
       type: ControlType.Button,
       id: BubbleShooterUIIds.BombButton,
       anchor: ControlAnchor.BottomRight,
-      offsetX: POWER_UP_BOMB_OFFSET_X,
-      offsetY: POWER_UP_OFFSET_Y,
+      offsetX: 0,
+      offsetY: 0,
       size: POWER_UP_SIZE,
       icon: { textureId: BubbleShooterAssetIds.BombIcon, scaleX: 0.7, scaleY: 0.7 },
     };
@@ -223,20 +224,20 @@ export class BubbleShooterApp extends GamelabsApp {
       type: ControlType.Label,
       id: BubbleShooterUIIds.BombCountLabel,
       anchor: ControlAnchor.BottomRight,
-      offsetX: POWER_UP_BOMB_OFFSET_X - POWER_UP_COUNT_INSET,
-      offsetY: POWER_UP_OFFSET_Y + POWER_UP_COUNT_INSET,
+      offsetX: 0,
+      offsetY: 0,
       anchorX: 0.5,
       anchorY: 0.5,
-      content: "3",
-      text: { color: 0xffffff, fontSize: 18, fontWeight: "700" },
+      content: `${this._config.initialBombCount}`,
+      text: { color: 0xffffff, fontSize: 16, fontWeight: "700" },
     };
     osc.addControl(this._bombCountConfig);
     this._fireballButtonConfig = {
       type: ControlType.Button,
       id: BubbleShooterUIIds.FireballButton,
       anchor: ControlAnchor.BottomRight,
-      offsetX: POWER_UP_FIREBALL_OFFSET_X,
-      offsetY: POWER_UP_OFFSET_Y,
+      offsetX: 0,
+      offsetY: 0,
       size: POWER_UP_SIZE,
       icon: { textureId: BubbleShooterAssetIds.FireballIcon, scaleX: 0.7, scaleY: 0.7 },
     };
@@ -245,12 +246,12 @@ export class BubbleShooterApp extends GamelabsApp {
       type: ControlType.Label,
       id: BubbleShooterUIIds.FireballCountLabel,
       anchor: ControlAnchor.BottomRight,
-      offsetX: POWER_UP_FIREBALL_OFFSET_X - POWER_UP_COUNT_INSET,
-      offsetY: POWER_UP_OFFSET_Y + POWER_UP_COUNT_INSET,
+      offsetX: 0,
+      offsetY: 0,
       anchorX: 0.5,
       anchorY: 0.5,
-      content: "3",
-      text: { color: 0xffffff, fontSize: 18, fontWeight: "700" },
+      content: `${this._config.initialFireballCount}`,
+      text: { color: 0xffffff, fontSize: 16, fontWeight: "700" },
     };
     osc.addControl(this._fireballCountConfig);
     // Top-right settings (gear) button. Opens the framework
@@ -361,6 +362,14 @@ export class BubbleShooterApp extends GamelabsApp {
       throw new Error("World or HUD is not initialized");
     }
 
+    // Subscribe BEFORE any sub-view / controller — `GameScreenViewController`
+    // also subscribes to `onLayoutChanged` to push the OSC reposition,
+    // and that must run AFTER this handler has mutated the button
+    // configs against the new play-area dimensions. GameEvents
+    // dispatches in insertion order, so subscribing here puts the App's
+    // mutate step first and the controller's reposition step second.
+    this._layoutChangedUnsub = this._gameEvents.onLayoutChanged(() => this._onLayoutChanged());
+
     this._gameAreaView = this.viewFactory.createView(GameAreaView);
     this.world.addView(this._gameAreaView);
 
@@ -410,12 +419,6 @@ export class BubbleShooterApp extends GamelabsApp {
     this._settingsHookupManager = new SettingsHookupManager();
     this._settingsHookupManager.inject(this.diContainer);
     this._settingsHookupManager.start();
-
-    // Camera fit + power-up button positions both depend on the
-    // play area's width. Re-run them on every layout change so a
-    // per-level `wideRowColumns` override resizes the visible area
-    // and re-anchors the HUD buttons to the new corner.
-    this._layoutChangedUnsub = this._gameEvents.onLayoutChanged(() => this._onLayoutChanged());
   }
 
   private _onLayoutChanged(): void {
@@ -431,18 +434,16 @@ export class BubbleShooterApp extends GamelabsApp {
   }
 
   /**
-   * Reposition the power-up buttons + count badges against the play
-   * area's bottom-right corner (in screen pixels), not the screen's.
-   * The OSC manager re-reads `config.offsetX/Y` on every reposition,
-   * so mutating them in place + relying on the screen view's onResize
-   * → OSC reposition flow is enough to update visuals.
-   *
-   * Math: with the camera ortho-fit so `pxPerWorld = h / orthoSize`,
-   * the play area's right edge sits at `w/2 + halfAreaW * pxPerWorld`
-   * and its bottom at `h/2 + halfAreaH * pxPerWorld`. BottomRight
-   * offsets are measured from the screen's right / bottom edges
-   * inward, so subtract that span and add an inset to land button
-   * centres just inside the play-area corner.
+   * Position the power-up button strip in the bottom margin of the
+   * play area — the gap between the play-area's bottom edge and the
+   * shooter's bottom. Buttons are right-aligned: bomb is rightmost,
+   * fireball one step left, future power-ups grow further leftward
+   * in `(POWER_UP_SIZE + POWER_UP_GAP)` increments. Strip Y is
+   * vertically centred in the (shooterMarginFromBottom − shooterRadius)
+   * gap so buttons can never overlap the shooter or the next-bubble
+   * preview at any grid width. The OSC manager re-reads `config.offsetX/Y`
+   * on every reposition, so mutating in place + the screen view's
+   * onResize → OSC reposition flow is enough to update visuals.
    */
   private _layoutPowerUpButtons(width: number, height: number): void {
     if (width <= 0 || height <= 0) return;
@@ -452,42 +453,55 @@ export class BubbleShooterApp extends GamelabsApp {
     const orthoSize = Math.max(requiredH, requiredW / aspect);
     const pxPerWorld = height / orthoSize;
 
-    const offsetXBase = width / 2 - this._layout.halfAreaWidth * pxPerWorld;
-    const offsetYBase = height / 2 - this._layout.halfAreaHeight * pxPerWorld;
-    const inset = POWER_UP_SIZE / 2 + 8;
-    const bombOffsetX = offsetXBase + inset;
-    const bombOffsetY = offsetYBase + inset;
-    const fireballOffsetX = bombOffsetX + POWER_UP_SIZE + POWER_UP_GAP;
-    const fireballOffsetY = bombOffsetY;
+    // Screen-px distance from the bottom edge of the SCREEN to the
+    // bottom edge of the PLAY AREA (BottomRight anchors measure
+    // offsets from the screen edges inward).
+    const playAreaBottomToScreenBottom = height / 2 - this._layout.halfAreaHeight * pxPerWorld;
+    const playAreaRightToScreenRight = width / 2 - this._layout.halfAreaWidth * pxPerWorld;
 
-    if (this._bombButtonConfig) {
-      this._bombButtonConfig.offsetX = bombOffsetX;
-      this._bombButtonConfig.offsetY = bombOffsetY;
-    }
-    if (this._bombCountConfig) {
-      this._bombCountConfig.offsetX = bombOffsetX - POWER_UP_COUNT_INSET;
-      this._bombCountConfig.offsetY = bombOffsetY + POWER_UP_COUNT_INSET;
-    }
-    if (this._fireballButtonConfig) {
-      this._fireballButtonConfig.offsetX = fireballOffsetX;
-      this._fireballButtonConfig.offsetY = fireballOffsetY;
-    }
-    if (this._fireballCountConfig) {
-      this._fireballCountConfig.offsetX = fireballOffsetX - POWER_UP_COUNT_INSET;
-      this._fireballCountConfig.offsetY = fireballOffsetY + POWER_UP_COUNT_INSET;
-    }
+    // Strip vertical centre = halfway between the play-area bottom
+    // and the shooter's bottom. Bottom-of-shooter sits
+    // `shooterMarginFromBottom − shooterRadius` world units above
+    // the play-area bottom; the strip centre is half that.
+    const stripCentreAboveBottomWorld =
+      (this._config.shooterMarginFromBottom - this._config.shooterRadius) / 2;
+    const buttonOffsetY = playAreaBottomToScreenBottom + stripCentreAboveBottomWorld * pxPerWorld;
+
+    // Right-aligned slots: index 0 = rightmost (bomb). Each slot's
+    // X offset measures the button CENTRE inward from the screen's
+    // right edge.
+    const rightmostOffsetX = playAreaRightToScreenRight + POWER_UP_EDGE_INSET + POWER_UP_SIZE / 2;
+    const slotStep = POWER_UP_SIZE + POWER_UP_GAP;
+    const bombOffsetX = rightmostOffsetX;
+    const fireballOffsetX = rightmostOffsetX + slotStep;
+
+    const place = (
+      button: VirtualButtonConfig | null,
+      count: VirtualLabelConfig | null,
+      slotX: number,
+    ): void => {
+      if (button) {
+        button.offsetX = slotX;
+        button.offsetY = buttonOffsetY;
+      }
+      if (count) {
+        count.offsetX = slotX - POWER_UP_COUNT_INSET;
+        count.offsetY = buttonOffsetY + POWER_UP_COUNT_INSET;
+      }
+    };
+    place(this._bombButtonConfig, this._bombCountConfig, bombOffsetX);
+    place(this._fireballButtonConfig, this._fireballCountConfig, fireballOffsetX);
 
     // Project the BottomRight-anchored button centres into world
     // coordinates so power-up collection icons can fly from a grid
-    // cell to the right HUD button. Ortho centres at (0, 0) with
-    // `pxPerWorld` = h / orthoSize:
+    // cell to the right HUD button. Ortho centres at (0, 0):
     //   screenX = width - offsetX  →  worldX = (width/2 - offsetX) / pxPerWorld
     //   screenY = height - offsetY →  worldY = (offsetY - height/2) / pxPerWorld
     const targets = this.viewDiContainer.getInstance(PowerUpButtonTargets);
-    targets.setBombTarget((width / 2 - bombOffsetX) / pxPerWorld, (bombOffsetY - height / 2) / pxPerWorld);
+    targets.setBombTarget((width / 2 - bombOffsetX) / pxPerWorld, (buttonOffsetY - height / 2) / pxPerWorld);
     targets.setFireballTarget(
       (width / 2 - fireballOffsetX) / pxPerWorld,
-      (fireballOffsetY - height / 2) / pxPerWorld,
+      (buttonOffsetY - height / 2) / pxPerWorld,
     );
   }
 

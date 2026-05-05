@@ -182,11 +182,13 @@ export class GameOperations implements IInjectionTarget {
     this._cancelTransientState();
     this._clearGrid();
 
-    // Apply per-level layout overrides BEFORE any new placements so
-    // wall positions, cell coordinates, and grid shape all reflect
-    // the new width and initial-hidden-rows offset. A single
-    // `onLayoutChanged` emit covers both width and descent resets —
-    // the view snaps its visual state to the new layout. The
+    // Apply per-level layout changes lazily: the WIDTH override
+    // happens up front (it changes the grid shape and column
+    // counts), but the DESCEND offset is computed *after*
+    // placements so the bottom of the cluster always lines up at
+    // the same visual row regardless of how many rows the level
+    // defines. A single `onLayoutChanged` emit at the end covers
+    // both — the view snaps its visual state in one pass. The
     // `onGridDescended` event is reserved for IN-GAME single-row
     // descents (which animate); level loads must NOT animate.
     let layoutChanged = false;
@@ -197,19 +199,6 @@ export class GameOperations implements IInjectionTarget {
       this._grid!.rebuild();
       layoutChanged = true;
     }
-
-    // Positive `initialHiddenRows` shifts the grid UP by that many
-    // rows; stored as a NEGATIVE descend offset so subsequent
-    // descents climb back toward zero.
-    const initialHidden = level.initialHiddenRows ?? 0;
-    const targetDescend = -initialHidden;
-    if (targetDescend !== this._layout!.descendOffsetRows) {
-      this._layout!.setDescendOffsetRows(targetDescend);
-      layoutChanged = true;
-    }
-
-    if (layoutChanged) this._events!.emitLayoutChanged();
-    this._shotsSinceDescend = 0;
 
     if (level.placements === null) {
       this.buildInitialLayout();
@@ -239,6 +228,22 @@ export class GameOperations implements IInjectionTarget {
     if (level.randomPowerUps) {
       this._placeRandomPowerUps(level.randomPowerUps.bombs, level.randomPowerUps.fireballs);
     }
+
+    // Auto-position the cluster: pin the lowest occupied row to the
+    // same visual row index the auto-descent-after-pop logic targets,
+    // so every level starts with the same distance between the
+    // bottom of the cluster and the shooter / lose-line. Empty
+    // levels stay at descend 0 (top of viewport).
+    const lowestRow = this._findLowestOccupiedRow();
+    const targetDescend =
+      lowestRow >= 0 ? this._config!.clusterBottomTargetRowsFromTop - 1 - lowestRow : 0;
+    if (targetDescend !== this._layout!.descendOffsetRows) {
+      this._layout!.setDescendOffsetRows(targetDescend);
+      layoutChanged = true;
+    }
+
+    if (layoutChanged) this._events!.emitLayoutChanged();
+    this._shotsSinceDescend = 0;
 
     this._score!.reset();
     this._events!.emitScoreChanged(0);
@@ -383,27 +388,28 @@ export class GameOperations implements IInjectionTarget {
    * we never anti-descend (a too-low cluster keeps its position).
    */
   private _maybeAutoDescend(): void {
-    const grid = this._grid!;
-    const layout = this._layout!;
-    const config = this._config!;
+    const lowestRow = this._findLowestOccupiedRow();
+    if (lowestRow < 0) return;
+    const desiredDescend = this._config!.clusterBottomTargetRowsFromTop - 1 - lowestRow;
+    const additional = desiredDescend - this._layout!.descendOffsetRows;
+    if (additional <= 0) return;
+    this._descendBy(additional);
+  }
 
-    let lowestRow = -1;
+  /**
+   * Highest model-row index that holds an occupied cell, or `-1`
+   * when the grid is empty. Used by both the level-load auto-
+   * positioning and the post-pop auto-descent.
+   */
+  private _findLowestOccupiedRow(): number {
+    const grid = this._grid!;
     for (let row = grid.rowCount - 1; row >= 0; row--) {
       const cols = grid.getColumnCount(row);
       for (let col = 0; col < cols; col++) {
-        if (grid.isOccupied(row, col)) {
-          lowestRow = row;
-          break;
-        }
+        if (grid.isOccupied(row, col)) return row;
       }
-      if (lowestRow >= 0) break;
     }
-    if (lowestRow < 0) return;
-
-    const desiredDescend = config.clusterBottomTargetRowsFromTop - 1 - lowestRow;
-    const additional = desiredDescend - layout.descendOffsetRows;
-    if (additional <= 0) return;
-    this._descendBy(additional);
+    return -1;
   }
 
   /** Wipe transient flight / pop / falling / bomb / fireball state and notify the view. */
