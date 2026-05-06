@@ -50,6 +50,17 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
   private _landingPreviewGeometry: THREE.RingGeometry | null = null;
   private _landingPreviewMesh: THREE.Mesh | null = null;
   private readonly _landingPreviewMaterials = new Map<BubbleColor, THREE.MeshBasicMaterial>();
+  /**
+   * Aim-aid toggle. Gates the LANDING-PREVIEW ring only — the
+   * marching dotted aim line is always visible. Starts `false` so
+   * the player opts in to the target silhouette via the bottom-
+   * left target button.
+   */
+  private _aimAidVisible = false;
+  /** Latest landing's world position; cached so toggling on re-renders the ring without a fresh trajectory. */
+  private _lastLandingX = 0;
+  private _lastLandingY = 0;
+  private _hasLanding = false;
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
@@ -63,6 +74,28 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
     if (!config) return;
     this._buildAimDotResources(config);
     this._buildLandingPreview(config);
+  }
+
+  public setAimAidVisible(visible: boolean): void {
+    if (this._aimAidVisible === visible) return;
+    this._aimAidVisible = visible;
+    this._applyLandingPreviewVisibility();
+  }
+
+  /**
+   * Push the latest landing position + the toggle state out to the
+   * preview mesh. Mesh shows iff the aid is open AND we have a
+   * valid landing AND the visible aim-line span actually reaches it.
+   */
+  private _applyLandingPreviewVisibility(): void {
+    const mesh = this._landingPreviewMesh;
+    if (!mesh) return;
+    if (!this._aimAidVisible || !this._hasLanding) {
+      mesh.visible = false;
+      return;
+    }
+    mesh.position.set(this._lastLandingX, this._lastLandingY, 0);
+    mesh.visible = true;
   }
 
   public setAimTrajectory(trajectory: IAimTrajectory): void {
@@ -82,14 +115,18 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
     const cap = this._config?.aimMaxLength ?? 0;
     this._aimVisibleLength = cap > 0 ? Math.min(total, cap) : total;
     this._refreshAimDotsAtPhase();
-    // The landing preview only makes sense if the actual landing
-    // is within the visible aim-line span — otherwise the player
-    // would see a snap target the dotted line never reaches.
-    if (this._aimVisibleLength < total) {
-      if (this._landingPreviewMesh) this._landingPreviewMesh.visible = false;
-    } else {
-      this._updateLandingPreview(trajectory);
+    // Cache the latest landing for the preview ring. The actual
+    // mesh visibility is gated by the aim-aid toggle inside
+    // `_applyLandingPreviewVisibility` — when the player has the
+    // aid open, the silhouette renders at the resolved landing
+    // even if it sits past the aim line's visible span.
+    const landing = trajectory.landing;
+    this._hasLanding = landing !== null;
+    if (landing) {
+      this._lastLandingX = landing.worldX;
+      this._lastLandingY = landing.worldY;
     }
+    this._applyLandingPreviewVisibility();
   }
 
   public updateAimDots(dt: number): void {
@@ -228,18 +265,6 @@ export class AimLineView extends WorldViewBase implements IAimLineView {
     mesh.visible = false;
     this._landingPreviewMesh = mesh;
     this.add(mesh);
-  }
-
-  private _updateLandingPreview(trajectory: IAimTrajectory): void {
-    const mesh = this._landingPreviewMesh;
-    if (!mesh) return;
-    const landing = trajectory.landing;
-    if (!landing) {
-      mesh.visible = false;
-      return;
-    }
-    mesh.position.set(landing.worldX, landing.worldY, 0);
-    mesh.visible = true;
   }
 
   public override preDestroy(): void {

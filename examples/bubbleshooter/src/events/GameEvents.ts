@@ -62,6 +62,7 @@ export class GameEvents {
   private readonly _layoutChangedListeners = new Set<VoidCb>();
   private readonly _gridDescendedListeners = new Set<RowsCb>();
   private readonly _powerUpCollectedListeners = new Set<PowerUpCollectedCb>();
+  private readonly _aimAidVisibleListeners = new Set<BoolCb>();
 
   public onBubblePlaced(cb: BubblePlacedCb): Unsubscribe {
     this._bubblePlacedListeners.add(cb);
@@ -410,5 +411,19 @@ export class GameEvents {
 
   public emitPowerUpCollected(kind: PowerUpKind, fromX: number, fromY: number): void {
     for (const cb of this._powerUpCollectedListeners) cb(kind, fromX, fromY);
+  }
+
+  /**
+   * Aim-aid toggle. `true` shows the marching dotted aim line +
+   * landing-preview ring, `false` hides them. Default is hidden —
+   * the player opts in via the bottom-left target button.
+   */
+  public onAimAidVisibleChanged(cb: BoolCb): Unsubscribe {
+    this._aimAidVisibleListeners.add(cb);
+    return () => this._aimAidVisibleListeners.delete(cb);
+  }
+
+  public emitAimAidVisibleChanged(visible: boolean): void {
+    for (const cb of this._aimAidVisibleListeners) cb(visible);
   }
 }

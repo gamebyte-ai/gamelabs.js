@@ -12,4 +12,12 @@ export interface IAimLineView extends IView {
   setAimPowerUpMode(active: boolean): void;
   setLandingPreviewColor(color: BubbleColor): void;
   updateAimDots(dt: number): void;
+  /**
+   * Toggle the aim-aid layer (dots + landing preview) on/off.
+   * Default is `false` — the layer renders only when the player
+   * opens it via the bottom-left target button. Internal trajectory
+   * state still updates while hidden so toggling on instantly
+   * shows the latest aim.
+   */
+  setAimAidVisible(visible: boolean): void;
 }

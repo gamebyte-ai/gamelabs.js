@@ -19,6 +19,8 @@ export enum BubbleShooterAssetIds {
   FireballIcon = "BubbleShooter.FireballIcon",
   /** Gear sprite for the HUD settings button icon. */
   SettingsIcon = "BubbleShooter.SettingsIcon",
+  /** Crosshair sprite for the HUD target / aim-aid toggle button. */
+  TargetIcon = "BubbleShooter.TargetIcon",
   /** Procedurally synthesised SFX, registered as `AudioBuffer` assets. */
   SoundPop = "BubbleShooter.SoundPop",
   SoundSnap = "BubbleShooter.SoundSnap",

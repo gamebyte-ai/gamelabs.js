@@ -129,6 +129,13 @@ export class BubbleShooterApp extends GamelabsApp {
   private _bombCountConfig: VirtualLabelConfig | null = null;
   private _fireballButtonConfig: VirtualButtonConfig | null = null;
   private _fireballCountConfig: VirtualLabelConfig | null = null;
+  private _targetButtonConfig: VirtualButtonConfig | null = null;
+  /**
+   * Aim-aid toggle. Starts closed; the bottom-left target button
+   * flips it. The visible state is mirrored to the AimLineView via
+   * `GameEvents.onAimAidVisibleChanged`.
+   */
+  private _aimAidVisible = false;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -254,6 +261,20 @@ export class BubbleShooterApp extends GamelabsApp {
       text: { color: 0xffffff, fontSize: 16, fontWeight: "700" },
     };
     osc.addControl(this._fireballCountConfig);
+    // Bottom-left target (crosshair) button — toggles the aim-aid
+    // layer (dotted aim line + landing-preview ring) on/off. Mirrors
+    // the BottomRight power-up strip; positioned by
+    // `_layoutPowerUpButtons` so it tracks per-level play-area widths.
+    this._targetButtonConfig = {
+      type: ControlType.Button,
+      id: BubbleShooterUIIds.TargetButton,
+      anchor: ControlAnchor.BottomLeft,
+      offsetX: 0,
+      offsetY: 0,
+      size: POWER_UP_SIZE,
+      icon: { textureId: BubbleShooterAssetIds.TargetIcon, scaleX: 0.7, scaleY: 0.7 },
+    };
+    osc.addControl(this._targetButtonConfig);
     // Top-right settings (gear) button. Opens the framework
     // SettingsPopup via UIEvents.createPopup in postInitialize. The
     // dev-only level dropdown in GameScreenView is positioned to sit
@@ -330,6 +351,13 @@ export class BubbleShooterApp extends GamelabsApp {
         new URL("../assets/settings.svg", import.meta.url).href,
       ),
     );
+    this._assetRequestList.addRequest(
+      new AssetRequest(
+        AssetTypes.HudTexture,
+        BubbleShooterAssetIds.TargetIcon,
+        new URL("../assets/target.svg", import.meta.url).href,
+      ),
+    );
     this.assetManager.loadAll(this._assetRequestList.getRequests());
     this._registerSoundBuffers();
   }
@@ -392,6 +420,11 @@ export class BubbleShooterApp extends GamelabsApp {
     });
     osc.addKeyHandler(BubbleShooterUIIds.FireballButton, (isPressed) => {
       if (isPressed) ops.activateFireball();
+    });
+    osc.addKeyHandler(BubbleShooterUIIds.TargetButton, (isPressed) => {
+      if (!isPressed) return;
+      this._aimAidVisible = !this._aimAidVisible;
+      this._gameEvents.emitAimAidVisibleChanged(this._aimAidVisible);
     });
     // Register SFX-only settings fields, then wire the gear button to
     // open the framework SettingsPopup. Field names match the
@@ -491,6 +524,15 @@ export class BubbleShooterApp extends GamelabsApp {
     };
     place(this._bombButtonConfig, this._bombCountConfig, bombOffsetX);
     place(this._fireballButtonConfig, this._fireballCountConfig, fireballOffsetX);
+
+    // Target button — left mirror of the rightmost power-up. Anchored
+    // BottomLeft, so its offsetX is measured from the screen LEFT edge
+    // inward; by symmetry (play area centred), the BottomLeft inset
+    // equals the BottomRight inset = `playAreaRightToScreenRight`.
+    if (this._targetButtonConfig) {
+      this._targetButtonConfig.offsetX = playAreaRightToScreenRight + POWER_UP_EDGE_INSET + POWER_UP_SIZE / 2;
+      this._targetButtonConfig.offsetY = buttonOffsetY;
+    }
 
     // Project the BottomRight-anchored button centres into world
     // coordinates so power-up collection icons can fly from a grid
