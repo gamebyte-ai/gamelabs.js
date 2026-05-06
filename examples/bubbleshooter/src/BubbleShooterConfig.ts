@@ -96,7 +96,17 @@ export class BubbleShooterConfig {
    * alpha and the K-th-from-end at `K/(K+1)`.
    */
   public readonly aimDotFadeTailCount = 4;
-  public readonly aimMaxBounces = 4;
+  /**
+   * Hard cap on side-wall reflections inside the trajectory solver.
+   * Set high enough that a shot at any aim angle in any supported
+   * grid width always reaches either the cluster or the ceiling
+   * before exhausting bounces — `fire` otherwise silently rejects
+   * the shot because `_findLanding` only runs when the trajectory
+   * ends on `"top"` or `"bubble"`. The dotted aim line is already
+   * capped independently by {@link aimMaxLength} (arc length), so
+   * a generous bounce ceiling doesn't visually grow the line.
+   */
+  public readonly aimMaxBounces = 32;
   /** Minimum angle from horizontal so aim never points sideways or down. */
   public readonly aimMinAngleFromHorizontalRad = (15 * Math.PI) / 180;
   /**

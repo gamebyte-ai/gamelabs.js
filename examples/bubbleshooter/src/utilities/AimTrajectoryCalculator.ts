@@ -176,17 +176,23 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
    * meaningful when the trajectory ended on a real obstacle ("top" or
    * "bubble"); otherwise the bubble wouldn't actually land anywhere.
    *
-   * Cells farther than one bubble diameter from the end point are
-   * rejected — at that distance the snap would be visually nonsensical
-   * (the cluster's geometry guarantees the true landing cell is closer
-   * than this).
+   * The closest *connected* empty cell wins, regardless of distance.
+   * In typical hits the closest cell is well within one bubble
+   * diameter, but narrow-grid wall-grazing contacts can wedge the
+   * bubble against a column whose hex neighbours are all occupied or
+   * off the grid (e.g. odd rows have one fewer column than even
+   * rows, so col 7 in Level 2 has no `(odd, 7)` slot). In those
+   * cases the closest connected empty slot can sit just past `2r` —
+   * snapping there is still the right choice; otherwise `fire`
+   * silently drops a shot the player aimed at a real obstacle.
+   * Connectivity + empty-cell already gates pathological snaps.
    */
   private _findLanding(
     segments: readonly IAimTrajectorySegment[],
     endKind: AimTrajectoryEnd,
     grid: IBubbleGrid,
     layout: BubbleGridLayout,
-    bubbleRadius: number,
+    _bubbleRadius: number,
     onlyVisible: boolean,
     requireConnection: boolean,
   ): IAimLanding | null {
@@ -196,7 +202,6 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
     const last = segments[segments.length - 1]!;
     const endX = last.toX;
     const endY = last.toY;
-    const maxDist2 = (2 * bubbleRadius) ** 2;
 
     let bestDist2 = Infinity;
     let bestRow = -1;
@@ -231,7 +236,7 @@ export class AimTrajectoryCalculator implements IInjectionTarget {
       }
     }
 
-    if (bestRow === -1 || bestDist2 > maxDist2) return null;
+    if (bestRow === -1) return null;
     return { row: bestRow, col: bestCol, worldX: bestX, worldY: bestY };
   }
 
