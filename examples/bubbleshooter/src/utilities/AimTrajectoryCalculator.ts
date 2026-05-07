@@ -1,7 +1,8 @@
 import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { IBubbleGrid } from "../models/IBubbleGrid";
-import type { AimTrajectoryEnd, IAimLanding, IAimTrajectory, IAimTrajectorySegment } from "../models/IAimTrajectory";
+import type { AimTrajectoryEnd } from "../constants/AimTrajectoryEnd";
+import type { IAimLanding, IAimTrajectory, IAimTrajectorySegment } from "../models/IAimTrajectory";
 import { BubbleGridLayout } from "./BubbleGridLayout";
 
 interface ICellPos {

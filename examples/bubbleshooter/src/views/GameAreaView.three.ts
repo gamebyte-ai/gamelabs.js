@@ -319,5 +319,6 @@ export class GameAreaView extends WorldViewBase implements IGameAreaView {
     this._world = null;
     this._config = null;
     this._layout = null;
+    super.preDestroy();
   }
 }

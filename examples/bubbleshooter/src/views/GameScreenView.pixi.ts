@@ -13,8 +13,9 @@ import { LEVELS } from "../constants/Levels";
 const LEVEL_DROPDOWN_WIDTH = 130;
 const LEVEL_DROPDOWN_HEIGHT = 32;
 // Pinned just below the OSC settings (gear) button — see
-// `SETTINGS_OFFSET_Y` (16) + `SETTINGS_SIZE` (50) + 8px gap in
-// BubbleShooterApp. Keep these values in sync if either changes.
+// `BubbleShooterConfig.settingsButtonOffsetY` (16) +
+// `settingsButtonSize` (50) + 8 px gap. Keep this value in sync if
+// either Config field changes.
 const LEVEL_DROPDOWN_TOP = 74;
 
 /**
@@ -83,6 +84,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
     this._onScreenControls?.destroy();
     this._onScreenControls = null;
+    super.preDestroy();
   }
 
   private _buildLevelDropdown(): DropdownComponent {

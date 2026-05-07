@@ -11,11 +11,15 @@ import {
   LogTypes,
   OnScreenControlManager,
   OnScreenControlsBinding,
+  ParticleManager,
+  ParticlesBinding,
   SettingsBinding,
   SettingsBooleanField,
   SettingsManager,
   SettingsNumberField,
   SettingsUIIds,
+  TimelineBinding,
+  TimelineManager,
   UIComponentsBinding,
   UIEvents,
   World,
@@ -58,37 +62,10 @@ import { BubbleGridView } from "./views/BubbleGridView.three";
 import { BubbleGridViewController } from "./controllers/BubbleGridViewController";
 import { ShooterView } from "./views/ShooterView.three";
 import { ShooterViewController } from "./controllers/ShooterViewController";
-import { HudHookupManager } from "./utilities/HudHookupManager";
-import { SettingsHookupManager } from "./utilities/SettingsHookupManager";
+import { HudHookup } from "./utilities/HudHookup";
+import { SettingsHookup } from "./utilities/SettingsHookup";
 import { SoundManager } from "./utilities/SoundManager";
 import { SoundSynth } from "./utilities/SoundSynth";
-
-// Power-up button strip — sits in the bottom margin of the play area
-// (between the play-area's bottom edge and the shooter's bottom),
-// right-aligned. Bomb is rightmost; future power-ups grow leftward
-// from the bomb anchor in `(POWER_UP_SIZE + POWER_UP_GAP)` increments.
-// Sizes are screen pixels (HUD), so they stay constant across grid
-// widths — no overlap with the shooter or next-bubble icon at any
-// `wideRowColumns`.
-const POWER_UP_SIZE = 44;
-const POWER_UP_GAP = 10;
-/** Inset between the rightmost button's right edge and the play-area right edge. */
-const POWER_UP_EDGE_INSET = 8;
-/** Inset from the button centre to the count-badge anchor (top-right of the button). */
-const POWER_UP_COUNT_INSET = 16;
-/** Bright green tint applied to the target button's bg ring while the aim aid is open. */
-const TARGET_ACTIVE_BG_COLOR = 0x33dd55;
-const TARGET_ACTIVE_BG_ALPHA = 0.85;
-
-// Settings (gear) button layout — TopRight, screen-anchored. Sized
-// slightly smaller than the power-up buttons so the corner badge feels
-// like a secondary affordance. The level dropdown in `GameScreenView`
-// is positioned just below this button (top = SETTINGS_OFFSET_Y +
-// SETTINGS_SIZE + small gap), so changing this size needs the
-// dropdown's `top` re-tuned to match.
-const SETTINGS_SIZE = 50;
-const SETTINGS_OFFSET_X = 16;
-const SETTINGS_OFFSET_Y = 16;
 
 /**
  * Bubble Shooter scaffold.
@@ -117,17 +94,31 @@ export class BubbleShooterApp extends GamelabsApp {
   // run later inside `initialize`).
   private readonly _powerUpButtonTargets = new PowerUpButtonTargets();
   // SettingsBinding registers the framework SettingsManager + popup
-  // view/controller. We pass `defaults: false` because the bubble
+  // view/controller. We pass `audioFields: false` because the bubble
   // shooter only exposes SFX-related fields (no music yet) — the
-  // matching `addField(...)` calls live in postInitialize.
+  // matching `addField(...)` calls + the audio bridge live in
+  // postInitialize via `SettingsHookup`.
   private readonly _settingsBinding = new SettingsBinding();
+  // ParticlesBinding registers the ParticleManager + ParticleBudget +
+  // ParticleModel singletons. Pop-burst FX in EffectsView use a
+  // WorldParticleEmitter routed through this manager. Default
+  // budget (4096) is generous; bubbleshooter's busiest frame is a
+  // ~19-cell bomb burst × popParticleCount → still well under cap.
+  private readonly _particlesBinding = new ParticlesBinding();
+  // TimelineBinding registers TimelineManager + TimelineModel +
+  // TimelineEvents. Power-up collection (`PowerUpFlightTrack` view-
+  // side, `PowerUpCountBumpTrack` model-side) uses tracks for its
+  // duration timing instead of hand-ticked age counters.
+  private readonly _timelineBinding = new TimelineBinding();
 
   private _gameAreaView: GameAreaView | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _cameraController: Front2dCameraController | null = null;
   private _soundManager: SoundManager | null = null;
-  private _hudHookupManager: HudHookupManager | null = null;
-  private _settingsHookupManager: SettingsHookupManager | null = null;
+  private _hudHookup: HudHookup | null = null;
+  private _settingsHookup: SettingsHookup | null = null;
+  private _particleManager: ParticleManager | null = null;
+  private _timelineManager: TimelineManager | null = null;
   private _layoutChangedUnsub: (() => void) | null = null;
 
   // Power-up button + count configs are kept by reference so resize can
@@ -155,6 +146,8 @@ export class BubbleShooterApp extends GamelabsApp {
     this.addModule(this._onScreenControlsBinding);
     this.addModule(this._uiComponentsBinding);
     this.addModule(this._settingsBinding);
+    this.addModule(this._particlesBinding);
+    this.addModule(this._timelineBinding);
   }
 
   protected override configureDI(): void {
@@ -222,8 +215,8 @@ export class BubbleShooterApp extends GamelabsApp {
     });
     osc.setControlVisible(BubbleShooterUIIds.GameOverLabel, false);
     // Power-up button strip — bomb is rightmost, fireball sits to its
-    // LEFT, each step-left adds `(POWER_UP_SIZE + POWER_UP_GAP)` to
-    // offsetX (BottomRight: bigger offsetX = further LEFT). Concrete
+    // LEFT, each step-left adds `(powerUpButtonSize + powerUpButtonGap)`
+    // to offsetX (BottomRight: bigger offsetX = further LEFT). Concrete
     // offsets are placeholders here; `_layoutPowerUpButtons` recomputes
     // them on every resize / layout-change against the play area's
     // bottom edge so the strip always sits in the gap below the
@@ -234,7 +227,7 @@ export class BubbleShooterApp extends GamelabsApp {
       anchor: ControlAnchor.BottomRight,
       offsetX: 0,
       offsetY: 0,
-      size: POWER_UP_SIZE,
+      size: this._config.powerUpButtonSize,
       icon: { textureId: BubbleShooterAssetIds.BombIcon, scaleX: 0.7, scaleY: 0.7 },
     };
     osc.addControl(this._bombButtonConfig);
@@ -256,7 +249,7 @@ export class BubbleShooterApp extends GamelabsApp {
       anchor: ControlAnchor.BottomRight,
       offsetX: 0,
       offsetY: 0,
-      size: POWER_UP_SIZE,
+      size: this._config.powerUpButtonSize,
       icon: { textureId: BubbleShooterAssetIds.FireballIcon, scaleX: 0.7, scaleY: 0.7 },
     };
     osc.addControl(this._fireballButtonConfig);
@@ -282,7 +275,7 @@ export class BubbleShooterApp extends GamelabsApp {
       anchor: ControlAnchor.BottomLeft,
       offsetX: 0,
       offsetY: 0,
-      size: POWER_UP_SIZE,
+      size: this._config.powerUpButtonSize,
       icon: { textureId: BubbleShooterAssetIds.TargetIcon, scaleX: 0.7, scaleY: 0.7 },
     };
     osc.addControl(this._targetButtonConfig);
@@ -294,9 +287,9 @@ export class BubbleShooterApp extends GamelabsApp {
       type: ControlType.Button,
       id: BubbleShooterUIIds.SettingsButton,
       anchor: ControlAnchor.TopRight,
-      offsetX: SETTINGS_OFFSET_X,
-      offsetY: SETTINGS_OFFSET_Y,
-      size: SETTINGS_SIZE,
+      offsetX: this._config.settingsButtonOffsetX,
+      offsetY: this._config.settingsButtonOffsetY,
+      size: this._config.settingsButtonSize,
       icon: { textureId: BubbleShooterAssetIds.SettingsIcon, scaleX: 0.7, scaleY: 0.7 },
     });
     this.diContainer.bindSingleton(AimTrajectoryCalculator, () => new AimTrajectoryCalculator());
@@ -409,6 +402,11 @@ export class BubbleShooterApp extends GamelabsApp {
     // mutate step first and the controller's reposition step second.
     this._layoutChangedUnsub = this._gameEvents.onLayoutChanged(() => this._onLayoutChanged());
 
+    // Resolve the particle + timeline managers up front so sub-view
+    // controllers can inject them during sub-view creation.
+    this._particleManager = this.diContainer.getInstance(ParticleManager);
+    this._timelineManager = this.diContainer.getInstance(TimelineManager);
+
     this._gameAreaView = this.viewFactory.createView(GameAreaView);
     this.world.addView(this._gameAreaView);
 
@@ -455,15 +453,15 @@ export class BubbleShooterApp extends GamelabsApp {
     this._soundManager.inject(this.diContainer);
     this._soundManager.start();
 
-    this._hudHookupManager = new HudHookupManager();
-    this._hudHookupManager.inject(this.diContainer);
-    this._hudHookupManager.start();
+    this._hudHookup = new HudHookup();
+    this._hudHookup.inject(this.diContainer);
+    this._hudHookup.start();
 
     // Settings → AudioService bridge. Applies persisted sfx + volume
     // values up front and re-applies on every settings change.
-    this._settingsHookupManager = new SettingsHookupManager();
-    this._settingsHookupManager.inject(this.diContainer);
-    this._settingsHookupManager.start();
+    this._settingsHookup = new SettingsHookup();
+    this._settingsHookup.inject(this.diContainer);
+    this._settingsHookup.start();
   }
 
   private _onLayoutChanged(): void {
@@ -485,7 +483,7 @@ export class BubbleShooterApp extends GamelabsApp {
     if (!config) return;
     const osc = this.diContainer.getInstance(OnScreenControlManager);
     config.up = this._aimAidVisible
-      ? { color: TARGET_ACTIVE_BG_COLOR, alpha: TARGET_ACTIVE_BG_ALPHA }
+      ? { color: this._config.targetButtonActiveBgColor, alpha: this._config.targetButtonActiveBgAlpha }
       : undefined;
     osc.removeControl(config.id);
     osc.addControl(config);
@@ -503,7 +501,7 @@ export class BubbleShooterApp extends GamelabsApp {
    * play area — the gap between the play-area's bottom edge and the
    * shooter's bottom. Buttons are right-aligned: bomb is rightmost,
    * fireball one step left, future power-ups grow further leftward
-   * in `(POWER_UP_SIZE + POWER_UP_GAP)` increments. Strip Y is
+   * in `(powerUpButtonSize + powerUpButtonGap)` increments. Strip Y is
    * vertically centred in the (shooterMarginFromBottom − shooterRadius)
    * gap so buttons can never overlap the shooter or the next-bubble
    * preview at any grid width. The OSC manager re-reads `config.offsetX/Y`
@@ -535,11 +533,13 @@ export class BubbleShooterApp extends GamelabsApp {
     // Right-aligned slots: index 0 = rightmost (bomb). Each slot's
     // X offset measures the button CENTRE inward from the screen's
     // right edge.
-    const rightmostOffsetX = playAreaRightToScreenRight + POWER_UP_EDGE_INSET + POWER_UP_SIZE / 2;
-    const slotStep = POWER_UP_SIZE + POWER_UP_GAP;
+    const buttonSize = this._config.powerUpButtonSize;
+    const rightmostOffsetX = playAreaRightToScreenRight + this._config.powerUpButtonEdgeInset + buttonSize / 2;
+    const slotStep = buttonSize + this._config.powerUpButtonGap;
     const bombOffsetX = rightmostOffsetX;
     const fireballOffsetX = rightmostOffsetX + slotStep;
 
+    const countInset = this._config.powerUpCountInset;
     const place = (
       button: VirtualButtonConfig | null,
       count: VirtualLabelConfig | null,
@@ -550,8 +550,8 @@ export class BubbleShooterApp extends GamelabsApp {
         button.offsetY = buttonOffsetY;
       }
       if (count) {
-        count.offsetX = slotX - POWER_UP_COUNT_INSET;
-        count.offsetY = buttonOffsetY + POWER_UP_COUNT_INSET;
+        count.offsetX = slotX - countInset;
+        count.offsetY = buttonOffsetY + countInset;
       }
     };
     place(this._bombButtonConfig, this._bombCountConfig, bombOffsetX);
@@ -562,7 +562,7 @@ export class BubbleShooterApp extends GamelabsApp {
     // inward; by symmetry (play area centred), the BottomLeft inset
     // equals the BottomRight inset = `playAreaRightToScreenRight`.
     if (this._targetButtonConfig) {
-      this._targetButtonConfig.offsetX = playAreaRightToScreenRight + POWER_UP_EDGE_INSET + POWER_UP_SIZE / 2;
+      this._targetButtonConfig.offsetX = rightmostOffsetX;
       this._targetButtonConfig.offsetY = buttonOffsetY;
     }
 
@@ -601,17 +601,33 @@ export class BubbleShooterApp extends GamelabsApp {
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
     this._cameraManager?.update(timestepSeconds);
+    // Both Particles and Timeline are hand-ticked. Order matters:
+    // timeline first so any track that wants to spawn particles
+    // (none in bubbleshooter today, but the framework convention
+    // documented on `ParticlesBinding`) hits the emitters before
+    // the manager advances them this frame.
+    this._timelineManager?.update(timestepSeconds);
+    this._particleManager?.update(timestepSeconds);
   }
 
   protected override preDestroy(): void {
     this._layoutChangedUnsub?.();
     this._layoutChangedUnsub = null;
-    this._settingsHookupManager?.destroy();
-    this._settingsHookupManager = null;
-    this._hudHookupManager?.destroy();
-    this._hudHookupManager = null;
+    this._settingsHookup?.destroy();
+    this._settingsHookup = null;
+    this._hudHookup?.destroy();
+    this._hudHookup = null;
     this._soundManager?.destroy();
     this._soundManager = null;
+    // Drop every live emitter so their THREE meshes / materials are
+    // disposed before the world tears down.
+    this._particleManager?.destroyAll();
+    this._particleManager = null;
+    // Cancel any in-flight tracks so their `onCancel` hooks run and
+    // release whatever they were holding (icon meshes, count-bump
+    // closures).
+    this._timelineManager?.cancelAll();
+    this._timelineManager = null;
     this._cameraController = null;
     this._gameAreaView?.destroy();
     this._gameAreaView = null;

@@ -277,6 +277,38 @@ export class BubbleShooterConfig {
    */
   public readonly cameraFocusZ = 500;
 
+  // ── HUD button layout ─────────────────────────────────────────────
+  // Sizes / spacings for the HUD strip below the shooter (bomb +
+  // fireball + future power-ups, right-aligned) and the corner gear
+  // and target buttons. Values are HUD pixels (OSC anchors measure
+  // offsets in screen pixels), so they stay constant across grid
+  // widths — no overlap with the shooter or next-bubble icon at any
+  // `wideRowColumns`.
+
+  /** Side length of each power-up button. */
+  public readonly powerUpButtonSize = 44;
+  /** Gap between adjacent power-up buttons in the bottom strip. */
+  public readonly powerUpButtonGap = 10;
+  /** Inset between the rightmost button's right edge and the play-area right edge. */
+  public readonly powerUpButtonEdgeInset = 8;
+  /** Inset from the button centre to the count-badge anchor (top-right of the button). */
+  public readonly powerUpCountInset = 16;
+  /** Bg-ring tint applied to the target button while the aim-aid is open. */
+  public readonly targetButtonActiveBgColor = 0x33dd55;
+  /** Bg-ring alpha applied alongside {@link targetButtonActiveBgColor}. */
+  public readonly targetButtonActiveBgAlpha = 0.85;
+  /**
+   * Side length of the gear (settings) button in the top-right
+   * corner. Slightly smaller than the power-up buttons so the corner
+   * badge feels like a secondary affordance. The dev-only level
+   * dropdown in `GameScreenView` is positioned just below this
+   * button (top = `settingsButtonOffsetY + settingsButtonSize + 8` px),
+   * so changing this size requires re-tuning that dropdown's `top`.
+   */
+  public readonly settingsButtonSize = 50;
+  public readonly settingsButtonOffsetX = 16;
+  public readonly settingsButtonOffsetY = 16;
+
   public readonly transitions: {
     gameScreenEnter: ScreenTransition;
   } = {

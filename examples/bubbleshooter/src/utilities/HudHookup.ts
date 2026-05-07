@@ -7,10 +7,11 @@ import { BubbleShooterUIIds } from "../BubbleShooterUIIds";
  * count badges, power-up button enabled state, and the centred
  * win / game-over overlays. Lives in `utilities/` (not in a
  * controller) because it owns no view and its responsibility is
- * subsystem coordination, not view-input routing. Mirrors the
- * same pattern as {@link SoundManager}.
+ * subsystem coordination, not view-input routing. Holds no mutable
+ * state of its own — strictly a stateless event-routing strategy
+ * (role-named, no `*Manager` suffix per AGENTS.md "Where logic lives").
  */
-export class HudHookupManager implements IInjectionTarget {
+export class HudHookup implements IInjectionTarget {
   private readonly _subs = new UnsubscribeBag();
   private _events: GameEvents | null = null;
   private _osc: OnScreenControlManager | null = null;

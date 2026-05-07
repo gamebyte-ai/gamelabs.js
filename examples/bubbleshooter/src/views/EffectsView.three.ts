@@ -1,24 +1,14 @@
 import * as THREE from "three";
-import { WorldViewBase, type IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { ParticleBudget, WorldViewBase, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import type { IEffectsView } from "./IEffectsView";
+import { PopBurstEmitter } from "./PopBurstEmitter.three";
+import { PlayAreaClipping } from "./PlayAreaClipping";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
 import { BUBBLE_COLOR_HEX, type BubbleColor } from "../constants/BubbleColor";
 
-const PARTICLE_SEGMENTS = 10;
-const PARTICLE_Z = 0.5;
 const SCORE_POPUP_Z = 0.6;
 const SCORE_POPUP_CANVAS_W = 192;
 const SCORE_POPUP_CANVAS_H = 72;
-
-interface IPopParticle {
-  readonly mesh: THREE.Mesh;
-  readonly material: THREE.MeshBasicMaterial;
-  vx: number;
-  vy: number;
-  age: number;
-  lifetime: number;
-  active: boolean;
-}
 
 interface IScorePopup {
   readonly mesh: THREE.Mesh;
@@ -34,16 +24,22 @@ interface IScorePopup {
 }
 
 /**
- * Pop-feedback effects layer — particle bursts and floating score
- * popups. Self-contained; no shared GPU resources with other sub-views.
- * Both effect types are pooled to keep allocations off the per-frame
- * path during bomb-bursts that can pop 19 cells at once.
+ * Pop-feedback effects layer — particle bursts (delegated to a
+ * {@link PopBurstEmitter} ticked by `ParticleManager`) and floating
+ * score popups (kept manual: each popup is a one-shot canvas-textured
+ * plane, not a many-particles-per-spawn pattern). The view owns the
+ * emitter's mesh + materials + scene-graph parenting; the controller
+ * resolves `ParticleManager` (which lives on the main DI container,
+ * not the view DI container — same split avoidance uses) and
+ * `register`s the emitter. Score popups are still pooled here because
+ * they're 1-per-event with non-trivial canvas + texture resources we
+ * don't want to churn.
  */
 export class EffectsView extends WorldViewBase implements IEffectsView {
   private _config: BubbleShooterConfig | null = null;
-
-  private _particleGeometry: THREE.CircleGeometry | null = null;
-  private readonly _particles: IPopParticle[] = [];
+  private _clipping: PlayAreaClipping | null = null;
+  private _budget: ParticleBudget | null = null;
+  private _popBurstEmitter: PopBurstEmitter | null = null;
 
   private readonly _scorePopups: IScorePopup[] = [];
   private readonly _scorePopupPool: IScorePopup[] = [];
@@ -51,53 +47,35 @@ export class EffectsView extends WorldViewBase implements IEffectsView {
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
     this._config = resolver.getInstance(BubbleShooterConfig);
+    this._clipping = resolver.getInstance(PlayAreaClipping);
+    // ParticleBudget is mirrored on viewDiContainer by ParticlesBinding
+    // for exactly this — views need the budget to construct emitters,
+    // but ParticleManager stays on the main DI container so only
+    // controllers register / unregister.
+    this._budget = resolver.getInstance(ParticleBudget);
   }
 
   public override postInitialize(): void {
     super.postInitialize();
     const config = this._config;
-    if (!config) return;
-    this._particleGeometry = new THREE.CircleGeometry(config.popParticleRadius, PARTICLE_SEGMENTS);
+    const budget = this._budget;
+    if (!config || !budget) return;
+    this._popBurstEmitter = new PopBurstEmitter(budget, config, this._clipping);
+    // Parent the emitter to this view so its particles inherit our
+    // transform (the view sits at the GameAreaView origin, which is
+    // the play-area centre — same coords pop events use). Manager
+    // registration happens in `EffectsViewController.initialize`.
+    this.add(this._popBurstEmitter);
+  }
+
+  /** Exposed to the controller so it can register with `ParticleManager`. Throws if accessed before `postInitialize`. */
+  public get popBurstEmitter(): PopBurstEmitter {
+    if (!this._popBurstEmitter) throw new Error("popBurstEmitter accessed before postInitialize");
+    return this._popBurstEmitter;
   }
 
   public playPopBurst(x: number, y: number, color: BubbleColor): void {
-    const config = this._config;
-    if (!config || !this._particleGeometry) return;
-    const colorHex = BUBBLE_COLOR_HEX[color];
-    const count = config.popParticleCount;
-    const speedMin = config.popParticleSpeedMin;
-    const speedMax = config.popParticleSpeedMax;
-    const lifetime = config.popParticleLifetimeSeconds;
-    for (let i = 0; i < count; i++) {
-      // Even-ish angular distribution with a small per-spawn jitter so
-      // bursts don't look mechanical.
-      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
-      const speed = speedMin + Math.random() * (speedMax - speedMin);
-      const particle = this._acquireParticle(colorHex);
-      particle.mesh.position.set(x, y, PARTICLE_Z);
-      particle.vx = Math.cos(angle) * speed;
-      particle.vy = Math.sin(angle) * speed;
-      particle.age = 0;
-      particle.lifetime = lifetime;
-      particle.material.opacity = 1;
-      particle.mesh.visible = true;
-      particle.active = true;
-    }
-  }
-
-  public updateParticles(dt: number): void {
-    for (const p of this._particles) {
-      if (!p.active) continue;
-      p.age += dt;
-      if (p.age >= p.lifetime) {
-        p.active = false;
-        p.mesh.visible = false;
-        continue;
-      }
-      p.mesh.position.x += p.vx * dt;
-      p.mesh.position.y += p.vy * dt;
-      p.material.opacity = 1 - p.age / p.lifetime;
-    }
+    this._popBurstEmitter?.burst(x, y, color);
   }
 
   public playScorePopup(x: number, y: number, color: BubbleColor, points: number): void {
@@ -133,29 +111,6 @@ export class EffectsView extends WorldViewBase implements IEffectsView {
       p.mesh.position.y = p.startY + p.rise * t;
       p.material.opacity = 1 - t;
     }
-  }
-
-  private _acquireParticle(colorHex: number): IPopParticle {
-    for (const p of this._particles) {
-      if (!p.active) {
-        p.material.color.setHex(colorHex);
-        return p;
-      }
-    }
-    const material = new THREE.MeshBasicMaterial({
-      color: colorHex,
-      transparent: true,
-      opacity: 1,
-      depthTest: false,
-      depthWrite: false,
-    });
-    const mesh = new THREE.Mesh(this._particleGeometry!, material);
-    mesh.renderOrder = 12;
-    mesh.visible = false;
-    this.add(mesh);
-    const particle: IPopParticle = { mesh, material, vx: 0, vy: 0, age: 0, lifetime: 0, active: false };
-    this._particles.push(particle);
-    return particle;
   }
 
   private _acquireScorePopup(): IScorePopup | null {
@@ -224,13 +179,15 @@ export class EffectsView extends WorldViewBase implements IEffectsView {
   }
 
   public override preDestroy(): void {
-    for (const p of this._particles) {
-      this.remove(p.mesh);
-      p.material.dispose();
+    // Controller has already unregistered + destroyed the emitter via
+    // `ParticleManager` by this point; we just detach it from the
+    // scene graph.
+    if (this._popBurstEmitter) {
+      this.remove(this._popBurstEmitter);
     }
-    this._particles.length = 0;
-    this._particleGeometry?.dispose();
-    this._particleGeometry = null;
+    this._popBurstEmitter = null;
+    this._budget = null;
+    this._clipping = null;
 
     for (const p of this._scorePopups) {
       this.remove(p.mesh);

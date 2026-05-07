@@ -1,5 +1,6 @@
 import type { Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { BubbleColor } from "../constants/BubbleColor";
+import type { PowerUpKind } from "../constants/PowerUpKind";
 import type { IAimTrajectory } from "../models/IAimTrajectory";
 
 type BubblePlacedCb = (row: number, col: number, color: BubbleColor) => void;
@@ -24,12 +25,6 @@ type VoidCb = () => void;
 type CellCb = (row: number, col: number) => void;
 type RowsCb = (rows: number) => void;
 
-/**
- * Power-up collection identity. The `kind` matches the corresponding
- * `Bomb` / `Fireball` cell color and routes the visual to the right
- * HUD button.
- */
-export type PowerUpKind = "bomb" | "fireball";
 type PowerUpCollectedCb = (kind: PowerUpKind, fromX: number, fromY: number) => void;
 
 export class GameEvents {

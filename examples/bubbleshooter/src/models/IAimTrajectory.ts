@@ -5,14 +5,14 @@
  * to reach into `utilities/` for type-only imports.
  */
 
+import type { AimTrajectoryEnd } from "../constants/AimTrajectoryEnd";
+
 export interface IAimTrajectorySegment {
   readonly fromX: number;
   readonly fromY: number;
   readonly toX: number;
   readonly toY: number;
 }
-
-export type AimTrajectoryEnd = "top" | "bubble" | "max-bounces" | "none";
 
 export interface IAimLanding {
   readonly row: number;

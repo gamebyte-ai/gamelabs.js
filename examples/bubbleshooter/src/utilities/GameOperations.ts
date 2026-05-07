@@ -1,6 +1,7 @@
-import type { IInjectionTarget, IInstanceResolver } from "@gamebyte/gamelabsjs";
+import { TimelineManager, type IInjectionTarget, type IInstanceResolver } from "@gamebyte/gamelabsjs";
 import { BUBBLE_COLORS, BubbleColor, isPowerUpColor } from "../constants/BubbleColor";
-import { GameEvents, type PowerUpKind } from "../events/GameEvents";
+import type { PowerUpKind } from "../constants/PowerUpKind";
+import { GameEvents } from "../events/GameEvents";
 import { BubbleGrid } from "../models/BubbleGrid";
 import { Shooter } from "../models/Shooter";
 import { BubbleShooterConfig } from "../BubbleShooterConfig";
@@ -11,6 +12,7 @@ import { MatchFinder, type IMatchedCell } from "./MatchFinder";
 import { FloatingBubbleFinder } from "./FloatingBubbleFinder";
 import { Score } from "../models/Score";
 import { LEVELS } from "../constants/Levels";
+import { PowerUpCountBumpTrack } from "./PowerUpCountBumpTrack";
 
 const EMPTY_TRAJECTORY: IAimTrajectory = { segments: [], end: "none", landing: null };
 
@@ -44,16 +46,6 @@ interface IFireballState {
   readonly vy: number;
 }
 
-/**
- * In-flight power-up collection — one entry per icon currently animating
- * from a grid cell toward its HUD button. The model defers the matching
- * inventory bump until `t` reaches `powerUpCollectDurationSeconds` so the
- * button's badge ticks up exactly when the visual arrives.
- */
-interface IPendingCollection {
-  readonly kind: PowerUpKind;
-  t: number;
-}
 
 /**
  * Coordinates writes to the {@link BubbleGrid} and {@link Shooter} models
@@ -75,6 +67,7 @@ export class GameOperations implements IInjectionTarget {
   private _matchFinder: MatchFinder | null = null;
   private _floatingFinder: FloatingBubbleFinder | null = null;
   private _score: Score | null = null;
+  private _timeline: TimelineManager | null = null;
 
   private _state: "idle" | "flying" | "popping" | "flying-fireball" | "swapping" = "idle";
   private _swapTimer = 0;
@@ -127,12 +120,14 @@ export class GameOperations implements IInjectionTarget {
    */
   private _preHeldColor: BubbleColor | null = null;
   /**
-   * In-flight power-up collections. Each entry's timer ticks every
-   * frame regardless of state; on completion the matching inventory
-   * bumps and a `count-changed` event fires so the badge label
-   * updates the moment the icon visually arrives at the button.
+   * Number of in-flight power-up collections — incremented when we
+   * register a `PowerUpCountBumpTrack` and decremented when its
+   * `onArrived` callback fires. Used to gate the win-latch so the
+   * "YOU WIN" message can't pop up while a collection icon is still
+   * mid-flight (the arrival event also bumps the badge count, which
+   * the player visually expects to see before the win screen).
    */
-  private readonly _pendingCollections: IPendingCollection[] = [];
+  private _inFlightCollections = 0;
   private _lastAimX = 0;
   private _lastAimY = 0;
 
@@ -146,6 +141,7 @@ export class GameOperations implements IInjectionTarget {
     this._matchFinder = resolver.getInstance(MatchFinder);
     this._floatingFinder = resolver.getInstance(FloatingBubbleFinder);
     this._score = resolver.getInstance(Score);
+    this._timeline = resolver.getInstance(TimelineManager);
   }
 
   /** Build the default level, load shooter held + next, point straight up. */
@@ -449,11 +445,14 @@ export class GameOperations implements IInjectionTarget {
     this._popIndexInSession = 0;
     for (const f of this._falling) events.emitFallingBubbleChanged(f.id, null, f.x, f.y);
     this._falling.length = 0;
-    // Drop in-flight power-up collections silently — the new level
-    // resets inventory to its initial values, so there's nothing to
-    // credit. The collection view clears its on-screen icons on the
-    // same layout-changed emit that follows.
-    this._pendingCollections.length = 0;
+    // Drop in-flight power-up collection bumps. The TimelineManager's
+    // own cancellation (via `cancelByType("powerup-count-bump")`)
+    // fires each track's `onCancel` (a silent no-op) and removes them
+    // from the model — see `PowerUpCountBumpTrack`. We zero the
+    // counter so a transient cancel mid-collection doesn't leave the
+    // win-latch permanently gated.
+    this._timeline?.cancelByType("powerup-count-bump");
+    this._inFlightCollections = 0;
     let modeChanged = false;
     if (this._shooter?.isBomb) {
       this._shooter.setIsBomb(false);
@@ -604,7 +603,7 @@ export class GameOperations implements IInjectionTarget {
     // power-up collections have finished — otherwise the win message
     // can pop up over a still-flying collection icon.
     if (this._falling.length > 0) return;
-    if (this._pendingCollections.length > 0) return;
+    if (this._inFlightCollections > 0) return;
     this._winLatched = true;
     this._events!.emitGameWonChanged(true);
   }
@@ -894,12 +893,10 @@ export class GameOperations implements IInjectionTarget {
   }
 
   public update(dt: number): void {
-    // Power-up collections + falling bubbles tick every frame
-    // regardless of state — both are visual pipelines independent of
-    // flight / pop / swap. Collections come first so a finished
-    // collection can re-enter `_checkWin` even when the falling
-    // pipeline is empty.
-    if (this._pendingCollections.length > 0) this._tickCollections(dt);
+    // Falling bubbles tick every frame regardless of state — the
+    // pipeline is independent of flight / pop / swap. Power-up
+    // collection timing now lives on `TimelineManager`
+    // (see `PowerUpCountBumpTrack`) so there's no extra tick here.
     if (this._falling.length > 0) this._updateFalling(dt);
 
     if (this._state === "swapping") {
@@ -1250,54 +1247,52 @@ export class GameOperations implements IInjectionTarget {
 
   /**
    * Remove a power-up cell from the grid and start its flight
-   * animation. Inventory bumps + the `count-changed` event fire
-   * later when {@link _tickCollections} reports the icon has reached
-   * the button — the spec requires the badge to tick up exactly on
-   * arrival.
+   * animation. The matching inventory bump + `count-changed` event
+   * fire later when the {@link PowerUpCountBumpTrack} reaches the
+   * end of its duration — the spec requires the badge to tick up
+   * exactly when the visual icon arrives at the button. The view
+   * spawns its own `PowerUpFlightTrack` against the same duration
+   * so both timelines end on the same frame.
    */
   private _collectPowerUpAt(row: number, col: number, color: BubbleColor): void {
     const grid = this._grid!;
     const layout = this._layout!;
     const events = this._events!;
+    const timeline = this._timeline;
+    if (!timeline) return;
     const pos = layout.getCellWorldPosition(row, col);
     grid.setColor(row, col, null);
     events.emitBubbleRemoved(row, col);
     const kind: PowerUpKind = color === BubbleColor.Bomb ? "bomb" : "fireball";
-    this._pendingCollections.push({ kind, t: 0 });
+    this._inFlightCollections++;
+    timeline.add(
+      new PowerUpCountBumpTrack(kind, this._config!.powerUpCollectDurationSeconds, this._onCollectionArrived),
+    );
     events.emitPowerUpCollected(kind, pos.x, pos.y);
   }
 
   /**
-   * Advance every in-flight power-up collection. When `t` clears
-   * the configured duration the matching inventory increments and
-   * the count event fires — by then the view's icon has reached the
-   * HUD button. Re-runs `_checkWin` so a collection finishing after
-   * the grid emptied + falling bubbles cleared can still latch the
-   * win.
+   * Bumps the matching inventory + emits the count event when a
+   * `PowerUpCountBumpTrack` reaches the end of its duration. Also
+   * re-enters `_checkWin` so a collection finishing after the grid
+   * emptied + falling bubbles cleared can still latch the win.
    */
-  private _tickCollections(dt: number): void {
-    const duration = this._config!.powerUpCollectDurationSeconds;
-    const events = this._events!;
-    let arrived = false;
-    for (let i = this._pendingCollections.length - 1; i >= 0; i--) {
-      const p = this._pendingCollections[i]!;
-      p.t += dt;
-      if (p.t < duration) continue;
-      if (p.kind === "bomb") {
-        this._bombCount++;
-        events.emitBombCountChanged(this._bombCount);
-      } else {
-        this._fireballCount++;
-        events.emitFireballCountChanged(this._fireballCount);
-      }
-      this._emitPowerUpAvailability();
-      this._pendingCollections.splice(i, 1);
-      arrived = true;
+  private readonly _onCollectionArrived = (kind: PowerUpKind): void => {
+    const events = this._events;
+    if (!events) return;
+    if (kind === "bomb") {
+      this._bombCount++;
+      events.emitBombCountChanged(this._bombCount);
+    } else {
+      this._fireballCount++;
+      events.emitFireballCountChanged(this._fireballCount);
     }
-    if (arrived && this._isWon && !this._winLatched && this._falling.length === 0) {
+    this._emitPowerUpAvailability();
+    this._inFlightCollections = Math.max(0, this._inFlightCollections - 1);
+    if (this._isWon && !this._winLatched && this._falling.length === 0 && this._inFlightCollections === 0) {
       this._checkWin();
     }
-  }
+  };
 
   private _finishPopping(): void {
     this._spawnFallingForFloating();

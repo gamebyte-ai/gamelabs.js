@@ -8,7 +8,7 @@ import { BubbleShooterUIIds } from "../BubbleShooterUIIds";
  * Thin screen-controller for the HUD: routes the score readout and
  * the dev-only level-dropdown change. The other HUD writes (bomb /
  * fireball counts, power-up button enable, win / game-over
- * overlays) are owned by `HudHookupManager` so this controller
+ * overlays) are owned by `HudHookup` so this controller
  * stays under the AGENTS.md decomposition-signal threshold.
  */
 export class GameScreenViewController implements IViewController<IGameScreenView> {

@@ -12,12 +12,19 @@ const FIELD_SFX_VOLUME = "sfxVolume";
 
 /**
  * Bridges the framework's Settings module to the bubble-shooter's
- * AudioService. Mirrors {@link HudHookupManager} / {@link SoundManager}:
- * lives in `utilities/`, owns no view, only forwards settings reads
- * through the typed AudioService API. `sfxVolume` is a 0–100 settings
- * field while AudioService takes 0–1, so we divide on the way out.
+ * AudioService. Lives in `utilities/`, owns no view, holds no mutable
+ * state — strictly a stateless event-routing strategy (role-named,
+ * no `*Manager` suffix per AGENTS.md "Where logic lives"). Forwards
+ * settings reads through the typed AudioService API; `sfxVolume`
+ * is a 0–100 settings field while AudioService takes 0–1, so we
+ * divide on the way out.
+ *
+ * Bubble shooter does not opt into `SettingsBinding({ audioFields:
+ * true })` because that registers a `music` field the app never
+ * uses. Defining only the `sfx` + `sfxVolume` fields the app cares
+ * about + this bridge keeps the popup's row set tight.
  */
-export class SettingsHookupManager implements IInjectionTarget {
+export class SettingsHookup implements IInjectionTarget {
   private readonly _subs = new UnsubscribeBag();
   private _settings: ISettingsModel | null = null;
   private _events: SettingsEvents | null = null;
