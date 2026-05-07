@@ -15,13 +15,20 @@ import type { TextStyle } from "./TextStyle.js";
  *
  * Provides primitives shared across textured + textual HUD widgets:
  * - {@link _getTexture} — asset lookup with a subclass-named error.
- * - {@link _resolveSpriteStyle} / {@link _buildSprite} /
- *   {@link _applySpriteStyle} — fill defaults on a partial
- *   `SpriteStyle`, build or update a center-anchored sprite sized to
- *   `slotWidth * scaleX` × `slotHeight * scaleY`.
- * - {@link _resolveTextStyle} / {@link _buildText} /
- *   {@link _applyTextStyle} — fill defaults on a partial `TextStyle`,
- *   build or update a Pixi `Text` node with the resolved fields.
+ * - {@link _buildStyledSprite} / {@link _applyPartialSpriteStyle} —
+ *   build a center-anchored sprite from a partial `SpriteStyle`, or
+ *   patch only the set fields onto an existing one. Missing fields
+ *   keep Pixi's intrinsic values (`tint = 0xffffff`, `alpha = 1`,
+ *   `scaleX/Y = 1`, `border = 0`); a missing `textureId` falls back
+ *   to the asset manager's default HUD texture so the sprite always
+ *   has something to render.
+ * - {@link _buildStyledText} / {@link _applyPartialTextStyle} — same
+ *   partial-apply contract for `PIXI.Text`. Pixi fills any unset
+ *   field with its built-in default (`Arial`, `26px`, `0x000000`).
+ *
+ * Apps that want a properly themed look register a complete style
+ * entry on `StyleManager` via the module binding so the partial
+ * patches resolve to fully-populated styles at runtime.
  */
 export abstract class StyledHudObject<TStyle> extends PIXI.Container {
   protected readonly _assetManager: AssetManager;
@@ -49,137 +56,99 @@ export abstract class StyledHudObject<TStyle> extends PIXI.Container {
   }
 
   /**
-   * Fills missing fields on a partial {@link SpriteStyle} with the
-   * supplied defaults, returning a fully-resolved style. `defaultBorder`
-   * is optional and defaults to `0` — pre-existing callers do not need
-   * to pass it; slots that should opt into nine-slice rendering pass a
-   * positive value.
+   * Builds a center-anchored sprite from a partial {@link SpriteStyle}.
+   * Missing fields stay at Pixi's intrinsic values (`tint = 0xffffff`,
+   * `alpha = 1`, `scaleX/Y = 1`, `border = 0`); a missing `textureId`
+   * falls back to the asset manager's 1×1 default HUD texture so the
+   * sprite still has a renderable texture.
+   *
+   * The sprite type (`PIXI.Sprite` vs `PIXI.NineSliceSprite`) is fixed
+   * at build time by `style?.border`; subsequent partial-apply calls
+   * cannot change it.
    */
-  protected _resolveSpriteStyle(
+  protected _buildStyledSprite(
     style: SpriteStyle | undefined,
-    defaultTextureId: string,
-    defaultColor: number,
-    defaultAlpha: number,
-    defaultScaleX: number,
-    defaultScaleY: number,
-    defaultBorder: number = 0,
-  ): Required<SpriteStyle> {
-    return {
-      textureId: style?.textureId ?? defaultTextureId,
-      color: style?.color ?? defaultColor,
-      alpha: style?.alpha ?? defaultAlpha,
-      scaleX: style?.scaleX ?? defaultScaleX,
-      scaleY: style?.scaleY ?? defaultScaleY,
-      border: style?.border ?? defaultBorder,
-    };
-  }
-
-  /**
-   * Builds a center-anchored sprite from a resolved style. Width is
-   * `slotWidth * scaleX`, height is `slotHeight * scaleY`. For a
-   * square slot pass `slotWidth` only; `slotHeight` defaults to it.
-   * When `style.border > 0` a `PIXI.NineSliceSprite` is built with a
-   * symmetric inset so corners stay crisp at any size; otherwise a
-   * plain `PIXI.Sprite` is built. Throws via {@link _getTexture} if
-   * the texture is missing.
-   */
-  protected _buildSprite(
-    style: Required<SpriteStyle>,
     slotWidth: number,
     slotHeight: number = slotWidth,
   ): PIXI.Sprite | PIXI.NineSliceSprite {
-    const texture = this._getTexture(style.textureId);
+    const border = style?.border ?? 0;
+    const texture = style?.textureId !== undefined ? this._getTexture(style.textureId) : this._assetManager.getDefaultHudTexture();
     const sprite: PIXI.Sprite | PIXI.NineSliceSprite =
-      style.border > 0
+      border > 0
         ? new PIXI.NineSliceSprite({
             texture,
-            leftWidth: style.border,
-            topHeight: style.border,
-            rightWidth: style.border,
-            bottomHeight: style.border,
+            leftWidth: border,
+            topHeight: border,
+            rightWidth: border,
+            bottomHeight: border,
           })
         : new PIXI.Sprite(texture);
     sprite.anchor.set(0.5, 0.5);
-    this._applySpriteStyle(sprite, style, slotWidth, slotHeight);
+    this._applyPartialSpriteStyle(sprite, style, slotWidth, slotHeight);
     return sprite;
   }
 
   /**
-   * Updates an existing sprite to a new resolved style — texture
-   * swap if different, plus tint, alpha, and per-axis dim. Works for
-   * both `PIXI.Sprite` and `PIXI.NineSliceSprite`; the rendered size
-   * is set via `width` / `height` on both. Throws if the new texture
-   * id is unloaded.
+   * Patches an existing sprite with the fields set on `style`. Skips
+   * any field that is `undefined`, leaving the sprite's current value
+   * in place. `width` / `height` are always written (they're host-slot
+   * geometry, not style data) — `scaleX/Y` defaults to `1` when unset
+   * so the sprite fills its slot. Throws if `style.textureId` is set
+   * but the asset isn't loaded.
    */
-  protected _applySpriteStyle(
+  protected _applyPartialSpriteStyle(
     sprite: PIXI.Sprite | PIXI.NineSliceSprite,
-    style: Required<SpriteStyle>,
+    style: SpriteStyle | undefined,
     slotWidth: number,
     slotHeight: number = slotWidth,
   ): void {
-    const texture = this._getTexture(style.textureId);
-    if (sprite.texture !== texture) sprite.texture = texture;
-    sprite.tint = style.color;
-    sprite.alpha = style.alpha;
-    sprite.width = slotWidth * style.scaleX;
-    sprite.height = slotHeight * style.scaleY;
+    if (style?.textureId !== undefined) {
+      const texture = this._getTexture(style.textureId);
+      if (sprite.texture !== texture) sprite.texture = texture;
+    }
+    if (style?.color !== undefined) sprite.tint = style.color;
+    if (style?.alpha !== undefined) sprite.alpha = style.alpha;
+    sprite.width = slotWidth * (style?.scaleX ?? 1);
+    sprite.height = slotHeight * (style?.scaleY ?? 1);
   }
 
   /**
-   * Fills missing fields on a partial {@link TextStyle} with the
-   * supplied defaults, returning a fully-resolved style. `defaultLetterSpacing`
-   * is optional and defaults to `0`; pre-existing callers do not need
-   * to pass it.
+   * Builds a Pixi `Text` node from a partial {@link TextStyle}. Only
+   * fields that are set on `style` are passed to the `PIXI.Text`
+   * constructor — Pixi fills the rest with its built-in defaults
+   * (`fontFamily: "Arial"`, `fontSize: 26`, etc.). Apps that want a
+   * proper themed look register the desired defaults on the
+   * `StyleManager` (e.g. via a module binding) so the resolved style
+   * has every field set.
+   *
+   * Anchor is left at Pixi's default `(0, 0)` — callers set it
+   * explicitly if needed.
    */
-  protected _resolveTextStyle(
-    style: TextStyle | undefined,
-    defaultFontFamily: string,
-    defaultFontSize: number,
-    defaultFontWeight: string,
-    defaultColor: number,
-    defaultAlpha: number,
-    defaultLetterSpacing: number = 0,
-  ): Required<TextStyle> {
-    return {
-      fontFamily: style?.fontFamily ?? defaultFontFamily,
-      fontSize: style?.fontSize ?? defaultFontSize,
-      fontWeight: style?.fontWeight ?? defaultFontWeight,
-      color: style?.color ?? defaultColor,
-      alpha: style?.alpha ?? defaultAlpha,
-      letterSpacing: style?.letterSpacing ?? defaultLetterSpacing,
-    };
-  }
-
-  /**
-   * Builds a Pixi `Text` node from a resolved style. Anchor is left at
-   * its Pixi default `(0, 0)` — callers set it explicitly if needed.
-   */
-  protected _buildText(content: string, style: Required<TextStyle>): PIXI.Text {
-    const text = new PIXI.Text({
-      text: content,
-      style: {
-        fontFamily: style.fontFamily,
-        fontSize: style.fontSize,
-        fontWeight: style.fontWeight as PIXI.TextStyleFontWeight,
-        fill: style.color,
-        letterSpacing: style.letterSpacing,
-      },
-    });
-    text.alpha = style.alpha;
+  protected _buildStyledText(content: string, style: TextStyle | undefined): PIXI.Text {
+    const pixiStyle: Partial<PIXI.TextStyleOptions> = {};
+    if (style?.fontFamily !== undefined) pixiStyle.fontFamily = style.fontFamily;
+    if (style?.fontSize !== undefined) pixiStyle.fontSize = style.fontSize;
+    if (style?.fontWeight !== undefined) pixiStyle.fontWeight = style.fontWeight as PIXI.TextStyleFontWeight;
+    if (style?.color !== undefined) pixiStyle.fill = style.color;
+    if (style?.letterSpacing !== undefined) pixiStyle.letterSpacing = style.letterSpacing;
+    const text = new PIXI.Text({ text: content, style: pixiStyle });
+    if (style?.alpha !== undefined) text.alpha = style.alpha;
     return text;
   }
 
   /**
-   * Updates an existing text node's style fields to match the resolved
-   * style. Mutates the underlying `PIXI.TextStyle` so the text
-   * re-renders on the next frame.
+   * Patches an existing `PIXI.Text` node with the fields set on
+   * `style`. Skips any field that is `undefined`, leaving the text's
+   * current value in place. Useful for runtime restyling that wants to
+   * tweak a single field (e.g. tint a label red on hover) without
+   * re-baking everything else.
    */
-  protected _applyTextStyle(text: PIXI.Text, style: Required<TextStyle>): void {
-    text.style.fontFamily = style.fontFamily;
-    text.style.fontSize = style.fontSize;
-    text.style.fontWeight = style.fontWeight as PIXI.TextStyleFontWeight;
-    text.style.fill = style.color;
-    text.style.letterSpacing = style.letterSpacing;
-    text.alpha = style.alpha;
+  protected _applyPartialTextStyle(text: PIXI.Text, style: TextStyle | undefined): void {
+    if (style?.fontFamily !== undefined) text.style.fontFamily = style.fontFamily;
+    if (style?.fontSize !== undefined) text.style.fontSize = style.fontSize;
+    if (style?.fontWeight !== undefined) text.style.fontWeight = style.fontWeight as PIXI.TextStyleFontWeight;
+    if (style?.color !== undefined) text.style.fill = style.color;
+    if (style?.letterSpacing !== undefined) text.style.letterSpacing = style.letterSpacing;
+    if (style?.alpha !== undefined) text.alpha = style.alpha;
   }
 }

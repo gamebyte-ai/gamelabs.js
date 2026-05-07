@@ -3,7 +3,6 @@ import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
 import type { OscJoystickStyle } from "../OnScreenControlTypes.js";
-import { OnScreenControlsAssetIds } from "../OnScreenControlsAssetIds.js";
 
 export type OscJoystickOptions = {
   baseSize: number;
@@ -142,8 +141,7 @@ export class OscJoystick extends StyledHudObject<OscJoystickStyle> {
 
   private _buildBase(): PIXI.Container {
     const wrap = new PIXI.Container();
-    const visual = this._resolveSpriteStyle(this._style.base, OnScreenControlsAssetIds.JoystickBase, 0xffffff, 0.85, 1, 1);
-    const sprite = this._buildSprite(visual, this._baseSize * 2);
+    const sprite = this._buildStyledSprite(this._style.base, this._baseSize * 2);
     sprite.position.set(this._baseSize, this._baseSize);
     wrap.addChild(sprite);
     return wrap;
@@ -151,8 +149,7 @@ export class OscJoystick extends StyledHudObject<OscJoystickStyle> {
 
   private _buildKnob(): PIXI.Container {
     const wrap = new PIXI.Container();
-    const visual = this._resolveSpriteStyle(this._style.knob, OnScreenControlsAssetIds.JoystickHandle, 0xffffff, 0.95, 1, 1);
-    const sprite = this._buildSprite(visual, this._knobSize * 2);
+    const sprite = this._buildStyledSprite(this._style.knob, this._knobSize * 2);
     wrap.addChild(sprite);
     return wrap;
   }

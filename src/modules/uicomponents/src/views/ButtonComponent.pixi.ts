@@ -5,7 +5,6 @@ import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
 import type { ButtonComponentStyle } from "../UIComponentsStyleTypes.js";
 
 /**
@@ -26,31 +25,13 @@ export type ButtonComponentOpts = {
   label?: string;
 };
 
-const DEFAULT_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
-const DEFAULT_LABEL_FONT_SIZE = 16;
-const DEFAULT_LABEL_FONT_WEIGHT = "600";
-const DEFAULT_LABEL_COLOR = 0xe8eef6;
-const DEFAULT_LABEL_ALPHA = 1;
-
-const DEFAULT_BG_COLOR = 0xffffff;
-const DEFAULT_BG_ALPHA = 1;
-const DEFAULT_BG_SCALE = 1;
-const DEFAULT_BG_BORDER = 0;
-
 type ButtonState = "idle" | "hover" | "pressed" | "disabled";
-
-const DEFAULT_TEXTURE_BY_STATE: Record<ButtonState, string> = {
-  idle: UIComponentsAssetIds.DefaultButtonIdle,
-  hover: UIComponentsAssetIds.DefaultButtonHover,
-  pressed: UIComponentsAssetIds.DefaultButtonPressed,
-  disabled: UIComponentsAssetIds.DefaultButtonDisabled,
-};
 
 /**
  * Reusable Pixi button component, themed via the framework's style
  * system.
  *
- * Construction takes an `AssetManager`, a fully-resolved
+ * Construction takes an `AssetManager`, a
  * {@link ButtonComponentStyle}, and geometry / label options. The
  * idiomatic call site looks like:
  *
@@ -84,7 +65,7 @@ export class ButtonComponent extends StyledHudObject<ButtonComponentStyle> {
   private readonly _bg: PIXI.Sprite | PIXI.NineSliceSprite;
   private readonly _label: PIXI.Text | null;
   private readonly _button: Button;
-  private readonly _stateStyles: Record<ButtonState, Required<SpriteStyle>>;
+  private readonly _stateStyles: Record<ButtonState, SpriteStyle | undefined>;
 
   private _state: ButtonState = "idle";
   private _enabled = true;
@@ -96,73 +77,34 @@ export class ButtonComponent extends StyledHudObject<ButtonComponentStyle> {
   public constructor(assetManager: AssetManager, style: ButtonComponentStyle, opts: ButtonComponentOpts = {}) {
     super(assetManager, style);
 
-    // Pre-resolve all four per-state styles once. The base helper fills
-    // any unset field from the supplied defaults; the registered style
-    // already populates everything via UIComponentsBinding, so this is
-    // mostly a no-op but stays robust against partial overrides.
+    // Cache the per-state slots from the supplied style. Partial-apply
+    // semantics: any field a slot omits stays at the sprite's current
+    // value (Pixi defaults at construction; preserved across state
+    // swaps in `_applyState`). Apps that want fully-themed buttons
+    // register a complete style entry via UIComponentsBinding.
     this._stateStyles = {
-      idle: this._resolveSpriteStyle(
-        style.idle,
-        DEFAULT_TEXTURE_BY_STATE.idle,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER,
-      ),
-      hover: this._resolveSpriteStyle(
-        style.hover,
-        DEFAULT_TEXTURE_BY_STATE.hover,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER,
-      ),
-      pressed: this._resolveSpriteStyle(
-        style.pressed,
-        DEFAULT_TEXTURE_BY_STATE.pressed,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER,
-      ),
-      disabled: this._resolveSpriteStyle(
-        style.disabled,
-        DEFAULT_TEXTURE_BY_STATE.disabled,
-        DEFAULT_BG_COLOR,
-        DEFAULT_BG_ALPHA,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_SCALE,
-        DEFAULT_BG_BORDER,
-      ),
+      idle: style.idle,
+      hover: style.hover,
+      pressed: style.pressed,
+      disabled: style.disabled,
     };
 
-    // Build the bg sprite from the idle state — its `border` decides
+    // Build the bg sprite from the idle slot — its `border` decides
     // whether we end up with a Sprite or NineSliceSprite. Slot dim 1
     // is a placeholder; the real width/height come from the layout
-    // event below via `_applyState`. The base helper centers the
-    // sprite (anchor 0.5, 0.5) — override to (0, 0) so it fills the
-    // layout box from the top-left.
-    this._bg = this._buildSprite(this._stateStyles.idle, 1, 1);
+    // event below via `_applyState`. Helper centers the sprite at
+    // (0.5, 0.5) — override to (0, 0) so it fills the layout box from
+    // the top-left.
+    this._bg = this._buildStyledSprite(this._stateStyles.idle, 1, 1);
     this._bg.anchor.set(0, 0);
     this._bg.position.set(0, 0);
     this.addChild(this._bg);
 
-    // Label: built only when both opts.label and a registered label
-    // style exist (the framework default does, so this normally just
-    // gates on the user passing `label`).
+    // Label: built only when opts.label is supplied. The label slot
+    // applies as a partial — apps register the desired font defaults
+    // via UIComponentsBinding so the resolved label style is complete.
     if (opts.label !== undefined) {
-      const labelStyle = this._resolveTextStyle(
-        style.label,
-        DEFAULT_LABEL_FONT_FAMILY,
-        DEFAULT_LABEL_FONT_SIZE,
-        DEFAULT_LABEL_FONT_WEIGHT,
-        DEFAULT_LABEL_COLOR,
-        DEFAULT_LABEL_ALPHA,
-      );
-      this._label = this._buildText(opts.label, labelStyle);
+      this._label = this._buildStyledText(opts.label, style.label);
       this._label.anchor.set(0.5, 0.5);
       this._label.layout = {};
       this.addChild(this._label);
@@ -255,7 +197,7 @@ export class ButtonComponent extends StyledHudObject<ButtonComponentStyle> {
 
   private _applyState(): void {
     if (this._layoutWidth <= 0 || this._layoutHeight <= 0) return;
-    this._applySpriteStyle(this._bg, this._stateStyles[this._state], this._layoutWidth, this._layoutHeight);
+    this._applyPartialSpriteStyle(this._bg, this._stateStyles[this._state], this._layoutWidth, this._layoutHeight);
   }
 
   // ── Internal: layout ──────────────────────────────────────────────

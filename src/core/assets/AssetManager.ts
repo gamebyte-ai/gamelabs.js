@@ -125,7 +125,14 @@ export class AssetManager implements IAssetManager {
     this._assetsById.set(id, asset);
   }
 
-  private getDefaultHudTexture(): Texture {
+  /**
+   * Lazy-built 1×1 magenta texture used as a fallback when a HUD asset
+   * id can't be resolved (failed load) or when a caller needs a sprite
+   * texture but the source style/opts don't carry a `textureId`. Public
+   * because `StyledHudObject._buildStyledSprite` reaches for it from
+   * the view layer.
+   */
+  public getDefaultHudTexture(): Texture {
     if (this._defaultHudTexture) return this._defaultHudTexture;
     const canvas = document.createElement("canvas");
     canvas.width = 1;

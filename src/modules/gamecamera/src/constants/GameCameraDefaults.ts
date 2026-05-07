@@ -2,6 +2,7 @@
 
 // ── Manager ──
 export const DEFAULT_ORTHO_SIZE = 10;
+export const DEFAULT_FOV = 60;
 export const DEFAULT_EASING = 8;
 export const PERSPECTIVE_TO_ORTHO_OFFSET = 5;
 

@@ -2,7 +2,6 @@ import "@pixi/layout";
 import type { Layout, LayoutOptions } from "@pixi/layout";
 import * as PIXI from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
-import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { ImageComponentStyle } from "../UIComponentsStyleTypes.js";
 
@@ -45,14 +44,10 @@ export type ImageComponentOpts = {
   padding?: number;
 };
 
-const DEFAULT_COLOR = 0xffffff;
-const DEFAULT_ALPHA = 1;
-const DEFAULT_SCALE = 1;
-
 /**
  * Reusable image component, themed via the framework's style system.
  *
- * Construction takes an `AssetManager`, a fully-resolved
+ * Construction takes an `AssetManager`, an
  * {@link ImageComponentStyle}, and geometry / fit options:
  *
  * ```ts
@@ -90,9 +85,9 @@ const DEFAULT_SCALE = 1;
  * skins — but `opts.textureId` always wins when both are present.
  *
  * Fit / cover / stretch math runs in the component itself rather than
- * via `_buildSprite`'s slot sizing, because the helper stretches to a
- * fixed slot whereas Image preserves aspect ratio (or matches the box
- * exactly) based on `opts.fit`.
+ * via `_buildStyledSprite`'s slot sizing, because the helper stretches
+ * to a fixed slot whereas Image preserves aspect ratio (or matches the
+ * box exactly) based on `opts.fit`.
  *
  * The bg sprite type is fixed at construction by the resolved `border`:
  * `border > 0` builds a `PIXI.NineSliceSprite` with a symmetric inset
@@ -104,7 +99,8 @@ const DEFAULT_SCALE = 1;
  */
 export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
   private readonly _sprite: PIXI.Sprite | PIXI.NineSliceSprite;
-  private readonly _imageStyle: Required<SpriteStyle>;
+  private readonly _styleScaleX: number;
+  private readonly _styleScaleY: number;
   private readonly _fit: "contain" | "cover" | "stretch";
   private readonly _padding: number;
 
@@ -120,23 +116,21 @@ export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
     if (opts.x !== undefined) this.x = opts.x;
     if (opts.y !== undefined) this.y = opts.y;
 
-    // Resolve the slot manually rather than via `_resolveSpriteStyle`
-    // because `textureId` is optional for Image (the helper requires a
-    // non-empty default). Per-instance opts.textureId wins over the
-    // style's textureId — content beats skin defaults.
+    // Image's contract differs from other StyledHudObject subclasses:
+    // when no `textureId` is supplied (neither in opts nor on the
+    // style slot), the sprite is built with `PIXI.Texture.EMPTY` and
+    // hidden until the consumer calls `setTexture` / `setTextureId`.
+    // We deliberately don't fall back to the asset manager's default
+    // HUD texture here — that would render the magenta placeholder for
+    // every image awaiting its texture. Per-instance `opts.textureId`
+    // wins over the style's `textureId` — content beats skin defaults.
     const slot = style.image;
     const resolvedTextureId = opts.textureId ?? slot?.textureId;
-    this._imageStyle = {
-      textureId: resolvedTextureId ?? "",
-      color: slot?.color ?? DEFAULT_COLOR,
-      alpha: slot?.alpha ?? DEFAULT_ALPHA,
-      scaleX: slot?.scaleX ?? DEFAULT_SCALE,
-      scaleY: slot?.scaleY ?? DEFAULT_SCALE,
-      border: slot?.border ?? 0,
-    };
+    this._styleScaleX = slot?.scaleX ?? 1;
+    this._styleScaleY = slot?.scaleY ?? 1;
 
-    const initialTexture = resolvedTextureId ? this._getTexture(resolvedTextureId) : PIXI.Texture.EMPTY;
-    const border = this._imageStyle.border;
+    const initialTexture = resolvedTextureId !== undefined ? this._getTexture(resolvedTextureId) : PIXI.Texture.EMPTY;
+    const border = slot?.border ?? 0;
     this._sprite =
       border > 0
         ? new PIXI.NineSliceSprite({
@@ -148,8 +142,8 @@ export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
           })
         : new PIXI.Sprite(initialTexture);
     this._sprite.anchor.set(0.5, 0.5);
-    this._sprite.tint = this._imageStyle.color;
-    this._sprite.alpha = this._imageStyle.alpha;
+    if (slot?.color !== undefined) this._sprite.tint = slot.color;
+    if (slot?.alpha !== undefined) this._sprite.alpha = slot.alpha;
     this._sprite.visible = initialTexture !== PIXI.Texture.EMPTY;
     this.addChild(this._sprite);
 
@@ -215,8 +209,8 @@ export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
     // directly so the same code path works for both `PIXI.Sprite`
     // (Pixi's setter maps width/height onto scale) and
     // `PIXI.NineSliceSprite` (which sizes via width/height natively).
-    this._sprite.width = tw * scaleX * this._imageStyle.scaleX;
-    this._sprite.height = th * scaleY * this._imageStyle.scaleY;
+    this._sprite.width = tw * scaleX * this._styleScaleX;
+    this._sprite.height = th * scaleY * this._styleScaleY;
     this._sprite.position.set(w / 2, h / 2);
   }
 }

@@ -35,21 +35,12 @@ export class OscLabel extends StyledHudObject<OscLabelStyle> {
   public constructor(assetManager: AssetManager, style: OscLabelStyle, content: string, anchorX = 0, anchorY = 0) {
     super(assetManager, style);
 
-    const textVisual = this._resolveTextStyle(
-      this._style.text,
-      "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-      16,
-      "normal",
-      0xffffff,
-      1,
-    );
-    this._text = this._buildText(content, textVisual);
+    this._text = this._buildStyledText(content, this._style.text);
     this._text.anchor.set(anchorX, anchorY);
 
     const bg = this._style.bg;
     if (bg?.textureId) {
-      const bgVisual = this._resolveSpriteStyle(bg, bg.textureId, 0xffffff, 1, 1, 1);
-      this._bg = this._buildSprite(bgVisual, this._text.width, this._text.height);
+      this._bg = this._buildStyledSprite(bg, this._text.width, this._text.height);
       this._bg.anchor.set(anchorX, anchorY);
       this.addChild(this._bg);
     } else {
@@ -75,9 +66,6 @@ export class OscLabel extends StyledHudObject<OscLabelStyle> {
 
   private _resizeBgToText(): void {
     if (!this._bg) return;
-    const bg = this._style.bg;
-    if (!bg?.textureId) return;
-    const bgVisual = this._resolveSpriteStyle(bg, bg.textureId, 0xffffff, 1, 1, 1);
-    this._applySpriteStyle(this._bg, bgVisual, this._text.width, this._text.height);
+    this._applyPartialSpriteStyle(this._bg, this._style.bg, this._text.width, this._text.height);
   }
 }

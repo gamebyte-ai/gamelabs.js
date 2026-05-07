@@ -4,7 +4,6 @@ import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
 import type { RadioButtonComponentStyle } from "../UIComponentsStyleTypes.js";
 
 /**
@@ -34,29 +33,13 @@ export type RadioButtonComponentOpts = {
 const DEFAULT_RADIUS = 9;
 const DEFAULT_GAP = 8;
 
-const DEFAULT_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
-const DEFAULT_LABEL_FONT_SIZE = 14;
-const DEFAULT_LABEL_FONT_WEIGHT = "600";
-const DEFAULT_LABEL_COLOR = 0xe8eef6;
-const DEFAULT_LABEL_ALPHA = 1;
-
-const DEFAULT_INDICATOR_COLOR = 0xffffff;
-const DEFAULT_INDICATOR_ALPHA = 1;
-const DEFAULT_INDICATOR_SCALE = 1;
-const DEFAULT_INDICATOR_BORDER = 0;
-
 type RadioState = "unselected" | "selected";
-
-const DEFAULT_TEXTURE_BY_STATE: Record<RadioState, string> = {
-  unselected: UIComponentsAssetIds.DefaultRadioUnselected,
-  selected: UIComponentsAssetIds.DefaultRadioSelected,
-};
 
 /**
  * Reusable radio-button indicator with optional label, themed via the
  * framework's style system.
  *
- * Construction takes an `AssetManager`, a fully-resolved
+ * Construction takes an `AssetManager`, a
  * {@link RadioButtonComponentStyle}, and geometry / content opts. The
  * indicator is a single textured sprite whose texture swaps between the
  * resolved `unselected` / `selected` slots when the state changes.
@@ -75,7 +58,7 @@ export class RadioButtonComponent extends StyledHudObject<RadioButtonComponentSt
   private readonly _indicator: PIXI.Sprite | PIXI.NineSliceSprite;
   private readonly _label: PIXI.Text | null;
   private readonly _radius: number;
-  private readonly _stateStyles: Record<RadioState, Required<SpriteStyle>>;
+  private readonly _stateStyles: Record<RadioState, SpriteStyle | undefined>;
   private readonly _pressListeners = new Set<() => void>();
 
   private _selected: boolean;
@@ -91,45 +74,21 @@ export class RadioButtonComponent extends StyledHudObject<RadioButtonComponentSt
     if (opts.y !== undefined) this.y = opts.y;
 
     this._stateStyles = {
-      unselected: this._resolveSpriteStyle(
-        style.unselected,
-        DEFAULT_TEXTURE_BY_STATE.unselected,
-        DEFAULT_INDICATOR_COLOR,
-        DEFAULT_INDICATOR_ALPHA,
-        DEFAULT_INDICATOR_SCALE,
-        DEFAULT_INDICATOR_SCALE,
-        DEFAULT_INDICATOR_BORDER,
-      ),
-      selected: this._resolveSpriteStyle(
-        style.selected,
-        DEFAULT_TEXTURE_BY_STATE.selected,
-        DEFAULT_INDICATOR_COLOR,
-        DEFAULT_INDICATOR_ALPHA,
-        DEFAULT_INDICATOR_SCALE,
-        DEFAULT_INDICATOR_SCALE,
-        DEFAULT_INDICATOR_BORDER,
-      ),
+      unselected: style.unselected,
+      selected: style.selected,
     };
 
     const indicatorSize = 2 * this._radius;
-    // Build the indicator from the initial state. Subsequent state
-    // changes call `_applySpriteStyle` on the same sprite (texture +
-    // tint + alpha swap) — no rebuild.
+    // Build the indicator from the initial slot. Subsequent state
+    // changes partial-apply on the same sprite (texture + tint + alpha
+    // swap for fields the slot defines) — no rebuild.
     const initialState: RadioState = this._selected ? "selected" : "unselected";
-    this._indicator = this._buildSprite(this._stateStyles[initialState], indicatorSize, indicatorSize);
+    this._indicator = this._buildStyledSprite(this._stateStyles[initialState], indicatorSize, indicatorSize);
     this._indicator.eventMode = "none";
     this.addChild(this._indicator);
 
     if (opts.label !== undefined) {
-      const labelStyle = this._resolveTextStyle(
-        style.label,
-        DEFAULT_LABEL_FONT_FAMILY,
-        DEFAULT_LABEL_FONT_SIZE,
-        DEFAULT_LABEL_FONT_WEIGHT,
-        DEFAULT_LABEL_COLOR,
-        DEFAULT_LABEL_ALPHA,
-      );
-      this._label = this._buildText(opts.label, labelStyle);
+      this._label = this._buildStyledText(opts.label, style.label);
       this._label.anchor.set(0, 0.5);
       this._label.eventMode = "none";
       this.addChild(this._label);
@@ -144,7 +103,7 @@ export class RadioButtonComponent extends StyledHudObject<RadioButtonComponentSt
     const layout: Omit<LayoutOptions, "target"> = { width: totalWidth, height: totalHeight };
     this.layout = layout;
 
-    // `_buildSprite` centers the sprite at (0, 0); position its origin
+    // `_buildStyledSprite` centers the sprite at (0, 0); position its origin
     // at the indicator's centerline so concentric rendering lines up.
     this._indicator.position.set(this._radius, totalHeight / 2);
     if (this._label) {
@@ -174,7 +133,7 @@ export class RadioButtonComponent extends StyledHudObject<RadioButtonComponentSt
     this._selected = value;
     const state: RadioState = value ? "selected" : "unselected";
     const indicatorSize = 2 * this._radius;
-    this._applySpriteStyle(this._indicator, this._stateStyles[state], indicatorSize, indicatorSize);
+    this._applyPartialSpriteStyle(this._indicator, this._stateStyles[state], indicatorSize, indicatorSize);
   }
 
   /** Subscribe to user taps on the radio button. Returns an unsubscribe function. */

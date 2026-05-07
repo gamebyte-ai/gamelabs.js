@@ -97,7 +97,7 @@ manager.addKeyHandler("fire", (isPressed) => {
 
 ## SpriteStyle — the unified visual descriptor
 
-Every textured slot on a control (button up / down / disabled / icon / progress, joystick base / knob) is configured by a `SpriteStyle` (exported from `@gamebyte/gamelabsjs` core, shared across all styled HUD widgets). Every field is optional; the view layer resolves omitted values from slot-aware defaults.
+Every textured slot on a control (button up / down / disabled / icon / progress, joystick base / knob) is configured by a `SpriteStyle` (exported from `@gamebyte/gamelabsjs` core, shared across all styled HUD widgets). Every field is optional. `OnScreenControlsBinding.configureDI` registers complete defaults under `OscStyleIds.Button` and `OscStyleIds.Joystick`; per-control overrides passed to `addControl({ ..., up: { color: ... } })` deep-merge on top of those defaults via `StyleManager.resolve`, and any field still left unset falls through to Pixi's intrinsic value (`tint = 0xffffff`, `alpha = 1`, `scaleX/Y = 1`) — a missing `textureId` falls back to the asset manager's default HUD texture.
 
 ```ts
 type SpriteStyle = {

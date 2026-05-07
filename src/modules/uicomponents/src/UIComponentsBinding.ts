@@ -10,6 +10,7 @@ import {
   type ButtonComponentStyle,
   type DropdownComponentStyle,
   type ImageComponentStyle,
+  type LabelComponentStyle,
   type ListComponentStyle,
   type RadioButtonComponentStyle,
   type ScrollViewComponentStyle,
@@ -328,6 +329,22 @@ export class UIComponentsBinding extends ModuleBinding {
     // or per-call via `styleManager.resolve(...)` overrides.
     styleManager.add<ImageComponentStyle>(UIComponentsStyleIds.Image, {
       image: { color: 0xffffff, alpha: 1, scaleX: 1, scaleY: 1, border: 0 },
+    });
+
+    // Default Label style — text-only; bg slot is intentionally absent
+    // so labels render as bare text by default. Apps opt into a
+    // backdrop per-instance via `styleManager.resolve(..., { bg: { textureId: ..., border: 6, ... } })`,
+    // or globally via `styleManager.modify(...)`. Font defaults match
+    // every other label slot in the module so labels read consistently
+    // regardless of which component they live inside.
+    styleManager.add<LabelComponentStyle>(UIComponentsStyleIds.Label, {
+      text: {
+        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontSize: 14,
+        fontWeight: "600",
+        color: 0xe8eef6,
+        alpha: 1,
+      },
     });
   }
 }

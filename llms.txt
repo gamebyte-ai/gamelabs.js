@@ -54,7 +54,7 @@ Controllers stay thin: sequence async work, branch on results, dispatch events. 
 
 ## Built-in modules
 
-gamecamera (camera controllers), gamegrid (grid system), mainscreen (main menu), levelprogressscreen (level select).
+uicomponents (Button/Background/Image/layout/list/scrollview/dropdown/toggle/slider/label), gamecamera (camera controllers + named-channel offsets + follow/constraint strategies + cinematic tracks), gamegrid (grid system), mainscreen (main menu), levelprogressscreen (level select), onscreencontrols (virtual joystick/buttons), settings (manager + popup UI), audiodsp (filter/reverb/delay/distortion/compressor), timeline (time-bounded Track lifecycle for effects), particles (THREE + Pixi emitters with global budget).
 
 ## Commands
 

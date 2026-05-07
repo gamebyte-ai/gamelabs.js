@@ -103,13 +103,15 @@ src/
 ├── core/          App lifecycle, DI, views/controllers, world, hud, screens, assets, input, audio
 ├── modules/       Reusable feature modules
 │   ├── uicomponents/         Button, Background, Image, layout components
-│   ├── gamecamera/           Camera controllers (topdown, front, isometric, orbital)
+│   ├── gamecamera/           Camera controllers + named-channel offsets, follow strategies, constraints, cinematic tracks
 │   ├── gamegrid/             Grid system with models, views, cell/item objects
 │   ├── mainscreen/           Main menu screen with play/settings buttons
 │   ├── levelprogressscreen/  Level selection screen with progress
 │   ├── onscreencontrols/     Virtual buttons and joysticks for touch input
 │   ├── settings/             Settings manager with persistence and popup UI
-│   └── audiodsp/             DSP effects chain (filter, reverb, delay, distortion)
+│   ├── audiodsp/             DSP effects chain (filter, reverb, delay, distortion)
+│   ├── timeline/             Time-bounded Track lifecycle (start/update/end/cancel) for effects and cutscene beats
+│   └── particles/            View-side particle plumbing (THREE + Pixi emitters, pooling, global budget)
 └── index.ts       Barrel exports
 ```
 

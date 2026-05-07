@@ -4,7 +4,6 @@ import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
 import type { ScrollViewComponentStyle } from "../UIComponentsStyleTypes.js";
 
 export type ScrollViewDirection = "vertical" | "horizontal" | "both";
@@ -63,7 +62,7 @@ export type ScrollViewComponentOpts = {
 /**
  * Reusable scrollable container, themed via the framework's style system.
  *
- * Construction takes an `AssetManager`, a fully-resolved
+ * Construction takes an `AssetManager`, a
  * {@link ScrollViewComponentStyle}, and geometry / behaviour options:
  *
  * ```ts
@@ -115,8 +114,8 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
   private readonly _thumbThickness: number;
   private readonly _thumbLength: number | null;
   private readonly _scrollbarMargin: number;
-  private readonly _trackStyle: Required<SpriteStyle>;
-  private readonly _thumbStyle: Required<SpriteStyle>;
+  private readonly _trackStyle: SpriteStyle | undefined;
+  private readonly _thumbStyle: SpriteStyle | undefined;
   private readonly _bg: PIXI.Graphics;
   private readonly _mask: PIXI.Graphics;
   private readonly _scrollbarV: PIXI.Container | null;
@@ -160,8 +159,8 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     this._scrollbarMargin = opts.scrollbarMargin ?? 2;
     const showScrollbar = opts.showScrollbar ?? true;
 
-    this._trackStyle = this._resolveSpriteStyle(style.track, UIComponentsAssetIds.DefaultScrollViewTrack, 0xffffff, 0, 1, 1, 4);
-    this._thumbStyle = this._resolveSpriteStyle(style.thumb, UIComponentsAssetIds.DefaultScrollViewThumb, 0xffffff, 0.6, 1, 1, 4);
+    this._trackStyle = style.track;
+    this._thumbStyle = style.thumb;
 
     this._bg = new PIXI.Graphics();
     this._bg.eventMode = "none";
@@ -324,16 +323,16 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     const container = new PIXI.Container();
     container.eventMode = "static";
     container.cursor = "pointer";
-    // Build the track + thumb sprites using `_buildSprite` so 9-slice
+    // Build the track + thumb sprites using `_buildStyledSprite` so 9-slice
     // border kicks in when configured. The slot dimensions passed here
     // are placeholder 1×1 sizes; `_layoutVerticalScrollbar` /
     // `_layoutHorizontalScrollbar` resize them on every redraw.
-    const track = this._buildSprite(this._trackStyle, 1);
+    const track = this._buildStyledSprite(this._trackStyle, 1);
     track.anchor.set(0, 0);
     track.eventMode = "none";
     container.addChild(track);
 
-    const thumb = this._buildSprite(this._thumbStyle, 1);
+    const thumb = this._buildStyledSprite(this._thumbStyle, 1);
     thumb.anchor.set(0, 0);
     thumb.eventMode = "none";
     container.addChild(thumb);
@@ -503,10 +502,10 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
 
     // Sprites use top-left anchor (set in `_buildScrollbar`); position
     // is the top-left corner, not the centre.
-    this._applySpriteStyle(track, this._trackStyle, this._scrollbarThickness, trackHeight);
+    this._applyPartialSpriteStyle(track, this._trackStyle, this._scrollbarThickness, trackHeight);
     track.position.set(trackX, this._scrollbarMargin);
 
-    this._applySpriteStyle(thumb, this._thumbStyle, this._thumbThickness, thumbHeight);
+    this._applyPartialSpriteStyle(thumb, this._thumbStyle, this._thumbThickness, thumbHeight);
     thumb.position.set(thumbX, thumbY);
 
     // Hit area covers the union of track + thumb on the cross-axis so
@@ -537,10 +536,10 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
 
     // Sprites use top-left anchor (set in `_buildScrollbar`); position
     // is the top-left corner, not the centre.
-    this._applySpriteStyle(track, this._trackStyle, trackWidth, this._scrollbarThickness);
+    this._applyPartialSpriteStyle(track, this._trackStyle, trackWidth, this._scrollbarThickness);
     track.position.set(this._scrollbarMargin, trackY);
 
-    this._applySpriteStyle(thumb, this._thumbStyle, thumbWidth, this._thumbThickness);
+    this._applyPartialSpriteStyle(thumb, this._thumbStyle, thumbWidth, this._thumbThickness);
     thumb.position.set(thumbX, thumbY);
 
     const hitY = Math.min(trackY, thumbY);

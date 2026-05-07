@@ -25,6 +25,7 @@ export const DEMO_REGISTRY: readonly DemoEntry[] = [
   { id: "scroll-view", label: "ScrollView", category: "Component" },
   { id: "list", label: "List", category: "Component" },
   { id: "image", label: "Image", category: "Component" },
+  { id: "label", label: "Label", category: "Component" },
   { id: "background", label: "Background", category: "Component" },
   { id: "settings", label: "Settings", category: "Module" },
 ];

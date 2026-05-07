@@ -5,6 +5,7 @@ export { ISettingsModel } from "./models/ISettingsModel.js";
 export { SettingsManager } from "./utilities/SettingsManager.js";
 export { SettingsEvents } from "./events/SettingsEvents.js";
 export { SettingsBinding } from "./SettingsBinding.js";
+export { SettingsAssetIds } from "./constants/SettingsAssetIds.js";
 export { SettingsUIIds } from "./constants/SettingsUIIds.js";
 export { SettingsPopupView } from "./views/SettingsPopupView.pixi.js";
 export { SettingsPopupViewController } from "./controllers/SettingsPopupViewController.js";

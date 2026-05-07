@@ -1,0 +1,5 @@
+{
+  "name": "onscreencontrols",
+  "description": "Touch-friendly virtual controls (buttons, joysticks) plus styled HUD labels, all rendered as a PixiJS overlay. Buttons and joysticks integrate with the InputMapper system so on-screen input and keyboard can drive the same game actions.",
+  "dependencies": []
+}

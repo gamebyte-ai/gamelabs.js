@@ -2,15 +2,15 @@
 
 This repo is a **project skeleton + reusable modules**, not a full engine. This file tracks future work for humans and AI contributors reviewing the codebase.
 
-## Current state (as of April 2026, v1.0.0)
+## Current state (as of May 2026, v3.0.0)
 
 - **Build / test / CI**: `npm run typecheck`, `lint`, `format:check`, `test`, `build` — all gates pass on Node 20 + 22 via GitHub Actions.
-- **Architecture docs**: `AGENTS.md` (policies + module lifecycle + binding shape rules), `DeveloperNotes.md` (architecture details), `README.md` (quick start + structure), per-module READMEs.
+- **Architecture docs**: `AGENTS.md` (policies + module lifecycle + binding shape rules), `DeveloperNotes.md` (architecture details), `README.md` (quick start + structure), per-module READMEs, per-module `module.json` metadata.
 - **Core**: `IApp` + `AppEvents` for app-wide state/events. Views subscribe to resize via `HudViewBase`/`WorldViewBase`, which inject `IApp` + `AppEvents` automatically. `ViewFactory` is layout/resize-neutral.
-- **Modules** (all boot-only `ModuleBinding`s, DI-resolved managers): `gamecamera`, `gamegrid`, `mainscreen`, `levelprogressscreen`, `onscreencontrols`, `settings`, `uicomponents`, `audiodsp`.
-- **Examples**: `helloworld`, `screens`, `tictactoe`, `match3`, `avoidance`, `watersort`, `2048` — all build clean.
+- **Modules** (all boot-only `ModuleBinding`s, DI-resolved managers): `gamecamera`, `gamegrid`, `mainscreen`, `levelprogressscreen`, `onscreencontrols`, `settings`, `uicomponents`, `audiodsp`, `timeline`, `particles`.
+- **Examples**: `helloworld`, `screens`, `tictactoe`, `match3`, `avoidance`, `watersort`, `2048`, `colorblockjam`, `hexasort`, `towerdefense` — all build clean.
 - **Assets**: `AssetManager` with fail-fast awaitable `waitForAll()` and `failedIds` set. Used across the library.
-- **Tests**: 58 Vitest tests (DIContainer, UnsubscribeBag, InjectionToken).
+- **Tests**: 174 Vitest tests across 10 files.
 - **Layout**: `@pixi/layout` is opt-in. Core views are layout-neutral; apps and uicomponents set `this.layout` where they need it. `FullscreenLayoutComponent` available for HUD widgets.
 
 ## Open issues

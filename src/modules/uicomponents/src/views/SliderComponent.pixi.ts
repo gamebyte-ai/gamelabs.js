@@ -3,7 +3,6 @@ import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
-import { UIComponentsAssetIds } from "../UIComponentsAssetIds.js";
 import type { SliderComponentStyle } from "../UIComponentsStyleTypes.js";
 
 /**
@@ -28,15 +27,10 @@ export type SliderComponentOpts = {
   value?: number;
 };
 
-const DEFAULT_BG_COLOR = 0xffffff;
-const DEFAULT_BG_ALPHA = 1;
-const DEFAULT_BG_SCALE = 1;
-const DEFAULT_BG_BORDER = 0;
-
 /**
  * Reusable slider component, themed via the framework's style system.
  *
- * Construction takes an `AssetManager`, a fully-resolved
+ * Construction takes an `AssetManager`, a
  * {@link SliderComponentStyle}, and geometry options:
  *
  * ```ts
@@ -74,9 +68,9 @@ export class SliderComponent extends StyledHudObject<SliderComponentStyle> {
   private readonly _fillSprite: PIXI.Sprite | PIXI.NineSliceSprite;
   private readonly _thumb: PIXI.Sprite | PIXI.NineSliceSprite;
 
-  private readonly _trackStyle: Required<SpriteStyle>;
-  private readonly _fillStyle: Required<SpriteStyle>;
-  private readonly _thumbStyle: Required<SpriteStyle>;
+  private readonly _trackStyle: SpriteStyle | undefined;
+  private readonly _fillStyle: SpriteStyle | undefined;
+  private readonly _thumbStyle: SpriteStyle | undefined;
 
   private readonly _trackWidth: number;
   private readonly _trackHeight: number;
@@ -100,33 +94,9 @@ export class SliderComponent extends StyledHudObject<SliderComponentStyle> {
     this._step = opts.step ?? 0;
     this._value = opts.value ?? this._min;
 
-    this._trackStyle = this._resolveSpriteStyle(
-      style.track,
-      UIComponentsAssetIds.DefaultSliderTrack,
-      DEFAULT_BG_COLOR,
-      DEFAULT_BG_ALPHA,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_BORDER,
-    );
-    this._fillStyle = this._resolveSpriteStyle(
-      style.fill,
-      UIComponentsAssetIds.DefaultSliderFill,
-      DEFAULT_BG_COLOR,
-      DEFAULT_BG_ALPHA,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_BORDER,
-    );
-    this._thumbStyle = this._resolveSpriteStyle(
-      style.thumb,
-      UIComponentsAssetIds.DefaultSliderThumb,
-      DEFAULT_BG_COLOR,
-      DEFAULT_BG_ALPHA,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_SCALE,
-      DEFAULT_BG_BORDER,
-    );
+    this._trackStyle = style.track;
+    this._fillStyle = style.fill;
+    this._thumbStyle = style.thumb;
 
     this.eventMode = "static";
 
@@ -137,17 +107,17 @@ export class SliderComponent extends StyledHudObject<SliderComponentStyle> {
     this._trackHost.position.set(0, 0);
     this.addChild(this._trackHost);
 
-    this._trackSprite = this._buildSprite(this._trackStyle, this._trackWidth, this._trackHeight);
+    this._trackSprite = this._buildStyledSprite(this._trackStyle, this._trackWidth, this._trackHeight);
     this._trackSprite.anchor.set(0, 0);
     this._trackSprite.position.set(0, -this._trackHeight / 2);
     this._trackHost.addChild(this._trackSprite);
 
-    this._fillSprite = this._buildSprite(this._fillStyle, 0, this._trackHeight);
+    this._fillSprite = this._buildStyledSprite(this._fillStyle, 0, this._trackHeight);
     this._fillSprite.anchor.set(0, 0);
     this._fillSprite.position.set(0, -this._trackHeight / 2);
     this._trackHost.addChild(this._fillSprite);
 
-    this._thumb = this._buildSprite(this._thumbStyle, this._thumbRadius * 2, this._thumbRadius * 2);
+    this._thumb = this._buildStyledSprite(this._thumbStyle, this._thumbRadius * 2, this._thumbRadius * 2);
     this._thumb.anchor.set(0.5, 0.5);
     this._thumb.eventMode = "static";
     this._thumb.cursor = "pointer";
@@ -229,7 +199,7 @@ export class SliderComponent extends StyledHudObject<SliderComponentStyle> {
     const ratio = this._max > this._min ? (this._value - this._min) / (this._max - this._min) : 0;
     const filledW = ratio * this._trackWidth;
 
-    this._applySpriteStyle(this._fillSprite, this._fillStyle, Math.max(0, filledW), this._trackHeight);
+    this._applyPartialSpriteStyle(this._fillSprite, this._fillStyle, Math.max(0, filledW), this._trackHeight);
     this._thumb.position.set(filledW, 0);
   }
 }
