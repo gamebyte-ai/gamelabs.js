@@ -1,4 +1,4 @@
-import { UnsubscribeBag, UpdateManager, type IInstanceResolver, type IViewController, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import { ParticleManager, UnsubscribeBag, UpdateManager, type IInstanceResolver, type IViewController, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { IGameAreaView } from "../views/IGameAreaView";
 import { IGameModel } from "../models/IGameModel.js";
 import type { IGameModel as IGameModelType } from "../models/IGameModel.js";
@@ -12,6 +12,7 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
   private _updateManager: UpdateManager | null = null;
   private _gameEvents: GameEvents | null = null;
   private _ops: GameOperations | null = null;
+  private _particleManager: ParticleManager | null = null;
   private _updateUnsub: Unsubscribe | null = null;
   private _lastEnemyIds = new Set<number>();
 
@@ -20,13 +21,18 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
     this._updateManager = resolver.getInstance(UpdateManager);
     this._gameEvents = resolver.getInstance(GameEvents);
     this._ops = resolver.getInstance(GameOperations);
+    this._particleManager = resolver.getInstance(ParticleManager);
   }
 
   public initialize(view: IGameAreaView): void {
     this._view = view;
 
+    this._particleManager!.register(view.propulsionEmitter);
+    this._particleManager!.register(view.explosionEmitter);
+
     this._subs.add(this._gameEvents!.onDirectionInput((dx, dy) => this._ops?.setInput(dx, dy)));
     this._subs.add(this._gameEvents!.onRestart(() => this._onRestart()));
+    this._subs.add(this._gameEvents!.onCollision((x, y) => this._view?.spawnExplosion(x, y)));
     this._updateUnsub = this._updateManager!.register((dt) => this._onUpdate(dt));
 
     this._ops!.startGame();
@@ -49,6 +55,7 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
     if (!this._view || !this._gameModel) return;
 
     this._view.setPlayerPosition(this._gameModel.playerX, this._gameModel.playerY);
+    this._view.setPropulsionState(this._gameModel.playerVx, this._gameModel.playerVy);
 
     const currentIds = new Set<number>();
     for (const e of this._gameModel.enemies) {
@@ -73,11 +80,20 @@ export class GameAreaViewController implements IViewController<IGameAreaView> {
     this._updateUnsub?.();
     this._updateUnsub = null;
     this._subs.flush();
+    // Tear down emitters before the view's preDestroy runs (matches
+    // CLEANUP order in WorldViewBase.destroy: super calls preDestroy
+    // before controller.destroy, but app-level preDestroy reaches us
+    // first via world.removeView). Either ordering is safe — the
+    // emitter's destroy() removes itself from the scene graph and
+    // disposes its pool, so the view's preDestroy doesn't find them.
+    this._particleManager?.destroyByType("fx.propulsion");
+    this._particleManager?.destroyByType("fx.explosion");
     this._view = null;
     this._gameModel = null;
     this._updateManager = null;
     this._gameEvents = null;
     this._ops = null;
+    this._particleManager = null;
     this._lastEnemyIds.clear();
   }
 }

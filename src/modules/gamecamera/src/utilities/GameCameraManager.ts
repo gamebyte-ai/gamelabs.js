@@ -1,7 +1,20 @@
 import * as THREE from "three";
 import type { World } from "../../../../core/world/World.js";
 import type { ICameraController } from "../controllers/ICameraController.js";
-import { DEFAULT_ORTHO_SIZE, DEFAULT_EASING, PERSPECTIVE_TO_ORTHO_OFFSET } from "../constants/GameCameraDefaults.js";
+import type { ICameraConstraint } from "./ICameraConstraint.js";
+import type { ICameraFollow } from "./ICameraFollow.js";
+import { FollowObject } from "./FollowObject.js";
+import { FollowPosition } from "./FollowPosition.js";
+import { DEFAULT_ORTHO_SIZE, DEFAULT_FOV, DEFAULT_EASING, PERSPECTIVE_TO_ORTHO_OFFSET } from "../constants/GameCameraDefaults.js";
+
+export type CameraOffset = {
+  focus?: THREE.Vector3;
+  localPosition?: THREE.Vector3;
+  worldPosition?: THREE.Vector3;
+  rotation?: THREE.Euler;
+  fov?: number;
+  orthoSize?: number;
+};
 
 export class GameCameraManager {
   private _world: World | null = null;
@@ -11,14 +24,23 @@ export class GameCameraManager {
   private _activeController: ICameraController | null = null;
   private _active = true;
   private _orthoSize = DEFAULT_ORTHO_SIZE;
+  private _baseFov = DEFAULT_FOV;
   private _viewportWidth = 1;
   private _viewportHeight = 1;
-  private _followObject: THREE.Object3D | null = null;
-  private _followPosition: THREE.Vector3 | null = null;
-  private _followEasing = DEFAULT_EASING;
+  private _follow: ICameraFollow | null = null;
   private _currentPosition = new THREE.Vector3();
+  private _offsets = new Map<string, CameraOffset>();
+  private _constraints = new Map<string, ICameraConstraint>();
   private _tempVector = new THREE.Vector3();
   private _tempDirection = new THREE.Vector3();
+  private _tempFocusBias = new THREE.Vector3();
+  private _tempLocalBias = new THREE.Vector3();
+  private _tempWorldBias = new THREE.Vector3();
+  private _tempBiasedFocus = new THREE.Vector3();
+
+  public getCamera(): THREE.Camera | null {
+    return this._camera;
+  }
 
   public setController(controller: ICameraController): void {
     this._activeController = controller;
@@ -38,31 +60,88 @@ export class GameCameraManager {
 
   public setOrthoSize(size: number): void {
     this._orthoSize = size;
-    this._updateOrthoProjection();
+    this._writeOrthoProjection(this._orthoSize);
+    this._applyPositionToCamera();
+  }
+
+  public setBaseFov(fov: number): void {
+    this._baseFov = fov;
+    if (this._perspectiveCamera) {
+      this._perspectiveCamera.fov = fov;
+      this._perspectiveCamera.updateProjectionMatrix();
+    }
+    this._applyPositionToCamera();
   }
 
   public setPosition(x: number, y: number, z: number): void {
-    this._stopFollow();
+    this._follow = null;
     this._currentPosition.set(x, y, z);
     this._applyPositionToCamera();
   }
 
+  public setFollow(follow: ICameraFollow | null): void {
+    this._follow = follow;
+  }
+
+  public getFollow(): ICameraFollow | null {
+    return this._follow;
+  }
+
   public followObject(object: THREE.Object3D, easing?: number): void {
-    this._followObject = object;
-    this._followPosition = null;
-    this._followEasing = easing ?? DEFAULT_EASING;
-    this._currentPosition.copy(this._getTargetPosition());
+    this._follow = new FollowObject(object, easing ?? DEFAULT_EASING);
+    object.getWorldPosition(this._tempVector);
+    this._currentPosition.copy(this._tempVector);
   }
 
   public followPosition(x: number, y: number, z: number, easing?: number): void {
-    this._followObject = null;
-    this._followPosition = new THREE.Vector3(x, y, z);
-    this._followEasing = easing ?? DEFAULT_EASING;
+    this._follow = new FollowPosition(x, y, z, easing ?? DEFAULT_EASING);
     this._currentPosition.set(x, y, z);
   }
 
   public stopFollow(): void {
-    this._stopFollow();
+    this._follow = null;
+  }
+
+  public setOffset(id: string, offset: CameraOffset): void {
+    this._offsets.set(id, offset);
+    this._applyPositionToCamera();
+  }
+
+  public clearOffset(id: string): void {
+    if (this._offsets.delete(id)) {
+      this._applyPositionToCamera();
+    }
+  }
+
+  public clearAllOffsets(): void {
+    if (this._offsets.size === 0) return;
+    this._offsets.clear();
+    this._applyPositionToCamera();
+  }
+
+  public getOffset(id: string): CameraOffset | null {
+    return this._offsets.get(id) ?? null;
+  }
+
+  public setConstraint(id: string, constraint: ICameraConstraint): void {
+    this._constraints.set(id, constraint);
+    this._applyPositionToCamera();
+  }
+
+  public clearConstraint(id: string): void {
+    if (this._constraints.delete(id)) {
+      this._applyPositionToCamera();
+    }
+  }
+
+  public clearAllConstraints(): void {
+    if (this._constraints.size === 0) return;
+    this._constraints.clear();
+    this._applyPositionToCamera();
+  }
+
+  public getConstraint(id: string): ICameraConstraint | null {
+    return this._constraints.get(id) ?? null;
   }
 
   public activate(): void {
@@ -79,37 +158,21 @@ export class GameCameraManager {
 
   public update(dtSeconds: number): void {
     if (!this._active || !this._camera || !this._world) return;
-    if (this._followObject !== null || this._followPosition !== null) {
-      const target = this._getTargetPosition();
-      const k = this._followEasing;
-      const t = 1 - Math.exp(-k * dtSeconds);
-      this._currentPosition.lerp(target, t);
-      this._applyPositionToCamera();
+    if (this._follow) {
+      this._follow.step(this._currentPosition, dtSeconds);
     }
+    this._applyPositionToCamera();
   }
 
   public resize(width: number, height: number): void {
     this._viewportWidth = width;
     this._viewportHeight = height;
-    this._updateOrthoProjection();
+    this._writeOrthoProjection(this._orthoSize);
     if (this._perspectiveCamera) {
       this._perspectiveCamera.aspect = width / height;
       this._perspectiveCamera.updateProjectionMatrix();
     }
-  }
-
-  private _stopFollow(): void {
-    this._followObject = null;
-    this._followPosition = null;
-  }
-
-  private _getTargetPosition(): THREE.Vector3 {
-    if (this._followObject) {
-      this._followObject.getWorldPosition(this._tempVector);
-      return this._tempVector.clone();
-    }
-    if (this._followPosition) return this._followPosition.clone();
-    return this._currentPosition.clone();
+    this._applyPositionToCamera();
   }
 
   private _ensureCameraForController(existing: THREE.Camera | null): void {
@@ -132,7 +195,7 @@ export class GameCameraManager {
       }
     } else {
       if (!this._perspectiveCamera) {
-        this._perspectiveCamera = new THREE.PerspectiveCamera(60, this._viewportWidth / this._viewportHeight, 0.1, 1000);
+        this._perspectiveCamera = new THREE.PerspectiveCamera(this._baseFov, this._viewportWidth / this._viewportHeight, 0.1, 1000);
       }
       this._camera = this._perspectiveCamera;
       if (this._orthoCamera && this._world) {
@@ -150,14 +213,14 @@ export class GameCameraManager {
       this._world.setActiveCamera(this._camera);
     }
 
-    this._updateOrthoProjection();
+    this._writeOrthoProjection(this._orthoSize);
   }
 
-  private _updateOrthoProjection(): void {
+  private _writeOrthoProjection(size: number): void {
     if (!this._orthoCamera) return;
     const aspect = this._viewportWidth / this._viewportHeight;
-    const h = this._orthoSize / 2;
-    const w = (this._orthoSize * aspect) / 2;
+    const h = size / 2;
+    const w = (size * aspect) / 2;
     this._orthoCamera.left = -w;
     this._orthoCamera.right = w;
     this._orthoCamera.top = h;
@@ -169,6 +232,62 @@ export class GameCameraManager {
 
   private _applyPositionToCamera(): void {
     if (!this._camera || !this._activeController) return;
-    this._activeController.applyPositionToCamera(this._camera, this._currentPosition, this._orthoSize);
+
+    const focusBias = this._tempFocusBias.set(0, 0, 0);
+    const localBias = this._tempLocalBias.set(0, 0, 0);
+    const worldBias = this._tempWorldBias.set(0, 0, 0);
+    let rotX = 0;
+    let rotY = 0;
+    let rotZ = 0;
+    let fovDelta = 0;
+    let orthoSizeDelta = 0;
+
+    for (const o of this._offsets.values()) {
+      if (o.focus) focusBias.add(o.focus);
+      if (o.localPosition) localBias.add(o.localPosition);
+      if (o.worldPosition) worldBias.add(o.worldPosition);
+      if (o.rotation) {
+        rotX += o.rotation.x;
+        rotY += o.rotation.y;
+        rotZ += o.rotation.z;
+      }
+      if (o.fov !== undefined) fovDelta += o.fov;
+      if (o.orthoSize !== undefined) orthoSizeDelta += o.orthoSize;
+    }
+
+    const effectiveOrthoSize = Math.max(0.001, this._orthoSize + orthoSizeDelta);
+    const biasedFocus = this._tempBiasedFocus.copy(this._currentPosition).add(focusBias);
+
+    for (const c of this._constraints.values()) {
+      if (c.applyToFocus) c.applyToFocus(biasedFocus);
+    }
+
+    if (this._camera === this._orthoCamera) {
+      this._writeOrthoProjection(effectiveOrthoSize);
+    } else if (this._camera === this._perspectiveCamera && this._perspectiveCamera) {
+      const fov = Math.min(179, Math.max(1, this._baseFov + fovDelta));
+      if (this._perspectiveCamera.fov !== fov) {
+        this._perspectiveCamera.fov = fov;
+        this._perspectiveCamera.updateProjectionMatrix();
+      }
+    }
+
+    this._activeController.applyPositionToCamera(this._camera, biasedFocus, effectiveOrthoSize);
+
+    if (worldBias.lengthSq() > 0) this._camera.position.add(worldBias);
+    if (localBias.lengthSq() > 0) {
+      this._camera.translateX(localBias.x);
+      this._camera.translateY(localBias.y);
+      this._camera.translateZ(localBias.z);
+    }
+    if (rotX !== 0 || rotY !== 0 || rotZ !== 0) {
+      this._camera.rotation.x += rotX;
+      this._camera.rotation.y += rotY;
+      this._camera.rotation.z += rotZ;
+    }
+
+    for (const c of this._constraints.values()) {
+      if (c.applyToCamera) c.applyToCamera(this._camera.position, this._camera.rotation);
+    }
   }
 }

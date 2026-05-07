@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-05-06
+
+### Added
+
+- **`timeline` module** — `TimelineManager` + `Track` base class with `onStart` / `onUpdate` / `onEnd` / `onCancel` hooks, concurrent tracks, query/cancel by id or type. Replaces ad-hoc per-effect timers with one inspectable coordinator. `ITimelineModel` exposes the live track set for debug overlays and game logic.
+- **`particles` module** — `ParticleManager` + `IParticleEmitter` with `WorldParticleEmitter` (THREE) / `HudParticleEmitter` (Pixi) base classes, pooled lifetime ticking, behavior dispatch, and a global `ParticleBudget` shared across world and HUD emitters. `ParticleBurstTrack` integrates with the timeline module.
+- **`gamecamera` — named-channel offsets.** `CameraOffset` type + `setOffset(id, ...)` / `clearOffset(id)` / `clearAllOffsets()` / `getOffset(id)` / `setBaseFov(fov)` on `GameCameraManager`. Per-frame apply layers `focus` (pre-controller) and `localPosition` / `worldPosition` / `rotation` / `fov` / `orthoSize` (post-controller) on top of the active controller's transform. Lets effects (shake, recoil, look-ahead, …) live entirely in userland.
+- **`gamecamera` — cinematic tracks.** `CameraShakeTrack`, `ZoomPunchTrack`, `DollyZoomTrack`, `HitStopTrack`, `CinematicPathTrack` — timeline-driven effect tracks that drive the offset channels for the duration of the track and clean up on end/cancel.
+- **`gamecamera` — pluggable follow strategies.** `ICameraFollow` interface + `FollowObject`, `FollowPosition`, `PathFollow` implementations. `setFollow(strategy)` / `getFollow()` swap strategies; the legacy `followObject` / `followPosition` / `stopFollow` methods are kept as snap-on-first-call convenience wrappers.
+- **`gamecamera` — pluggable constraints.** `ICameraConstraint` interface (`applyToFocus` pre-controller and/or `applyToCamera` post-transform hooks) + `BoundsConstraint` (clamp position to an AABB) and `DeadZoneFocusConstraint` (windowed focal point on a configurable plane). Manager exposes `setConstraint` / `clearConstraint` / `clearAllConstraints` / `getConstraint`.
+- **`gamecamera` — `getCamera()` accessor** so tracks can read the active camera's `fov` / `position` at start (used by `DollyZoomTrack`). Mutation still goes through offsets / constraints / follow.
+- **`avoidance` example** — death-shake driven through `TimelineManager` + `CameraShakeTrack`; propulsion + explosion particle FX via the new `particles` module.
+- **Module metadata** — every built-in module now ships a sibling `module.json` (`name`, `description`, `dependencies`).
+
+### Changed
+
+- **`gamecamera` — `_applyPositionToCamera` now layers offsets on top of the controller transform.** Behavior preserved when no offsets are registered. `_writeOrthoProjection(size)` accepts an effective size so the projection follows `orthoSize` deltas.
+- **`gamecamera` — follow logic moved out of the manager** into `ICameraFollow` strategies. Legacy `followObject` / `followPosition` retained as wrappers, so existing apps need no changes.
+- **`gamecamera` — `module.json`** declares `timeline` as a dependency for cinematic-track support.
+
 ## [2.0.0] - 2026-04-24
 
 ### BREAKING CHANGES

@@ -1,0 +1,5 @@
+{
+  "name": "audiodsp",
+  "description": "Web Audio DSP effects (filter, reverb, delay, distortion, compressor) composable as a serial chain. Each effect wraps one or more Web Audio nodes behind a uniform DspEffect interface; chains route audio from a source through the effect list to a destination AudioNode (e.g. AudioService.sfxGain).",
+  "dependencies": []
+}

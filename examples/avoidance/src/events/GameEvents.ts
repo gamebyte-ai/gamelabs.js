@@ -79,4 +79,16 @@ export class GameEvents {
   public emitSlowAbilityProgressChanged(t: number): void {
     for (const cb of this._slowAbilityProgressListeners) cb(t);
   }
+
+  private readonly _collisionListeners = new Set<(x: number, y: number) => void>();
+
+  /** Fires once when the player hits an enemy, before `onGameOver`. Position is the player's location at impact. */
+  public onCollision(cb: (x: number, y: number) => void): Unsubscribe {
+    this._collisionListeners.add(cb);
+    return () => this._collisionListeners.delete(cb);
+  }
+
+  public emitCollision(x: number, y: number): void {
+    for (const cb of this._collisionListeners) cb(x, y);
+  }
 }

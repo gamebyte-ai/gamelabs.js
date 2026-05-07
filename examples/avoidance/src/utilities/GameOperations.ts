@@ -122,8 +122,10 @@ export class GameOperations implements IInjectionTarget {
       dy /= mag;
     }
 
-    let px = model.playerX + dx * config.playerSpeed * dt;
-    let py = model.playerY + dy * config.playerSpeed * dt;
+    const vx = dx * config.playerSpeed;
+    const vy = dy * config.playerSpeed;
+    let px = model.playerX + vx * dt;
+    let py = model.playerY + vy * dt;
 
     const half = config.playerSize / 2;
     const area = config.gameAreaSize;
@@ -131,6 +133,7 @@ export class GameOperations implements IInjectionTarget {
     py = Math.max(half, Math.min(area - half, py));
 
     model.setPlayerPosition(px, py);
+    model.setPlayerVelocity(vx, vy);
   }
 
   private _spawnEnemies(dt: number): void {
@@ -197,7 +200,11 @@ export class GameOperations implements IInjectionTarget {
       const dy = model.playerY - e.y;
       if (Math.sqrt(dx * dx + dy * dy) < playerR + enemyR) {
         model.setGameOver(true);
+        // Zero velocity so the propulsion trail stops emitting once the
+        // player has stopped — in-flight particles age out naturally.
+        model.setPlayerVelocity(0, 0);
         this._waveManager?.stop();
+        this._gameEvents?.emitCollision(model.playerX, model.playerY);
         this._gameEvents?.emitGameOver(this._waveManager?.currentWave ?? 0);
         return;
       }

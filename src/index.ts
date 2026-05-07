@@ -59,3 +59,5 @@ export * from "./modules/gamegrid/src/index.js";
 export * from "./modules/onscreencontrols/src/index.js";
 export * from "./modules/settings/src/index.js";
 export * from "./modules/audiodsp/src/index.js";
+export * from "./modules/timeline/src/index.js";
+export * from "./modules/particles/src/index.js";

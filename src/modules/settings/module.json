@@ -1,0 +1,5 @@
+{
+  "name": "settings",
+  "description": "Typed game settings with boolean toggles and number sliders. Values are persisted in localStorage via StorageService, validated on write (clamp, step rounding), and broadcast via SettingsEvents. Includes a ready-to-use popup UI built from the framework's themed uicomponents.",
+  "dependencies": ["uicomponents"]
+}

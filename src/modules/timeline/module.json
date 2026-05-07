@@ -1,0 +1,5 @@
+{
+  "name": "timeline",
+  "description": "Time-bounded lifecycle plumbing for game effects. Tracks have a startTime + duration and emit onStart/onUpdate/onEnd/onCancel hooks; multiple tracks run concurrently and are queryable or cancelable by id or type at any time.",
+  "dependencies": []
+}

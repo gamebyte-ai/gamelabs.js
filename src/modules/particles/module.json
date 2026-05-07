@@ -1,0 +1,5 @@
+{
+  "name": "particles",
+  "description": "View-side particle plumbing. A ParticleManager owns a registered set of IParticleEmitter instances and ticks them each frame; a ParticleBudget arbitrates a global cap shared across world (THREE) and HUD (Pixi) emitters. WorldParticleEmitter (THREE.Group) and HudParticleEmitter (Pixi.Container) provide pooled, behavior-driven emitter base classes; ParticleBurstTrack drives an emitter from the timeline module.",
+  "dependencies": []
+}

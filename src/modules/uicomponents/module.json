@@ -1,0 +1,5 @@
+{
+  "name": "uicomponents",
+  "description": "Reusable PixiJS UI components built on top of @pixi/layout and @pixi/ui. Includes buttons, labels, toggles, sliders, layouts, image components, and supporting style infrastructure.",
+  "dependencies": []
+}

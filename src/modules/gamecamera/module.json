@@ -1,0 +1,5 @@
+{
+  "name": "gamecamera",
+  "description": "Controls the 3D scene camera in Three.js. Supports multiple projection modes, object/position following, and smooth easing. Includes named-channel camera offsets and a CameraShakeTrack for time-bounded shake effects.",
+  "dependencies": ["timeline"]
+}
