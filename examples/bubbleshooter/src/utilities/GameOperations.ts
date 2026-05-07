@@ -277,16 +277,18 @@ export class GameOperations implements IInjectionTarget {
 
   /**
    * Pick `bombs + fireballs` random occupied non-stone cells and
-   * overwrite each with the matching power-up colour. Cells are
-   * sampled uniformly without replacement; if the grid has fewer
-   * eligible cells than requested, all eligible ones get
-   * overwritten and the remainder is silently skipped. Called once
-   * per level load against an already-populated grid.
+   * overwrite each with the matching power-up colour, with the
+   * constraint that no two power-up cells end up hex-adjacent. Cells
+   * are sampled uniformly without replacement; the first valid pick
+   * for each requested slot wins, and any candidate touching an
+   * already-placed power-up is skipped. If the grid runs out of
+   * non-adjacent eligible cells before the request is satisfied, the
+   * remainder is silently dropped. Called once per level load.
    */
   private _placeRandomPowerUps(bombs: number, fireballs: number): void {
-    const total = bombs + fireballs;
-    if (total <= 0) return;
+    if (bombs + fireballs <= 0) return;
     const grid = this._grid!;
+    const layout = this._layout!;
     const events = this._events!;
     interface ICell { row: number; col: number }
     const candidates: ICell[] = [];
@@ -300,24 +302,35 @@ export class GameOperations implements IInjectionTarget {
         candidates.push({ row, col });
       }
     }
-    // Fisher-Yates shuffle, truncated to `total` picks.
-    const picks = Math.min(total, candidates.length);
-    for (let i = 0; i < picks; i++) {
-      const j = i + Math.floor(Math.random() * (candidates.length - i));
+    // Full Fisher-Yates so adjacency-rejected picks fall back to
+    // arbitrary positions in the shuffled list.
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
       const tmp = candidates[i]!;
       candidates[i] = candidates[j]!;
       candidates[j] = tmp;
     }
-    let i = 0;
-    for (let b = 0; b < bombs && i < picks; b++, i++) {
-      const cell = candidates[i]!;
-      grid.setColor(cell.row, cell.col, BubbleColor.Bomb);
-      events.emitBubblePlaced(cell.row, cell.col, BubbleColor.Bomb);
-    }
-    for (let f = 0; f < fireballs && i < picks; f++, i++) {
-      const cell = candidates[i]!;
-      grid.setColor(cell.row, cell.col, BubbleColor.Fireball);
-      events.emitBubblePlaced(cell.row, cell.col, BubbleColor.Fireball);
+
+    const hasPowerUpNeighbour = (row: number, col: number): boolean => {
+      for (const off of layout.getNeighborOffsets(row)) {
+        const nr = row + off.dRow;
+        const nc = col + off.dCol;
+        if (!layout.isInBounds(nr, nc)) continue;
+        if (isPowerUpColor(grid.getColor(nr, nc))) return true;
+      }
+      return false;
+    };
+
+    let placedBombs = 0;
+    let placedFireballs = 0;
+    for (const cell of candidates) {
+      if (placedBombs === bombs && placedFireballs === fireballs) break;
+      if (hasPowerUpNeighbour(cell.row, cell.col)) continue;
+      const colour = placedBombs < bombs ? BubbleColor.Bomb : BubbleColor.Fireball;
+      grid.setColor(cell.row, cell.col, colour);
+      events.emitBubblePlaced(cell.row, cell.col, colour);
+      if (colour === BubbleColor.Bomb) placedBombs++;
+      else placedFireballs++;
     }
   }
 

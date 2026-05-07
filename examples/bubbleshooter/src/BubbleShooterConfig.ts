@@ -181,7 +181,7 @@ export class BubbleShooterConfig {
    * timer expires so the visible badge count always ticks up the
    * moment the icon arrives.
    */
-  public readonly powerUpCollectDurationSeconds = 0.6;
+  public readonly powerUpCollectDurationSeconds = 0.8;
   /** Fireball flight speed in world units per second. */
   public readonly fireballSpeed = 1500;
   /**
