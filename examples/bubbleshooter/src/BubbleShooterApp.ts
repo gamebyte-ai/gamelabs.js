@@ -76,6 +76,9 @@ const POWER_UP_GAP = 10;
 const POWER_UP_EDGE_INSET = 8;
 /** Inset from the button centre to the count-badge anchor (top-right of the button). */
 const POWER_UP_COUNT_INSET = 16;
+/** Bright green tint applied to the target button's bg ring while the aim aid is open. */
+const TARGET_ACTIVE_BG_COLOR = 0x33dd55;
+const TARGET_ACTIVE_BG_ALPHA = 0.85;
 
 // Settings (gear) button layout — TopRight, screen-anchored. Sized
 // slightly smaller than the power-up buttons so the corner badge feels
@@ -107,6 +110,12 @@ export class BubbleShooterApp extends GamelabsApp {
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _onScreenControlsBinding = new OnScreenControlsBinding();
   private readonly _uiComponentsBinding = new UIComponentsBinding();
+  // Held as a field so it's reachable from `_layoutPowerUpButtons`
+  // even when the framework's ResizeObserver fires before
+  // `configureDI` has bound it on the view DI container (the
+  // observer attaches in the framework constructor; DI bindings
+  // run later inside `initialize`).
+  private readonly _powerUpButtonTargets = new PowerUpButtonTargets();
   // SettingsBinding registers the framework SettingsManager + popup
   // view/controller. We pass `defaults: false` because the bubble
   // shooter only exposes SFX-related fields (no music yet) — the
@@ -169,8 +178,10 @@ export class BubbleShooterApp extends GamelabsApp {
     this.viewDiContainer.bindInstance(PlayAreaClipping, new PlayAreaClipping(this._layout));
     // World-space positions of the HUD power-up buttons. App writes
     // these on every layout / resize pass; PowerUpCollectionView
-    // reads them as the flight destination.
-    this.viewDiContainer.bindInstance(PowerUpButtonTargets, new PowerUpButtonTargets());
+    // reads them as the flight destination. Bind the App's own
+    // instance so `_layoutPowerUpButtons` can write to it without a
+    // DI lookup (resize events can fire before this binding is set).
+    this.viewDiContainer.bindInstance(PowerUpButtonTargets, this._powerUpButtonTargets);
 
     // Top-left score readout via the on-screen-controls Label widget.
     const osc = this.diContainer.getInstance(OnScreenControlManager);
@@ -425,6 +436,7 @@ export class BubbleShooterApp extends GamelabsApp {
       if (!isPressed) return;
       this._aimAidVisible = !this._aimAidVisible;
       this._gameEvents.emitAimAidVisibleChanged(this._aimAidVisible);
+      this._refreshTargetButtonTint();
     });
     // Register SFX-only settings fields, then wire the gear button to
     // open the framework SettingsPopup. Field names match the
@@ -457,6 +469,26 @@ export class BubbleShooterApp extends GamelabsApp {
   private _onLayoutChanged(): void {
     this._fitCamera(this.width, this.height);
     this._layoutPowerUpButtons(this.width, this.height);
+  }
+
+  /**
+   * Re-issue the target button so its bg ring picks up the
+   * aim-aid-on tint (bright green when open, framework default
+   * when closed). The OSC view caches the resolved style at
+   * `_createButton`, so we remove + re-add to force a fresh
+   * `OscButton` with the updated `up` slot. The same config object
+   * is reused so its current offsetX/offsetY (set by
+   * `_layoutPowerUpButtons`) survive the round-trip.
+   */
+  private _refreshTargetButtonTint(): void {
+    const config = this._targetButtonConfig;
+    if (!config) return;
+    const osc = this.diContainer.getInstance(OnScreenControlManager);
+    config.up = this._aimAidVisible
+      ? { color: TARGET_ACTIVE_BG_COLOR, alpha: TARGET_ACTIVE_BG_ALPHA }
+      : undefined;
+    osc.removeControl(config.id);
+    osc.addControl(config);
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
@@ -539,9 +571,11 @@ export class BubbleShooterApp extends GamelabsApp {
     // cell to the right HUD button. Ortho centres at (0, 0):
     //   screenX = width - offsetX  →  worldX = (width/2 - offsetX) / pxPerWorld
     //   screenY = height - offsetY →  worldY = (offsetY - height/2) / pxPerWorld
-    const targets = this.viewDiContainer.getInstance(PowerUpButtonTargets);
-    targets.setBombTarget((width / 2 - bombOffsetX) / pxPerWorld, (buttonOffsetY - height / 2) / pxPerWorld);
-    targets.setFireballTarget(
+    this._powerUpButtonTargets.setBombTarget(
+      (width / 2 - bombOffsetX) / pxPerWorld,
+      (buttonOffsetY - height / 2) / pxPerWorld,
+    );
+    this._powerUpButtonTargets.setFireballTarget(
       (width / 2 - fireballOffsetX) / pxPerWorld,
       (buttonOffsetY - height / 2) / pxPerWorld,
     );

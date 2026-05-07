@@ -265,6 +265,13 @@ export class GameOperations implements IInjectionTarget {
       this._events!.emitShooterControlsLocked(false);
     }
     this._emitPowerUpAvailability();
+    // Re-roll the shooter's held + next slots against the new
+    // level's palette. Skipping this leaves stale colours from the
+    // previous level — and worse, if the previous level had ended
+    // (grid emptied), `_validateShooterColors` had already nulled
+    // both slots, so the next level would start with nothing to
+    // fire and `fire()` would silently bail.
+    this._initShooterBubbles();
     this.aimAt(this._lastAimX, this._lastAimY);
   }
 
