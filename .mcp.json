@@ -1,0 +1,9 @@
+{
+    "mcpServers": {
+    "gamebyte-admin": {
+        "type": "sse",
+        "url": "https://mcp.gamebyte.ai/mcp/sse",
+        "headers": { "Authorization": "Bearer ${GAMEBYTE_MCP_API_KEY}" }
+        }
+    }
+}
