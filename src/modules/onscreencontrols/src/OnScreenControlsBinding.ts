@@ -33,36 +33,35 @@ export class OnScreenControlsBinding extends ModuleBinding {
     super();
 
     // White-with-alpha defaults — runtime tints apply via
-    // `SpriteStyle.color` on each slot. The `isSourceModule` switch keeps
-    // the dev path (`../assets/...` next to source) and the published
-    // path (`dist/assets/onscreencontrols/...`) in lockstep.
-    const isSourceModule = import.meta.url.includes("/src/modules/onscreencontrols/src/");
+    // `SpriteStyle.color` on each slot. Asset URLs use plain string
+    // literals so consumer bundlers (Vite/Rollup) can statically detect
+    // them and emit the PNGs into their production output.
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         OnScreenControlsAssetIds.JoystickBase,
-        new URL(isSourceModule ? "../assets/joystick-base.png" : "./assets/onscreencontrols/joystick-base.png", import.meta.url).href,
+        new URL("./assets/onscreencontrols/joystick-base.png", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         OnScreenControlsAssetIds.JoystickHandle,
-        new URL(isSourceModule ? "../assets/joystick-handle.png" : "./assets/onscreencontrols/joystick-handle.png", import.meta.url).href,
+        new URL("./assets/onscreencontrols/joystick-handle.png", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         OnScreenControlsAssetIds.ButtonBg,
-        new URL(isSourceModule ? "../assets/button-bg.png" : "./assets/onscreencontrols/button-bg.png", import.meta.url).href,
+        new URL("./assets/onscreencontrols/button-bg.png", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         OnScreenControlsAssetIds.ButtonProgress,
-        new URL(isSourceModule ? "../assets/button-progress.png" : "./assets/onscreencontrols/button-progress.png", import.meta.url).href,
+        new URL("./assets/onscreencontrols/button-progress.png", import.meta.url).href,
       ),
     );
   }

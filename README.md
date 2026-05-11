@@ -39,6 +39,36 @@ await app.initialize();
 app.mainLoop();
 ```
 
+### Vite setup
+
+Consumers using Vite need three settings in `vite.config.ts`. The `templates/gamebyte_template/vite.config.ts` is a ready-to-copy starter; the minimum is:
+
+```ts
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  optimizeDeps: {
+    // Keep @gamebyte/gamelabsjs un-pre-bundled so its default-skin
+    // asset URLs (new URL("./assets/...", import.meta.url)) resolve
+    // against node_modules/@gamebyte/gamelabsjs/dist/, not .vite/deps/.
+    // Without this, UI components render with magenta missing-texture
+    // markers in dev.
+    exclude: ["@gamebyte/gamelabsjs"],
+    // Two CJS transitive deps the exclude above would otherwise also
+    // skip — `import { Signal }` / `import { vector }` would throw
+    // against their CJS-only modules without this.
+    include: ["@pixi/ui > typed-signals", "@gamebyte/gamelabsjs > @js-basics/vector"],
+  },
+  resolve: {
+    // One copy of three.js / Pixi shared between app and framework.
+    // Mixed copies crash Yoga (in @pixi/layout) at runtime.
+    dedupe: ["three", "pixi.js", "@pixi/layout", "@pixi/ui"],
+  },
+});
+```
+
+Production builds (`vite build`) pick up the framework's PNG/JPG assets automatically — Rollup statically detects the `new URL("./assets/...", import.meta.url)` pattern and emits them into the consumer's `dist/`.
+
 ## App lifecycle
 
 Your `MyGameApp` extends `GamelabsApp` and overrides these methods (called in this order):

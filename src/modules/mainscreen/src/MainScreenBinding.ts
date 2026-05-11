@@ -24,33 +24,28 @@ export class MainScreenBinding extends ModuleBinding {
   constructor() {
     super();
 
-    const isSourceModule = import.meta.url.includes("/src/modules/mainscreen/src/");
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         MainScreenAssetIds.Background,
-        new URL(isSourceModule ? "../assets/background.jpg" : "./assets/mainscreen/background.jpg", import.meta.url).href,
+        new URL("./assets/mainscreen/background.jpg", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
-      new AssetRequest(
-        AssetTypes.HudTexture,
-        MainScreenAssetIds.Logo,
-        new URL(isSourceModule ? "../assets/logo.png" : "./assets/mainscreen/logo.png", import.meta.url).href,
-      ),
+      new AssetRequest(AssetTypes.HudTexture, MainScreenAssetIds.Logo, new URL("./assets/mainscreen/logo.png", import.meta.url).href),
     );
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         MainScreenAssetIds.PlayButtonBg,
-        new URL(isSourceModule ? "../assets/play_button_bg.png" : "./assets/mainscreen/play_button_bg.png", import.meta.url).href,
+        new URL("./assets/mainscreen/play_button_bg.png", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(
       new AssetRequest(
         AssetTypes.HudTexture,
         MainScreenAssetIds.SettingsButtonBg,
-        new URL(isSourceModule ? "../assets/settings_button_bg.png" : "./assets/mainscreen/settings_button_bg.png", import.meta.url).href,
+        new URL("./assets/mainscreen/settings_button_bg.png", import.meta.url).href,
       ),
     );
     this._assetRequestList.addRequest(new AssetRequest(AssetTypes.Text, MainScreenAssetIds.BackgroundPreset, "", this._backgroundPreset));

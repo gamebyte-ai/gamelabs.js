@@ -109,16 +109,8 @@ export class SettingsBinding extends ModuleBinding {
     super();
     this._registerAudioFields = opts.audioFields ?? false;
 
-    // The `isSourceModule` switch keeps the dev path (`../assets/...`
-    // next to source) and the published path (`dist/assets/settings/...`)
-    // in lockstep — same approach as `OnScreenControlsBinding`.
-    const isSourceModule = import.meta.url.includes("/src/modules/settings/src/");
     this._assetRequestList.addRequest(
-      new AssetRequest(
-        AssetTypes.HudTexture,
-        SettingsAssetIds.PanelBg,
-        new URL(isSourceModule ? "../assets/panel-bg.png" : "./assets/settings/panel-bg.png", import.meta.url).href,
-      ),
+      new AssetRequest(AssetTypes.HudTexture, SettingsAssetIds.PanelBg, new URL("./assets/settings/panel-bg.png", import.meta.url).href),
     );
 
     // Text style assets for every themed surface in the popup —
