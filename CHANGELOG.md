@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-05-11
+
+### Fixed
+
+- **Module bindings now ship default asset URLs that consumer bundlers can actually resolve.** `SettingsBinding`, `MainScreenBinding`, `LevelProgressScreenBinding`, and `OnScreenControlsBinding` previously wrapped their `new URL(...)` calls in an `isSourceModule ? "../assets/..." : "./assets/<module>/..."` ternary. Vite/Rollup's static-asset analyzer only follows `new URL(literal, import.meta.url)` when the first argument is a string literal — the ternary defeated it, so consumer `vite build` outputs shipped zero framework PNGs/JPGs and every default-skinned UI surface 404'd at runtime. Each binding now passes a single fixed `./assets/<module>/<file>` literal so Rollup emits the assets into the consumer's `dist/`.
+
+### Required consumer action
+
+Existing consumers must update their `vite.config.ts` for dev mode to work. The minimum is:
+
+```ts
+optimizeDeps: {
+  exclude: ["@gamebyte/gamelabsjs"],
+  include: ["@pixi/ui > typed-signals", "@gamebyte/gamelabsjs > @js-basics/vector"],
+},
+resolve: {
+  dedupe: ["three", "pixi.js", "@pixi/layout", "@pixi/ui"],
+},
+```
+
+Without `optimizeDeps.exclude`, Vite pre-bundles the framework into `node_modules/.vite/deps/`, `import.meta.url` shifts off the real dist directory, and default-skin textures render as Pixi's magenta missing-texture marker. The `include` line force-pre-bundles two CJS transitive deps (`typed-signals` via `@pixi/ui`, `@js-basics/vector`) that the exclude would otherwise also skip. `resolve.dedupe` prevents Yoga (in `@pixi/layout`) from initializing in one copy of Pixi while `.layout = …` runs against another.
+
+`templates/gamebyte_template/vite.config.ts` and `templates/example_template/vite.config.ts` ship the canonical config; the README's new "Vite setup" section documents it.
+
 ## [3.0.0] - 2026-05-06
 
 ### Added

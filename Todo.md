@@ -2,7 +2,7 @@
 
 This repo is a **project skeleton + reusable modules**, not a full engine. This file tracks future work for humans and AI contributors reviewing the codebase.
 
-## Current state (as of May 2026, v3.0.0)
+## Current state (as of May 2026, v3.1.0)
 
 - **Build / test / CI**: `npm run typecheck`, `lint`, `format:check`, `test`, `build` — all gates pass on Node 20 + 22 via GitHub Actions.
 - **Architecture docs**: `AGENTS.md` (policies + module lifecycle + binding shape rules), `DeveloperNotes.md` (architecture details), `README.md` (quick start + structure), per-module READMEs, per-module `module.json` metadata.

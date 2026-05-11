@@ -1,6 +1,6 @@
 {
   "name": "@gamebyte/gamelabsjs",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Gamelabsjs: a game framework powered by Three.js (3D) and PixiJS (2D).",
   "license": "MIT",
   "author": "Oguz Sandikci",
