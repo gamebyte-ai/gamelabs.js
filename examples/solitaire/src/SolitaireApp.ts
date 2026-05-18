@@ -73,7 +73,7 @@ export class SolitaireApp extends GamelabsApp {
 
     this.diContainer.getInstance(UIEvents).createScreen(SolitaireUIIds.GameScreen, this._config.transitions.gameScreenEnter);
 
-    DealOperations.deal(this._boardModel, this.createRng());
+    const dealOrder = DealOperations.deal(this._boardModel, this.createRng());
 
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);
@@ -83,6 +83,12 @@ export class SolitaireApp extends GamelabsApp {
     this.world.addView(this._boardView);
 
     this.updateCameraFit(this.width, this.height);
+
+    // Animate the opening deal. The view re-locates the 28 tableau
+    // cards onto the stock pile in Phase 1 (synchronously, before the
+    // first rendered frame) and tweens them out one by one. Input is
+    // blocked for the duration via the view's animation gate.
+    this._boardView.playDealAnimation(dealOrder, () => {});
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {

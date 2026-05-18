@@ -1,5 +1,5 @@
 import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
-import type { CardsDragReleaseInfo, IBoardView } from "../views/IBoardView";
+import type { CardClickedInfo, CardsDragReleaseInfo, IBoardView } from "../views/IBoardView";
 import { IBoardModel } from "../models/IBoardModel";
 import type { IPile } from "../models/IPile";
 import { CardMoveOperations } from "../utilities/CardMoveOperations";
@@ -23,6 +23,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     view.bindBoard(this._board);
     view.setDragEligibilityPredicate((pile, fromIndex) => pile.canDragFrom(fromIndex));
     this._subs.add(view.onCardsDragReleased((info) => this.onCardsDragReleased(info)));
+    this._subs.add(view.onCardClicked((info) => this.onCardClicked(info)));
     this._subs.add(view.onPileTapped((pile) => this.onPileTapped(pile)));
     view.refresh();
   }
@@ -39,20 +40,54 @@ export class BoardViewController implements IViewController<IBoardView> {
     if (!this._view) return;
     const target = info.targetPile;
     if (target === null || target === info.originPile) {
-      this._view.commitDragRelease();
+      this._view.commitDragRelease(null);
       return;
     }
     const moving = info.originPile.cards.slice(info.fromIndex);
     if (!target.canPlace(moving)) {
-      this._view.commitDragRelease();
+      this._view.commitDragRelease(null);
       return;
     }
 
     CardMoveOperations.moveCards(info.originPile, info.fromIndex, target);
-    if (info.originPile.needsAutoFlipNewTop()) {
-      CardMoveOperations.flipTopCard(info.originPile, true);
+    const autoFlippedCardId = this.maybeAutoFlipNewTop(info.originPile);
+    this._view.commitDragRelease(autoFlippedCardId);
+  }
+
+  private onCardClicked(info: CardClickedInfo): void {
+    if (!this._view || !this._board) return;
+    // Quick placement targets foundations only, which accept single
+    // cards. Multi-card runs from the middle of a tableau column
+    // cannot be auto-routed, so only the topmost card of any pile
+    // is eligible.
+    if (info.fromIndex !== info.pile.cards.length - 1) return;
+    const card = info.pile.cards[info.fromIndex];
+    let destination: IPile | null = null;
+    for (const foundation of this._board.foundations) {
+      if (foundation.canPlace([card])) {
+        destination = foundation;
+        break;
+      }
     }
-    this._view.commitDragRelease();
+    if (destination === null) return;
+    CardMoveOperations.moveCards(info.pile, info.fromIndex, destination);
+    const autoFlippedCardId = this.maybeAutoFlipNewTop(info.pile);
+    this._view.animateQuickPlacement(card.id, autoFlippedCardId);
+  }
+
+  /**
+   * If the pile's new top (after a move out) needs to flip face-up,
+   * record its id and mutate its face state. Returns the flipped
+   * card's id, or null if nothing needed flipping. The view animates
+   * the flip visually using the recorded id.
+   */
+  private maybeAutoFlipNewTop(pile: IPile): number | null {
+    if (!pile.needsAutoFlipNewTop()) return null;
+    const top = pile.topCard;
+    if (top === null) return null;
+    const cardId = top.id;
+    CardMoveOperations.flipTopCard(pile, true);
+    return cardId;
   }
 
   private onPileTapped(pile: IPile): void {

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { WorldViewBase, World, type IInstanceResolver, type IPointerInputHandler, type Unsubscribe } from "@gamebyte/gamelabsjs";
-import type { CardsDragReleaseInfo, DragEligibilityPredicate, IBoardView } from "./IBoardView";
+import type { CardClickedInfo, CardsDragReleaseInfo, DragEligibilityPredicate, IBoardView } from "./IBoardView";
 import type { IBoardModel } from "../models/IBoardModel";
 import type { IPile } from "../models/IPile";
 import { SolitaireConfig } from "../SolitaireConfig";
@@ -13,6 +13,11 @@ const DRAG_LIFT_Y = 0.4;
 const DRAG_CARD_SUBLIFT_Y = 0.01;
 const RELEASE_ANIMATION_DURATION = 0.18;
 const RELEASE_ANIMATION_EASE = "power2.out";
+const DRAG_START_THRESHOLD_PX = 5;
+const QUICK_PLACEMENT_DURATION = 0.12;
+const QUICK_PLACEMENT_LIFT_Y = 0.25;
+const DEAL_PER_CARD_DURATION = 0.06;
+const CARD_FLIP_HALF_DURATION = 0.08;
 
 interface CardLookupEntry {
   readonly pile: IPile;
@@ -28,6 +33,14 @@ interface DragSession {
   /** Card at the bottom of the dragged stack — the anchor used to
    *  compute the release-animation target from the current model. */
   readonly bottomCardId: number;
+}
+
+interface PendingPickup {
+  readonly pile: IPile;
+  readonly fromIndex: number;
+  readonly pointerId: number;
+  readonly startClientX: number;
+  readonly startClientY: number;
 }
 
 export class BoardView extends WorldViewBase implements IBoardView, IPointerInputHandler {
@@ -48,9 +61,14 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   private readonly _groundHit = new THREE.Vector3();
 
   private _dragSession: DragSession | null = null;
+  private _pendingPickup: PendingPickup | null = null;
   private _dragEligibility: DragEligibilityPredicate | null = null;
   private _releaseTween: gsap.core.Tween | null = null;
+  private _quickPlacementTween: gsap.core.Timeline | null = null;
+  private _dealTimeline: gsap.core.Timeline | null = null;
+  private _flipTimeline: gsap.core.Timeline | null = null;
   private readonly _dragReleaseListeners = new Set<(info: CardsDragReleaseInfo) => void>();
+  private readonly _cardClickListeners = new Set<(info: CardClickedInfo) => void>();
   private readonly _pileTapListeners = new Set<(pile: IPile) => void>();
 
   public override inject(resolver: IInstanceResolver): void {
@@ -90,6 +108,12 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   public refresh(): void {
+    this._quickPlacementTween?.kill();
+    this._quickPlacementTween = null;
+    this._dealTimeline?.kill();
+    this._dealTimeline = null;
+    this._flipTimeline?.kill();
+    this._flipTimeline = null;
     this.endDragSession();
     this.clearSlots();
     this.clearCards();
@@ -105,7 +129,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     }
   }
 
-  public commitDragRelease(): void {
+  public commitDragRelease(autoFlippedCardId: number | null): void {
     const session = this._dragSession;
     if (!session || !this._dragRoot || !this._board) {
       this.refresh();
@@ -125,18 +149,148 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       ease: RELEASE_ANIMATION_EASE,
       onComplete: () => {
         this._releaseTween = null;
-        this.refresh();
+        this.playAutoFlipThenRefresh(autoFlippedCardId);
       },
     });
   }
 
-  private findCardWorldPosition(cardId: number): { x: number; z: number } | null {
+  public animateQuickPlacement(cardId: number, autoFlippedCardId: number | null): void {
+    if (!this._cardsRoot || !this._board) {
+      this.refresh();
+      return;
+    }
+    const entry = this._cardLookup.get(cardId);
+    const target = this.findCardWorldPosition(cardId);
+    if (!entry || !target) {
+      this.refresh();
+      return;
+    }
+    const cardObject = entry.cardObject;
+    this._quickPlacementTween?.kill();
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this._quickPlacementTween = null;
+        this.playAutoFlipThenRefresh(autoFlippedCardId);
+      },
+    });
+    tl.to(cardObject.position, { x: target.x, z: target.z, duration: QUICK_PLACEMENT_DURATION, ease: "power2.in" }, 0);
+    tl.to(cardObject.position, { y: QUICK_PLACEMENT_LIFT_Y, duration: QUICK_PLACEMENT_DURATION / 2, ease: "power1.out" }, 0);
+    tl.to(cardObject.position, { y: target.y, duration: QUICK_PLACEMENT_DURATION / 2, ease: "power1.in" }, QUICK_PLACEMENT_DURATION / 2);
+    this._quickPlacementTween = tl;
+  }
+
+  private playAutoFlipThenRefresh(autoFlippedCardId: number | null): void {
+    if (autoFlippedCardId === null) {
+      this.refresh();
+      return;
+    }
+    const entry = this._cardLookup.get(autoFlippedCardId);
+    if (!entry) {
+      this.refresh();
+      return;
+    }
+    this._flipTimeline?.kill();
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this._flipTimeline = null;
+        this.refresh();
+      },
+    });
+    this.appendCardFlip(tl, entry.cardObject, 0);
+    this._flipTimeline = tl;
+  }
+
+  private appendCardFlip(tl: gsap.core.Timeline, cardObject: CardObject, startTime: number): void {
+    // Squish-and-swap flip: scale.x → 0 (card edge-on), swap visible
+    // face, scale.x → 1. With the meshes rotated −π/2 around X, local
+    // X corresponds to world X, so this collapses the card into a
+    // vertical line and back.
+    tl.to(cardObject.scale, { x: 0, duration: CARD_FLIP_HALF_DURATION, ease: "power1.in" }, startTime);
+    tl.call(() => cardObject.setFaceUp(true), undefined, startTime + CARD_FLIP_HALF_DURATION);
+    tl.to(cardObject.scale, { x: 1, duration: CARD_FLIP_HALF_DURATION, ease: "power1.out" }, startTime + CARD_FLIP_HALF_DURATION);
+  }
+
+  public playDealAnimation(orderedCardIds: readonly number[], onComplete: () => void): void {
+    if (!this._board || !this._cardsRoot) {
+      onComplete();
+      return;
+    }
+    if (orderedCardIds.length === 0) {
+      onComplete();
+      return;
+    }
+
+    // Phase 1 (synchronous): stack every to-be-dealt card on top of
+    // the stock pile face-down. Index 0 in the order sits on top so
+    // it's the first one to fly out. Older stock cards stay in place
+    // beneath. This runs before the next frame is rendered, so the
+    // player never sees the unanimated final-state layout.
+    const stockX = this._board.stock.worldX;
+    const stockZ = this._board.stock.worldZ;
+    const stockBaseStackHeight = this._board.stock.cards.length;
+    for (let i = 0; i < orderedCardIds.length; i++) {
+      const entry = this._cardLookup.get(orderedCardIds[i]);
+      if (!entry) continue;
+      const stackY = (stockBaseStackHeight + (orderedCardIds.length - i)) * CARD_STACK_LIFT_Y;
+      entry.cardObject.position.set(stockX, stackY, stockZ);
+      entry.cardObject.setFaceUp(false);
+    }
+
+    // Phase 2: continuous deal. Card N+1's position tween starts the
+    // moment card N has landed; flips run in parallel — when a card
+    // ends face-up, its flip is scheduled at its landing time but the
+    // deal cursor does not wait for the flip to finish before
+    // dispatching the next card. Each flip animates its own
+    // cardObject.scale.x, so parallel flips on different cards don't
+    // conflict. The timeline's natural duration covers the trailing
+    // flip on the last face-up card.
+    this._dealTimeline?.kill();
+    const dealTl = gsap.timeline({
+      onComplete: () => {
+        this._dealTimeline = null;
+        onComplete();
+      },
+    });
+    let time = 0;
+    for (const cardId of orderedCardIds) {
+      const entry = this._cardLookup.get(cardId);
+      if (!entry) continue;
+      const target = this.findCardWorldPosition(cardId);
+      if (!target) continue;
+      dealTl.to(
+        entry.cardObject.position,
+        {
+          x: target.x,
+          y: target.y,
+          z: target.z,
+          duration: DEAL_PER_CARD_DURATION,
+          ease: "power1.out",
+        },
+        time,
+      );
+      // The _cardLookup entry's faceUp is the model state captured by
+      // the initial refresh — true for the top of each tableau, false
+      // for everything else. Schedule the flip at the landing time but
+      // do not advance the deal cursor past it.
+      if (entry.faceUp) {
+        this.appendCardFlip(dealTl, entry.cardObject, time + DEAL_PER_CARD_DURATION);
+      }
+      time += DEAL_PER_CARD_DURATION;
+    }
+    this._dealTimeline = dealTl;
+  }
+
+  private findCardWorldPosition(cardId: number): { x: number; y: number; z: number } | null {
     if (!this._board) return null;
     for (const pile of this._board.allPiles) {
       for (let i = 0; i < pile.cards.length; i++) {
         if (pile.cards[i].id !== cardId) continue;
         const offset = pile.getCardOffset(i);
-        return { x: pile.worldX + offset.x, z: pile.worldZ + offset.z };
+        return {
+          x: pile.worldX + offset.x,
+          y: CARD_STACK_LIFT_Y * (i + 1),
+          z: pile.worldZ + offset.z,
+        };
       }
     }
     return null;
@@ -146,6 +300,13 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._dragReleaseListeners.add(callback);
     return () => {
       this._dragReleaseListeners.delete(callback);
+    };
+  }
+
+  public onCardClicked(callback: (info: CardClickedInfo) => void): Unsubscribe {
+    this._cardClickListeners.add(callback);
+    return () => {
+      this._cardClickListeners.delete(callback);
     };
   }
 
@@ -163,12 +324,22 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   // IPointerInputHandler — view performs its own raycast against card
   // and slot meshes, so `onThisObject` from the InputManager is ignored.
   public onPointerDown(event: PointerEvent, _onThisObject: boolean): void {
-    if (this._releaseTween !== null) return;
-    if (this._dragSession !== null) return;
+    if (this.isAnimating()) return;
+    if (this._dragSession !== null || this._pendingPickup !== null) return;
     const hit = this.pickCard(event);
     if (hit) {
       if (this._dragEligibility && !this._dragEligibility(hit.pile, hit.fromIndex)) return;
-      this.beginDragSession(hit.pile, hit.fromIndex, event);
+      // Defer the drag visual until the pointer actually moves past
+      // the click/drag threshold. A pointer-up before that point is
+      // treated as a click (quick-placement candidate); after, as a
+      // drag start. The card is not visually lifted while pending.
+      this._pendingPickup = {
+        pile: hit.pile,
+        fromIndex: hit.fromIndex,
+        pointerId: event.pointerId,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+      };
       return;
     }
     const pile = this.pickPile(event);
@@ -177,7 +348,16 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   public onPointerMove(event: PointerEvent, _onThisObject: boolean): void {
-    if (this._releaseTween !== null) return;
+    if (this.isAnimating()) return;
+    if (this._pendingPickup !== null && event.pointerId === this._pendingPickup.pointerId) {
+      const dx = event.clientX - this._pendingPickup.startClientX;
+      const dy = event.clientY - this._pendingPickup.startClientY;
+      if (Math.hypot(dx, dy) < DRAG_START_THRESHOLD_PX) return;
+      const pickup = this._pendingPickup;
+      this._pendingPickup = null;
+      this.beginDragSession(pickup.pile, pickup.fromIndex, event);
+      return;
+    }
     if (!this._dragSession) return;
     if (event.pointerId !== this._dragSession.pointerId) return;
     const ground = this.projectToGround(event);
@@ -186,7 +366,18 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   public onPointerUp(event: PointerEvent, _onThisObject: boolean): void {
-    if (this._releaseTween !== null) return;
+    if (this.isAnimating()) return;
+    if (this._pendingPickup !== null && event.pointerId === this._pendingPickup.pointerId) {
+      // Click: pointer-up with no significant movement. The drag was
+      // never started so there's no visual state to revert.
+      const info: CardClickedInfo = {
+        pile: this._pendingPickup.pile,
+        fromIndex: this._pendingPickup.fromIndex,
+      };
+      this._pendingPickup = null;
+      for (const cb of this._cardClickListeners) cb(info);
+      return;
+    }
     if (!this._dragSession) return;
     if (event.pointerId !== this._dragSession.pointerId) return;
     const targetPile = this.pickPile(event);
@@ -201,7 +392,11 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   public onPointerCancel(_event: PointerEvent): void {
-    if (this._releaseTween !== null) return;
+    if (this.isAnimating()) return;
+    if (this._pendingPickup !== null) {
+      this._pendingPickup = null;
+      return;
+    }
     if (!this._dragSession) return;
     const info: CardsDragReleaseInfo = {
       originPile: this._dragSession.originPile,
@@ -209,6 +404,10 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       targetPile: null,
     };
     for (const cb of this._dragReleaseListeners) cb(info);
+  }
+
+  private isAnimating(): boolean {
+    return this._releaseTween !== null || this._quickPlacementTween !== null || this._dealTimeline !== null || this._flipTimeline !== null;
   }
 
   private beginDragSession(originPile: IPile, fromIndex: number, event: PointerEvent): void {
@@ -372,8 +571,16 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
 
   public override preDestroy(): void {
     this._dragReleaseListeners.clear();
+    this._cardClickListeners.clear();
     this._pileTapListeners.clear();
     this._dragEligibility = null;
+    this._pendingPickup = null;
+    this._quickPlacementTween?.kill();
+    this._quickPlacementTween = null;
+    this._dealTimeline?.kill();
+    this._dealTimeline = null;
+    this._flipTimeline?.kill();
+    this._flipTimeline = null;
     this.endDragSession();
     this.clearSlots();
     this.clearCards();
