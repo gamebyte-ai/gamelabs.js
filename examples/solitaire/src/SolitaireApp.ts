@@ -8,10 +8,12 @@ import { BoardViewController } from "./controllers/BoardViewController";
 import { BoardModel } from "./models/BoardModel";
 import { IBoardModel } from "./models/IBoardModel";
 import { KlondikeLayoutFactory } from "./utilities/KlondikeLayoutFactory";
+import { SamplePlacement } from "./utilities/SamplePlacement";
+import { createRng } from "./utilities/SeededRng";
 import { SolitaireConfig } from "./SolitaireConfig";
 import { SolitaireUIIds } from "./SolitaireUIIds";
 
-const BOARD_PADDING = 1.0;
+const BOARD_PADDING = 1.5;
 
 export class SolitaireApp extends GamelabsApp {
   private readonly _config = new SolitaireConfig();
@@ -52,6 +54,7 @@ export class SolitaireApp extends GamelabsApp {
     this.diContainer.getInstance(UIEvents).createScreen(SolitaireUIIds.GameScreen, this._config.transitions.gameScreenEnter);
 
     this._boardModel.loadLayout(KlondikeLayoutFactory.create());
+    SamplePlacement.apply(this._boardModel, createRng(this._config.shuffleSeed));
 
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);

@@ -19,7 +19,12 @@ export class BoardViewController implements IViewController<IBoardView> {
     if (!this._boardModel || !this._config) return;
     const layout = this._boardModel.layout;
     if (!layout) return;
-    this._view.setLayout(layout, this._config.slotPalettes);
+    this._view.setBoard({
+      layout,
+      slots: this._boardModel.slots,
+      palettes: this._config.slotPalettes,
+      cardVisual: this._config.cardVisual,
+    });
   }
 
   public destroy(): void {
