@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { ICard } from "../models/Card";
-import { isRedSuit, SUIT_SYMBOL } from "../constants/Suit";
+import { SUIT_SYMBOL } from "../constants/Suit";
+import { SuitRules } from "../utilities/SuitRules";
 import { RANK_LABEL } from "../constants/Rank";
 
 export interface CardVisualConfig {
@@ -83,7 +84,7 @@ export class CardObject extends THREE.Group {
     if (!ctx) throw new Error("CardObject: 2d canvas context unavailable");
 
     const bgHex = `#${config.faceBackground.toString(16).padStart(6, "0")}`;
-    const colorHex = `#${(isRedSuit(card.suit) ? config.redColor : config.blackColor).toString(16).padStart(6, "0")}`;
+    const colorHex = `#${(SuitRules.isRed(card.suit) ? config.redColor : config.blackColor).toString(16).padStart(6, "0")}`;
     const rankLabel = RANK_LABEL[card.rank];
     const suitSymbol = SUIT_SYMBOL[card.suit];
 

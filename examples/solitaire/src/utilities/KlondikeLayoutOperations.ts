@@ -11,7 +11,7 @@ import type { BoardLayoutConfig, SlotConfig, SlotRules } from "../models/SlotCon
  * once the card / move system lands. The structure is established here so
  * other variants (Spider, FreeCell, ...) can plug into the same renderer.
  */
-export class KlondikeLayoutFactory {
+export class KlondikeLayoutOperations {
   public static create(): BoardLayoutConfig {
     const slotWidth = 1.0;
     const slotHeight = 1.4;

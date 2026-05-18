@@ -7,13 +7,16 @@ import { BoardViewController } from "./controllers/BoardViewController";
 
 import { BoardModel } from "./models/BoardModel";
 import { IBoardModel } from "./models/IBoardModel";
-import { KlondikeLayoutFactory } from "./utilities/KlondikeLayoutFactory";
-import { SamplePlacement } from "./utilities/SamplePlacement";
-import { createRng } from "./utilities/SeededRng";
+import { KlondikeLayoutOperations } from "./utilities/KlondikeLayoutOperations";
+import { KlondikeDealOperations } from "./utilities/KlondikeDealOperations";
+import { BoardBoundsCalculator } from "./utilities/BoardBoundsCalculator";
+import type { IRng } from "./utilities/IRng";
+import { SeededRng } from "./utilities/SeededRng";
+import { MathRandomRng } from "./utilities/MathRandomRng";
 import { SolitaireConfig } from "./SolitaireConfig";
 import { SolitaireUIIds } from "./SolitaireUIIds";
 
-const BOARD_PADDING = 1.5;
+const BOARD_PADDING = 0.6;
 
 export class SolitaireApp extends GamelabsApp {
   private readonly _config = new SolitaireConfig();
@@ -53,13 +56,12 @@ export class SolitaireApp extends GamelabsApp {
 
     this.diContainer.getInstance(UIEvents).createScreen(SolitaireUIIds.GameScreen, this._config.transitions.gameScreenEnter);
 
-    this._boardModel.loadLayout(KlondikeLayoutFactory.create());
-    SamplePlacement.apply(this._boardModel, createRng(this._config.shuffleSeed));
+    this._boardModel.loadLayout(KlondikeLayoutOperations.create());
+    KlondikeDealOperations.deal(this._boardModel, this.createRng());
 
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);
     this._cameraController = new Topdown2dCameraController(this._cameraManager).register();
-    this._cameraController.followPosition(0, 0, 0);
 
     this._boardView = this.viewFactory.createView(BoardView);
     this.world.addView(this._boardView);
@@ -85,20 +87,25 @@ export class SolitaireApp extends GamelabsApp {
     this._cameraManager = null;
   }
 
+  private createRng(): IRng {
+    return this._config.shuffleSeed === null ? new MathRandomRng() : new SeededRng(this._config.shuffleSeed);
+  }
+
   private updateCameraFit(viewportWidth: number, viewportHeight: number): void {
-    if (!this._cameraManager) return;
+    if (!this._cameraManager || !this._cameraController) return;
+    if (viewportWidth <= 0 || viewportHeight <= 0) return;
     const layout = this._boardModel.layout;
     if (!layout) return;
-    if (viewportWidth <= 0 || viewportHeight <= 0) return;
+    const bounds = BoardBoundsCalculator.compute(layout, this._boardModel.slots);
+    if (!bounds) return;
 
-    const boardWidth = layout.columnCount * layout.slotWidth + (layout.columnCount - 1) * layout.slotGapX;
-    const boardHeight = layout.rowCount * layout.slotHeight + (layout.rowCount - 1) * layout.slotGapZ;
-    const totalWidth = boardWidth + BOARD_PADDING * 2;
-    const totalHeight = boardHeight + BOARD_PADDING * 2;
+    const contentW = bounds.maxX - bounds.minX + BOARD_PADDING * 2;
+    const contentH = bounds.maxZ - bounds.minZ + BOARD_PADDING * 2;
     const aspect = viewportWidth / viewportHeight;
+    this._cameraManager.setOrthoSize(Math.max(contentH, contentW / aspect));
 
-    const orthoSizeForHeight = totalHeight;
-    const orthoSizeForWidth = totalWidth / aspect;
-    this._cameraManager.setOrthoSize(Math.max(orthoSizeForHeight, orthoSizeForWidth));
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+    this._cameraController.followPosition(centerX, 0, centerZ);
   }
 }

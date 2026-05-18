@@ -1,9 +1,11 @@
+import type { IRng } from "./IRng";
+
 /**
  * Mulberry32 — small, fast, seedable PRNG. Outputs values in [0, 1).
- * Adequate for shuffling cards and any other variance-bearing test setup;
- * not cryptographic.
+ * Adequate for shuffling cards and variance-bearing test setup; not
+ * cryptographic.
  */
-export class SeededRng {
+export class SeededRng implements IRng {
   private _state: number;
 
   public constructor(seed: number) {
@@ -21,23 +23,4 @@ export class SeededRng {
   public nextInt(maxExclusive: number): number {
     return Math.floor(this.next() * maxExclusive);
   }
-}
-
-export interface IRng {
-  next(): number;
-  nextInt(maxExclusive: number): number;
-}
-
-export class MathRandomRng implements IRng {
-  public next(): number {
-    return Math.random();
-  }
-
-  public nextInt(maxExclusive: number): number {
-    return Math.floor(Math.random() * maxExclusive);
-  }
-}
-
-export function createRng(seed: number | null): IRng {
-  return seed === null ? new MathRandomRng() : new SeededRng(seed);
 }
