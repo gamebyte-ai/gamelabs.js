@@ -69,7 +69,12 @@ export class BoardViewController implements IViewController<IBoardView> {
         break;
       }
     }
-    if (destination === null) return;
+    if (destination === null) {
+      // Eligible click (top of its pile) but no foundation accepts —
+      // give the player a visual "denied" cue. No model mutation.
+      this._view.animateDeniedShake(card.id);
+      return;
+    }
     CardMoveOperations.moveCards(info.pile, info.fromIndex, destination);
     const autoFlippedCardId = this.maybeAutoFlipNewTop(info.pile);
     this._view.animateQuickPlacement(card.id, autoFlippedCardId);

@@ -3,6 +3,52 @@ import { SlotType } from "./constants/SlotType";
 import type { SlotPalette } from "./views/SlotObject";
 import type { CardVisualConfig } from "./views/CardObject";
 
+export interface DragReleaseAnimationConfig {
+  readonly duration: number;
+  readonly ease: string;
+}
+
+export interface QuickPlacementAnimationConfig {
+  readonly duration: number;
+  /** Constant Y the card is lifted to for the duration of the
+   *  flight, in world units. Invisible under top-down ortho but
+   *  keeps the card above any cards it passes over during travel.
+   *  The resting Y is restored by the post-animation refresh. */
+  readonly liftY: number;
+  readonly ease: string;
+}
+
+export interface DealAnimationConfig {
+  readonly perCardDuration: number;
+  readonly ease: string;
+}
+
+export interface FlipAnimationConfig {
+  readonly halfDuration: number;
+  readonly squishEase: string;
+  readonly expandEase: string;
+}
+
+export interface DeniedShakeAnimationConfig {
+  /** Total duration of the shake, including the return to origin. */
+  readonly duration: number;
+  /** Peak X displacement from the card's resting position, world units. */
+  readonly amplitude: number;
+  readonly ease: string;
+}
+
+export interface AnimationConfig {
+  /** Pixels the pointer must travel after pointer-down on a face-up
+   *  card before a drag visual is initiated. A pointer-up below this
+   *  threshold is interpreted as a click (quick-placement). */
+  readonly dragStartThresholdPx: number;
+  readonly dragRelease: DragReleaseAnimationConfig;
+  readonly quickPlacement: QuickPlacementAnimationConfig;
+  readonly deal: DealAnimationConfig;
+  readonly flip: FlipAnimationConfig;
+  readonly deniedShake: DeniedShakeAnimationConfig;
+}
+
 export class SolitaireConfig {
   public readonly transitions: {
     gameScreenEnter: ScreenTransition;
@@ -46,5 +92,37 @@ export class SolitaireConfig {
     faceBackground: 0xf5f5dc,
     redColor: 0xc12424,
     blackColor: 0x111111,
+  };
+
+  // Central tuning surface for every animation timing in the example —
+  // durations, eases, and the drag-vs-click threshold. The board view
+  // reads these directly; spatial layout values (stack lifts, drag
+  // elevation, arc apex height) live alongside the view that consumes
+  // them since they're scene-structure, not timing.
+  public readonly animation: AnimationConfig = {
+    dragStartThresholdPx: 5,
+    dragRelease: {
+      duration: 0.18,
+      ease: "power2.out",
+    },
+    quickPlacement: {
+      duration: 0.12,
+      liftY: 0.25,
+      ease: "power2.out",
+    },
+    deal: {
+      perCardDuration: 0.06,
+      ease: "power1.out",
+    },
+    flip: {
+      halfDuration: 0.08,
+      squishEase: "power1.in",
+      expandEase: "power1.out",
+    },
+    deniedShake: {
+      duration: 0.24,
+      amplitude: 0.04,
+      ease: "sine.inOut",
+    },
   };
 }

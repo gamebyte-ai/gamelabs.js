@@ -8,16 +8,11 @@ import { SolitaireConfig } from "../SolitaireConfig";
 import { SlotObject } from "./SlotObject";
 import { CardObject } from "./CardObject";
 
+// Spatial layout constants (scene structure, not animation timing —
+// animation timings live in `SolitaireConfig.animation`).
 const CARD_STACK_LIFT_Y = 0.001;
 const DRAG_LIFT_Y = 0.4;
 const DRAG_CARD_SUBLIFT_Y = 0.01;
-const RELEASE_ANIMATION_DURATION = 0.18;
-const RELEASE_ANIMATION_EASE = "power2.out";
-const DRAG_START_THRESHOLD_PX = 5;
-const QUICK_PLACEMENT_DURATION = 0.12;
-const QUICK_PLACEMENT_LIFT_Y = 0.25;
-const DEAL_PER_CARD_DURATION = 0.06;
-const CARD_FLIP_HALF_DURATION = 0.08;
 
 interface CardLookupEntry {
   readonly pile: IPile;
@@ -64,9 +59,10 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   private _pendingPickup: PendingPickup | null = null;
   private _dragEligibility: DragEligibilityPredicate | null = null;
   private _releaseTween: gsap.core.Tween | null = null;
-  private _quickPlacementTween: gsap.core.Timeline | null = null;
+  private _quickPlacementTween: gsap.core.Tween | null = null;
   private _dealTimeline: gsap.core.Timeline | null = null;
   private _flipTimeline: gsap.core.Timeline | null = null;
+  private _deniedTween: gsap.core.Timeline | null = null;
   private readonly _dragReleaseListeners = new Set<(info: CardsDragReleaseInfo) => void>();
   private readonly _cardClickListeners = new Set<(info: CardClickedInfo) => void>();
   private readonly _pileTapListeners = new Set<(pile: IPile) => void>();
@@ -114,6 +110,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._dealTimeline = null;
     this._flipTimeline?.kill();
     this._flipTimeline = null;
+    this._deniedTween?.kill();
+    this._deniedTween = null;
     this.endDragSession();
     this.clearSlots();
     this.clearCards();
@@ -131,7 +129,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
 
   public commitDragRelease(autoFlippedCardId: number | null): void {
     const session = this._dragSession;
-    if (!session || !this._dragRoot || !this._board) {
+    if (!session || !this._dragRoot || !this._board || !this._config) {
       this.refresh();
       return;
     }
@@ -140,13 +138,21 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       this.refresh();
       return;
     }
+    const releaseCfg = this._config.animation.dragRelease;
+    // The bottom card sits at local y = DRAG_CARD_SUBLIFT_Y in the
+    // drag root; to make it land at exactly target.y in world space
+    // (matching the resting Y the post-animation refresh will use),
+    // animate the drag root's y to target.y - DRAG_CARD_SUBLIFT_Y.
+    // Eliminates the brief world-Y discontinuity at refresh that can
+    // tip a tight depth comparison the wrong way and let an adjacent
+    // fan neighbour render over the dragged card for a frame.
     this._releaseTween?.kill();
     this._releaseTween = gsap.to(this._dragRoot.position, {
       x: target.x,
-      y: 0,
+      y: target.y - DRAG_CARD_SUBLIFT_Y,
       z: target.z,
-      duration: RELEASE_ANIMATION_DURATION,
-      ease: RELEASE_ANIMATION_EASE,
+      duration: releaseCfg.duration,
+      ease: releaseCfg.ease,
       onComplete: () => {
         this._releaseTween = null;
         this.playAutoFlipThenRefresh(autoFlippedCardId);
@@ -155,7 +161,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   public animateQuickPlacement(cardId: number, autoFlippedCardId: number | null): void {
-    if (!this._cardsRoot || !this._board) {
+    if (!this._cardsRoot || !this._board || !this._config) {
       this.refresh();
       return;
     }
@@ -166,17 +172,50 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       return;
     }
     const cardObject = entry.cardObject;
+    const quickCfg = this._config.animation.quickPlacement;
+    // Instant lift to a constant Y for the entire flight (invisible
+    // under the top-down ortho camera) so the card stays above any
+    // resting cards its XZ trajectory crosses. The resting Y is
+    // restored by the post-animation refresh, so the Y snap at the
+    // end has no visible cost. Replaces the earlier three-tween arc,
+    // which produced a single-frame jitter at the halfway hand-off
+    // between the lift-up and lift-down sub-tweens.
+    cardObject.position.y = quickCfg.liftY;
     this._quickPlacementTween?.kill();
-    const tl = gsap.timeline({
+    this._quickPlacementTween = gsap.to(cardObject.position, {
+      x: target.x,
+      z: target.z,
+      duration: quickCfg.duration,
+      ease: quickCfg.ease,
       onComplete: () => {
         this._quickPlacementTween = null;
         this.playAutoFlipThenRefresh(autoFlippedCardId);
       },
     });
-    tl.to(cardObject.position, { x: target.x, z: target.z, duration: QUICK_PLACEMENT_DURATION, ease: "power2.in" }, 0);
-    tl.to(cardObject.position, { y: QUICK_PLACEMENT_LIFT_Y, duration: QUICK_PLACEMENT_DURATION / 2, ease: "power1.out" }, 0);
-    tl.to(cardObject.position, { y: target.y, duration: QUICK_PLACEMENT_DURATION / 2, ease: "power1.in" }, QUICK_PLACEMENT_DURATION / 2);
-    this._quickPlacementTween = tl;
+  }
+
+  public animateDeniedShake(cardId: number): void {
+    if (!this._config) return;
+    const entry = this._cardLookup.get(cardId);
+    if (!entry) return;
+    const cardObject = entry.cardObject;
+    const originX = cardObject.position.x;
+    const cfg = this._config.animation.deniedShake;
+    // Four equal segments traversing 0 → +amp → −amp → +amp → 0,
+    // settling back at the card's original X with no model change.
+    const segDuration = cfg.duration / 4;
+    this._deniedTween?.kill();
+    const tl = gsap.timeline({
+      onComplete: () => {
+        cardObject.position.x = originX;
+        this._deniedTween = null;
+      },
+    });
+    tl.to(cardObject.position, { x: originX + cfg.amplitude, duration: segDuration, ease: cfg.ease });
+    tl.to(cardObject.position, { x: originX - cfg.amplitude, duration: segDuration, ease: cfg.ease });
+    tl.to(cardObject.position, { x: originX + cfg.amplitude, duration: segDuration, ease: cfg.ease });
+    tl.to(cardObject.position, { x: originX, duration: segDuration, ease: cfg.ease });
+    this._deniedTween = tl;
   }
 
   private playAutoFlipThenRefresh(autoFlippedCardId: number | null): void {
@@ -201,17 +240,19 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   private appendCardFlip(tl: gsap.core.Timeline, cardObject: CardObject, startTime: number): void {
+    if (!this._config) return;
+    const flipCfg = this._config.animation.flip;
     // Squish-and-swap flip: scale.x → 0 (card edge-on), swap visible
     // face, scale.x → 1. With the meshes rotated −π/2 around X, local
     // X corresponds to world X, so this collapses the card into a
     // vertical line and back.
-    tl.to(cardObject.scale, { x: 0, duration: CARD_FLIP_HALF_DURATION, ease: "power1.in" }, startTime);
-    tl.call(() => cardObject.setFaceUp(true), undefined, startTime + CARD_FLIP_HALF_DURATION);
-    tl.to(cardObject.scale, { x: 1, duration: CARD_FLIP_HALF_DURATION, ease: "power1.out" }, startTime + CARD_FLIP_HALF_DURATION);
+    tl.to(cardObject.scale, { x: 0, duration: flipCfg.halfDuration, ease: flipCfg.squishEase }, startTime);
+    tl.call(() => cardObject.setFaceUp(true), undefined, startTime + flipCfg.halfDuration);
+    tl.to(cardObject.scale, { x: 1, duration: flipCfg.halfDuration, ease: flipCfg.expandEase }, startTime + flipCfg.halfDuration);
   }
 
   public playDealAnimation(orderedCardIds: readonly number[], onComplete: () => void): void {
-    if (!this._board || !this._cardsRoot) {
+    if (!this._board || !this._cardsRoot || !this._config) {
       onComplete();
       return;
     }
@@ -244,6 +285,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     // cardObject.scale.x, so parallel flips on different cards don't
     // conflict. The timeline's natural duration covers the trailing
     // flip on the last face-up card.
+    const dealCfg = this._config.animation.deal;
     this._dealTimeline?.kill();
     const dealTl = gsap.timeline({
       onComplete: () => {
@@ -263,8 +305,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
           x: target.x,
           y: target.y,
           z: target.z,
-          duration: DEAL_PER_CARD_DURATION,
-          ease: "power1.out",
+          duration: dealCfg.perCardDuration,
+          ease: dealCfg.ease,
         },
         time,
       );
@@ -273,9 +315,9 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       // for everything else. Schedule the flip at the landing time but
       // do not advance the deal cursor past it.
       if (entry.faceUp) {
-        this.appendCardFlip(dealTl, entry.cardObject, time + DEAL_PER_CARD_DURATION);
+        this.appendCardFlip(dealTl, entry.cardObject, time + dealCfg.perCardDuration);
       }
-      time += DEAL_PER_CARD_DURATION;
+      time += dealCfg.perCardDuration;
     }
     this._dealTimeline = dealTl;
   }
@@ -352,7 +394,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     if (this._pendingPickup !== null && event.pointerId === this._pendingPickup.pointerId) {
       const dx = event.clientX - this._pendingPickup.startClientX;
       const dy = event.clientY - this._pendingPickup.startClientY;
-      if (Math.hypot(dx, dy) < DRAG_START_THRESHOLD_PX) return;
+      const threshold = this._config?.animation.dragStartThresholdPx ?? 0;
+      if (Math.hypot(dx, dy) < threshold) return;
       const pickup = this._pendingPickup;
       this._pendingPickup = null;
       this.beginDragSession(pickup.pile, pickup.fromIndex, event);
@@ -407,7 +450,13 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   private isAnimating(): boolean {
-    return this._releaseTween !== null || this._quickPlacementTween !== null || this._dealTimeline !== null || this._flipTimeline !== null;
+    return (
+      this._releaseTween !== null ||
+      this._quickPlacementTween !== null ||
+      this._dealTimeline !== null ||
+      this._flipTimeline !== null ||
+      this._deniedTween !== null
+    );
   }
 
   private beginDragSession(originPile: IPile, fromIndex: number, event: PointerEvent): void {
@@ -581,6 +630,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._dealTimeline = null;
     this._flipTimeline?.kill();
     this._flipTimeline = null;
+    this._deniedTween?.kill();
+    this._deniedTween = null;
     this.endDragSession();
     this.clearSlots();
     this.clearCards();

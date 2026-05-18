@@ -35,6 +35,10 @@ export interface IBoardView extends IView {
    *  view plays a flip animation on that card after the placement
    *  lands and before rebuilding. */
   animateQuickPlacement(cardId: number, autoFlippedCardId: number | null): void;
+  /** Small side-to-side wiggle on the card to signal that a click
+   *  had nowhere to go (no legal quick-placement target). Card
+   *  returns to its resting position; no model mutation. */
+  animateDeniedShake(cardId: number): void;
   /** One-shot game-start animation. Stacks the listed cards (in
    *  Klondike deal order) on top of the stock pile, then sequentially
    *  flies each one to its model-resting position face-down, and
