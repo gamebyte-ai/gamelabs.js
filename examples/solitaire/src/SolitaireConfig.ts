@@ -37,6 +37,48 @@ export interface DeniedShakeAnimationConfig {
   readonly ease: string;
 }
 
+export interface MovePointsConfig {
+  readonly wasteToTableau: number;
+  readonly wasteToFoundation: number;
+  readonly tableauToFoundation: number;
+  readonly tableauToTableau: number;
+  readonly foundationToTableau: number;
+  readonly foundationToFoundation: number;
+}
+
+export interface ScoreConfig {
+  /** Per-move point values, keyed by `(origin, target)` pile types.
+   *  A move earns a single award per event regardless of how many
+   *  cards travel (tableau-to-tableau runs are one event, not one
+   *  per card). Combinations that aren't legal during play stay
+   *  configurable so undo can still revert any awarded points
+   *  deterministically. */
+  readonly movePoints: MovePointsConfig;
+  /** Awarded once each time an auto-flip reveals a face-down
+   *  tableau card. */
+  readonly autoFlipReveal: number;
+  /** Applied per stock-to-waste draw (0 for standard Klondike,
+   *  negative for "pass-through" scoring variants). */
+  readonly stockDraw: number;
+  /** Applied per waste-to-stock recycle. */
+  readonly stockRecycle: number;
+  /** Flat penalty applied on each undo. The original action's
+   *  awarded points are reverted automatically; this is the extra
+   *  cost layered on top to discourage undo-spam. */
+  readonly undoPenalty: number;
+}
+
+export type TimeDirection = "up" | "down";
+export type TimeDisplayFormat = "mm:ss" | "hh:mm:ss" | "ss";
+
+export interface TimeConfig {
+  /** Initial display value, in seconds. Count-up adds elapsed time
+   *  to this baseline; count-down ticks toward zero from this. */
+  readonly startSeconds: number;
+  readonly direction: TimeDirection;
+  readonly displayFormat: TimeDisplayFormat;
+}
+
 export interface AnimationConfig {
   /** Pixels the pointer must travel after pointer-down on a face-up
    *  card before a drag visual is initiated. A pointer-up below this
@@ -124,5 +166,39 @@ export class SolitaireConfig {
       amplitude: 0.04,
       ease: "sine.inOut",
     },
+  };
+
+  // Score table. Every scoring event in the game reads from here —
+  // tweaking a value changes the award everywhere the event fires.
+  // Defaults follow standard Klondike scoring (5 for waste→tableau,
+  // 10 for foundation placements, -15 for taking back off a foundation,
+  // 5 per auto-flip reveal). Undo penalty is example-specific and
+  // demonstrates that custom rules slot in as easily as standard ones.
+  public readonly score: ScoreConfig = {
+    movePoints: {
+      wasteToTableau: 5,
+      wasteToFoundation: 10,
+      tableauToFoundation: 10,
+      tableauToTableau: 0,
+      foundationToTableau: -15,
+      foundationToFoundation: 0,
+    },
+    autoFlipReveal: 5,
+    stockDraw: 0,
+    stockRecycle: 0,
+    undoPenalty: -2,
+  };
+
+  // Time-display tuning. `startSeconds` is the initial display value
+  // (a count-up clock starts from this; a count-down clock ticks toward
+  // zero from this). `direction` and `displayFormat` are independent —
+  // a 3-minute count-down displayed as "mm:ss" reads "03:00" and ticks
+  // toward "00:00"; a count-up with `startSeconds: 0` and "mm:ss" reads
+  // "00:00" and climbs. When `direction` is "down" the game ends in a
+  // lose state the moment the clock hits zero.
+  public readonly time: TimeConfig = {
+    startSeconds: 180,
+    direction: "down",
+    displayFormat: "mm:ss",
   };
 }

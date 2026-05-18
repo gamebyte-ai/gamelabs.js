@@ -5,6 +5,7 @@ import type { CardClickedInfo, CardsDragReleaseInfo, DragEligibilityPredicate, I
 import type { IBoardModel } from "../models/IBoardModel";
 import type { IPile } from "../models/IPile";
 import { SolitaireConfig } from "../SolitaireConfig";
+import { SolitaireAssetIds } from "../SolitaireAssetIds";
 import { SlotObject } from "./SlotObject";
 import { CardObject } from "./CardObject";
 
@@ -63,6 +64,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   private _dealTimeline: gsap.core.Timeline | null = null;
   private _flipTimeline: gsap.core.Timeline | null = null;
   private _deniedTween: gsap.core.Timeline | null = null;
+  private _undoTimeline: gsap.core.Timeline | null = null;
   private readonly _dragReleaseListeners = new Set<(info: CardsDragReleaseInfo) => void>();
   private readonly _cardClickListeners = new Set<(info: CardClickedInfo) => void>();
   private readonly _pileTapListeners = new Set<(pile: IPile) => void>();
@@ -112,6 +114,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._flipTimeline = null;
     this._deniedTween?.kill();
     this._deniedTween = null;
+    this._undoTimeline?.kill();
+    this._undoTimeline = null;
     this.endDragSession();
     this.clearSlots();
     this.clearCards();
@@ -218,6 +222,65 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._deniedTween = tl;
   }
 
+  public playUndoMove(originPile: IPile, count: number, autoFlippedCardId: number | null): void {
+    if (!this._board || !this._config || !this._cardsRoot) {
+      this.refresh();
+      return;
+    }
+    // The cards to fly back are now the top `count` of `originPile`
+    // (post-undo model). Their cardObjects are still positioned at
+    // their pre-undo visual rest (on the original target pile); the
+    // animation moves them from there to their new origin rest.
+    const cards = originPile.cards.slice(originPile.cards.length - count);
+    if (cards.length === 0 && autoFlippedCardId === null) {
+      this.refresh();
+      return;
+    }
+    const releaseCfg = this._config.animation.dragRelease;
+    const flipCfg = this._config.animation.flip;
+    this._undoTimeline?.kill();
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this._undoTimeline = null;
+        this.refresh();
+      },
+    });
+
+    // Reverse-order playback: the original sequence was move-then-flip
+    // (auto-flip reveal at the end), so undo plays unflip-then-move.
+    let time = 0;
+    if (autoFlippedCardId !== null) {
+      const entry = this._cardLookup.get(autoFlippedCardId);
+      if (entry) {
+        this.appendCardFlip(tl, entry.cardObject, time, false);
+        time += flipCfg.halfDuration * 2;
+      }
+    }
+
+    // Instant lift of every flying card to DRAG_LIFT_Y for the
+    // duration of the move (invisible under top-down ortho but keeps
+    // depth ordering safe over any cards the trajectories cross).
+    // Refresh restores the resting Y after the animation lands.
+    for (const card of cards) {
+      const entry = this._cardLookup.get(card.id);
+      if (!entry) continue;
+      const target = this.findCardWorldPosition(card.id);
+      if (!target) continue;
+      tl.set(entry.cardObject.position, { y: DRAG_LIFT_Y }, time);
+      tl.to(
+        entry.cardObject.position,
+        {
+          x: target.x,
+          z: target.z,
+          duration: releaseCfg.duration,
+          ease: releaseCfg.ease,
+        },
+        time,
+      );
+    }
+    this._undoTimeline = tl;
+  }
+
   private playAutoFlipThenRefresh(autoFlippedCardId: number | null): void {
     if (autoFlippedCardId === null) {
       this.refresh();
@@ -235,19 +298,21 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
         this.refresh();
       },
     });
-    this.appendCardFlip(tl, entry.cardObject, 0);
+    this.appendCardFlip(tl, entry.cardObject, 0, true);
     this._flipTimeline = tl;
   }
 
-  private appendCardFlip(tl: gsap.core.Timeline, cardObject: CardObject, startTime: number): void {
+  private appendCardFlip(tl: gsap.core.Timeline, cardObject: CardObject, startTime: number, targetFaceUp: boolean): void {
     if (!this._config) return;
     const flipCfg = this._config.animation.flip;
     // Squish-and-swap flip: scale.x → 0 (card edge-on), swap visible
     // face, scale.x → 1. With the meshes rotated −π/2 around X, local
     // X corresponds to world X, so this collapses the card into a
-    // vertical line and back.
+    // vertical line and back. `targetFaceUp` is the face state the
+    // card ends in — true for an auto-flip reveal, false for the
+    // un-flip half of an undo.
     tl.to(cardObject.scale, { x: 0, duration: flipCfg.halfDuration, ease: flipCfg.squishEase }, startTime);
-    tl.call(() => cardObject.setFaceUp(true), undefined, startTime + flipCfg.halfDuration);
+    tl.call(() => cardObject.setFaceUp(targetFaceUp), undefined, startTime + flipCfg.halfDuration);
     tl.to(cardObject.scale, { x: 1, duration: flipCfg.halfDuration, ease: flipCfg.expandEase }, startTime + flipCfg.halfDuration);
   }
 
@@ -315,7 +380,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       // for everything else. Schedule the flip at the landing time but
       // do not advance the deal cursor past it.
       if (entry.faceUp) {
-        this.appendCardFlip(dealTl, entry.cardObject, time + dealCfg.perCardDuration);
+        this.appendCardFlip(dealTl, entry.cardObject, time + dealCfg.perCardDuration, true);
       }
       time += dealCfg.perCardDuration;
     }
@@ -449,13 +514,14 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     for (const cb of this._dragReleaseListeners) cb(info);
   }
 
-  private isAnimating(): boolean {
+  public isAnimating(): boolean {
     return (
       this._releaseTween !== null ||
       this._quickPlacementTween !== null ||
       this._dealTimeline !== null ||
       this._flipTimeline !== null ||
-      this._deniedTween !== null
+      this._deniedTween !== null ||
+      this._undoTimeline !== null
     );
   }
 
@@ -575,10 +641,15 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
 
   private renderCardsForPile(pile: IPile): void {
     if (!this._cardsRoot || !this._config) return;
+    const frontBodyTexture = this.assetLoader.getAsset<THREE.Texture>(SolitaireAssetIds.CardFront);
+    const backTexture = this.assetLoader.getAsset<THREE.Texture>(SolitaireAssetIds.CardBack);
+    if (!frontBodyTexture || !backTexture) {
+      throw new Error("BoardView: card assets not loaded — check SolitaireApp.loadAssets() registrations");
+    }
     for (let i = 0; i < pile.cards.length; i++) {
       const card = pile.cards[i];
       const offset = pile.getCardOffset(i);
-      const cardObject = new CardObject(card, this._config.cardVisual);
+      const cardObject = new CardObject(card, this._config.cardVisual, frontBodyTexture, backTexture);
       cardObject.position.set(pile.worldX + offset.x, CARD_STACK_LIFT_Y * (i + 1), pile.worldZ + offset.z);
       this._cardsRoot.add(cardObject);
       this._cardObjects.push(cardObject);
@@ -632,6 +703,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._flipTimeline = null;
     this._deniedTween?.kill();
     this._deniedTween = null;
+    this._undoTimeline?.kill();
+    this._undoTimeline = null;
     this.endDragSession();
     this.clearSlots();
     this.clearCards();

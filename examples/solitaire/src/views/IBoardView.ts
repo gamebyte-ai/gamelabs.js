@@ -39,6 +39,18 @@ export interface IBoardView extends IView {
    *  had nowhere to go (no legal quick-placement target). Card
    *  returns to its resting position; no model mutation. */
   animateDeniedShake(cardId: number): void;
+  /** Animate the reverse of a move that was just undone in the model:
+   *  the top `count` cards of `originPile` (where they sit post-undo)
+   *  fly from their previous visual positions back to their new
+   *  resting positions. If `autoFlippedCardId` is non-null, that card
+   *  is un-flipped (face-up → face-down) before the move animation,
+   *  mirroring the original move-then-autoflip order in reverse. */
+  playUndoMove(originPile: IPile, count: number, autoFlippedCardId: number | null): void;
+  /** True while any animation (drag-release, quick placement, deal,
+   *  flip, denied shake, undo) is in flight. The HUD undo button
+   *  reads this to skip undo requests that would clash with a running
+   *  animation. */
+  isAnimating(): boolean;
   /** One-shot game-start animation. Stacks the listed cards (in
    *  Klondike deal order) on top of the stock pile, then sequentially
    *  flies each one to its model-resting position face-down, and

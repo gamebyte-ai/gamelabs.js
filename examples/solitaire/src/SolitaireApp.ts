@@ -1,4 +1,5 @@
 import {
+  AssetTypes,
   GamelabsApp,
   GameCameraBinding,
   GameCameraManager,
@@ -15,6 +16,11 @@ import { BoardViewController } from "./controllers/BoardViewController";
 
 import { BoardModel } from "./models/BoardModel";
 import { IBoardModel } from "./models/IBoardModel";
+import { UndoHistory } from "./models/UndoHistory";
+import { UndoEvents } from "./models/UndoEvents";
+import { ScoreModel } from "./models/ScoreModel";
+import { TimerModel } from "./models/TimerModel";
+import { GameStateModel, GameState } from "./models/GameStateModel";
 import { DealOperations } from "./utilities/DealOperations";
 import { BoardBoundsCalculator } from "./utilities/BoardBoundsCalculator";
 import type { IRng } from "./utilities/IRng";
@@ -22,6 +28,7 @@ import { SeededRng } from "./utilities/SeededRng";
 import { MathRandomRng } from "./utilities/MathRandomRng";
 import { SolitaireConfig } from "./SolitaireConfig";
 import { SolitaireUIIds } from "./SolitaireUIIds";
+import { SolitaireAssetIds } from "./SolitaireAssetIds";
 
 const BOARD_PADDING = 0.6;
 
@@ -32,6 +39,11 @@ export class SolitaireApp extends GamelabsApp {
     drawCount: this._config.drawCount,
     wasteFanX: this._config.wasteFanX,
   });
+  private readonly _undoHistory = new UndoHistory();
+  private readonly _undoEvents = new UndoEvents();
+  private readonly _scoreModel = new ScoreModel();
+  private readonly _timerModel = new TimerModel();
+  private readonly _gameStateModel = new GameStateModel();
   private _boardView: BoardView | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _cameraController: Topdown2dCameraController | null = null;
@@ -54,11 +66,27 @@ export class SolitaireApp extends GamelabsApp {
     this.diContainer.bindInstance(SolitaireConfig, this._config);
     this.viewDiContainer.bindInstance(SolitaireConfig, this._config);
     this.diContainer.bindInstance(BoardModel, this._boardModel, [IBoardModel]);
+    this.diContainer.bindInstance(UndoHistory, this._undoHistory);
+    this.diContainer.bindInstance(UndoEvents, this._undoEvents);
+    this.diContainer.bindInstance(ScoreModel, this._scoreModel);
+    this.diContainer.bindInstance(TimerModel, this._timerModel);
+    this.diContainer.bindInstance(GameStateModel, this._gameStateModel);
   }
 
   protected override configureViews(): void {
     this.viewFactory.registerScreen(SolitaireUIIds.GameScreen, GameScreenView, GameScreenViewController);
     this.viewFactory.register<BoardView, BoardViewController>(BoardView, BoardViewController);
+  }
+
+  protected override loadAssets(): void {
+    // Only the shared card body artwork is asset-loaded. The 52 unique
+    // card faces are composed at runtime from these PNGs plus cached
+    // rank/suit glyph canvases (see CardObject) — that keeps the asset
+    // count flat at two regardless of how many cards or variants get
+    // added later, while still exercising the full AssetManager
+    // pipeline (AssetIds + loadAssets + assetLoader.getAsset).
+    this.assetManager.load(AssetTypes.WorldTexture, SolitaireAssetIds.CardFront, new URL("../assets/card-front.png", import.meta.url).href);
+    this.assetManager.load(AssetTypes.WorldTexture, SolitaireAssetIds.CardBack, new URL("../assets/card-back.png", import.meta.url).href);
   }
 
   protected override postInitialize(): void {
@@ -87,8 +115,12 @@ export class SolitaireApp extends GamelabsApp {
     // Animate the opening deal. The view re-locates the 28 tableau
     // cards onto the stock pile in Phase 1 (synchronously, before the
     // first rendered frame) and tweens them out one by one. Input is
-    // blocked for the duration via the view's animation gate.
-    this._boardView.playDealAnimation(dealOrder, () => {});
+    // blocked for the duration via the view's animation gate. The
+    // game state flips Dealing→Playing on completion, which is what
+    // unpauses the countdown timer (see `onStep`).
+    this._boardView.playDealAnimation(dealOrder, () => {
+      this._gameStateModel.setState(GameState.Playing);
+    });
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
@@ -100,6 +132,12 @@ export class SolitaireApp extends GamelabsApp {
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
     this._cameraManager?.update(timestepSeconds);
+    // Timer only advances while the player is actively in the game.
+    // During the opening deal animation, state is Dealing; once the
+    // countdown reaches zero, state is GameOver. Both gate the tick.
+    if (this._gameStateModel.state === GameState.Playing) {
+      this._timerModel.tick(timestepSeconds);
+    }
   }
 
   protected override preDestroy(): void {

@@ -52,6 +52,21 @@ export class WastePile extends Pile {
     this._fanAnchorIndex = this._cards.length;
   }
 
+  public get fanAnchorIndex(): number {
+    return this._fanAnchorIndex;
+  }
+
+  /**
+   * Sets the fan anchor directly. Used by undo to roll the anchor
+   * back to the state captured before a draw, recycle, or waste-origin
+   * move — `popCard` collapses the anchor to -1 when the current fan
+   * batch empties, so a pure pop/push pair is not enough to recover
+   * the prior fan layout.
+   */
+  public setFanAnchorIndex(value: number): void {
+    this._fanAnchorIndex = value;
+  }
+
   public override popCard(): Card | null {
     const card = super.popCard();
     // If the pop consumed the last card of the current fan batch, the
