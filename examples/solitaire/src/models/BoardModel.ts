@@ -10,6 +10,15 @@ const COLUMN_X: readonly number[] = [-3.45, -2.3, -1.15, 0, 1.15, 2.3, 3.45];
 const TOP_ROW_Z = -0.9;
 const TABLEAU_ROW_Z = 0.9;
 
+export interface BoardModelOptions {
+  /** Number of cards a stock-to-waste draw transfers; doubles as the
+   *  size of the waste pile's visible fan. Set to 1 for Turn-1 mode. */
+  readonly drawCount: number;
+  /** Per-card horizontal offset within the waste pile's fan (world
+   *  units). Ignored when drawCount <= 1. */
+  readonly wasteFanX: number;
+}
+
 export class BoardModel implements IBoardModel {
   public readonly stock: StockPile;
   public readonly waste: WastePile;
@@ -17,9 +26,9 @@ export class BoardModel implements IBoardModel {
   public readonly tableau: readonly [TableauPile, TableauPile, TableauPile, TableauPile, TableauPile, TableauPile, TableauPile];
   public readonly allPiles: readonly (StockPile | WastePile | FoundationPile | TableauPile)[];
 
-  public constructor() {
+  public constructor(options: BoardModelOptions) {
     this.stock = new StockPile(COLUMN_X[0], TOP_ROW_Z);
-    this.waste = new WastePile(COLUMN_X[1], TOP_ROW_Z);
+    this.waste = new WastePile(COLUMN_X[1], TOP_ROW_Z, options.drawCount, options.wasteFanX);
     this.foundations = [
       new FoundationPile(COLUMN_X[3], TOP_ROW_Z),
       new FoundationPile(COLUMN_X[4], TOP_ROW_Z),

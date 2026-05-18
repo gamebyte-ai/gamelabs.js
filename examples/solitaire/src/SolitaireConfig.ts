@@ -25,6 +25,12 @@ export class SolitaireConfig {
   public readonly slotWidth: number = 1.0;
   public readonly slotHeight: number = 1.4;
 
+  // Per-card horizontal offset within the waste pile's visible fan.
+  // Only applies when drawCount > 1 (Turn 3 mode); the topmost
+  // `drawCount` cards fan to the right at this stride so the number
+  // of recently drawn cards is visible at a glance.
+  public readonly wasteFanX: number = 0.22;
+
   public readonly slotPalettes: Readonly<Record<SlotType, SlotPalette>> = {
     [SlotType.Stock]: { fill: 0x1a2a4a, outline: 0x4a90e2 },
     [SlotType.Waste]: { fill: 0x2a1f4a, outline: 0xb98ce5 },

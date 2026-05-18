@@ -28,7 +28,10 @@ const BOARD_PADDING = 0.6;
 export class SolitaireApp extends GamelabsApp {
   private readonly _config = new SolitaireConfig();
   private readonly _gameCameraBinding = new GameCameraBinding();
-  private readonly _boardModel = new BoardModel();
+  private readonly _boardModel = new BoardModel({
+    drawCount: this._config.drawCount,
+    wasteFanX: this._config.wasteFanX,
+  });
   private _boardView: BoardView | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _cameraController: Topdown2dCameraController | null = null;

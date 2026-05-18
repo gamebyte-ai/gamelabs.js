@@ -54,4 +54,13 @@ export abstract class Pile implements IPile {
   public needsAutoFlipNewTop(): boolean {
     return false;
   }
+
+  /**
+   * Default linear stacking: card `index` sits at `stackingOffset × index`
+   * from the pile's origin. Override for piles whose visual layout is
+   * not a single uniform stride.
+   */
+  public getCardOffset(index: number): { readonly x: number; readonly z: number } {
+    return { x: this.stackingOffset.x * index, z: this.stackingOffset.z * index };
+  }
 }

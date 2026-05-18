@@ -39,12 +39,12 @@ export class BoardViewController implements IViewController<IBoardView> {
     if (!this._view) return;
     const target = info.targetPile;
     if (target === null || target === info.originPile) {
-      this._view.refresh();
+      this._view.commitDragRelease();
       return;
     }
     const moving = info.originPile.cards.slice(info.fromIndex);
     if (!target.canPlace(moving)) {
-      this._view.refresh();
+      this._view.commitDragRelease();
       return;
     }
 
@@ -52,7 +52,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     if (info.originPile.needsAutoFlipNewTop()) {
       CardMoveOperations.flipTopCard(info.originPile, true);
     }
-    this._view.refresh();
+    this._view.commitDragRelease();
   }
 
   private onPileTapped(pile: IPile): void {

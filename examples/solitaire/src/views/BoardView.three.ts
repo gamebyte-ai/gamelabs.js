@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import gsap from "gsap";
 import { WorldViewBase, World, type IInstanceResolver, type IPointerInputHandler, type Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { CardsDragReleaseInfo, DragEligibilityPredicate, IBoardView } from "./IBoardView";
 import type { IBoardModel } from "../models/IBoardModel";
@@ -10,6 +11,8 @@ import { CardObject } from "./CardObject";
 const CARD_STACK_LIFT_Y = 0.001;
 const DRAG_LIFT_Y = 0.4;
 const DRAG_CARD_SUBLIFT_Y = 0.01;
+const RELEASE_ANIMATION_DURATION = 0.18;
+const RELEASE_ANIMATION_EASE = "power2.out";
 
 interface CardLookupEntry {
   readonly pile: IPile;
@@ -22,6 +25,9 @@ interface DragSession {
   readonly originPile: IPile;
   readonly fromIndex: number;
   readonly pointerId: number;
+  /** Card at the bottom of the dragged stack — the anchor used to
+   *  compute the release-animation target from the current model. */
+  readonly bottomCardId: number;
 }
 
 export class BoardView extends WorldViewBase implements IBoardView, IPointerInputHandler {
@@ -43,6 +49,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
 
   private _dragSession: DragSession | null = null;
   private _dragEligibility: DragEligibilityPredicate | null = null;
+  private _releaseTween: gsap.core.Tween | null = null;
   private readonly _dragReleaseListeners = new Set<(info: CardsDragReleaseInfo) => void>();
   private readonly _pileTapListeners = new Set<(pile: IPile) => void>();
 
@@ -98,6 +105,43 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     }
   }
 
+  public commitDragRelease(): void {
+    const session = this._dragSession;
+    if (!session || !this._dragRoot || !this._board) {
+      this.refresh();
+      return;
+    }
+    const target = this.findCardWorldPosition(session.bottomCardId);
+    if (!target) {
+      this.refresh();
+      return;
+    }
+    this._releaseTween?.kill();
+    this._releaseTween = gsap.to(this._dragRoot.position, {
+      x: target.x,
+      y: 0,
+      z: target.z,
+      duration: RELEASE_ANIMATION_DURATION,
+      ease: RELEASE_ANIMATION_EASE,
+      onComplete: () => {
+        this._releaseTween = null;
+        this.refresh();
+      },
+    });
+  }
+
+  private findCardWorldPosition(cardId: number): { x: number; z: number } | null {
+    if (!this._board) return null;
+    for (const pile of this._board.allPiles) {
+      for (let i = 0; i < pile.cards.length; i++) {
+        if (pile.cards[i].id !== cardId) continue;
+        const offset = pile.getCardOffset(i);
+        return { x: pile.worldX + offset.x, z: pile.worldZ + offset.z };
+      }
+    }
+    return null;
+  }
+
   public onCardsDragReleased(callback: (info: CardsDragReleaseInfo) => void): Unsubscribe {
     this._dragReleaseListeners.add(callback);
     return () => {
@@ -119,6 +163,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   // IPointerInputHandler — view performs its own raycast against card
   // and slot meshes, so `onThisObject` from the InputManager is ignored.
   public onPointerDown(event: PointerEvent, _onThisObject: boolean): void {
+    if (this._releaseTween !== null) return;
     if (this._dragSession !== null) return;
     const hit = this.pickCard(event);
     if (hit) {
@@ -132,6 +177,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   public onPointerMove(event: PointerEvent, _onThisObject: boolean): void {
+    if (this._releaseTween !== null) return;
     if (!this._dragSession) return;
     if (event.pointerId !== this._dragSession.pointerId) return;
     const ground = this.projectToGround(event);
@@ -140,6 +186,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   public onPointerUp(event: PointerEvent, _onThisObject: boolean): void {
+    if (this._releaseTween !== null) return;
     if (!this._dragSession) return;
     if (event.pointerId !== this._dragSession.pointerId) return;
     const targetPile = this.pickPile(event);
@@ -148,18 +195,19 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       fromIndex: this._dragSession.fromIndex,
       targetPile,
     };
-    this._dragSession = null;
+    // _dragSession stays set; the controller calls commitDragRelease
+    // which runs the settling animation and clears it on completion.
     for (const cb of this._dragReleaseListeners) cb(info);
   }
 
   public onPointerCancel(_event: PointerEvent): void {
+    if (this._releaseTween !== null) return;
     if (!this._dragSession) return;
     const info: CardsDragReleaseInfo = {
       originPile: this._dragSession.originPile,
       fromIndex: this._dragSession.fromIndex,
       targetPile: null,
     };
-    this._dragSession = null;
     for (const cb of this._dragReleaseListeners) cb(info);
   }
 
@@ -181,6 +229,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       originPile,
       fromIndex,
       pointerId: event.pointerId,
+      bottomCardId: entries[0].cardObject.cardId,
     };
 
     const ground = this.projectToGround(event);
@@ -188,6 +237,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   }
 
   private endDragSession(): void {
+    this._releaseTween?.kill();
+    this._releaseTween = null;
     this._dragSession = null;
     if (this._dragRoot) this._dragRoot.position.set(0, 0, 0);
   }
@@ -276,11 +327,11 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
 
   private renderCardsForPile(pile: IPile): void {
     if (!this._cardsRoot || !this._config) return;
-    const offset = pile.stackingOffset;
     for (let i = 0; i < pile.cards.length; i++) {
       const card = pile.cards[i];
+      const offset = pile.getCardOffset(i);
       const cardObject = new CardObject(card, this._config.cardVisual);
-      cardObject.position.set(pile.worldX + offset.x * i, CARD_STACK_LIFT_Y * (i + 1), pile.worldZ + offset.z * i);
+      cardObject.position.set(pile.worldX + offset.x, CARD_STACK_LIFT_Y * (i + 1), pile.worldZ + offset.z);
       this._cardsRoot.add(cardObject);
       this._cardObjects.push(cardObject);
       this._cardLookup.set(card.id, {

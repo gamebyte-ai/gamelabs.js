@@ -16,4 +16,8 @@ export interface IPile {
   canPlace(cards: readonly ICard[]): boolean;
   canDragFrom(index: number): boolean;
   needsAutoFlipNewTop(): boolean;
+  /** Offset of the card at `index` relative to the pile's origin, in
+   *  world units. Default: linear `stackingOffset × index`. Piles may
+   *  override (e.g. waste fans only its top draw batch). */
+  getCardOffset(index: number): { readonly x: number; readonly z: number };
 }

@@ -10,8 +10,8 @@ export interface BoardContentBounds {
 /**
  * Computes the axis-aligned world-space bounds of the board's current
  * content — pile rectangles plus the card-fan extension implied by
- * each pile's `stackingOffset × (cards.length − 1)`. Used by the app
- * to fit the top-down camera around whatever the board currently shows.
+ * each pile's `getCardOffset(lastIndex)`. Used by the app to fit the
+ * top-down camera around whatever the board currently shows.
  */
 export class BoardBoundsCalculator {
   public static compute(piles: readonly IPile[], slotWidth: number, slotHeight: number): BoardContentBounds | null {
@@ -26,8 +26,9 @@ export class BoardBoundsCalculator {
 
     for (const pile of piles) {
       const lastIndex = Math.max(0, pile.cards.length - 1);
-      const fanX = pile.worldX + pile.stackingOffset.x * lastIndex;
-      const fanZ = pile.worldZ + pile.stackingOffset.z * lastIndex;
+      const offset = pile.getCardOffset(lastIndex);
+      const fanX = pile.worldX + offset.x;
+      const fanZ = pile.worldZ + offset.z;
       minX = Math.min(minX, pile.worldX - halfW, fanX - halfW);
       maxX = Math.max(maxX, pile.worldX + halfW, fanX + halfW);
       minZ = Math.min(minZ, pile.worldZ - halfH, fanZ - halfH);
