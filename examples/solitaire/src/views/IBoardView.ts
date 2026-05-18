@@ -1,17 +1,19 @@
-import type { IView } from "@gamebyte/gamelabsjs";
-import type { BoardLayoutConfig } from "../models/SlotConfig";
-import type { SlotType } from "../constants/SlotType";
-import type { SlotPalette } from "./SlotObject";
-import type { CardVisualConfig } from "./CardObject";
-import type { ISlot } from "../models/Slot";
+import type { IView, Unsubscribe } from "@gamebyte/gamelabsjs";
+import type { IBoardModel } from "../models/IBoardModel";
+import type { IPile } from "../models/IPile";
 
-export interface BoardRenderInput {
-  readonly layout: BoardLayoutConfig;
-  readonly slots: readonly ISlot[];
-  readonly palettes: Readonly<Record<SlotType, SlotPalette>>;
-  readonly cardVisual: CardVisualConfig;
+export interface CardsDragReleaseInfo {
+  readonly originPile: IPile;
+  readonly fromIndex: number;
+  readonly targetPile: IPile | null;
 }
 
+export type DragEligibilityPredicate = (pile: IPile, fromIndex: number) => boolean;
+
 export interface IBoardView extends IView {
-  setBoard(input: BoardRenderInput): void;
+  bindBoard(model: IBoardModel): void;
+  refresh(): void;
+  onCardsDragReleased(callback: (info: CardsDragReleaseInfo) => void): Unsubscribe;
+  onPileTapped(callback: (pile: IPile) => void): Unsubscribe;
+  setDragEligibilityPredicate(predicate: DragEligibilityPredicate | null): void;
 }

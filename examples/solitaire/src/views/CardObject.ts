@@ -44,6 +44,7 @@ export class CardObject extends THREE.Group {
     this._front = new THREE.Mesh(geometry, frontMaterial);
     this._front.rotation.x = -Math.PI / 2;
     this._front.position.y = FACE_LIFT_Y;
+    this._front.userData = { cardId: card.id };
     this.add(this._front);
 
     this._backTexture = CardObject.createBackTexture(config);
@@ -55,6 +56,7 @@ export class CardObject extends THREE.Group {
     this._back = new THREE.Mesh(geometry, backMaterial);
     this._back.rotation.x = -Math.PI / 2;
     this._back.position.y = FACE_LIFT_Y;
+    this._back.userData = { cardId: card.id };
     this.add(this._back);
 
     this.setFaceUp(card.faceUp);
@@ -63,6 +65,21 @@ export class CardObject extends THREE.Group {
   public setFaceUp(faceUp: boolean): void {
     this._front.visible = faceUp;
     this._back.visible = !faceUp;
+  }
+
+  /** Meshes the parent view should include in pointer raycasts. Face-down
+   *  cards return an empty list so they cannot be picked up. */
+  public getPickableMeshes(): readonly THREE.Mesh[] {
+    return this._front.visible ? [this._front] : [];
+  }
+
+  /** Meshes for drop-target hit-testing — whichever face is currently
+   *  visible. Unlike {@link getPickableMeshes}, face-down cards still
+   *  contribute because the user may legitimately drop on them. */
+  public getHitTestMeshes(): readonly THREE.Mesh[] {
+    if (this._front.visible) return [this._front];
+    if (this._back.visible) return [this._back];
+    return [];
   }
 
   public dispose(): void {

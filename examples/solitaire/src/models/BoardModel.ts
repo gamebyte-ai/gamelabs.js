@@ -1,30 +1,40 @@
-import type { BoardLayoutConfig } from "./SlotConfig";
 import type { IBoardModel } from "./IBoardModel";
-import type { SlotType } from "../constants/SlotType";
-import { Slot } from "./Slot";
+import { StockPile } from "./StockPile";
+import { WastePile } from "./WastePile";
+import { FoundationPile } from "./FoundationPile";
+import { TableauPile } from "./TableauPile";
+
+// World-space layout constants for the Klondike board. The two rows are
+// the top row (stock + waste + 4 foundations) and the tableau row.
+const COLUMN_X: readonly number[] = [-3.45, -2.3, -1.15, 0, 1.15, 2.3, 3.45];
+const TOP_ROW_Z = -0.9;
+const TABLEAU_ROW_Z = 0.9;
 
 export class BoardModel implements IBoardModel {
-  private _layout: BoardLayoutConfig | null = null;
-  private _slots: Slot[] = [];
+  public readonly stock: StockPile;
+  public readonly waste: WastePile;
+  public readonly foundations: readonly [FoundationPile, FoundationPile, FoundationPile, FoundationPile];
+  public readonly tableau: readonly [TableauPile, TableauPile, TableauPile, TableauPile, TableauPile, TableauPile, TableauPile];
+  public readonly allPiles: readonly (StockPile | WastePile | FoundationPile | TableauPile)[];
 
-  public get layout(): BoardLayoutConfig | null {
-    return this._layout;
-  }
-
-  public get slots(): readonly Slot[] {
-    return this._slots;
-  }
-
-  public loadLayout(layout: BoardLayoutConfig): void {
-    this._layout = layout;
-    this._slots = layout.slots.map((config) => new Slot(config));
-  }
-
-  public getSlotById(id: string): Slot | null {
-    return this._slots.find((s) => s.config.id === id) ?? null;
-  }
-
-  public getSlotsByType(type: SlotType): readonly Slot[] {
-    return this._slots.filter((s) => s.config.type === type);
+  public constructor() {
+    this.stock = new StockPile(COLUMN_X[0], TOP_ROW_Z);
+    this.waste = new WastePile(COLUMN_X[1], TOP_ROW_Z);
+    this.foundations = [
+      new FoundationPile(COLUMN_X[3], TOP_ROW_Z),
+      new FoundationPile(COLUMN_X[4], TOP_ROW_Z),
+      new FoundationPile(COLUMN_X[5], TOP_ROW_Z),
+      new FoundationPile(COLUMN_X[6], TOP_ROW_Z),
+    ];
+    this.tableau = [
+      new TableauPile(COLUMN_X[0], TABLEAU_ROW_Z),
+      new TableauPile(COLUMN_X[1], TABLEAU_ROW_Z),
+      new TableauPile(COLUMN_X[2], TABLEAU_ROW_Z),
+      new TableauPile(COLUMN_X[3], TABLEAU_ROW_Z),
+      new TableauPile(COLUMN_X[4], TABLEAU_ROW_Z),
+      new TableauPile(COLUMN_X[5], TABLEAU_ROW_Z),
+      new TableauPile(COLUMN_X[6], TABLEAU_ROW_Z),
+    ];
+    this.allPiles = [this.stock, this.waste, ...this.foundations, ...this.tableau];
   }
 }

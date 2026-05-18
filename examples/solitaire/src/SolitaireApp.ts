@@ -1,4 +1,12 @@
-import { GamelabsApp, GameCameraBinding, GameCameraManager, LogTypes, Topdown2dCameraController, UIEvents } from "@gamebyte/gamelabsjs";
+import {
+  GamelabsApp,
+  GameCameraBinding,
+  GameCameraManager,
+  LogTypes,
+  Topdown2dCameraController,
+  UIEvents,
+  World,
+} from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
@@ -7,8 +15,7 @@ import { BoardViewController } from "./controllers/BoardViewController";
 
 import { BoardModel } from "./models/BoardModel";
 import { IBoardModel } from "./models/IBoardModel";
-import { KlondikeLayoutOperations } from "./utilities/KlondikeLayoutOperations";
-import { KlondikeDealOperations } from "./utilities/KlondikeDealOperations";
+import { DealOperations } from "./utilities/DealOperations";
 import { BoardBoundsCalculator } from "./utilities/BoardBoundsCalculator";
 import type { IRng } from "./utilities/IRng";
 import { SeededRng } from "./utilities/SeededRng";
@@ -35,7 +42,14 @@ export class SolitaireApp extends GamelabsApp {
   }
 
   protected override configureDI(): void {
+    if (!this.world) {
+      this.logger.log("World is not initialized", LogTypes.Error);
+      throw new Error("World is not initialized");
+    }
+    this.viewDiContainer.bindInstance(World, this.world);
+
     this.diContainer.bindInstance(SolitaireConfig, this._config);
+    this.viewDiContainer.bindInstance(SolitaireConfig, this._config);
     this.diContainer.bindInstance(BoardModel, this._boardModel, [IBoardModel]);
   }
 
@@ -56,8 +70,7 @@ export class SolitaireApp extends GamelabsApp {
 
     this.diContainer.getInstance(UIEvents).createScreen(SolitaireUIIds.GameScreen, this._config.transitions.gameScreenEnter);
 
-    this._boardModel.loadLayout(KlondikeLayoutOperations.create());
-    KlondikeDealOperations.deal(this._boardModel, this.createRng());
+    DealOperations.deal(this._boardModel, this.createRng());
 
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);
@@ -94,9 +107,7 @@ export class SolitaireApp extends GamelabsApp {
   private updateCameraFit(viewportWidth: number, viewportHeight: number): void {
     if (!this._cameraManager || !this._cameraController) return;
     if (viewportWidth <= 0 || viewportHeight <= 0) return;
-    const layout = this._boardModel.layout;
-    if (!layout) return;
-    const bounds = BoardBoundsCalculator.compute(layout, this._boardModel.slots);
+    const bounds = BoardBoundsCalculator.compute(this._boardModel.allPiles, this._config.slotWidth, this._config.slotHeight);
     if (!bounds) return;
 
     const contentW = bounds.maxX - bounds.minX + BOARD_PADDING * 2;

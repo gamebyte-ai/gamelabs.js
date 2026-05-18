@@ -13,6 +13,18 @@ export class SolitaireConfig {
     },
   };
 
+  // Cards drawn from stock to waste per click. Standard Klondike values
+  // are 1 (Turn 1) or 3 (Turn 3). A future level / settings screen would
+  // write to this single source of truth.
+  public readonly drawCount: number = 3;
+
+  // Seed for shuffle. null = non-deterministic (Math.random).
+  public readonly shuffleSeed: number | null = 1;
+
+  // Slot rectangle size in world units, shared by every pile.
+  public readonly slotWidth: number = 1.0;
+  public readonly slotHeight: number = 1.4;
+
   public readonly slotPalettes: Readonly<Record<SlotType, SlotPalette>> = {
     [SlotType.Stock]: { fill: 0x1a2a4a, outline: 0x4a90e2 },
     [SlotType.Waste]: { fill: 0x2a1f4a, outline: 0xb98ce5 },
@@ -29,7 +41,4 @@ export class SolitaireConfig {
     redColor: 0xc12424,
     blackColor: 0x111111,
   };
-
-  // Seed for shuffle-driven gameplay. null = non-deterministic (Math.random).
-  public readonly shuffleSeed: number | null = 1;
 }

@@ -1,13 +1,12 @@
 import { InjectionToken } from "@gamebyte/gamelabsjs";
-import type { BoardLayoutConfig } from "./SlotConfig";
-import type { SlotType } from "../constants/SlotType";
-import type { ISlot } from "./Slot";
+import type { IPile } from "./IPile";
 
 export interface IBoardModel {
-  readonly layout: BoardLayoutConfig | null;
-  readonly slots: readonly ISlot[];
-  getSlotById(id: string): ISlot | null;
-  getSlotsByType(type: SlotType): readonly ISlot[];
+  readonly stock: IPile;
+  readonly waste: IPile;
+  readonly foundations: readonly IPile[];
+  readonly tableau: readonly IPile[];
+  readonly allPiles: readonly IPile[];
 }
 
 export const IBoardModel = new InjectionToken<IBoardModel>("IBoardModel");

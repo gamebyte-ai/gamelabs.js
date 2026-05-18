@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { SlotConfig } from "../models/SlotConfig";
+import type { IPile } from "../models/IPile";
 import type { SlotType } from "../constants/SlotType";
 
 export interface SlotPalette {
@@ -8,20 +8,20 @@ export interface SlotPalette {
 }
 
 export interface SlotObjectOptions {
-  readonly config: SlotConfig;
+  readonly pile: IPile;
   readonly width: number;
   readonly height: number;
   readonly palette: SlotPalette;
 }
 
 /**
- * Visual for a single board slot — a flat rectangle on the XZ plane with a
- * coloured fill, outline, and a text label naming the slot's type. Holds no
- * game logic; mutation belongs in the BoardView / controller layer.
+ * Visual for a single board pile slot — a flat rectangle on the XZ
+ * plane with a coloured fill, outline, and a text label naming the
+ * pile's type. Holds no game logic; the fill mesh's userData carries
+ * the pile reference so the view can identify drop targets by raycast.
  */
 export class SlotObject extends THREE.Group {
-  public readonly slotId: string;
-  public readonly slotType: SlotType;
+  public readonly pile: IPile;
 
   private readonly _fillMesh: THREE.Mesh;
   private readonly _outline: THREE.LineSegments;
@@ -30,9 +30,8 @@ export class SlotObject extends THREE.Group {
 
   public constructor(options: SlotObjectOptions) {
     super();
-    this.slotId = options.config.id;
-    this.slotType = options.config.type;
-    this.name = `Slot(${options.config.id})`;
+    this.pile = options.pile;
+    this.name = `Slot(${options.pile.type})`;
 
     const halfW = options.width / 2;
     const halfH = options.height / 2;
@@ -46,6 +45,7 @@ export class SlotObject extends THREE.Group {
     });
     this._fillMesh = new THREE.Mesh(fillGeometry, fillMaterial);
     this._fillMesh.rotation.x = -Math.PI / 2;
+    this._fillMesh.userData = { pile: options.pile };
     this.add(this._fillMesh);
 
     const outlineGeometry = new THREE.BufferGeometry().setFromPoints([
@@ -62,7 +62,7 @@ export class SlotObject extends THREE.Group {
     this._outline = new THREE.LineSegments(outlineGeometry, outlineMaterial);
     this.add(this._outline);
 
-    const { texture, aspect } = SlotObject.createLabelTexture(options.config.type, options.palette.outline);
+    const { texture, aspect } = SlotObject.createLabelTexture(options.pile.type, options.palette.outline);
     this._labelTexture = texture;
     const labelMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
     this._label = new THREE.Sprite(labelMaterial);
@@ -70,6 +70,10 @@ export class SlotObject extends THREE.Group {
     this._label.scale.set(labelWidth, labelWidth / aspect, 1);
     this._label.position.set(0, 0.01, 0);
     this.add(this._label);
+  }
+
+  public get fillMesh(): THREE.Mesh {
+    return this._fillMesh;
   }
 
   public dispose(): void {
