@@ -1,7 +1,7 @@
 import { SlotType } from "../constants/SlotType";
 import { Rank } from "../constants/Rank";
 import { Pile } from "./Pile";
-import { FLUSH_STACK } from "./StackingOffset";
+import { FLUSH_STACK } from "../constants/StackingOffset";
 import type { ICard } from "./Card";
 
 export class FoundationPile extends Pile {

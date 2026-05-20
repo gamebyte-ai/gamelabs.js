@@ -1,6 +1,6 @@
 import { SlotType } from "../constants/SlotType";
 import { Pile } from "./Pile";
-import { FLUSH_STACK } from "./StackingOffset";
+import { FLUSH_STACK } from "../constants/StackingOffset";
 import type { IWastePile } from "./IWastePile";
 
 export class WastePile extends Pile implements IWastePile {

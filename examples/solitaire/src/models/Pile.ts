@@ -1,6 +1,6 @@
 import type { SlotType } from "../constants/SlotType";
 import type { Card, ICard } from "./Card";
-import type { StackingOffset } from "./StackingOffset";
+import type { StackingOffset } from "../constants/StackingOffset";
 import type { IPile } from "./IPile";
 
 /**

@@ -1,7 +1,7 @@
 import { SlotType } from "../constants/SlotType";
 import { Rank } from "../constants/Rank";
 import { Pile } from "./Pile";
-import { TABLEAU_STACK } from "./StackingOffset";
+import { TABLEAU_STACK } from "../constants/StackingOffset";
 import { SuitRules } from "../utilities/SuitRules";
 import type { ICard } from "./Card";
 

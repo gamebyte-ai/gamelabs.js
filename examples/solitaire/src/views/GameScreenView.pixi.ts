@@ -83,6 +83,13 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   public override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
 
+    // The corner-pinned HUD widgets (score / time labels, undo button,
+    // turn radio group) all use `position: "absolute"` with edge
+    // offsets, which @pixi/layout resolves against the SCREEN's own
+    // layout box. Without this width/height the containing block has
+    // zero size and every child stacks at (0, 0).
+    this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
+
     if (this._endStateLabel) {
       // Anchored at (0.5, 0.5); position via raw x/y rather than layout
       // so centering doesn't depend on the screen's flex container.
