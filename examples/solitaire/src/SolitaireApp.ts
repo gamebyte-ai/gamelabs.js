@@ -19,13 +19,11 @@ import { BoardViewController } from "./controllers/BoardViewController";
 import { BoardModel } from "./models/BoardModel";
 import { IBoardModel } from "./models/IBoardModel";
 import { UndoHistory } from "./models/UndoHistory";
-import { UndoEvents } from "./models/UndoEvents";
+import { UndoEvents } from "./events/UndoEvents";
 import { ScoreModel } from "./models/ScoreModel";
 import { TimerModel } from "./models/TimerModel";
 import { GameStateModel, GameState } from "./models/GameStateModel";
-import { GameSettingsEvents } from "./models/GameSettingsEvents";
-import { Pile } from "./models/Pile";
-import { WastePile } from "./models/WastePile";
+import { GameSettingsEvents } from "./events/GameSettingsEvents";
 import { DealOperations } from "./utilities/DealOperations";
 import { BoardBoundsCalculator } from "./utilities/BoardBoundsCalculator";
 import type { IRng } from "./utilities/IRng";
@@ -176,9 +174,9 @@ export class SolitaireApp extends GamelabsApp {
   private restartLevel(newDrawCount: number): void {
     if (!this._boardView) return;
     for (const pile of this._boardModel.allPiles) {
-      (pile as Pile).clear();
+      pile.clear();
     }
-    (this._boardModel.waste as WastePile).setDrawCount(newDrawCount);
+    this._boardModel.waste.setDrawCount(newDrawCount);
     const dealOrder = DealOperations.deal(this._boardModel, new MathRandomRng());
     this._scoreModel.reset();
     this._timerModel.reset();

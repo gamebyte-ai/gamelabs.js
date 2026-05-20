@@ -1,10 +1,10 @@
 import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "../views/IGameScreenView";
-import { UndoEvents } from "../models/UndoEvents";
+import { UndoEvents } from "../events/UndoEvents";
 import { ScoreModel } from "../models/ScoreModel";
 import { TimerModel } from "../models/TimerModel";
 import { GameStateModel, GameState } from "../models/GameStateModel";
-import { GameSettingsEvents } from "../models/GameSettingsEvents";
+import { GameSettingsEvents } from "../events/GameSettingsEvents";
 import { TimeFormatter } from "../utilities/TimeFormatter";
 import { SolitaireConfig } from "../SolitaireConfig";
 

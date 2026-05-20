@@ -2,10 +2,9 @@ import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "@g
 import type { CardClickedInfo, CardsDragReleaseInfo, IBoardView } from "../views/IBoardView";
 import { IBoardModel } from "../models/IBoardModel";
 import type { IPile } from "../models/IPile";
-import { WastePile } from "../models/WastePile";
 import { SlotType } from "../constants/SlotType";
 import { UndoHistory } from "../models/UndoHistory";
-import { UndoEvents } from "../models/UndoEvents";
+import { UndoEvents } from "../events/UndoEvents";
 import type { UndoRecord } from "../models/UndoRecord";
 import { ScoreModel } from "../models/ScoreModel";
 import { GameStateModel, GameState } from "../models/GameStateModel";
@@ -39,15 +38,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     if (!this._board) throw new Error("BoardViewController: board model not injected");
     this._view = view;
     view.bindBoard(this._board);
-    view.setDragEligibilityPredicate((pile, fromIndex) => {
-      // Block drag pickup entirely outside the Playing phase. During
-      // Dealing the view's isAnimating gate already blocks input, but
-      // a TimeOver clock-out lands with no animation in flight, so
-      // this gate is the only thing standing between the player and
-      // a card pickup after the lose state.
-      if (!this.isGamePlaying()) return false;
-      return pile.canDragFrom(fromIndex);
-    });
+    view.setDragEligibilityPredicate((pile, fromIndex) => this.canDragFrom(pile, fromIndex));
     this._subs.add(view.onCardsDragReleased((info) => this.onCardsDragReleased(info)));
     this._subs.add(view.onCardClicked((info) => this.onCardClicked(info)));
     this._subs.add(view.onPileTapped((pile) => this.onPileTapped(pile)));
@@ -55,6 +46,18 @@ export class BoardViewController implements IViewController<IBoardView> {
       this._subs.add(this._undoEvents.onRequested(() => this.onUndoRequested()));
     }
     view.refresh();
+  }
+
+  /**
+   * Drag-eligibility predicate handed to the view. Blocks pickup
+   * entirely outside the Playing phase (the view's `isAnimating` gate
+   * covers Dealing, but a TimeOver lands with no animation in flight,
+   * so this gate is the only thing standing between the player and a
+   * card pickup after the lose state).
+   */
+  private canDragFrom(pile: IPile, fromIndex: number): boolean {
+    if (!this.isGamePlaying()) return false;
+    return pile.canDragFrom(fromIndex);
   }
 
   public destroy(): void {
@@ -115,13 +118,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     // foundation on click.
     if (info.pile.type === SlotType.Foundation) return;
     const card = info.pile.cards[info.fromIndex];
-    let destination: IPile | null = null;
-    for (const foundation of this._board.foundations) {
-      if (foundation.canPlace([card])) {
-        destination = foundation;
-        break;
-      }
-    }
+    const destination = CardMoveOperations.findFoundationDestination(this._board.foundations, card);
     if (destination === null) {
       // Eligible click (top of its pile) but no foundation accepts —
       // give the player a visual "denied" cue. No model mutation.
@@ -190,38 +187,24 @@ export class BoardViewController implements IViewController<IBoardView> {
     if (this._view.isDrawAnimating()) return;
     if (this._view.isRecycleAnimating()) return;
     if (this._board.stock.cards.length > 0) {
-      // Source of truth for the current mode is WastePile.drawCount —
-      // the radio toggle updates that via setDrawCount, while
-      // SolitaireConfig.drawCount is only the initial value and is
-      // never mutated when the player switches Turn 1 ↔ Turn 3.
-      const currentDrawCount = (this._board.waste as WastePile).drawCount;
-      const drawCount = Math.min(this._board.stock.cards.length, currentDrawCount);
-      // Capture the ids of the cards about to leave the stock — in
-      // pop order (current top first, then second-from-top, ...).
-      // That order matches how StockOperations.drawToWaste pushes
-      // them onto the waste, so drawnCardIds[i] lands at the i-th
-      // fan slot (leftmost-first in Turn 3).
-      const stockLength = this._board.stock.cards.length;
-      const drawnCardIds: number[] = [];
-      for (let i = 0; i < drawCount; i++) {
-        drawnCardIds.push(this._board.stock.cards[stockLength - 1 - i].id);
-      }
-      StockOperations.drawToWaste(this._board.stock, this._board.waste, currentDrawCount);
+      // Source of truth for the current mode is `waste.drawCount` —
+      // the radio toggle updates that, while `SolitaireConfig.drawCount`
+      // is only the initial value and is never mutated when the player
+      // switches Turn 1 ↔ Turn 3.
+      const requested = this._board.waste.drawCount;
+      const drawCount = StockOperations.resolveDrawCount(this._board.stock, requested);
+      const drawnCardIds = StockOperations.peekDrawableCardIds(this._board.stock, drawCount);
+      StockOperations.drawToWaste(this._board.stock, this._board.waste, requested);
       const scoreDelta = ScoreCalculator.forStockDraw(this._config.score);
       this._scoreModel?.add(scoreDelta);
       this._undoHistory?.push({ kind: "draw", count: drawCount, scoreDelta });
       this._view.playDrawAnimation(drawnCardIds, () => {});
     } else {
-      const recycleCount = this._board.waste.cards.length;
-      // Capture the ids before the model mutation — after recycle,
-      // these cards are in stock face-down, but their cardObjects are
-      // still at their waste-fan positions and need to animate back
-      // to stock from there.
-      const recycledCardIds = this._board.waste.cards.map((card) => card.id);
+      const recycledCardIds = StockOperations.peekRecyclableCardIds(this._board.waste);
       StockOperations.recycleWasteToStock(this._board.stock, this._board.waste);
       const scoreDelta = ScoreCalculator.forStockRecycle(this._config.score);
       this._scoreModel?.add(scoreDelta);
-      this._undoHistory?.push({ kind: "recycle", count: recycleCount, scoreDelta });
+      this._undoHistory?.push({ kind: "recycle", count: recycledCardIds.length, scoreDelta });
       this._view.playRecycleAnimation(recycledCardIds, () => {});
     }
   }
@@ -246,7 +229,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     // at their pre-undo positions, which the draw/recycle animations
     // tween from. (Move undos don't need this — playUndoMove walks
     // the model itself.)
-    const stockUndoCardIds = this.captureStockUndoCardIds(record);
+    const stockUndoCardIds = UndoOperations.captureUndoAnimationCardIds(this._board, record);
     UndoOperations.undo(this._board, record);
     // Score adjustment on undo: revert the original action's awarded
     // delta to return the player to their pre-action score, then
@@ -272,26 +255,6 @@ export class BoardViewController implements IViewController<IBoardView> {
       // position in one batch, mirroring the forward recycle.
       this._view.playRecycleUndoAnimation(stockUndoCardIds, () => {});
     }
-  }
-
-  /**
-   * Snapshot the card ids the draw / recycle undo animation needs,
-   * read off the pre-undo model state. The waste's top `count` cards
-   * are the drawn-cards-to-return-to-stock for a draw undo; the
-   * stock's full contents are the recycled-cards-to-return-to-waste
-   * for a recycle undo. Move undos return [] — playUndoMove walks
-   * the model directly.
-   */
-  private captureStockUndoCardIds(record: UndoRecord): readonly number[] {
-    if (!this._board) return [];
-    if (record.kind === "draw") {
-      const waste = this._board.waste.cards;
-      return waste.slice(waste.length - record.count).map((card) => card.id);
-    }
-    if (record.kind === "recycle") {
-      return this._board.stock.cards.map((card) => card.id);
-    }
-    return [];
   }
 
   /**

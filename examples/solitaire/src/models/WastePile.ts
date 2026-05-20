@@ -1,8 +1,9 @@
 import { SlotType } from "../constants/SlotType";
 import { Pile } from "./Pile";
 import { FLUSH_STACK } from "./StackingOffset";
+import type { IWastePile } from "./IWastePile";
 
-export class WastePile extends Pile {
+export class WastePile extends Pile implements IWastePile {
   private _drawCount: number;
   private readonly _fanX: number;
 

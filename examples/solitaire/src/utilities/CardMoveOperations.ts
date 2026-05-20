@@ -1,4 +1,4 @@
-import type { Card } from "../models/Card";
+import type { Card, ICard } from "../models/Card";
 import type { IPile } from "../models/IPile";
 import { Pile } from "../models/Pile";
 
@@ -30,5 +30,19 @@ export class CardMoveOperations {
     const top = (pile as Pile).topCard;
     if (top === null) return;
     top.setFaceUp(faceUp);
+  }
+
+  /**
+   * First foundation (in iteration order) that accepts `card` on its
+   * own. Used by the quick-placement (click-to-route) path; returns
+   * null when no foundation will take the card. Pure read — no
+   * mutation; the caller mutates via {@link moveCards} once it has a
+   * destination.
+   */
+  public static findFoundationDestination(foundations: readonly IPile[], card: ICard): IPile | null {
+    for (const foundation of foundations) {
+      if (foundation.canPlace([card])) return foundation;
+    }
+    return null;
   }
 }

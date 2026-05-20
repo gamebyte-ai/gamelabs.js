@@ -1,40 +1,37 @@
-import * as PIXI from "pixi.js";
 import {
+  ButtonComponent,
+  LabelComponent,
   RadioButtonGroupComponent,
   ScreenView,
   UIComponentsStyleIds,
+  type ButtonComponentStyle,
+  type LabelComponentStyle,
   type RadioButtonComponentStyle,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView";
 
-// Undo button sizing and styling. Values are screen-space pixels and
-// pinned to the bottom-right corner via the framework's flex/absolute
-// layout. The palette matches the tableau slot palette so the HUD
-// reads as part of the same game surface.
+// Undo button sizing. The label text + colour come from the resolved
+// `UIComponentsStyleIds.Button` style; the per-button geometry below
+// keeps the corner-pinned footprint matching the radio group on the
+// opposite side. The brown-tint matches the tableau slot palette so the
+// HUD reads as part of the same game surface.
 const UNDO_BUTTON_WIDTH = 96;
 const UNDO_BUTTON_HEIGHT = 44;
-const UNDO_BUTTON_RADIUS = 8;
-const UNDO_BUTTON_FILL = 0x4a3a1a;
-const UNDO_BUTTON_OUTLINE = 0xe2b54a;
-const UNDO_BUTTON_OUTLINE_WIDTH = 2;
-const UNDO_BUTTON_LABEL_COLOR = 0xffffff;
-const UNDO_BUTTON_LABEL_SIZE = 18;
 const UNDO_BUTTON_MARGIN = 16;
+const UNDO_BUTTON_TINT = 0x4a3a1a;
+const UNDO_BUTTON_LABEL_SIZE = 18;
 
-// Score / time HUD label styling. Same font family as the button
-// label so the HUD reads as a single typographic family. The score
-// pins to the top-left, the time to the top-right. Values are
-// pushed in pre-formatted by the screen controller.
-const HUD_LABEL_COLOR = 0xffffff;
+// HUD label sizing + positioning. The shared font family / weight come
+// from the resolved Label style (with a per-call font-size override);
+// the corner pinning comes from the screen-side absolute layout.
 const HUD_LABEL_SIZE = 22;
 const HUD_LABEL_MARGIN = 16;
-const HUD_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
 
 // Centered end-state overlay. Larger than the other HUD labels so a
-// terminal state reads clearly over the board layout. Text and tint
-// are both picked by the screen controller per state — red for
-// "Time is Over", green for "You Win!", and so on.
+// terminal state reads clearly over the board layout. The base label
+// renders in white; the per-state colour is applied via the label's
+// container tint in `setEndStateLabel`.
 const END_STATE_LABEL_SIZE = 56;
 
 // Turn 1 / Turn 3 radio group sits in the bottom-left corner, mirror
@@ -49,65 +46,46 @@ const TURN_ITEM_ID_1 = "turn-1";
 const TURN_ITEM_ID_3 = "turn-3";
 
 export class GameScreenView extends ScreenView implements IGameScreenView {
-  private readonly _overlay = new PIXI.Graphics();
-  private readonly _undoButton = new PIXI.Container();
   private readonly _undoListeners = new Set<() => void>();
   private readonly _drawCountListeners = new Set<(drawCount: number) => void>();
-  private _scoreLabel: PIXI.Text | null = null;
-  private _timeLabel: PIXI.Text | null = null;
-  private _endStateLabel: PIXI.Text | null = null;
+  private _scoreLabel: LabelComponent | null = null;
+  private _timeLabel: LabelComponent | null = null;
+  private _endStateLabel: LabelComponent | null = null;
+  private _undoButton: ButtonComponent | null = null;
+  private _undoPressUnsub: Unsubscribe | null = null;
   private _turnGroup: RadioButtonGroupComponent | null = null;
   private _turnGroupUnsub: Unsubscribe | null = null;
 
   public override postInitialize(): void {
     super.postInitialize();
 
-    this._overlay.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
-    if (!this._overlay.parent) this.addChild(this._overlay);
-
-    this._scoreLabel = this.buildHudLabel("Score: 0", { left: HUD_LABEL_MARGIN, top: HUD_LABEL_MARGIN });
+    this._scoreLabel = this.buildHudLabel("Score: 0");
+    this._scoreLabel.layout = { position: "absolute", left: HUD_LABEL_MARGIN, top: HUD_LABEL_MARGIN };
     this.addChild(this._scoreLabel);
-    this._timeLabel = this.buildHudLabel("00:00", { right: HUD_LABEL_MARGIN, top: HUD_LABEL_MARGIN });
+
+    this._timeLabel = this.buildHudLabel("00:00");
+    this._timeLabel.layout = { position: "absolute", right: HUD_LABEL_MARGIN, top: HUD_LABEL_MARGIN };
     this.addChild(this._timeLabel);
 
-    this._endStateLabel = new PIXI.Text({
-      text: "",
-      style: {
-        fill: 0xffffff,
-        fontSize: END_STATE_LABEL_SIZE,
-        fontFamily: HUD_LABEL_FONT_FAMILY,
-        fontWeight: "700",
-      },
-    });
-    this._endStateLabel.anchor.set(0.5);
+    this._endStateLabel = this.buildEndStateLabel();
     this._endStateLabel.visible = false;
     this.addChild(this._endStateLabel);
 
-    this.buildUndoButton();
-    if (!this._undoButton.parent) this.addChild(this._undoButton);
+    this._undoButton = this.buildUndoButton();
+    this.addChild(this._undoButton);
+    this._undoPressUnsub = this._undoButton.onPress(() => this.onUndoPressed());
 
-    this.buildTurnRadioGroup();
+    this._turnGroup = this.buildTurnRadioGroup();
+    this.addChild(this._turnGroup);
+    this._turnGroupUnsub = this._turnGroup.onChange((id) => this.onTurnGroupChanged(id));
   }
 
   public override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
 
-    this.layout = {
-      width: Math.max(1, width),
-      height: Math.max(1, height),
-      flexDirection: "column",
-      justifyContent: "flex-start",
-      padding: 16,
-      gap: 12,
-    };
-
-    this._overlay.clear();
-    this._overlay.rect(0, 0, Math.max(1, width), Math.max(1, height)).fill({ color: 0x000000, alpha: 0 });
-
     if (this._endStateLabel) {
-      // Anchored at (0.5, 0.5); position via raw x/y rather than
-      // layout so we don't depend on the flex container's resolved
-      // size for centering.
+      // Anchored at (0.5, 0.5); position via raw x/y rather than layout
+      // so centering doesn't depend on the screen's flex container.
       this._endStateLabel.x = Math.max(1, width) / 2;
       this._endStateLabel.y = Math.max(1, height) / 2;
     }
@@ -121,11 +99,11 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   }
 
   public setScoreText(text: string): void {
-    if (this._scoreLabel) this._scoreLabel.text = text;
+    this._scoreLabel?.setText(text);
   }
 
   public setTimeText(text: string): void {
-    if (this._timeLabel) this._timeLabel.text = text;
+    this._timeLabel?.setText(text);
   }
 
   public setEndStateLabel(appearance: { readonly text: string; readonly color: number } | null): void {
@@ -134,8 +112,11 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       this._endStateLabel.visible = false;
       return;
     }
-    this._endStateLabel.text = appearance.text;
-    this._endStateLabel.style.fill = appearance.color;
+    this._endStateLabel.setText(appearance.text);
+    // Per-state colour comes through Container.tint — the resolved
+    // label style keeps the base text colour at white (0xffffff) so the
+    // tint multiplies cleanly to the desired hue without lossy blends.
+    this._endStateLabel.tint = appearance.color;
     this._endStateLabel.visible = true;
   }
 
@@ -155,46 +136,53 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   public override preDestroy(): void {
     this._undoListeners.clear();
     this._drawCountListeners.clear();
-    this._undoButton.removeAllListeners();
+    this._undoPressUnsub?.();
+    this._undoPressUnsub = null;
     this._turnGroupUnsub?.();
     this._turnGroupUnsub = null;
     super.preDestroy();
   }
 
-  private buildUndoButton(): void {
-    this._undoButton.eventMode = "static";
-    this._undoButton.cursor = "pointer";
-    this._undoButton.layout = {
+  private onUndoPressed(): void {
+    for (const cb of this._undoListeners) cb();
+  }
+
+  /**
+   * Forwards a turn-radio selection into the external listener set
+   * after mapping the item id back to a drawCount. Ignores any id
+   * that doesn't map to a known turn mode.
+   */
+  private onTurnGroupChanged(id: string): void {
+    const drawCount = GameScreenView.drawCountFromId(id);
+    if (drawCount === null) return;
+    for (const cb of this._drawCountListeners) cb(drawCount);
+  }
+
+  /**
+   * Builds the framework {@link ButtonComponent} for the undo action.
+   * The default Button skin from `UIComponentsBinding` carries the
+   * 9-slice sprite + per-state hover/pressed/disabled visuals; the
+   * brown tint matches the tableau palette and the label-size override
+   * keeps "Undo" readable at the corner-pinned 96×44 footprint.
+   */
+  private buildUndoButton(): ButtonComponent {
+    const style = this.styleManager.resolve<ButtonComponentStyle>(UIComponentsStyleIds.Button, {
+      label: { fontSize: UNDO_BUTTON_LABEL_SIZE, fontWeight: "600" },
+    });
+    const button = new ButtonComponent(this.assetLoader, style, {
+      width: UNDO_BUTTON_WIDTH,
+      height: UNDO_BUTTON_HEIGHT,
+      label: "Undo",
+    });
+    button.tint = UNDO_BUTTON_TINT;
+    button.layout = {
       position: "absolute",
       right: UNDO_BUTTON_MARGIN,
       bottom: UNDO_BUTTON_MARGIN,
       width: UNDO_BUTTON_WIDTH,
       height: UNDO_BUTTON_HEIGHT,
     };
-
-    const bg = new PIXI.Graphics();
-    bg.roundRect(0, 0, UNDO_BUTTON_WIDTH, UNDO_BUTTON_HEIGHT, UNDO_BUTTON_RADIUS);
-    bg.fill({ color: UNDO_BUTTON_FILL });
-    bg.stroke({ color: UNDO_BUTTON_OUTLINE, width: UNDO_BUTTON_OUTLINE_WIDTH });
-    this._undoButton.addChild(bg);
-
-    const label = new PIXI.Text({
-      text: "Undo",
-      style: {
-        fill: UNDO_BUTTON_LABEL_COLOR,
-        fontSize: UNDO_BUTTON_LABEL_SIZE,
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-        fontWeight: "600",
-      },
-    });
-    label.anchor.set(0.5);
-    label.x = UNDO_BUTTON_WIDTH / 2;
-    label.y = UNDO_BUTTON_HEIGHT / 2;
-    this._undoButton.addChild(label);
-
-    this._undoButton.on("pointertap", () => {
-      for (const cb of this._undoListeners) cb();
-    });
+    return button;
   }
 
   /**
@@ -205,9 +193,9 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
    * no-op-on-reselect semantics; we only forward its `onChange` to
    * external listeners after mapping the item id back to a drawCount.
    */
-  private buildTurnRadioGroup(): void {
+  private buildTurnRadioGroup(): RadioButtonGroupComponent {
     const style = this.styleManager.resolve<RadioButtonComponentStyle>(UIComponentsStyleIds.RadioButton);
-    this._turnGroup = new RadioButtonGroupComponent(this.assetLoader, style, {
+    const group = new RadioButtonGroupComponent(this.assetLoader, style, {
       items: [
         { id: TURN_ITEM_ID_1, label: "Turn 1" },
         { id: TURN_ITEM_ID_3, label: "Turn 3" },
@@ -216,17 +204,12 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       direction: "row",
       spacing: TURN_GROUP_SPACING,
     });
-    this._turnGroup.layout = {
+    group.layout = {
       position: "absolute",
       left: TURN_GROUP_MARGIN,
       bottom: TURN_GROUP_MARGIN,
     };
-    this._turnGroupUnsub = this._turnGroup.onChange((id) => {
-      const drawCount = GameScreenView.drawCountFromId(id);
-      if (drawCount === null) return;
-      for (const cb of this._drawCountListeners) cb(drawCount);
-    });
-    this.addChild(this._turnGroup);
+    return group;
   }
 
   private static idFromDrawCount(drawCount: number): string {
@@ -239,25 +222,17 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     return null;
   }
 
-  private buildHudLabel(
-    initialText: string,
-    position: { readonly left?: number; readonly right?: number; readonly top: number },
-  ): PIXI.Text {
-    const label = new PIXI.Text({
-      text: initialText,
-      style: {
-        fill: HUD_LABEL_COLOR,
-        fontSize: HUD_LABEL_SIZE,
-        fontFamily: HUD_LABEL_FONT_FAMILY,
-        fontWeight: "600",
-      },
+  private buildHudLabel(initialText: string): LabelComponent {
+    const style = this.styleManager.resolve<LabelComponentStyle>(UIComponentsStyleIds.Label, {
+      text: { fontSize: HUD_LABEL_SIZE, fontWeight: "600", color: 0xffffff },
     });
-    label.layout = {
-      position: "absolute",
-      ...(position.left !== undefined ? { left: position.left } : {}),
-      ...(position.right !== undefined ? { right: position.right } : {}),
-      top: position.top,
-    };
-    return label;
+    return new LabelComponent(this.assetLoader, style, { text: initialText });
+  }
+
+  private buildEndStateLabel(): LabelComponent {
+    const style = this.styleManager.resolve<LabelComponentStyle>(UIComponentsStyleIds.Label, {
+      text: { fontSize: END_STATE_LABEL_SIZE, fontWeight: "700", color: 0xffffff },
+    });
+    return new LabelComponent(this.assetLoader, style, { text: "", anchorX: 0.5, anchorY: 0.5 });
   }
 }

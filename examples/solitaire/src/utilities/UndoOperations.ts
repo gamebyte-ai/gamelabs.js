@@ -30,6 +30,34 @@ export class UndoOperations {
     }
   }
 
+  /**
+   * Snapshot of the card ids the upcoming undo animation will move.
+   * Must be called BEFORE {@link undo} mutates the board — the
+   * cardObjects need to tween from their pre-undo positions, which are
+   * derived from the current model.
+   *
+   * Draw undo → the waste's top `count` cards (returning to stock).
+   * Recycle undo → every stock card (returning to waste).
+   * Move undo → an empty array; `BoardAnimator.playUndoMove` walks the
+   * post-mutation model itself.
+   */
+  public static captureUndoAnimationCardIds(board: IBoardModel, record: UndoRecord): readonly number[] {
+    if (record.kind === "draw") {
+      const waste = board.waste.cards;
+      const start = waste.length - record.count;
+      const ids: number[] = [];
+      for (let i = start; i < waste.length; i++) ids.push(waste[i].id);
+      return ids;
+    }
+    if (record.kind === "recycle") {
+      const stock = board.stock.cards;
+      const ids: number[] = [];
+      for (const card of stock) ids.push(card.id);
+      return ids;
+    }
+    return [];
+  }
+
   private static undoMove(board: IBoardModel, record: Extract<UndoRecord, { kind: "move" }>): void {
     if (record.autoFlippedCardId !== null) {
       const card = UndoOperations.findCardById(board, record.autoFlippedCardId);
