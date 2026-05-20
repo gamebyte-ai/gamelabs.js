@@ -4,6 +4,7 @@ import { UndoEvents } from "../models/UndoEvents";
 import { ScoreModel } from "../models/ScoreModel";
 import { TimerModel } from "../models/TimerModel";
 import { GameStateModel, GameState } from "../models/GameStateModel";
+import { GameSettingsEvents } from "../models/GameSettingsEvents";
 import { TimeFormatter } from "../utilities/TimeFormatter";
 import { SolitaireConfig } from "../SolitaireConfig";
 
@@ -13,6 +14,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   private _scoreModel: ScoreModel | null = null;
   private _timerModel: TimerModel | null = null;
   private _gameState: GameStateModel | null = null;
+  private _settingsEvents: GameSettingsEvents | null = null;
   private _config: SolitaireConfig | null = null;
   private _lastTimeText = "";
   private readonly _subs = new UnsubscribeBag();
@@ -22,6 +24,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._scoreModel = resolver.getInstance(ScoreModel);
     this._timerModel = resolver.getInstance(TimerModel);
     this._gameState = resolver.getInstance(GameStateModel);
+    this._settingsEvents = resolver.getInstance(GameSettingsEvents);
     this._config = resolver.getInstance(SolitaireConfig);
   }
 
@@ -41,6 +44,17 @@ export class GameScreenViewController implements IViewController<IGameScreenView
       view.setEndStateLabel(this.endStateLabelFor(this._gameState.state));
       this._subs.add(this._gameState.onStateChanged((state) => view.setEndStateLabel(this.endStateLabelFor(state))));
     }
+
+    // Turn-mode radio group: seed the initial selection from the
+    // config, then forward subsequent user picks into the shared
+    // GameSettingsEvents (which SolitaireApp acts on by restarting
+    // the level with the new draw count).
+    if (this._config) {
+      view.setDrawCountMode(this._config.drawCount);
+    }
+    if (this._settingsEvents) {
+      this._subs.add(view.onDrawCountSelected((drawCount) => this._settingsEvents?.requestModeChange(drawCount)));
+    }
   }
 
   public destroy(): void {
@@ -50,6 +64,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._scoreModel = null;
     this._timerModel = null;
     this._gameState = null;
+    this._settingsEvents = null;
     this._config = null;
     this._lastTimeText = "";
   }

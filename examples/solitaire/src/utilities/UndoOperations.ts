@@ -42,11 +42,18 @@ export class UndoOperations {
   private static undoDraw(board: IBoardModel, record: Extract<UndoRecord, { kind: "draw" }>): void {
     const stockPile = board.stock as Pile;
     const wastePile = board.waste as Pile;
+    // Mirrors `StockOperations.drawToWaste`'s reverse-push: pop the
+    // drawn cards off the waste, then push them back to stock in
+    // reverse order so the pre-draw stock order is exactly restored.
+    const buffer: Card[] = [];
     for (let i = 0; i < record.count; i++) {
       const card = wastePile.popCard();
       if (!card) break;
       card.setFaceUp(false);
-      stockPile.pushCard(card);
+      buffer.push(card);
+    }
+    for (let i = buffer.length - 1; i >= 0; i--) {
+      stockPile.pushCard(buffer[i]);
     }
   }
 

@@ -3,13 +3,27 @@ import { Pile } from "./Pile";
 import { FLUSH_STACK } from "./StackingOffset";
 
 export class WastePile extends Pile {
-  private readonly _drawCount: number;
+  private _drawCount: number;
   private readonly _fanX: number;
 
   public constructor(worldX: number, worldZ: number, drawCount: number, fanX: number) {
     super(SlotType.Waste, worldX, worldZ, FLUSH_STACK);
     this._drawCount = drawCount;
     this._fanX = fanX;
+  }
+
+  public get drawCount(): number {
+    return this._drawCount;
+  }
+
+  /**
+   * Switch the fan window size at runtime. Used by the Turn 1 /
+   * Turn 3 mode toggle — the level restart that accompanies the
+   * toggle clears the waste, so no in-flight fan layout needs to
+   * be reconciled here.
+   */
+  public setDrawCount(value: number): void {
+    this._drawCount = value;
   }
 
   public canPlace(): boolean {

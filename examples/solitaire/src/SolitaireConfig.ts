@@ -18,15 +18,69 @@ export interface QuickPlacementAnimationConfig {
   readonly ease: string;
 }
 
-export interface DealAnimationConfig {
-  readonly perCardDuration: number;
+export interface DealMotionPhaseConfig {
+  readonly duration: number;
   readonly ease: string;
 }
 
+export interface DealAnimationConfig {
+  /** Time between successive cards starting their motion — the
+   *  sequence pacing. Fully independent of `exit` and `travel`: if
+   *  their sum is less than this value there's a gap between
+   *  landings, if greater the next card lifts before the previous
+   *  one lands. */
+  readonly perCardDuration: number;
+  /** First leg of each card's motion. Travels the initial
+   *  `exit.duration / (exit.duration + travel.duration)` fraction
+   *  of the way to the destination along a direct line — no Y lift
+   *  over the stack, so the topmost stock card stays visually in
+   *  place during the deal (cards exit by sliding out from under
+   *  it, not by rising above). */
+  readonly exit: DealMotionPhaseConfig;
+  /** Second leg — completes the journey from the exit-end position
+   *  to the tableau resting position. */
+  readonly travel: DealMotionPhaseConfig;
+  /** Half-duration of the face-up flip on the top card of each
+   *  tableau column as it lands. Independent of the other flip
+   *  contexts (stock-draw flip, auto-flip on reveal) so the deal
+   *  can read at its own pace. */
+  readonly flipHalfDuration: number;
+}
+
 export interface FlipAnimationConfig {
-  readonly halfDuration: number;
+  /** Squish phase ease (face → edge-on). Shared by every flip
+   *  context; per-context durations live on the consuming animation
+   *  config (`deal.flipHalfDuration`, `draw.flipHalfDuration`,
+   *  `autoFlip.halfDuration`). */
   readonly squishEase: string;
+  /** Expand phase ease (edge-on → face). Shared by every flip
+   *  context. */
   readonly expandEase: string;
+}
+
+export interface DrawAnimationConfig {
+  /** Per-card duration of the slide from stock to waste. */
+  readonly duration: number;
+  /** Easing for the slide. The flip itself reuses `flip.squishEase`
+   *  / `flip.expandEase`. */
+  readonly ease: string;
+  /** Delay between successive cards starting in Turn 3. Smaller
+   *  than `duration` so the cards overlap in flight (each lifts off
+   *  before the previous one lands), reading as a quick sequence. */
+  readonly staggerDelay: number;
+  /** Half-duration of the face-up flip while a card slides from
+   *  stock to waste. Independent of the deal-flip and auto-flip
+   *  durations so the snappy draw can stay snappy without speeding
+   *  the other flips up. */
+  readonly flipHalfDuration: number;
+}
+
+export interface AutoFlipAnimationConfig {
+  /** Half-duration of the squish/expand flip used when a face-down
+   *  tableau card is revealed (auto-flip), and the symmetric un-flip
+   *  played by undo. Independent of the deal and draw flip
+   *  durations. */
+  readonly halfDuration: number;
 }
 
 export interface DeniedShakeAnimationConfig {
@@ -88,6 +142,8 @@ export interface AnimationConfig {
   readonly quickPlacement: QuickPlacementAnimationConfig;
   readonly deal: DealAnimationConfig;
   readonly flip: FlipAnimationConfig;
+  readonly draw: DrawAnimationConfig;
+  readonly autoFlip: AutoFlipAnimationConfig;
   readonly deniedShake: DeniedShakeAnimationConfig;
 }
 
@@ -144,25 +200,44 @@ export class SolitaireConfig {
   public readonly animation: AnimationConfig = {
     dragStartThresholdPx: 5,
     dragRelease: {
-      duration: 0.18,
+      duration: 0.25,
       ease: "power2.out",
     },
     quickPlacement: {
-      duration: 0.12,
+      duration: 0.2,
       liftY: 0.25,
       ease: "power2.out",
     },
     deal: {
-      perCardDuration: 0.06,
-      ease: "power1.out",
+      perCardDuration: 0.1,
+      // Card accelerates off the stack (starts at rest, gains
+      // vertical velocity); travel then decelerates into the
+      // tableau slot. Together the overall motion reads as a
+      // single smooth accelerate-then-decelerate.
+      exit: { duration: 0.16, ease: "power2.in" },
+      travel: { duration: 0.44, ease: "power2.out" },
+      // Original deal-flip pace; kept independent so the snappy
+      // draw flip can stay fast without speeding the deal up too.
+      flipHalfDuration: 0.08,
     },
     flip: {
-      halfDuration: 0.08,
       squishEase: "power1.in",
       expandEase: "power1.out",
     },
+    draw: {
+      duration: 0.3,
+      ease: "power2.out",
+      staggerDelay: 0,
+      // Snappy flip on the stock-to-waste slide.
+      flipHalfDuration: 0.11,
+    },
+    autoFlip: {
+      // Tableau auto-flip on reveal, and the symmetric un-flip
+      // played by undo.
+      halfDuration: 0.08,
+    },
     deniedShake: {
-      duration: 0.24,
+      duration: 0.2,
       amplitude: 0.04,
       ease: "sine.inOut",
     },

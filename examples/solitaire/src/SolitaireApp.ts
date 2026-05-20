@@ -5,8 +5,10 @@ import {
   GameCameraManager,
   LogTypes,
   Topdown2dCameraController,
+  UIComponentsBinding,
   UIEvents,
   World,
+  type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
 
 import { GameScreenView } from "./views/GameScreenView.pixi";
@@ -21,6 +23,9 @@ import { UndoEvents } from "./models/UndoEvents";
 import { ScoreModel } from "./models/ScoreModel";
 import { TimerModel } from "./models/TimerModel";
 import { GameStateModel, GameState } from "./models/GameStateModel";
+import { GameSettingsEvents } from "./models/GameSettingsEvents";
+import { Pile } from "./models/Pile";
+import { WastePile } from "./models/WastePile";
 import { DealOperations } from "./utilities/DealOperations";
 import { BoardBoundsCalculator } from "./utilities/BoardBoundsCalculator";
 import type { IRng } from "./utilities/IRng";
@@ -35,6 +40,7 @@ const BOARD_PADDING = 0.6;
 export class SolitaireApp extends GamelabsApp {
   private readonly _config = new SolitaireConfig();
   private readonly _gameCameraBinding = new GameCameraBinding();
+  private readonly _uiComponentsBinding = new UIComponentsBinding();
   private readonly _boardModel = new BoardModel({
     drawCount: this._config.drawCount,
     wasteFanX: this._config.wasteFanX,
@@ -44,9 +50,11 @@ export class SolitaireApp extends GamelabsApp {
   private readonly _scoreModel = new ScoreModel();
   private readonly _timerModel = new TimerModel();
   private readonly _gameStateModel = new GameStateModel();
+  private readonly _gameSettingsEvents = new GameSettingsEvents();
   private _boardView: BoardView | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _cameraController: Topdown2dCameraController | null = null;
+  private _modeChangeUnsub: Unsubscribe | null = null;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -54,6 +62,7 @@ export class SolitaireApp extends GamelabsApp {
 
   protected override registerModules(): void {
     this.addModule(this._gameCameraBinding);
+    this.addModule(this._uiComponentsBinding);
   }
 
   protected override configureDI(): void {
@@ -71,6 +80,7 @@ export class SolitaireApp extends GamelabsApp {
     this.diContainer.bindInstance(ScoreModel, this._scoreModel);
     this.diContainer.bindInstance(TimerModel, this._timerModel);
     this.diContainer.bindInstance(GameStateModel, this._gameStateModel);
+    this.diContainer.bindInstance(GameSettingsEvents, this._gameSettingsEvents);
   }
 
   protected override configureViews(): void {
@@ -121,6 +131,11 @@ export class SolitaireApp extends GamelabsApp {
     this._boardView.playDealAnimation(dealOrder, () => {
       this._gameStateModel.setState(GameState.Playing);
     });
+
+    // HUD's Turn 1 / Turn 3 radio group routes user picks through
+    // `GameSettingsEvents`; on each pick, restart the level with the
+    // new draw count.
+    this._modeChangeUnsub = this._gameSettingsEvents.onModeChangeRequested((drawCount) => this.restartLevel(drawCount));
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
@@ -141,10 +156,38 @@ export class SolitaireApp extends GamelabsApp {
   }
 
   protected override preDestroy(): void {
+    this._modeChangeUnsub?.();
+    this._modeChangeUnsub = null;
     this._boardView?.destroy();
     this._boardView = null;
     this._cameraController = null;
     this._cameraManager = null;
+  }
+
+  /**
+   * Full level restart driven by the HUD's Turn 1 / Turn 3 radio
+   * group. Clears every pile, switches the waste's `drawCount` to the
+   * picked value, re-deals from a fresh non-deterministic shuffle, and
+   * resets all side state (score / timer / undo history / game state)
+   * so the new run starts clean. The view refreshes to the new model,
+   * then runs the standard deal animation; the existing
+   * Dealing → Playing transition wires the timer back up.
+   */
+  private restartLevel(newDrawCount: number): void {
+    if (!this._boardView) return;
+    for (const pile of this._boardModel.allPiles) {
+      (pile as Pile).clear();
+    }
+    (this._boardModel.waste as WastePile).setDrawCount(newDrawCount);
+    const dealOrder = DealOperations.deal(this._boardModel, new MathRandomRng());
+    this._scoreModel.reset();
+    this._timerModel.reset();
+    this._undoHistory.clear();
+    this._gameStateModel.setState(GameState.Dealing);
+    this._boardView.refresh();
+    this._boardView.playDealAnimation(dealOrder, () => {
+      this._gameStateModel.setState(GameState.Playing);
+    });
   }
 
   private createRng(): IRng {

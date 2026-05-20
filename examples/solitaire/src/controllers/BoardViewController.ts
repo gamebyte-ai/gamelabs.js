@@ -2,6 +2,7 @@ import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "@g
 import type { CardClickedInfo, CardsDragReleaseInfo, IBoardView } from "../views/IBoardView";
 import { IBoardModel } from "../models/IBoardModel";
 import type { IPile } from "../models/IPile";
+import { WastePile } from "../models/WastePile";
 import { SlotType } from "../constants/SlotType";
 import { UndoHistory } from "../models/UndoHistory";
 import { UndoEvents } from "../models/UndoEvents";
@@ -183,20 +184,40 @@ export class BoardViewController implements IViewController<IBoardView> {
     if (!this._view || !this._board || !this._config) return;
     if (!this.isGamePlaying()) return;
     if (pile !== this._board.stock) return;
+    // Stock-only gate: while the previous draw is still mid-flight,
+    // ignore further stock taps. Other board input remains live —
+    // the draw timeline deliberately stays out of `isAnimating()`.
+    if (this._view.isDrawAnimating()) return;
     if (this._board.stock.cards.length > 0) {
-      const drawCount = Math.min(this._board.stock.cards.length, this._config.drawCount);
-      StockOperations.drawToWaste(this._board.stock, this._board.waste, this._config.drawCount);
+      // Source of truth for the current mode is WastePile.drawCount —
+      // the radio toggle updates that via setDrawCount, while
+      // SolitaireConfig.drawCount is only the initial value and is
+      // never mutated when the player switches Turn 1 ↔ Turn 3.
+      const currentDrawCount = (this._board.waste as WastePile).drawCount;
+      const drawCount = Math.min(this._board.stock.cards.length, currentDrawCount);
+      // Capture the ids of the cards about to leave the stock — in
+      // pop order (current top first, then second-from-top, ...).
+      // That order matches how StockOperations.drawToWaste pushes
+      // them onto the waste, so drawnCardIds[i] lands at the i-th
+      // fan slot (leftmost-first in Turn 3).
+      const stockLength = this._board.stock.cards.length;
+      const drawnCardIds: number[] = [];
+      for (let i = 0; i < drawCount; i++) {
+        drawnCardIds.push(this._board.stock.cards[stockLength - 1 - i].id);
+      }
+      StockOperations.drawToWaste(this._board.stock, this._board.waste, currentDrawCount);
       const scoreDelta = ScoreCalculator.forStockDraw(this._config.score);
       this._scoreModel?.add(scoreDelta);
       this._undoHistory?.push({ kind: "draw", count: drawCount, scoreDelta });
+      this._view.playDrawAnimation(drawnCardIds, () => {});
     } else {
       const recycleCount = this._board.waste.cards.length;
       StockOperations.recycleWasteToStock(this._board.stock, this._board.waste);
       const scoreDelta = ScoreCalculator.forStockRecycle(this._config.score);
       this._scoreModel?.add(scoreDelta);
       this._undoHistory?.push({ kind: "recycle", count: recycleCount, scoreDelta });
+      this._view.refresh();
     }
-    this._view.refresh();
   }
 
   private onUndoRequested(): void {
@@ -206,6 +227,11 @@ export class BoardViewController implements IViewController<IBoardView> {
     // and refreshes the view, which would visibly interrupt the
     // running animation. The user can click again once it settles.
     if (this._view.isAnimating()) return;
+    // Draw animation is intentionally excluded from `isAnimating()`
+    // so the rest of the board stays interactive during a draw, but
+    // an undo still has to wait — undoing a stock draw mid-flight
+    // would refresh the view out from under the in-flight slide.
+    if (this._view.isDrawAnimating()) return;
     const record: UndoRecord | null = this._undoHistory.pop();
     if (record === null) return;
     UndoOperations.undo(this._board, record);

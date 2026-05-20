@@ -51,6 +51,11 @@ export interface IBoardView extends IView {
    *  reads this to skip undo requests that would clash with a running
    *  animation. */
   isAnimating(): boolean;
+  /** True while a stock→waste draw animation is in flight. Tracked
+   *  separately from {@link isAnimating} so general board input keeps
+   *  working during the draw — only the stock-tap and undo paths
+   *  consult this flag and skip themselves. */
+  isDrawAnimating(): boolean;
   /** One-shot game-start animation. Stacks the listed cards (in
    *  Klondike deal order) on top of the stock pile, then sequentially
    *  flies each one to its model-resting position face-down, and
@@ -58,6 +63,16 @@ export interface IBoardView extends IView {
    *  `onComplete` after the last flip. Pointer input is blocked for
    *  the duration via the view's existing animation gate. */
   playDealAnimation(orderedCardIds: readonly number[], onComplete: () => void): void;
+  /** Animate cards from the stock pile to the waste pile after a
+   *  stock-tap draw. Each card slides + flips (face-down → face-up)
+   *  in one continuous motion; in Turn 3 the cards stagger so they
+   *  overlap in flight. The view refreshes itself when every tween
+   *  has landed, then calls `onComplete`. Unlike the other animations
+   *  this one does NOT register with the global `isAnimating` gate
+   *  — only the stock-tap and undo-request paths should be blocked
+   *  while it runs (see {@link isDrawAnimating}); other input on
+   *  the board stays live. */
+  playDrawAnimation(drawnCardIds: readonly number[], onComplete: () => void): void;
   onCardsDragReleased(callback: (info: CardsDragReleaseInfo) => void): Unsubscribe;
   /** Fired on a tap (pointer-down then pointer-up with no significant
    *  pointer movement) over a face-up card that passed the drag

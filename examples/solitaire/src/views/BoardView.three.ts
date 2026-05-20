@@ -65,6 +65,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   private _flipTimeline: gsap.core.Timeline | null = null;
   private _deniedTween: gsap.core.Timeline | null = null;
   private _undoTimeline: gsap.core.Timeline | null = null;
+  private _drawTimeline: gsap.core.Timeline | null = null;
   private readonly _dragReleaseListeners = new Set<(info: CardsDragReleaseInfo) => void>();
   private readonly _cardClickListeners = new Set<(info: CardClickedInfo) => void>();
   private readonly _pileTapListeners = new Set<(pile: IPile) => void>();
@@ -116,6 +117,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._deniedTween = null;
     this._undoTimeline?.kill();
     this._undoTimeline = null;
+    this._drawTimeline?.kill();
+    this._drawTimeline = null;
     this.endDragSession();
     this.clearSlots();
     this.clearCards();
@@ -261,7 +264,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       return;
     }
     const releaseCfg = this._config.animation.dragRelease;
-    const flipCfg = this._config.animation.flip;
+    const autoFlipCfg = this._config.animation.autoFlip;
     this._undoTimeline?.kill();
     const tl = gsap.timeline({
       onComplete: () => {
@@ -272,12 +275,13 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
 
     // Reverse-order playback: the original sequence was move-then-flip
     // (auto-flip reveal at the end), so undo plays unflip-then-move.
+    // The un-flip uses the same duration as the original auto-flip.
     let time = 0;
     if (autoFlippedCardId !== null) {
       const entry = this._cardLookup.get(autoFlippedCardId);
       if (entry) {
-        this.appendCardFlip(tl, entry.cardObject, time, false);
-        time += flipCfg.halfDuration * 2;
+        this.appendCardFlip(tl, entry.cardObject, time, false, autoFlipCfg.halfDuration);
+        time += autoFlipCfg.halfDuration * 2;
       }
     }
 
@@ -322,6 +326,11 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       this.refresh();
       return;
     }
+    if (!this._config) {
+      this.refresh();
+      return;
+    }
+    const autoFlipCfg = this._config.animation.autoFlip;
     this._flipTimeline?.kill();
     const tl = gsap.timeline({
       onComplete: () => {
@@ -329,11 +338,17 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
         this.refresh();
       },
     });
-    this.appendCardFlip(tl, entry.cardObject, 0, true);
+    this.appendCardFlip(tl, entry.cardObject, 0, true, autoFlipCfg.halfDuration);
     this._flipTimeline = tl;
   }
 
-  private appendCardFlip(tl: gsap.core.Timeline, cardObject: CardObject, startTime: number, targetFaceUp: boolean): void {
+  private appendCardFlip(
+    tl: gsap.core.Timeline,
+    cardObject: CardObject,
+    startTime: number,
+    targetFaceUp: boolean,
+    halfDuration: number,
+  ): void {
     if (!this._config) return;
     const flipCfg = this._config.animation.flip;
     // Squish-and-swap flip: scale.x → 0 (card edge-on), swap visible
@@ -342,9 +357,9 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     // vertical line and back. `targetFaceUp` is the face state the
     // card ends in — true for an auto-flip reveal, false for the
     // un-flip half of an undo.
-    tl.to(cardObject.scale, { x: 0, duration: flipCfg.halfDuration, ease: flipCfg.squishEase }, startTime);
-    tl.call(() => cardObject.setFaceUp(targetFaceUp), undefined, startTime + flipCfg.halfDuration);
-    tl.to(cardObject.scale, { x: 1, duration: flipCfg.halfDuration, ease: flipCfg.expandEase }, startTime + flipCfg.halfDuration);
+    tl.to(cardObject.scale, { x: 0, duration: halfDuration, ease: flipCfg.squishEase }, startTime);
+    tl.call(() => cardObject.setFaceUp(targetFaceUp), undefined, startTime + halfDuration);
+    tl.to(cardObject.scale, { x: 1, duration: halfDuration, ease: flipCfg.expandEase }, startTime + halfDuration);
   }
 
   public playDealAnimation(orderedCardIds: readonly number[], onComplete: () => void): void {
@@ -358,17 +373,20 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     }
 
     // Phase 1 (synchronous): stack every to-be-dealt card on top of
-    // the stock pile face-down. Index 0 in the order sits on top so
-    // it's the first one to fly out. Older stock cards stay in place
-    // beneath. This runs before the next frame is rendered, so the
-    // player never sees the unanimated final-state layout.
+    // the stock pile face-down. Index 0 in the order sits at the
+    // BOTTOM of the dealable batch (just above the older stock cards)
+    // so it pulls out from underneath the still-intact top; the last
+    // card in the order sits on top and is the last to move, keeping
+    // the stock visually whole until the end of the deal. Runs before
+    // the next frame is rendered, so the player never sees the
+    // unanimated final-state layout.
     const stockX = this._board.stock.worldX;
     const stockZ = this._board.stock.worldZ;
     const stockBaseStackHeight = this._board.stock.cards.length;
     for (let i = 0; i < orderedCardIds.length; i++) {
       const entry = this._cardLookup.get(orderedCardIds[i]);
       if (!entry) continue;
-      const stackY = (stockBaseStackHeight + (orderedCardIds.length - i)) * CARD_STACK_LIFT_Y;
+      const stackY = (stockBaseStackHeight + (i + 1)) * CARD_STACK_LIFT_Y;
       entry.cardObject.position.set(stockX, stackY, stockZ);
       entry.cardObject.setFaceUp(false);
     }
@@ -390,32 +408,129 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       },
     });
     let time = 0;
+    const phaseTotal = dealCfg.exit.duration + dealCfg.travel.duration;
+    const exitFraction = phaseTotal > 0 ? dealCfg.exit.duration / phaseTotal : 0;
     for (const cardId of orderedCardIds) {
       const entry = this._cardLookup.get(cardId);
       if (!entry) continue;
       const target = this.findCardWorldPosition(cardId);
       if (!target) continue;
+      const startX = entry.cardObject.position.x;
+      const startY = entry.cardObject.position.y;
+      const startZ = entry.cardObject.position.z;
+      // Phase 1 — exit: cover the first `exitFraction` of the path
+      // toward the destination on a direct line. No Y lift over the
+      // stack: Y monotonically decreases from the card's stack
+      // position toward its (small) tableau resting Y, so the card
+      // never rises above its own starting Y and the topmost stock
+      // card stays visually in place until its own iteration arrives.
+      dealTl.to(
+        entry.cardObject.position,
+        {
+          x: startX + (target.x - startX) * exitFraction,
+          y: startY + (target.y - startY) * exitFraction,
+          z: startZ + (target.z - startZ) * exitFraction,
+          duration: dealCfg.exit.duration,
+          ease: dealCfg.exit.ease,
+        },
+        time,
+      );
+      // Phase 2 — travel: completes the journey to the tableau
+      // resting position. Independent duration and ease from exit.
       dealTl.to(
         entry.cardObject.position,
         {
           x: target.x,
           y: target.y,
           z: target.z,
-          duration: dealCfg.perCardDuration,
-          ease: dealCfg.ease,
+          duration: dealCfg.travel.duration,
+          ease: dealCfg.travel.ease,
         },
-        time,
+        time + dealCfg.exit.duration,
       );
       // The _cardLookup entry's faceUp is the model state captured by
       // the initial refresh — true for the top of each tableau, false
-      // for everything else. Schedule the flip at the landing time but
-      // do not advance the deal cursor past it.
+      // for everything else. Schedule the flip at landing time (after
+      // both motion phases). Cursor advances by perCardDuration only,
+      // so the flip's offset on the timeline is independent of the
+      // sequence pacing.
       if (entry.faceUp) {
-        this.appendCardFlip(dealTl, entry.cardObject, time + dealCfg.perCardDuration, true);
+        this.appendCardFlip(dealTl, entry.cardObject, time + phaseTotal, true, dealCfg.flipHalfDuration);
       }
       time += dealCfg.perCardDuration;
     }
     this._dealTimeline = dealTl;
+  }
+
+  public playDrawAnimation(drawnCardIds: readonly number[], onComplete: () => void): void {
+    if (!this._board || !this._config || drawnCardIds.length === 0) {
+      this.refresh();
+      onComplete();
+      return;
+    }
+    const drawCfg = this._config.animation.draw;
+    this._drawTimeline?.kill();
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this._drawTimeline = null;
+        // Refresh once everything has landed: the drawn cards' card
+        // lookup entries are still stale (pile=stock, faceUp=false),
+        // and the freshly settled visual matches the model so the
+        // refresh has no visible cost.
+        this.refresh();
+        onComplete();
+      },
+    });
+
+    for (let i = 0; i < drawnCardIds.length; i++) {
+      const cardId = drawnCardIds[i];
+      const entry = this._cardLookup.get(cardId);
+      if (!entry) continue;
+      const target = this.findCardWorldPosition(cardId);
+      if (!target) continue;
+      // All cards share the same start time when `staggerDelay` is 0
+      // (Turn 3 — cards lift off simultaneously); a non-zero value
+      // re-introduces a staggered sequence.
+      const startTime = i * drawCfg.staggerDelay;
+      // Instant-lift the card to DRAG_LIFT_Y so it stays above every
+      // stock and waste card throughout the slide. Without this, the
+      // tweened Y descends through the new top of stock about 7% into
+      // the animation and the drawn card gets occluded by the new
+      // stock top while it's still passing through the stock XZ
+      // footprint — visually reading as "top of stock didn't move and
+      // a card emerged from underneath." Y is invisible under top-down
+      // ortho; the post-animation refresh restores the resting Y.
+      entry.cardObject.position.y = DRAG_LIFT_Y;
+      tl.to(
+        entry.cardObject.position,
+        {
+          x: target.x,
+          z: target.z,
+          duration: drawCfg.duration,
+          ease: drawCfg.ease,
+        },
+        startTime,
+      );
+      // Flip starts the moment the card leaves the stock and runs at
+      // the draw-specific flipHalfDuration — kept short so the card
+      // is face-up almost immediately and travels face-up the rest of
+      // the way. Independent of the deal-flip and auto-flip durations.
+      this.appendCardFlip(tl, entry.cardObject, startTime, true, drawCfg.flipHalfDuration);
+    }
+
+    // Any pre-existing waste cards that the new arrivals push out of
+    // the fan window shift to their new (flush) positions in parallel
+    // — same helper the placement/undo paths use. The drawn cards
+    // themselves are excluded so their primary slide tween isn't
+    // doubled.
+    const excludeIds = new Set(drawnCardIds);
+    this.appendWasteFanShifts(tl, 0, drawCfg.duration, drawCfg.ease, excludeIds);
+
+    this._drawTimeline = tl;
+  }
+
+  public isDrawAnimating(): boolean {
+    return this._drawTimeline !== null;
   }
 
   /**
@@ -773,6 +888,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._deniedTween = null;
     this._undoTimeline?.kill();
     this._undoTimeline = null;
+    this._drawTimeline?.kill();
+    this._drawTimeline = null;
     this.endDragSession();
     this.clearSlots();
     this.clearCards();

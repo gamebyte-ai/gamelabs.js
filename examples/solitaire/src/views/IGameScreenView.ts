@@ -20,4 +20,13 @@ export interface IGameScreenView extends IScreenView {
    *  (e.g. red "Time is Over" for a count-down expiry, green
    *  "You Win!" when all foundations complete). */
   setEndStateLabel(appearance: { readonly text: string; readonly color: number } | null): void;
+  /** Drive the Turn 1 / Turn 3 radio group's selected state from
+   *  outside — used to sync the initial HUD selection to the
+   *  config's `drawCount`. Silent: does not fire
+   *  {@link onDrawCountSelected}. */
+  setDrawCountMode(drawCount: number): void;
+  /** Fires when the user picks a draw-count mode different from the
+   *  currently selected one. Re-clicking the already-selected option
+   *  does not fire. */
+  onDrawCountSelected(callback: (drawCount: number) => void): Unsubscribe;
 }

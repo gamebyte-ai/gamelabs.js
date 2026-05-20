@@ -1,5 +1,11 @@
 import * as PIXI from "pixi.js";
-import { ScreenView, type Unsubscribe } from "@gamebyte/gamelabsjs";
+import {
+  RadioButtonGroupComponent,
+  ScreenView,
+  UIComponentsStyleIds,
+  type RadioButtonComponentStyle,
+  type Unsubscribe,
+} from "@gamebyte/gamelabsjs";
 import type { IGameScreenView } from "./IGameScreenView";
 
 // Undo button sizing and styling. Values are screen-space pixels and
@@ -31,13 +37,27 @@ const HUD_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial
 // "Time is Over", green for "You Win!", and so on.
 const END_STATE_LABEL_SIZE = 56;
 
+// Turn 1 / Turn 3 radio group sits in the bottom-left corner, mirror
+// of the undo button at bottom-right. Uses the framework's
+// RadioButtonGroupComponent with the default radio skin from
+// UIComponentsBinding — group owns mutual exclusion, silent
+// programmatic updates, and no-op-on-reselect.
+const TURN_GROUP_MARGIN = 16;
+const TURN_GROUP_SPACING = 20;
+// Stable per-item ids; mapped to/from the runtime drawCount value.
+const TURN_ITEM_ID_1 = "turn-1";
+const TURN_ITEM_ID_3 = "turn-3";
+
 export class GameScreenView extends ScreenView implements IGameScreenView {
   private readonly _overlay = new PIXI.Graphics();
   private readonly _undoButton = new PIXI.Container();
   private readonly _undoListeners = new Set<() => void>();
+  private readonly _drawCountListeners = new Set<(drawCount: number) => void>();
   private _scoreLabel: PIXI.Text | null = null;
   private _timeLabel: PIXI.Text | null = null;
   private _endStateLabel: PIXI.Text | null = null;
+  private _turnGroup: RadioButtonGroupComponent | null = null;
+  private _turnGroupUnsub: Unsubscribe | null = null;
 
   public override postInitialize(): void {
     super.postInitialize();
@@ -65,6 +85,8 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
     this.buildUndoButton();
     if (!this._undoButton.parent) this.addChild(this._undoButton);
+
+    this.buildTurnRadioGroup();
   }
 
   public override onResize(width: number, height: number, dpr: number): void {
@@ -117,9 +139,25 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._endStateLabel.visible = true;
   }
 
+  public setDrawCountMode(drawCount: number): void {
+    // Silent on the group — does not trigger onChange, so this
+    // controller-driven sync never loops back into the listener.
+    this._turnGroup?.setSelectedId(GameScreenView.idFromDrawCount(drawCount));
+  }
+
+  public onDrawCountSelected(callback: (drawCount: number) => void): Unsubscribe {
+    this._drawCountListeners.add(callback);
+    return () => {
+      this._drawCountListeners.delete(callback);
+    };
+  }
+
   public override preDestroy(): void {
     this._undoListeners.clear();
+    this._drawCountListeners.clear();
     this._undoButton.removeAllListeners();
+    this._turnGroupUnsub?.();
+    this._turnGroupUnsub = null;
     super.preDestroy();
   }
 
@@ -157,6 +195,48 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._undoButton.on("pointertap", () => {
       for (const cb of this._undoListeners) cb();
     });
+  }
+
+  /**
+   * Builds the framework `RadioButtonGroupComponent` with two items
+   * (Turn 1, Turn 3) using the default radio skin from
+   * `UIComponentsBinding`. The group owns the mutual-exclusion model,
+   * silent programmatic selection (`setSelectedId`), and the
+   * no-op-on-reselect semantics; we only forward its `onChange` to
+   * external listeners after mapping the item id back to a drawCount.
+   */
+  private buildTurnRadioGroup(): void {
+    const style = this.styleManager.resolve<RadioButtonComponentStyle>(UIComponentsStyleIds.RadioButton);
+    this._turnGroup = new RadioButtonGroupComponent(this.assetLoader, style, {
+      items: [
+        { id: TURN_ITEM_ID_1, label: "Turn 1" },
+        { id: TURN_ITEM_ID_3, label: "Turn 3" },
+      ],
+      selectedId: TURN_ITEM_ID_3,
+      direction: "row",
+      spacing: TURN_GROUP_SPACING,
+    });
+    this._turnGroup.layout = {
+      position: "absolute",
+      left: TURN_GROUP_MARGIN,
+      bottom: TURN_GROUP_MARGIN,
+    };
+    this._turnGroupUnsub = this._turnGroup.onChange((id) => {
+      const drawCount = GameScreenView.drawCountFromId(id);
+      if (drawCount === null) return;
+      for (const cb of this._drawCountListeners) cb(drawCount);
+    });
+    this.addChild(this._turnGroup);
+  }
+
+  private static idFromDrawCount(drawCount: number): string {
+    return drawCount === 1 ? TURN_ITEM_ID_1 : TURN_ITEM_ID_3;
+  }
+
+  private static drawCountFromId(id: string): number | null {
+    if (id === TURN_ITEM_ID_1) return 1;
+    if (id === TURN_ITEM_ID_3) return 3;
+    return null;
   }
 
   private buildHudLabel(
