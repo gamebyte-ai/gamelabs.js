@@ -25,10 +25,11 @@ const HUD_LABEL_SIZE = 22;
 const HUD_LABEL_MARGIN = 16;
 const HUD_LABEL_FONT_FAMILY = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
 
-// Centered "Game Over" overlay. Larger and tinted red to read as a
-// terminal state; the underlying board stays visible behind it.
-const GAME_OVER_LABEL_COLOR = 0xff5555;
-const GAME_OVER_LABEL_SIZE = 56;
+// Centered end-state overlay. Larger than the other HUD labels so a
+// terminal state reads clearly over the board layout. Text and tint
+// are both picked by the screen controller per state — red for
+// "Time is Over", green for "You Win!", and so on.
+const END_STATE_LABEL_SIZE = 56;
 
 export class GameScreenView extends ScreenView implements IGameScreenView {
   private readonly _overlay = new PIXI.Graphics();
@@ -36,7 +37,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private readonly _undoListeners = new Set<() => void>();
   private _scoreLabel: PIXI.Text | null = null;
   private _timeLabel: PIXI.Text | null = null;
-  private _gameOverLabel: PIXI.Text | null = null;
+  private _endStateLabel: PIXI.Text | null = null;
 
   public override postInitialize(): void {
     super.postInitialize();
@@ -49,18 +50,18 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._timeLabel = this.buildHudLabel("00:00", { right: HUD_LABEL_MARGIN, top: HUD_LABEL_MARGIN });
     this.addChild(this._timeLabel);
 
-    this._gameOverLabel = new PIXI.Text({
-      text: "Game Over",
+    this._endStateLabel = new PIXI.Text({
+      text: "",
       style: {
-        fill: GAME_OVER_LABEL_COLOR,
-        fontSize: GAME_OVER_LABEL_SIZE,
+        fill: 0xffffff,
+        fontSize: END_STATE_LABEL_SIZE,
         fontFamily: HUD_LABEL_FONT_FAMILY,
         fontWeight: "700",
       },
     });
-    this._gameOverLabel.anchor.set(0.5);
-    this._gameOverLabel.visible = false;
-    this.addChild(this._gameOverLabel);
+    this._endStateLabel.anchor.set(0.5);
+    this._endStateLabel.visible = false;
+    this.addChild(this._endStateLabel);
 
     this.buildUndoButton();
     if (!this._undoButton.parent) this.addChild(this._undoButton);
@@ -81,12 +82,12 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._overlay.clear();
     this._overlay.rect(0, 0, Math.max(1, width), Math.max(1, height)).fill({ color: 0x000000, alpha: 0 });
 
-    if (this._gameOverLabel) {
+    if (this._endStateLabel) {
       // Anchored at (0.5, 0.5); position via raw x/y rather than
       // layout so we don't depend on the flex container's resolved
       // size for centering.
-      this._gameOverLabel.x = Math.max(1, width) / 2;
-      this._gameOverLabel.y = Math.max(1, height) / 2;
+      this._endStateLabel.x = Math.max(1, width) / 2;
+      this._endStateLabel.y = Math.max(1, height) / 2;
     }
   }
 
@@ -105,8 +106,15 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     if (this._timeLabel) this._timeLabel.text = text;
   }
 
-  public setGameOver(over: boolean): void {
-    if (this._gameOverLabel) this._gameOverLabel.visible = over;
+  public setEndStateLabel(appearance: { readonly text: string; readonly color: number } | null): void {
+    if (!this._endStateLabel) return;
+    if (appearance === null) {
+      this._endStateLabel.visible = false;
+      return;
+    }
+    this._endStateLabel.text = appearance.text;
+    this._endStateLabel.style.fill = appearance.color;
+    this._endStateLabel.visible = true;
   }
 
   public override preDestroy(): void {

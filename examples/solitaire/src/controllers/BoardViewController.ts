@@ -3,7 +3,6 @@ import type { CardClickedInfo, CardsDragReleaseInfo, IBoardView } from "../views
 import { IBoardModel } from "../models/IBoardModel";
 import type { IPile } from "../models/IPile";
 import { SlotType } from "../constants/SlotType";
-import { WastePile } from "../models/WastePile";
 import { UndoHistory } from "../models/UndoHistory";
 import { UndoEvents } from "../models/UndoEvents";
 import type { UndoRecord } from "../models/UndoRecord";
@@ -13,6 +12,7 @@ import { CardMoveOperations } from "../utilities/CardMoveOperations";
 import { StockOperations } from "../utilities/StockOperations";
 import { UndoOperations } from "../utilities/UndoOperations";
 import { ScoreCalculator } from "../utilities/ScoreCalculator";
+import { WinRules } from "../utilities/WinRules";
 import { SolitaireConfig } from "../SolitaireConfig";
 
 export class BoardViewController implements IViewController<IBoardView> {
@@ -41,7 +41,7 @@ export class BoardViewController implements IViewController<IBoardView> {
     view.setDragEligibilityPredicate((pile, fromIndex) => {
       // Block drag pickup entirely outside the Playing phase. During
       // Dealing the view's isAnimating gate already blocks input, but
-      // a GameOver clock-out lands with no animation in flight, so
+      // a TimeOver clock-out lands with no animation in flight, so
       // this gate is the only thing standing between the player and
       // a card pickup after the lose state.
       if (!this.isGamePlaying()) return false;
@@ -83,7 +83,6 @@ export class BoardViewController implements IViewController<IBoardView> {
     }
 
     const count = info.originPile.cards.length - info.fromIndex;
-    const wastePreviousFanAnchorIndex = this.captureWasteFanAnchorIfTouched(info.originPile, target);
     CardMoveOperations.moveCards(info.originPile, info.fromIndex, target);
     const autoFlippedCardId = this.maybeAutoFlipNewTop(info.originPile);
     const scoreDelta = this.scoreForMove(info.originPile, target, autoFlippedCardId);
@@ -94,9 +93,9 @@ export class BoardViewController implements IViewController<IBoardView> {
       target,
       count,
       autoFlippedCardId,
-      wastePreviousFanAnchorIndex,
       scoreDelta,
     });
+    this.maybeTransitionToWin();
     this._view.commitDragRelease(autoFlippedCardId);
   }
 
@@ -128,7 +127,6 @@ export class BoardViewController implements IViewController<IBoardView> {
       this._view.animateDeniedShake(card.id);
       return;
     }
-    const wastePreviousFanAnchorIndex = this.captureWasteFanAnchorIfTouched(info.pile, destination);
     CardMoveOperations.moveCards(info.pile, info.fromIndex, destination);
     const autoFlippedCardId = this.maybeAutoFlipNewTop(info.pile);
     const scoreDelta = this.scoreForMove(info.pile, destination, autoFlippedCardId);
@@ -139,9 +137,9 @@ export class BoardViewController implements IViewController<IBoardView> {
       target: destination,
       count: 1,
       autoFlippedCardId,
-      wastePreviousFanAnchorIndex,
       scoreDelta,
     });
+    this.maybeTransitionToWin();
     this._view.animateQuickPlacement(card.id, autoFlippedCardId);
   }
 
@@ -158,20 +156,6 @@ export class BoardViewController implements IViewController<IBoardView> {
     const cardId = top.id;
     CardMoveOperations.flipTopCard(pile, true);
     return cardId;
-  }
-
-  /**
-   * Captures the waste pile's fan-anchor index when a move involves
-   * waste as origin or target, so undo can restore the prior fan
-   * layout. `WastePile.popCard` collapses the anchor to -1 when the
-   * current batch empties, so the pre-move value is the only thing
-   * that can recover the visual state seen before the move.
-   */
-  private captureWasteFanAnchorIfTouched(origin: IPile, target: IPile): number | null {
-    if (!this._board) return null;
-    const waste = this._board.waste;
-    if (origin !== waste && target !== waste) return null;
-    return (waste as WastePile).fanAnchorIndex;
   }
 
   /**
@@ -199,21 +183,18 @@ export class BoardViewController implements IViewController<IBoardView> {
     if (!this._view || !this._board || !this._config) return;
     if (!this.isGamePlaying()) return;
     if (pile !== this._board.stock) return;
-    const waste = this._board.waste as WastePile;
     if (this._board.stock.cards.length > 0) {
-      const previousFanAnchorIndex = waste.fanAnchorIndex;
       const drawCount = Math.min(this._board.stock.cards.length, this._config.drawCount);
       StockOperations.drawToWaste(this._board.stock, this._board.waste, this._config.drawCount);
       const scoreDelta = ScoreCalculator.forStockDraw(this._config.score);
       this._scoreModel?.add(scoreDelta);
-      this._undoHistory?.push({ kind: "draw", count: drawCount, previousFanAnchorIndex, scoreDelta });
+      this._undoHistory?.push({ kind: "draw", count: drawCount, scoreDelta });
     } else {
-      const previousFanAnchorIndex = waste.fanAnchorIndex;
       const recycleCount = this._board.waste.cards.length;
       StockOperations.recycleWasteToStock(this._board.stock, this._board.waste);
       const scoreDelta = ScoreCalculator.forStockRecycle(this._config.score);
       this._scoreModel?.add(scoreDelta);
-      this._undoHistory?.push({ kind: "recycle", count: recycleCount, previousFanAnchorIndex, scoreDelta });
+      this._undoHistory?.push({ kind: "recycle", count: recycleCount, scoreDelta });
     }
     this._view.refresh();
   }
@@ -234,12 +215,32 @@ export class BoardViewController implements IViewController<IBoardView> {
     // a configured value of -2 reduces the score by 2 per undo.
     this._scoreModel?.add(-record.scoreDelta);
     this._scoreModel?.add(ScoreCalculator.forUndoPenalty(this._config.score));
+    // Edge case: undoing a foundation→tableau move puts a card back
+    // on its foundation and could land on a completed-foundations
+    // configuration. Symmetric undoing of the winning move can't
+    // happen because input (including undo) is blocked once Won, but
+    // the check is cheap so run it here for completeness.
+    this.maybeTransitionToWin();
     if (record.kind === "move") {
       this._view.playUndoMove(record.origin, record.count, record.autoFlippedCardId);
     } else {
       // Stock draws and recycles have no forward animation, so undo
       // is also instant — just rebuild from the rolled-back model.
       this._view.refresh();
+    }
+  }
+
+  /**
+   * Promote the game state from Playing to Won the moment all four
+   * foundations are complete. Called after every model mutation that
+   * could grow a foundation (moves and undos); no-op otherwise. The
+   * Playing-only guard prevents re-transitioning if already terminal.
+   */
+  private maybeTransitionToWin(): void {
+    if (!this._board || !this._gameState) return;
+    if (this._gameState.state !== GameState.Playing) return;
+    if (WinRules.isWon(this._board)) {
+      this._gameState.setState(GameState.Won);
     }
   }
 }

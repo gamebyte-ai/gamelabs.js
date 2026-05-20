@@ -14,8 +14,10 @@ export interface IGameScreenView extends IScreenView {
    *  (e.g. `"01:23"`). The controller resolves elapsed time + config
    *  through {@link TimeFormatter}; the view just renders. */
   setTimeText(text: string): void;
-  /** Show or hide the centered "Game Over" overlay. Called by the
-   *  screen controller in response to the game-state transition to
-   *  GameOver — the view itself never decides when to show it. */
-  setGameOver(over: boolean): void;
+  /** Set the centered end-state HUD label. `null` hides the label;
+   *  any non-null `appearance` shows it with the given text and
+   *  colour. The screen controller picks both per terminal state
+   *  (e.g. red "Time is Over" for a count-down expiry, green
+   *  "You Win!" when all foundations complete). */
+  setEndStateLabel(appearance: { readonly text: string; readonly color: number } | null): void;
 }

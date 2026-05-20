@@ -134,7 +134,7 @@ export class SolitaireApp extends GamelabsApp {
     this._cameraManager?.update(timestepSeconds);
     // Timer only advances while the player is actively in the game.
     // During the opening deal animation, state is Dealing; once the
-    // countdown reaches zero, state is GameOver. Both gate the tick.
+    // countdown reaches zero, state is TimeOver. Both gate the tick.
     if (this._gameStateModel.state === GameState.Playing) {
       this._timerModel.tick(timestepSeconds);
     }

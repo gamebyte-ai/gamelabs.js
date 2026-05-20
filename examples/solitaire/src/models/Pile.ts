@@ -63,14 +63,4 @@ export abstract class Pile implements IPile {
   public getCardOffset(index: number): { readonly x: number; readonly z: number } {
     return { x: this.stackingOffset.x * index, z: this.stackingOffset.z * index };
   }
-
-  /**
-   * Hook for piles whose visual layout depends on knowing when a batch
-   * of cards is about to be pushed. Default: no-op. Waste overrides to
-   * anchor its fan at the bottom of the new batch so subsequent removals
-   * don't visually shift the remaining cards.
-   */
-  public onBatchPushStarting(): void {
-    /* no-op by default */
-  }
 }

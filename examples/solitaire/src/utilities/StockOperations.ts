@@ -11,10 +11,6 @@ export class StockOperations {
   public static drawToWaste(stock: IPile, waste: IPile, count: number): void {
     const stockPile = stock as Pile;
     const wastePile = waste as Pile;
-    // Anchor the about-to-be-pushed cards as a fresh batch so the
-    // waste pile can keep their fan positions fixed as the player
-    // removes them from the top.
-    wastePile.onBatchPushStarting();
     for (let i = 0; i < count; i++) {
       const card = stockPile.popCard();
       if (!card) return;

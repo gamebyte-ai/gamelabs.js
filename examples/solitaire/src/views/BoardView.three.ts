@@ -59,8 +59,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   private _dragSession: DragSession | null = null;
   private _pendingPickup: PendingPickup | null = null;
   private _dragEligibility: DragEligibilityPredicate | null = null;
-  private _releaseTween: gsap.core.Tween | null = null;
-  private _quickPlacementTween: gsap.core.Tween | null = null;
+  private _releaseTween: gsap.core.Timeline | null = null;
+  private _quickPlacementTween: gsap.core.Timeline | null = null;
   private _dealTimeline: gsap.core.Timeline | null = null;
   private _flipTimeline: gsap.core.Timeline | null = null;
   private _deniedTween: gsap.core.Timeline | null = null;
@@ -151,17 +151,29 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     // tip a tight depth comparison the wrong way and let an adjacent
     // fan neighbour render over the dragged card for a frame.
     this._releaseTween?.kill();
-    this._releaseTween = gsap.to(this._dragRoot.position, {
-      x: target.x,
-      y: target.y - DRAG_CARD_SUBLIFT_Y,
-      z: target.z,
-      duration: releaseCfg.duration,
-      ease: releaseCfg.ease,
+    const tl = gsap.timeline({
       onComplete: () => {
         this._releaseTween = null;
         this.playAutoFlipThenRefresh(autoFlippedCardId);
       },
     });
+    tl.to(
+      this._dragRoot.position,
+      {
+        x: target.x,
+        y: target.y - DRAG_CARD_SUBLIFT_Y,
+        z: target.z,
+        duration: releaseCfg.duration,
+        ease: releaseCfg.ease,
+      },
+      0,
+    );
+    // When the drag emptied a waste fan slot, the remaining waste
+    // cards shift right to keep the top-3 window populated. The
+    // animation rides the same release config so it lands in sync
+    // with the dragged stack arriving at its new home.
+    this.appendWasteFanShifts(tl, 0, releaseCfg.duration, releaseCfg.ease);
+    this._releaseTween = tl;
   }
 
   public animateQuickPlacement(cardId: number, autoFlippedCardId: number | null): void {
@@ -186,16 +198,28 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     // between the lift-up and lift-down sub-tweens.
     cardObject.position.y = quickCfg.liftY;
     this._quickPlacementTween?.kill();
-    this._quickPlacementTween = gsap.to(cardObject.position, {
-      x: target.x,
-      z: target.z,
-      duration: quickCfg.duration,
-      ease: quickCfg.ease,
+    const tl = gsap.timeline({
       onComplete: () => {
         this._quickPlacementTween = null;
         this.playAutoFlipThenRefresh(autoFlippedCardId);
       },
     });
+    tl.to(
+      cardObject.position,
+      {
+        x: target.x,
+        z: target.z,
+        duration: quickCfg.duration,
+        ease: quickCfg.ease,
+      },
+      0,
+    );
+    // Mirror of the drag-release fan shift: a quick-place out of the
+    // waste also pops the top, so the remaining cards (plus any
+    // newly-uncovered older card) slide into the freed fan slot in
+    // step with the placed card's flight.
+    this.appendWasteFanShifts(tl, 0, quickCfg.duration, quickCfg.ease);
+    this._quickPlacementTween = tl;
   }
 
   public animateDeniedShake(cardId: number): void {
@@ -261,11 +285,13 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     // duration of the move (invisible under top-down ortho but keeps
     // depth ordering safe over any cards the trajectories cross).
     // Refresh restores the resting Y after the animation lands.
+    const undoneCardIds = new Set<number>();
     for (const card of cards) {
       const entry = this._cardLookup.get(card.id);
       if (!entry) continue;
       const target = this.findCardWorldPosition(card.id);
       if (!target) continue;
+      undoneCardIds.add(card.id);
       tl.set(entry.cardObject.position, { y: DRAG_LIFT_Y }, time);
       tl.to(
         entry.cardObject.position,
@@ -278,6 +304,11 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
         time,
       );
     }
+    // Undoing a move out of the waste pushes a card back onto the
+    // fan, so the already-present waste cards shift left to make room
+    // in parallel with the returning card's flight. The undone cards
+    // themselves are excluded — they're already animated above.
+    this.appendWasteFanShifts(tl, time, releaseCfg.duration, releaseCfg.ease, undoneCardIds);
     this._undoTimeline = tl;
   }
 
@@ -385,6 +416,43 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
       time += dealCfg.perCardDuration;
     }
     this._dealTimeline = dealTl;
+  }
+
+  /**
+   * Queue parallel tweens on `tl` for every waste card whose current
+   * rendered position no longer matches its model-resolved fan offset.
+   * Lets the placement / undo animations shift the remaining fan cards
+   * in step with the primary move tween, so as the top of the waste
+   * fan leaves (or returns), the visible fan stays at three cards.
+   *
+   * `excludeCardIds` skips cards already being animated by the
+   * primary tween — used by undo, where the returning card's own
+   * tween would otherwise collide with a shift tween for the same
+   * cardObject.
+   */
+  private appendWasteFanShifts(
+    tl: gsap.core.Timeline,
+    startTime: number,
+    duration: number,
+    ease: string,
+    excludeCardIds?: ReadonlySet<number>,
+  ): void {
+    if (!this._board || !this._cardsRoot) return;
+    const waste = this._board.waste;
+    for (let i = 0; i < waste.cards.length; i++) {
+      const card = waste.cards[i];
+      if (excludeCardIds?.has(card.id)) continue;
+      const entry = this._cardLookup.get(card.id);
+      if (!entry) continue;
+      if (entry.cardObject.parent !== this._cardsRoot) continue;
+      const offset = waste.getCardOffset(i);
+      const targetX = waste.worldX + offset.x;
+      const targetZ = waste.worldZ + offset.z;
+      const dx = Math.abs(entry.cardObject.position.x - targetX);
+      const dz = Math.abs(entry.cardObject.position.z - targetZ);
+      if (dx < 1e-4 && dz < 1e-4) continue;
+      tl.to(entry.cardObject.position, { x: targetX, z: targetZ, duration, ease }, startTime);
+    }
   }
 
   private findCardWorldPosition(cardId: number): { x: number; y: number; z: number } | null {
