@@ -16,7 +16,9 @@ export class ScoreModel {
 
   public add(delta: number): void {
     if (delta === 0) return;
-    this._value += delta;
+    const next = Math.max(0, this._value + delta);
+    if (next === this._value) return;
+    this._value = next;
     this.notify();
   }
 

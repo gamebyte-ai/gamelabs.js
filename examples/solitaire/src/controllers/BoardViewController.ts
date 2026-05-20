@@ -184,10 +184,11 @@ export class BoardViewController implements IViewController<IBoardView> {
     if (!this._view || !this._board || !this._config) return;
     if (!this.isGamePlaying()) return;
     if (pile !== this._board.stock) return;
-    // Stock-only gate: while the previous draw is still mid-flight,
-    // ignore further stock taps. Other board input remains live —
-    // the draw timeline deliberately stays out of `isAnimating()`.
+    // Stock-only gate: while the previous draw or recycle is still
+    // mid-flight, ignore further stock taps. Other board input
+    // remains live — neither timeline registers with `isAnimating()`.
     if (this._view.isDrawAnimating()) return;
+    if (this._view.isRecycleAnimating()) return;
     if (this._board.stock.cards.length > 0) {
       // Source of truth for the current mode is WastePile.drawCount —
       // the radio toggle updates that via setDrawCount, while
@@ -212,11 +213,16 @@ export class BoardViewController implements IViewController<IBoardView> {
       this._view.playDrawAnimation(drawnCardIds, () => {});
     } else {
       const recycleCount = this._board.waste.cards.length;
+      // Capture the ids before the model mutation — after recycle,
+      // these cards are in stock face-down, but their cardObjects are
+      // still at their waste-fan positions and need to animate back
+      // to stock from there.
+      const recycledCardIds = this._board.waste.cards.map((card) => card.id);
       StockOperations.recycleWasteToStock(this._board.stock, this._board.waste);
       const scoreDelta = ScoreCalculator.forStockRecycle(this._config.score);
       this._scoreModel?.add(scoreDelta);
       this._undoHistory?.push({ kind: "recycle", count: recycleCount, scoreDelta });
-      this._view.refresh();
+      this._view.playRecycleAnimation(recycledCardIds, () => {});
     }
   }
 
@@ -227,13 +233,20 @@ export class BoardViewController implements IViewController<IBoardView> {
     // and refreshes the view, which would visibly interrupt the
     // running animation. The user can click again once it settles.
     if (this._view.isAnimating()) return;
-    // Draw animation is intentionally excluded from `isAnimating()`
-    // so the rest of the board stays interactive during a draw, but
-    // an undo still has to wait — undoing a stock draw mid-flight
+    // Draw and recycle animations are intentionally excluded from
+    // `isAnimating()` so the rest of the board stays interactive
+    // during them, but an undo still has to wait — undoing mid-flight
     // would refresh the view out from under the in-flight slide.
     if (this._view.isDrawAnimating()) return;
+    if (this._view.isRecycleAnimating()) return;
     const record: UndoRecord | null = this._undoHistory.pop();
     if (record === null) return;
+    // Capture the ids of the cards that the upcoming animation will
+    // shuttle, BEFORE the model mutation. Their cardObjects are still
+    // at their pre-undo positions, which the draw/recycle animations
+    // tween from. (Move undos don't need this — playUndoMove walks
+    // the model itself.)
+    const stockUndoCardIds = this.captureStockUndoCardIds(record);
     UndoOperations.undo(this._board, record);
     // Score adjustment on undo: revert the original action's awarded
     // delta to return the player to their pre-action score, then
@@ -249,11 +262,36 @@ export class BoardViewController implements IViewController<IBoardView> {
     this.maybeTransitionToWin();
     if (record.kind === "move") {
       this._view.playUndoMove(record.origin, record.count, record.autoFlippedCardId);
-    } else {
-      // Stock draws and recycles have no forward animation, so undo
-      // is also instant — just rebuild from the rolled-back model.
-      this._view.refresh();
+    } else if (record.kind === "draw") {
+      // Undoing a draw = the drawn cards return to stock face-down,
+      // which is exactly the recycle motion for that subset.
+      this._view.playRecycleAnimation(stockUndoCardIds, () => {});
+    } else if (record.kind === "recycle") {
+      // Recycle is a single atomic action, so its undo is a single
+      // atomic motion — every card flies from stock to its prior waste
+      // position in one batch, mirroring the forward recycle.
+      this._view.playRecycleUndoAnimation(stockUndoCardIds, () => {});
     }
+  }
+
+  /**
+   * Snapshot the card ids the draw / recycle undo animation needs,
+   * read off the pre-undo model state. The waste's top `count` cards
+   * are the drawn-cards-to-return-to-stock for a draw undo; the
+   * stock's full contents are the recycled-cards-to-return-to-waste
+   * for a recycle undo. Move undos return [] — playUndoMove walks
+   * the model directly.
+   */
+  private captureStockUndoCardIds(record: UndoRecord): readonly number[] {
+    if (!this._board) return [];
+    if (record.kind === "draw") {
+      const waste = this._board.waste.cards;
+      return waste.slice(waste.length - record.count).map((card) => card.id);
+    }
+    if (record.kind === "recycle") {
+      return this._board.stock.cards.map((card) => card.id);
+    }
+    return [];
   }
 
   /**

@@ -66,6 +66,7 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
   private _deniedTween: gsap.core.Timeline | null = null;
   private _undoTimeline: gsap.core.Timeline | null = null;
   private _drawTimeline: gsap.core.Timeline | null = null;
+  private _recycleTimeline: gsap.core.Timeline | null = null;
   private readonly _dragReleaseListeners = new Set<(info: CardsDragReleaseInfo) => void>();
   private readonly _cardClickListeners = new Set<(info: CardClickedInfo) => void>();
   private readonly _pileTapListeners = new Set<(pile: IPile) => void>();
@@ -119,6 +120,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._undoTimeline = null;
     this._drawTimeline?.kill();
     this._drawTimeline = null;
+    this._recycleTimeline?.kill();
+    this._recycleTimeline = null;
     this.endDragSession();
     this.clearSlots();
     this.clearCards();
@@ -533,6 +536,155 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     return this._drawTimeline !== null;
   }
 
+  public playRecycleAnimation(recycledCardIds: readonly number[], onComplete: () => void): void {
+    if (!this._board || !this._config || recycledCardIds.length === 0) {
+      this.refresh();
+      onComplete();
+      return;
+    }
+    // Reuses the stock-draw timing — same slide feel, just reversed
+    // direction (waste → stock) and flipping face-down instead of
+    // face-up.
+    const drawCfg = this._config.animation.draw;
+    this._recycleTimeline?.kill();
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this._recycleTimeline = null;
+        this.refresh();
+        onComplete();
+      },
+    });
+
+    for (const cardId of recycledCardIds) {
+      const entry = this._cardLookup.get(cardId);
+      if (!entry) continue;
+      const target = this.findCardWorldPosition(cardId);
+      if (!target) continue;
+      // Same depth-fix as playDrawAnimation: instant-lift to
+      // DRAG_LIFT_Y so the card stays above stock and waste meshes
+      // throughout the slide. Y is invisible under top-down ortho;
+      // the post-animation refresh restores the resting Y.
+      entry.cardObject.position.y = DRAG_LIFT_Y;
+      tl.to(
+        entry.cardObject.position,
+        {
+          x: target.x,
+          z: target.z,
+          duration: drawCfg.duration,
+          ease: drawCfg.ease,
+        },
+        0,
+      );
+      // Face-down flip — opposite direction from the draw, same
+      // squish/expand timing.
+      this.appendCardFlip(tl, entry.cardObject, 0, false, drawCfg.flipHalfDuration);
+    }
+
+    // When called for draw-undo (waste still has cards), the top
+    // drawCount of the new model are cards that were previously
+    // collapsed under the just-drawn batch. Slide them from base to
+    // their new fan offsets in parallel with the drawn cards leaving —
+    // mirrors the appendWasteFanShifts call in playDrawAnimation. For
+    // forward recycle the waste is empty post-mutation, so the helper
+    // iterates 0 cards and is a no-op.
+    const excludeIds = new Set(recycledCardIds);
+    this.appendWasteFanShifts(tl, 0, drawCfg.duration, drawCfg.ease, excludeIds);
+
+    this._recycleTimeline = tl;
+  }
+
+  public isRecycleAnimating(): boolean {
+    return this._recycleTimeline !== null;
+  }
+
+  public playRecycleUndoAnimation(cardIds: readonly number[], onComplete: () => void): void {
+    if (!this._board || !this._config || cardIds.length === 0) {
+      this.refresh();
+      onComplete();
+      return;
+    }
+    // Recycle is one atomic action — its undo plays out in two
+    // sequential phases:
+    //  1. Every card flies as a single stacked column from stock to
+    //     the base of the waste, with a face-up flip concurrent with
+    //     the slide.
+    //  2. Once the column has settled at the base, the top drawCount
+    //     cards spread out into their model fan offsets.
+    //
+    // Phase 1 lifts each card to DRAG_LIFT_Y plus a per-card
+    // increment keyed on its POST-UNDO waste index, so the column
+    // has deterministic, distinct Y values throughout — top-of-waste
+    // sits at the top of the moving stack. Without this stagger,
+    // every flying card lands on the same Y and the GPU depth-test
+    // ties between coplanar cards (all converging to the same base
+    // XZ) flicker frame-to-frame, reading as a wrong-card flash.
+    const drawCfg = this._config.animation.draw;
+    const waste = this._board.waste;
+    const wasteX = waste.worldX;
+    const wasteZ = waste.worldZ;
+
+    this._recycleTimeline?.kill();
+    const tl = gsap.timeline({
+      onComplete: () => {
+        this._recycleTimeline = null;
+        this.refresh();
+        onComplete();
+      },
+    });
+
+    const wasteIndexById = new Map<number, number>();
+    for (let i = 0; i < waste.cards.length; i++) {
+      wasteIndexById.set(waste.cards[i].id, i);
+    }
+
+    for (const cardId of cardIds) {
+      const entry = this._cardLookup.get(cardId);
+      if (!entry) continue;
+      const wasteIndex = wasteIndexById.get(cardId);
+      if (wasteIndex === undefined) continue;
+      // Stagger Y by post-undo stack order so the moving column
+      // depth-renders cleanly. The cards' backs are visually identical,
+      // so the synchronous reorder relative to the prior stock order
+      // is invisible.
+      entry.cardObject.position.y = DRAG_LIFT_Y + CARD_STACK_LIFT_Y * wasteIndex;
+      tl.to(
+        entry.cardObject.position,
+        {
+          x: wasteX,
+          z: wasteZ,
+          duration: drawCfg.duration,
+          ease: drawCfg.ease,
+        },
+        0,
+      );
+      this.appendCardFlip(tl, entry.cardObject, 0, true, drawCfg.flipHalfDuration);
+    }
+
+    // Phase 2 — sequential: after every card has landed at the base,
+    // the top drawCount cards slide horizontally into their fan
+    // offsets. Y stays at the lifted (and now distinct) values so the
+    // depth ordering carries cleanly through the spread; refresh
+    // restores model Y when the timeline completes.
+    const phase2Start = drawCfg.duration;
+    for (let i = 0; i < waste.cards.length; i++) {
+      const offset = waste.getCardOffset(i);
+      if (offset.x === 0) continue;
+      const entry = this._cardLookup.get(waste.cards[i].id);
+      if (!entry) continue;
+      tl.to(
+        entry.cardObject.position,
+        {
+          x: wasteX + offset.x,
+          duration: drawCfg.duration,
+          ease: drawCfg.ease,
+        },
+        phase2Start,
+      );
+    }
+
+    this._recycleTimeline = tl;
+  }
+
   /**
    * Queue parallel tweens on `tl` for every waste card whose current
    * rendered position no longer matches its model-resolved fan offset.
@@ -890,6 +1042,8 @@ export class BoardView extends WorldViewBase implements IBoardView, IPointerInpu
     this._undoTimeline = null;
     this._drawTimeline?.kill();
     this._drawTimeline = null;
+    this._recycleTimeline?.kill();
+    this._recycleTimeline = null;
     this.endDragSession();
     this.clearSlots();
     this.clearCards();

@@ -56,6 +56,26 @@ export interface IBoardView extends IView {
    *  working during the draw — only the stock-tap and undo paths
    *  consult this flag and skip themselves. */
   isDrawAnimating(): boolean;
+  /** Animate the listed waste cards from their fan positions back to
+   *  the stock pile. Each card flips face-down mid-slide (mirror of
+   *  the stock-draw flip) and lands stacked at stock. Cards run in
+   *  parallel — same idiom as the Turn 3 draw, just reversed. The
+   *  view refreshes itself when every tween has landed, then calls
+   *  `onComplete`. Like the draw animation, this does not register
+   *  with the global `isAnimating` gate; see {@link isRecycleAnimating}. */
+  playRecycleAnimation(recycledCardIds: readonly number[], onComplete: () => void): void;
+  /** True while a waste→stock recycle animation is in flight, or its
+   *  undo (which reuses the same gating timeline). Same role as
+   *  {@link isDrawAnimating} — only the stock-tap and undo paths
+   *  consult it. */
+  isRecycleAnimating(): boolean;
+  /** Animate the reverse of a recycle in two sequential phases:
+   *  (1) every card flies as a single stacked column from stock to
+   *  the base of the waste with a face-up flip, then (2) the top
+   *  drawCount cards spread out into their fan offsets. Shares the
+   *  recycle timeline (see {@link isRecycleAnimating}) and refreshes
+   *  the view on landing. */
+  playRecycleUndoAnimation(cardIds: readonly number[], onComplete: () => void): void;
   /** One-shot game-start animation. Stacks the listed cards (in
    *  Klondike deal order) on top of the stock pile, then sequentially
    *  flies each one to its model-resting position face-down, and
