@@ -6,17 +6,23 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "playable:assets": "node ../../scripts/generate-playable-assets.mjs --example=2048",
+    "playable:dev": "npm run playable:assets && vite --config vite.playable.config.ts",
+    "playable:build": "npm run playable:assets && vite build --config vite.playable.config.ts"
   },
   "dependencies": {
+    "@gamebyte/gamelabsjs": "file:../../dist",
     "@js-basics/vector": "^2.2.5",
     "@pixi/layout": "^3.2.0",
     "@pixi/ui": "^2.3.2",
     "gsap": "^3.12.5",
-    "@gamebyte/gamelabsjs": "file:../../dist",
     "pixi.js": "^8.16.0",
     "three": "^0.182.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1"
+  },
+  "devDependencies": {
+    "vite-plugin-singlefile": "^2.3.3"
   }
 }

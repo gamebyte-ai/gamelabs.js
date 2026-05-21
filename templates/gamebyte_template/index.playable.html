@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Playable</title>
+    <script>
+      // Ad-network SDK shim. Replace per network for the final build:
+      //   - MRAID (most networks):  use window.mraid.open(url)
+      //   - Meta Audience Network:  use FbPlayableAd.onCTAClick()
+      //   - Google AdMob:           use ExitApi.exit()
+      //   - Unity Ads:              use mraid.open() (MRAID-based)
+      //   - AppLovin / IronSource:  use mraid.open() (MRAID-based)
+      // The shim lets the playable run standalone in a browser for QA.
+      window.playableSDK = window.playableSDK || {
+        openStoreURL: function (url) {
+          console.log("[playable] CTA ->", url);
+          window.open(url, "_blank");
+        },
+        gameReady: function () {
+          console.log("[playable] gameReady");
+        },
+        gameEnd: function () {
+          console.log("[playable] gameEnd");
+        },
+      };
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <div id="stage" aria-label="Game stage"></div>
+    </div>
+    <script type="module" src="/src/main.playable.ts"></script>
+  </body>
+</html>

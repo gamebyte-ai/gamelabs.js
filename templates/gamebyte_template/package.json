@@ -6,11 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "playable:assets": "node scripts/generate-playable-assets.mjs",
+    "playable:dev": "npm run playable:assets && vite --config vite.playable.config.ts",
+    "playable:build": "npm run playable:assets && vite build --config vite.playable.config.ts"
   },
   "devDependencies": {
     "typescript": "~5.9.3",
-    "vite": "^7.2.6"
+    "vite": "^7.2.6",
+    "vite-plugin-singlefile": "^2.1.0"
   },
   "dependencies": {
     "@gamebyte/gamelabsjs": "*",
