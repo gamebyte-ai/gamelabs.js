@@ -14,10 +14,11 @@ import { GameBoardItemObjectOptions } from "./GameBoardItemObjectOptions";
  *   playing grid and the tray.
  *
  * Items:
- * - The controller threads `GameBoardItemObjectOptions` (carrying
- *   the piece type + per-surface block size) through to the visual,
- *   so the same `GameBoardItemObject` renders any piece on any
- *   surface without per-shape branching here.
+ * - The controller threads {@link GameBoardItemObjectOptions} into
+ *   this creator, carrying the cells layout (tray = full shape,
+ *   grid = single block), the spawn-assigned colour, the per-surface
+ *   block size, and a back-reference to the model item for the drag
+ *   pipeline.
  */
 export class GameBoardObjectCreator extends GridObjectCreator {
   private readonly _config: BlockPuzzleConfig;

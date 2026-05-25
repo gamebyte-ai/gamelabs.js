@@ -1,25 +1,24 @@
 import * as THREE from "three";
 import type { IAssetManager, IInputManager, RectGridPreset } from "@gamebyte/gamelabsjs";
 import { GridItemObject, type IGridObjectListener } from "@gamebyte/gamelabsjs";
-import type { PieceCells } from "../../../BlockPuzzleConfig";
 import { GameBoardItemObjectOptions } from "./GameBoardItemObjectOptions";
+import { PieceMeshBuilder } from "./PieceMeshBuilder";
 
 /**
- * Visual for one piece — N coloured blocks laid out according to the
- * piece's shape data, centred on the host cell.
+ * Visual for one item on a board — N coloured blocks laid out
+ * according to `options.cells`, centred on the host cell.
  *
- * The shape comes from `options.pieceType.cells` and the per-block
- * world size from `options.blockSize`, both fed in by
- * `GameBoardsViewController.createItemObjectOption`. Rendering is
- * fully generic: any list of `(col, row)` offsets renders correctly,
- * which is what makes the piece catalog data-driven (a new piece is
- * one entry in `BlockPuzzleConfig.pieceTypes` with no rendering code
- * to update).
+ * The controller decides what to render at each spot:
+ * - tray items get the full piece shape, so the slot shows a
+ *   recognisable preview of the whole piece;
+ * - grid items get a single-cell layout (`[[0, 0]]`), so each
+ *   item occupies exactly one grid cell.
+ *
+ * Rendering is fully generic: any list of `(col, row)` offsets
+ * renders correctly. Adding a new piece type to the catalog adds
+ * no new rendering code.
  */
 export class GameBoardItemObject extends GridItemObject {
-  private static readonly BLOCK_Y = 0.05;
-  private static readonly BLOCK_INSET = 0.9;
-
   public declare readonly preset: RectGridPreset;
 
   public constructor(
@@ -29,47 +28,32 @@ export class GameBoardItemObject extends GridItemObject {
     assetManager: IAssetManager | null,
   ) {
     super(options, pointerListener, inputManager, assetManager);
+    // The drag pipeline on the world view raycasts piece meshes and
+    // needs a way back to the originating model item; stash it on
+    // `userData` so the view can read it without going through DI.
+    this.userData["modelItem"] = options.modelItem;
   }
 
   protected override createVisual(): void {
     const options = this._options as GameBoardItemObjectOptions;
-    const { width, height } = GameBoardItemObject.computeBbox(options.pieceType.cells);
-    const blockSize = options.blockSize;
-    const drawSize = blockSize * GameBoardItemObject.BLOCK_INSET;
-    const material = new THREE.MeshBasicMaterial({ color: options.color, side: THREE.DoubleSide });
-
-    for (const [col, row] of options.pieceType.cells) {
-      // Centre the bounding box on the host cell — the per-block
-      // offset is `(index - (extent - 1) / 2) * blockSize` in each
-      // axis, which puts a 1×1 piece at (0, 0) and a 3×3 piece
-      // symmetrically around the host cell centre.
-      const x = (col - (width - 1) / 2) * blockSize;
-      const z = (row - (height - 1) / 2) * blockSize;
-
-      const geom = new THREE.PlaneGeometry(drawSize, drawSize);
-      const mesh = new THREE.Mesh(geom, material);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.position.set(x, GameBoardItemObject.BLOCK_Y, z);
-      this.add(mesh);
-    }
+    PieceMeshBuilder.appendBlocks(this, options.cells, options.blockSize, options.color, {
+      opacity: 1,
+      y: PieceMeshBuilder.DEFAULT_BLOCK_Y,
+    });
   }
 
   protected override createCollider(): void {
-    // No collider — step 2 has no interaction with pieces.
+    // No collider — pointer interaction lives on the world view, which
+    // raycasts piece meshes directly (see GameBoardsView).
   }
 
   /**
-   * Bounding box (in cells) that contains all of `cells`. Used to
-   * centre the piece visual on its host cell — the per-block offsets
-   * derive directly from this.
+   * Pickable meshes for tray-piece raycasting. The drag pipeline on
+   * `GameBoardsView` reads this to know which meshes belong to which
+   * item — selecting any block of a tray piece picks up the whole
+   * piece. Returned meshes are the children added in `createVisual`.
    */
-  private static computeBbox(cells: PieceCells): { readonly width: number; readonly height: number } {
-    let maxCol = 0;
-    let maxRow = 0;
-    for (const [col, row] of cells) {
-      if (col > maxCol) maxCol = col;
-      if (row > maxRow) maxRow = row;
-    }
-    return { width: maxCol + 1, height: maxRow + 1 };
+  public get pickableMeshes(): THREE.Object3D[] {
+    return this.children.filter((c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true);
   }
 }

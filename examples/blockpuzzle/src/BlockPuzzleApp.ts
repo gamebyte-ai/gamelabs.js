@@ -3,32 +3,35 @@ import {
   GameCameraBinding,
   GameCameraManager,
   GridsModel,
-  GridsView,
   LogTypes,
   RectGrid,
   Topdown2dCameraController,
   UIComponentsBinding,
   UIEvents,
+  World,
   GridEvents,
 } from "@gamebyte/gamelabsjs";
 import { BlockPuzzleConfig } from "./BlockPuzzleConfig";
 import { BlockPuzzleUIIds } from "./BlockPuzzleUIIds";
 import { BlockPuzzleGameGridBinding } from "./modules/gamegrid/BlockPuzzleGameGridBinding";
+import { GameBoardsView } from "./modules/gamegrid/views/GameBoardsView.three";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { BoardLayoutCalculator, type BoardLayout } from "./utilities/BoardLayoutCalculator";
+import { ItemIdGenerator } from "./utilities/ItemIdGenerator";
 import { PieceSpawnOperations } from "./utilities/PieceSpawnOperations";
 
 /**
- * Block Puzzle app — wires the static grid + tray layout (step 1) and
- * the initial 3-piece hand spawn (step 2).
+ * Block Puzzle app — static layout (step 1), initial 3-piece hand
+ * spawn (step 2), and drag-drop placement (step 3).
  *
  * Modules:
  * - {@link GameCameraBinding} — top-down 2D camera; ortho size fits
  *   the combined grid + tray content with `boardMargin` headroom.
- * - {@link BlockPuzzleGameGridBinding} — extends `GameGridBinding` to
- *   render cells with the configured per-surface palettes and to
- *   render pieces via shape-driven block visuals.
+ * - {@link BlockPuzzleGameGridBinding} — extends `GameGridBinding`
+ *   with per-surface cell palettes, shape-driven piece visuals, the
+ *   custom `GameBoardsView` that owns the drag pipeline, and the
+ *   `GameBoardsViewController` that wires placement to the rules.
  * - {@link UIComponentsBinding} — provides the Label / Button style
  *   entries the HUD reads.
  *
@@ -36,31 +39,30 @@ import { PieceSpawnOperations } from "./utilities/PieceSpawnOperations";
  * - One `RectGrid` registered as `boardIds.grid` (the playing grid,
  *   8×8 by default) and one registered as `boardIds.tray` (a 1×K row
  *   of slots, K=3 by default). Both flow through `GridsModel` →
- *   `GameBoardsViewController` → `GridsView`.
+ *   `GameBoardsViewController` → `GameBoardsView`.
  * - On game start, {@link PieceSpawnOperations.dealInitialHand}
- *   picks K pieces uniformly from `BlockPuzzleConfig.pieceTypes` and
- *   places one in each tray slot. The framework auto-renders each
- *   spawned piece via the `onItemAdded` path.
+ *   seeds the tray with K distinct-coloured pieces.
+ * - Pointer-down on a tray piece starts a drag; the view ghosts the
+ *   candidate footprint on the playing grid and validates via the
+ *   predicate the controller installs. On valid drop the controller
+ *   places the piece (N grid items) and empties the tray slot.
  *
  * Seams left unwired in this step:
- * - {@link ISpawnSource} (where the next piece comes from — tray
- *   today, falling-piece later) lives in `utilities/`.
- * - {@link IClearRule} (which cells clear after a placement — full
+ * - {@link ISpawnSource} (refill source: tray today, falling-piece
+ *   later) lives in `utilities/`.
+ * - {@link IClearRule} (which cells clear after a placement: full
  *   row/column today, region/colour-match later) lives in
  *   `utilities/`.
  */
 export class BlockPuzzleApp extends GamelabsApp {
   private readonly _config = new BlockPuzzleConfig();
+  private readonly _itemIds = new ItemIdGenerator();
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _gameGridBinding = new BlockPuzzleGameGridBinding(this._config);
   private readonly _uiComponentsBinding = new UIComponentsBinding();
   private _cameraController: Topdown2dCameraController | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _layout: BoardLayout | null = null;
-  // Monotonic counter threaded through every spawn so item ids stay
-  // unique for the lifetime of the run (refill in later steps reads
-  // this back). One id is consumed per spawned piece.
-  private _nextItemId = 1;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -73,8 +75,17 @@ export class BlockPuzzleApp extends GamelabsApp {
   }
 
   protected override configureDI(): void {
+    if (!this.world) {
+      this.logger.log("World is not initialized", LogTypes.Error);
+      throw new Error("World is not initialized");
+    }
     this.diContainer.bindInstance(BlockPuzzleConfig, this._config);
     this.viewDiContainer.bindInstance(BlockPuzzleConfig, this._config);
+    this.diContainer.bindInstance(ItemIdGenerator, this._itemIds);
+    // `GameBoardsView` raycasts piece meshes against the active
+    // camera — it needs the World instance for the renderer canvas
+    // and scene access.
+    this.viewDiContainer.bindInstance(World, this.world);
   }
 
   protected override configureViews(): void {
@@ -91,14 +102,14 @@ export class BlockPuzzleApp extends GamelabsApp {
 
     this._layout = BoardLayoutCalculator.compute(this._config);
 
-    // Instantiate the framework-provided world view first. The
-    // matching `GridsViewController` (also registered by
-    // `GameGridBinding`) subscribes to `GridEvents` during its
-    // `initialize` so subsequent `addGrid` calls auto-sync into the
-    // scene. Module registration alone only registers the pair with
-    // the view factory — nothing renders until the app constructs
-    // the view here.
-    this.world.addView(this.viewFactory.createView(GridsView));
+    // Instantiate the boards world view first. Its
+    // `GameBoardsViewController` (registered by
+    // `BlockPuzzleGameGridBinding`) subscribes to `GridEvents` during
+    // its `initialize` so subsequent `addGrid` calls auto-sync into
+    // the scene. Module registration alone only registers the pair
+    // with the view factory — nothing renders until the app
+    // constructs the view here.
+    this.world.addView(this.viewFactory.createView(GameBoardsView));
 
     // Build + register both grids. They share `GridEvents` /
     // `GridsModel`; the controller's `onGridAdded` handler creates
@@ -115,7 +126,7 @@ export class BlockPuzzleApp extends GamelabsApp {
     tray.setPosition(this._layout.trayPosition);
     gridsModel.addGrid(tray);
 
-    this._nextItemId = PieceSpawnOperations.dealInitialHand(tray, this._config.pieceTypes, this._config.blockColors, this._nextItemId);
+    PieceSpawnOperations.dealHand(tray, this._config.pieceTypes, this._config.blockColors, this._itemIds);
 
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);

@@ -1,33 +1,36 @@
 import type { RectGrid } from "@gamebyte/gamelabsjs";
 import type { PieceType } from "../BlockPuzzleConfig";
 import { GameBoardItem } from "../modules/gamegrid/models/GameBoardItem";
+import { ItemIdGenerator } from "./ItemIdGenerator";
 
 /**
  * Piece-spawn operations on top of the framework's grid model.
  *
- * Step 2 only covers the initial deal — one piece per tray slot,
- * piece type picked uniformly at random from the catalog (with
- * replacement, so the same piece can appear in multiple slots), and
- * block colour picked **without replacement** from the palette so
- * the K tray slots always read as K distinct colours.
+ * Used twice in the player's flow:
+ * - **Initial deal** (game start): all three slots are empty, one
+ *   piece dropped into each.
+ * - **Refill** (after the player empties the tray): same operation,
+ *   precondition is the same (every slot empty). The deal picks
+ *   piece types uniformly with replacement and K distinct colours
+ *   from the palette per draw.
  *
  * The framework auto-renders each spawn: `addCellItem` emits
- * `onItemAdded`, the boards controller builds
- * `GameBoardItemObjectOptions` carrying the `pieceType` + `color`,
+ * `onItemAdded`, the boards controller builds the visual options,
  * and the world view instantiates a `GameBoardItemObject` for it.
  */
 export class PieceSpawnOperations {
   /**
-   * Deal one piece into every tray slot. `nextItemId` is the caller's
-   * monotonic item-id counter; the function consumes one id per slot
-   * and returns the next free id so successive deals (added in later
-   * steps for refill) keep producing unique ids without cross-talk.
+   * Fill every slot in `tray` with one piece. Throws if any slot is
+   * already occupied (the spec only deals fresh hands — never partial
+   * refills) or if `blockColors` is too small to give every slot a
+   * distinct colour.
    *
-   * Throws if `blockColors` has fewer entries than `tray.columnCount`
-   * — without that the "every slot a distinct colour" invariant can't
-   * hold for the initial deal.
+   * Piece type per slot: uniform random with replacement (same piece
+   * can appear in multiple slots).
+   * Block colour per slot: uniform random without replacement (K
+   * distinct colours).
    */
-  public static dealInitialHand(tray: RectGrid, pieceTypes: readonly PieceType[], blockColors: readonly number[], nextItemId: number): number {
+  public static dealHand(tray: RectGrid, pieceTypes: readonly PieceType[], blockColors: readonly number[], ids: ItemIdGenerator): void {
     if (pieceTypes.length === 0) {
       throw new Error("PieceSpawnOperations: piece catalog is empty");
     }
@@ -38,13 +41,11 @@ export class PieceSpawnOperations {
     for (let col = 0; col < tray.columnCount; col++) {
       const pieceType = PieceSpawnOperations.pickRandom(pieceTypes);
       const color = colorPool[col]!;
-      tray.addCellItem(col, 0, new GameBoardItem(nextItemId++, pieceType, color));
+      tray.addCellItem(col, 0, new GameBoardItem(ids.allocate(), pieceType, color));
     }
-    return nextItemId;
   }
 
-  /** Uniform random pick from a non-empty list. Kept as a method so
-   *  refill (step 3+) can share the exact same draw policy. */
+  /** Uniform random pick from a non-empty list. */
   private static pickRandom<T>(pool: readonly T[]): T {
     return pool[Math.floor(Math.random() * pool.length)]!;
   }
