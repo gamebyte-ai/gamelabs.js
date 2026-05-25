@@ -1,18 +1,23 @@
 import type { IAssetManager, IInputManager } from "@gamebyte/gamelabsjs";
-import { GridCellObjectOptions, GridObjectCreator, type IGridObjectListener } from "@gamebyte/gamelabsjs";
+import { GridCellObjectOptions, GridItemObjectOptions, GridObjectCreator, type IGridObjectListener } from "@gamebyte/gamelabsjs";
 import type { BlockPuzzleConfig } from "../../../BlockPuzzleConfig";
 import { GameBoardCellObject } from "./GameBoardCellObject";
+import { GameBoardItemObject } from "./GameBoardItemObject";
+import { GameBoardItemObjectOptions } from "./GameBoardItemObjectOptions";
 
 /**
- * Dispatches cell visuals per grid surface.
+ * Dispatches per-surface cell + item visuals.
  *
- * Both the playing grid and the tray flow through the same
- * `GridsViewController` auto-sync pipeline; the creator is what gives
- * each surface its own palette by mapping `options.gridId` →
- * `BoardKind` → `BlockPuzzleConfig.palettes`. The item-creation path
- * is intentionally not overridden in step 1 — no piece visuals exist
- * yet, and the framework default item visual is never instantiated
- * because no items are added to either grid.
+ * Cells:
+ * - Each cell's palette is resolved from `options.gridId` via
+ *   `BlockPuzzleConfig.boardKindFor`. Same creator handles the
+ *   playing grid and the tray.
+ *
+ * Items:
+ * - The controller threads `GameBoardItemObjectOptions` (carrying
+ *   the piece type + per-surface block size) through to the visual,
+ *   so the same `GameBoardItemObject` renders any piece on any
+ *   surface without per-shape branching here.
  */
 export class GameBoardObjectCreator extends GridObjectCreator {
   private readonly _config: BlockPuzzleConfig;
@@ -31,5 +36,17 @@ export class GameBoardObjectCreator extends GridObjectCreator {
     const kind = this._config.boardKindFor(options.gridId);
     const palette = this._config.palettes[kind];
     return new GameBoardCellObject(options, pointerListener, inputManager, assetManager ?? null, palette);
+  }
+
+  public override createItemObject(
+    options: GridItemObjectOptions,
+    pointerListener: IGridObjectListener,
+    inputManager: IInputManager | null,
+    assetManager?: IAssetManager | null,
+  ): GameBoardItemObject {
+    if (!(options instanceof GameBoardItemObjectOptions)) {
+      throw new Error("GameBoardObjectCreator: expected GameBoardItemObjectOptions — check GameBoardsViewController.createItemObjectOption");
+    }
+    return new GameBoardItemObject(options, pointerListener, inputManager, assetManager ?? null);
   }
 }

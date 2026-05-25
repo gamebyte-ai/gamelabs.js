@@ -17,15 +17,18 @@ import { BlockPuzzleGameGridBinding } from "./modules/gamegrid/BlockPuzzleGameGr
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { BoardLayoutCalculator, type BoardLayout } from "./utilities/BoardLayoutCalculator";
+import { PieceSpawnOperations } from "./utilities/PieceSpawnOperations";
 
 /**
- * Block Puzzle app — step 1 wires the static grid + tray layout only.
+ * Block Puzzle app — wires the static grid + tray layout (step 1) and
+ * the initial 3-piece hand spawn (step 2).
  *
  * Modules:
  * - {@link GameCameraBinding} — top-down 2D camera; ortho size fits
  *   the combined grid + tray content with `boardMargin` headroom.
  * - {@link BlockPuzzleGameGridBinding} — extends `GameGridBinding` to
- *   render cells with the configured per-surface palettes.
+ *   render cells with the configured per-surface palettes and to
+ *   render pieces via shape-driven block visuals.
  * - {@link UIComponentsBinding} — provides the Label / Button style
  *   entries the HUD reads.
  *
@@ -33,8 +36,11 @@ import { BoardLayoutCalculator, type BoardLayout } from "./utilities/BoardLayout
  * - One `RectGrid` registered as `boardIds.grid` (the playing grid,
  *   8×8 by default) and one registered as `boardIds.tray` (a 1×K row
  *   of slots, K=3 by default). Both flow through `GridsModel` →
- *   `GridsViewController` → `GridsView`, so the static layout
- *   renders without any app-side view code.
+ *   `GameBoardsViewController` → `GridsView`.
+ * - On game start, {@link PieceSpawnOperations.dealInitialHand}
+ *   picks K pieces uniformly from `BlockPuzzleConfig.pieceTypes` and
+ *   places one in each tray slot. The framework auto-renders each
+ *   spawned piece via the `onItemAdded` path.
  *
  * Seams left unwired in this step:
  * - {@link ISpawnSource} (where the next piece comes from — tray
@@ -51,6 +57,10 @@ export class BlockPuzzleApp extends GamelabsApp {
   private _cameraController: Topdown2dCameraController | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _layout: BoardLayout | null = null;
+  // Monotonic counter threaded through every spawn so item ids stay
+  // unique for the lifetime of the run (refill in later steps reads
+  // this back). One id is consumed per spawned piece.
+  private _nextItemId = 1;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -104,6 +114,8 @@ export class BlockPuzzleApp extends GamelabsApp {
     const tray = new RectGrid(this._config.boardIds.tray, BoardLayoutCalculator.makeTrayPreset(this._config), gridEvents);
     tray.setPosition(this._layout.trayPosition);
     gridsModel.addGrid(tray);
+
+    this._nextItemId = PieceSpawnOperations.dealInitialHand(tray, this._config.pieceTypes, this._config.blockColors, this._nextItemId);
 
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);

@@ -1,17 +1,21 @@
 import { GameGridBinding } from "@gamebyte/gamelabsjs";
 import type { BlockPuzzleConfig } from "../../BlockPuzzleConfig";
+import { GameBoardsViewController } from "./controllers/GameBoardsViewController";
 import { GameBoardObjectCreator } from "./views/GameBoardObjectCreator";
 
 /**
  * App-side override of the gamegrid binding.
  *
- * Step 1 keeps the framework's default `GridsView` + `GridsViewController`
- * — there are no animations, no pointer events, and no item visuals
- * yet, so the auto-sync pipeline is sufficient. Only the creator is
- * swapped to render grid vs tray cells with the configured palettes.
+ * - **Creator**: swapped for `GameBoardObjectCreator` so cells render
+ *   with the per-surface palette and items render the piece shape.
+ * - **Controller**: swapped for `GameBoardsViewController`, which
+ *   threads `pieceType` + per-surface `blockSize` into item options.
+ * - **View**: still the framework default `GridsView`. Step 2 has no
+ *   animations or pointer handling on the world view, so the stock
+ *   auto-sync pipeline is sufficient.
  */
 export class BlockPuzzleGameGridBinding extends GameGridBinding {
   public constructor(config: BlockPuzzleConfig) {
-    super(new GameBoardObjectCreator(config));
+    super(new GameBoardObjectCreator(config), null, GameBoardsViewController);
   }
 }
