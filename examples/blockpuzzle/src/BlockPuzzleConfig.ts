@@ -1,5 +1,6 @@
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "@gamebyte/gamelabsjs";
 import { BoardKind } from "./constants/BoardKind";
+import { PieceRotationCalculator } from "./utilities/PieceRotationCalculator";
 
 export interface BoardPalette {
   /** Cell fill colour. Tray slots are intentionally larger and lighter
@@ -150,9 +151,10 @@ export class BlockPuzzleConfig {
 
   /**
    * The full piece catalog. Each entry is a self-contained shape
-   * definition — colour is decoupled and assigned at spawn time
-   * from {@link blockColors}, so any piece can appear in any colour.
-   * Adding a new piece is one new entry here and nothing else.
+   * definition — colour is decoupled (see {@link blockColors}) and
+   * so is rotation (see {@link rotatedShapes}). Adding a new piece
+   * is one new entry here; the rotation pool is computed
+   * automatically at config-load.
    */
   public readonly pieceTypes: readonly PieceType[] = [
     { name: "smallL", cells: [[0, 0], [0, 1], [1, 1]] },
@@ -180,6 +182,19 @@ export class BlockPuzzleConfig {
   public readonly blockColors: readonly number[] = [
     0xff5566, 0xff9944, 0xffcc33, 0x66cc66, 0x33aaaa, 0x5599ff, 0x9966ff, 0xff66cc,
   ];
+
+  /**
+   * Per-piece-type pool of unique rotated shapes. Computed once at
+   * config-load by {@link PieceRotationCalculator.computeAll}; the
+   * spawner picks a piece type uniformly from {@link pieceTypes},
+   * then a rotation uniformly from this pool, so symmetric shapes
+   * (squares, lines) don't over-represent their rotations.
+   */
+  public readonly rotatedShapes: ReadonlyMap<PieceType, readonly PieceCells[]>;
+
+  public constructor() {
+    this.rotatedShapes = PieceRotationCalculator.computeAll(this.pieceTypes);
+  }
 
   /**
    * Drag-pipeline visual tuning. Anchor offsets live here so the

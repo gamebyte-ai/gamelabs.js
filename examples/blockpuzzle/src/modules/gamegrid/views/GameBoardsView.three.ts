@@ -7,11 +7,11 @@ import {
   type IPointerInputHandler,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
-import { BlockPuzzleConfig, type PieceCells, type PieceType } from "../../../BlockPuzzleConfig";
+import { BlockPuzzleConfig, type PieceCells } from "../../../BlockPuzzleConfig";
 import { GameBoardItem } from "../models/GameBoardItem";
 import { GameBoardItemObject } from "./GameBoardItemObject";
 import { PieceMeshBuilder } from "./PieceMeshBuilder";
-import type { IGameBoardsView, PiecePlacementInfo, PiecePlacementPredicate } from "./IGameBoardsView";
+import type { ClearPreviewProvider, IGameBoardsView, PiecePlacementInfo, PiecePlacementPredicate } from "./IGameBoardsView";
 
 /**
  * Bookkeeping for an in-flight drag. The view is the only thing that
@@ -21,7 +21,10 @@ import type { IGameBoardsView, PiecePlacementInfo, PiecePlacementPredicate } fro
 interface DragSession {
   readonly trayCol: number;
   readonly item: GameBoardItem;
-  readonly pieceType: PieceType;
+  /** Rendered shape for this drag (the rotation the spawner picked
+   *  for the model item). All bbox math + footprint computation
+   *  reads from here. */
+  readonly cells: PieceCells;
   readonly color: number;
   /** Reference to the tray cell's visual `GameBoardItemObject`. It's
    *  hidden during the drag and either restored (invalid drop) or
@@ -85,6 +88,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
 
   private _dragSession: DragSession | null = null;
   private _validityPredicate: PiecePlacementPredicate | null = null;
+  private _clearPreviewProvider: ClearPreviewProvider | null = null;
 
   private readonly _raycaster = new THREE.Raycaster();
   private readonly _ndc = new THREE.Vector2();
@@ -115,6 +119,10 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
 
   public setPlacementPredicate(predicate: PiecePlacementPredicate | null): void {
     this._validityPredicate = predicate;
+  }
+
+  public setClearPreviewProvider(provider: ClearPreviewProvider | null): void {
+    this._clearPreviewProvider = provider;
   }
 
   public onPiecePlacement(callback: (info: PiecePlacementInfo) => void): Unsubscribe {
@@ -152,7 +160,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     const ground = this._projectPointerToGround(event);
     const anchor = ground !== null ? this._computeAnchorAt(session, ground) : null;
     const footprint =
-      anchor !== null ? GameBoardsView._footprintFor(anchor.col, anchor.row, session.pieceType.cells) : null;
+      anchor !== null ? GameBoardsView._footprintFor(anchor.col, anchor.row, session.cells) : null;
     const valid = footprint !== null && this._validityPredicate !== null && this._validityPredicate(footprint);
     if (valid && footprint !== null) {
       const info: PiecePlacementInfo = {
@@ -179,6 +187,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   public override preDestroy(): void {
     this._placementListeners.clear();
     this._validityPredicate = null;
+    this._clearPreviewProvider = null;
     if (this._dragSession !== null) this._endDragSession(true);
     if (this._dragRoot !== null) {
       this._dragRoot.removeFromParent();
@@ -204,12 +213,12 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       throw new Error("GameBoardsView: tray cell item is missing model-item back-reference");
     }
 
-    const pickupOffset = this._capturePickupOffset(cellItem, modelItem.pieceType, ground);
+    const pickupOffset = this._capturePickupOffset(cellItem, modelItem.cells, ground);
 
     cellItem.visible = false;
 
     const liftedGroup = new THREE.Group();
-    PieceMeshBuilder.appendBlocks(liftedGroup, modelItem.pieceType.cells, this._config.gridCellSize, modelItem.color, {
+    PieceMeshBuilder.appendBlocks(liftedGroup, modelItem.cells, this._config.gridCellSize, modelItem.color, {
       opacity: 1,
       y: 0,
     });
@@ -219,7 +228,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     this._dragSession = {
       trayCol,
       item: modelItem,
-      pieceType: modelItem.pieceType,
+      cells: modelItem.cells,
       color: modelItem.color,
       hiddenCellItem: cellItem,
       pointerId: event.pointerId,
@@ -266,7 +275,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
    */
   private _capturePickupOffset(
     cellItem: GameBoardItemObject,
-    pieceType: PieceType,
+    cells: PieceCells,
     ground: { readonly x: number; readonly z: number },
   ): { x: number; z: number } {
     if (!this._config) throw new Error("GameBoardsView: config not injected");
@@ -276,7 +285,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     cellItem.getWorldPosition(this._scratchVec);
     const cellCenterX = this._scratchVec.x;
     const cellCenterZ = this._scratchVec.z;
-    const { width, height } = PieceMeshBuilder.computeBbox(pieceType.cells);
+    const { width, height } = PieceMeshBuilder.computeBbox(cells);
     const trayBlockSize = this._config.trayPieceCellSize;
     const topLeftCellWorldX = cellCenterX - ((width - 1) / 2) * trayBlockSize;
     const topLeftCellWorldZ = cellCenterZ - ((height - 1) / 2) * trayBlockSize;
@@ -299,7 +308,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     if (this._dragRoot === null || this._config === null) return;
     const topLeftX = ground.x + session.pickupOffset.x;
     const topLeftZ = ground.z + session.pickupOffset.z;
-    const { width, height } = PieceMeshBuilder.computeBbox(session.pieceType.cells);
+    const { width, height } = PieceMeshBuilder.computeBbox(session.cells);
     const blockSize = this._config.gridCellSize;
     this._dragRoot.position.set(
       topLeftX + ((width - 1) / 2) * blockSize,
@@ -328,7 +337,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       hideGhost();
       return;
     }
-    const footprint = GameBoardsView._footprintFor(anchor.col, anchor.row, session.pieceType.cells);
+    const footprint = GameBoardsView._footprintFor(anchor.col, anchor.row, session.cells);
     const valid = this._validityPredicate !== null && this._validityPredicate(footprint);
     if (!valid) {
       hideGhost();
@@ -344,13 +353,16 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     grid.getWorldPosition(this._scratchVec);
     this._ghostRoot.position.set(this._scratchVec.x, this._config.drag.ghostY, this._scratchVec.z);
 
+    // Union of (a) the footprint itself and (b) the cells that
+    // would be cleared if the player dropped here. The line
+    // preview paints whole rows / columns in the piece colour —
+    // including the cells the piece would occupy — so what the
+    // player sees is exactly what disappears on drop.
+    const cellsToRender = GameBoardsView._unionCells(footprint, this._clearPreviewProvider?.(footprint) ?? []);
+
     const cellSize = this._config.gridCellSize;
-    // Build one inset square per footprint cell at the cell's local
-    // position on the grid. We bypass `PieceMeshBuilder.appendBlocks`
-    // here because the ghost's geometry is per-footprint-cell (already
-    // in grid coords), not piece-relative.
     const drawSize = cellSize * PieceMeshBuilder.BLOCK_INSET;
-    for (const { col, row } of footprint) {
+    for (const { col, row } of cellsToRender) {
       const geom = new THREE.PlaneGeometry(drawSize, drawSize);
       const mat = new THREE.MeshBasicMaterial({
         color: session.color,
@@ -364,6 +376,26 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       this._ghostRoot.add(mesh);
     }
     this._ghostRoot.visible = true;
+  }
+
+  private static _unionCells(a: readonly GridCoord[], b: readonly GridCoord[]): GridCoord[] {
+    const seen = new Set<string>();
+    const out: GridCoord[] = [];
+    for (const c of a) {
+      const key = `${c.col},${c.row}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(c);
+      }
+    }
+    for (const c of b) {
+      const key = `${c.col},${c.row}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(c);
+      }
+    }
+    return out;
   }
 
   /**
@@ -408,7 +440,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     const topLeftZ = ground.z + session.pickupOffset.z;
     const rawCol = Math.round((topLeftX - this._scratchVec.x) / cellSize);
     const rawRow = Math.round((topLeftZ - this._scratchVec.z) / cellSize);
-    const { width: pieceCols, height: pieceRows } = PieceMeshBuilder.computeBbox(session.pieceType.cells);
+    const { width: pieceCols, height: pieceRows } = PieceMeshBuilder.computeBbox(session.cells);
     const maxAnchorCol = Math.max(0, grid.columnCount - pieceCols);
     const maxAnchorRow = Math.max(0, grid.rowCount - pieceRows);
     const col = Math.max(0, Math.min(maxAnchorCol, rawCol));

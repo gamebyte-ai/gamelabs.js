@@ -19,6 +19,7 @@ import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { BoardLayoutCalculator, type BoardLayout } from "./utilities/BoardLayoutCalculator";
 import { ItemIdGenerator } from "./utilities/ItemIdGenerator";
+import { LineClearRule } from "./utilities/LineClearRule";
 import { PieceSpawnOperations } from "./utilities/PieceSpawnOperations";
 
 /**
@@ -82,6 +83,11 @@ export class BlockPuzzleApp extends GamelabsApp {
     this.diContainer.bindInstance(BlockPuzzleConfig, this._config);
     this.viewDiContainer.bindInstance(BlockPuzzleConfig, this._config);
     this.diContainer.bindInstance(ItemIdGenerator, this._itemIds);
+    // `LineClearRule` implements the {@link IClearRule} seam — the
+    // controller runs it after every placement (to clear full lines)
+    // and exposes a predictive call so the view can paint the
+    // would-clear rows/columns in the ghost preview.
+    this.diContainer.bindInstance(LineClearRule, new LineClearRule());
     // `GameBoardsView` raycasts piece meshes against the active
     // camera — it needs the World instance for the renderer canvas
     // and scene access.
@@ -126,7 +132,7 @@ export class BlockPuzzleApp extends GamelabsApp {
     tray.setPosition(this._layout.trayPosition);
     gridsModel.addGrid(tray);
 
-    PieceSpawnOperations.dealHand(tray, this._config.pieceTypes, this._config.blockColors, this._itemIds);
+    PieceSpawnOperations.dealHand(tray, this._config.pieceTypes, this._config.rotatedShapes, this._config.blockColors, this._itemIds);
 
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);

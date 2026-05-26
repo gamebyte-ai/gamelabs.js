@@ -27,6 +27,19 @@ export interface PiecePlacementInfo {
 export type PiecePlacementPredicate = (footprint: readonly GridCoord[]) => boolean;
 
 /**
+ * Predictive clears for the ghost preview. The view calls this
+ * with the candidate footprint and the controller returns the
+ * cells that *would* be cleared if the player dropped here. The
+ * view paints those cells in the dragged piece's colour as part of
+ * the ghost — same colour, same opacity — so the player sees the
+ * full row/column that's about to disappear.
+ *
+ * Empty array = no lines would clear (normal ghost with footprint
+ * cells only).
+ */
+export type ClearPreviewProvider = (footprint: readonly GridCoord[]) => readonly GridCoord[];
+
+/**
  * View interface for the boards world view. Adds drag-driven piece
  * placement on top of the framework's `IGridView` auto-sync surface.
  */
@@ -34,6 +47,9 @@ export interface IGameBoardsView extends IGridView {
   /** Install / clear the validity predicate. Pass `null` to disable
    *  drag interaction entirely (the view still renders). */
   setPlacementPredicate(predicate: PiecePlacementPredicate | null): void;
+  /** Install / clear the clear-preview provider. Without one the
+   *  ghost only shows footprint cells (no line highlight). */
+  setClearPreviewProvider(provider: ClearPreviewProvider | null): void;
   /** Fired on pointer-up when the dragged piece passed
    *  {@link PiecePlacementPredicate}. Invalid drops snap the piece
    *  back to its tray slot inside the view and do not fire this. */

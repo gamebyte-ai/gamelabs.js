@@ -3,6 +3,11 @@ import type { PieceCells, PieceType } from "../BlockPuzzleConfig";
 import { GameBoardItem } from "../modules/gamegrid/models/GameBoardItem";
 import { ItemIdGenerator } from "./ItemIdGenerator";
 
+/** Grid items occupy exactly one cell each, so their `cells` field
+ *  is always a single-block layout. Sharing the readonly tuple
+ *  across every grid item is safe. */
+const SINGLE_BLOCK_CELLS: PieceCells = [[0, 0]];
+
 /**
  * Piece-placement operations on top of the framework grid model.
  *
@@ -67,7 +72,7 @@ export class PiecePlacementOperations {
     ids: ItemIdGenerator,
   ): void {
     for (const { col, row } of footprint) {
-      grid.addCellItem(col, row, new GameBoardItem(ids.allocate(), pieceType, color));
+      grid.addCellItem(col, row, new GameBoardItem(ids.allocate(), pieceType, SINGLE_BLOCK_CELLS, color));
     }
   }
 }

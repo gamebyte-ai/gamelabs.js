@@ -1,5 +1,5 @@
 import type { RectGrid } from "@gamebyte/gamelabsjs";
-import type { PieceType } from "../BlockPuzzleConfig";
+import type { PieceCells, PieceType } from "../BlockPuzzleConfig";
 import { GameBoardItem } from "../modules/gamegrid/models/GameBoardItem";
 import { ItemIdGenerator } from "./ItemIdGenerator";
 
@@ -10,27 +10,36 @@ import { ItemIdGenerator } from "./ItemIdGenerator";
  * - **Initial deal** (game start): all three slots are empty, one
  *   piece dropped into each.
  * - **Refill** (after the player empties the tray): same operation,
- *   precondition is the same (every slot empty). The deal picks
- *   piece types uniformly with replacement and K distinct colours
- *   from the palette per draw.
+ *   precondition is the same (every slot empty).
+ *
+ * Per-spawn picks:
+ * - Piece type: uniform random with replacement from the catalog
+ *   (same piece can appear in multiple slots).
+ * - Rotation: uniform random from the piece type's de-duplicated
+ *   rotation pool ({@link BlockPuzzleConfig.rotatedShapes}). Symmetric
+ *   shapes pick from a smaller pool so a square rotation isn't
+ *   four-times-over-represented vs an L-shape rotation.
+ * - Block colour: uniform random without replacement from the
+ *   palette (K distinct colours per K tray slots).
  *
  * The framework auto-renders each spawn: `addCellItem` emits
- * `onItemAdded`, the boards controller builds the visual options,
- * and the world view instantiates a `GameBoardItemObject` for it.
+ * `onItemAdded`, the boards controller forwards `item.cells` to the
+ * visual, and the world view instantiates a `GameBoardItemObject`
+ * with the (possibly rotated) shape.
  */
 export class PieceSpawnOperations {
   /**
    * Fill every slot in `tray` with one piece. Throws if any slot is
-   * already occupied (the spec only deals fresh hands — never partial
-   * refills) or if `blockColors` is too small to give every slot a
-   * distinct colour.
-   *
-   * Piece type per slot: uniform random with replacement (same piece
-   * can appear in multiple slots).
-   * Block colour per slot: uniform random without replacement (K
-   * distinct colours).
+   * already occupied, if the piece catalog is empty, or if
+   * `blockColors` has fewer entries than the tray has slots.
    */
-  public static dealHand(tray: RectGrid, pieceTypes: readonly PieceType[], blockColors: readonly number[], ids: ItemIdGenerator): void {
+  public static dealHand(
+    tray: RectGrid,
+    pieceTypes: readonly PieceType[],
+    rotatedShapes: ReadonlyMap<PieceType, readonly PieceCells[]>,
+    blockColors: readonly number[],
+    ids: ItemIdGenerator,
+  ): void {
     if (pieceTypes.length === 0) {
       throw new Error("PieceSpawnOperations: piece catalog is empty");
     }
@@ -40,8 +49,13 @@ export class PieceSpawnOperations {
     const colorPool = PieceSpawnOperations.sampleDistinct(blockColors, tray.columnCount);
     for (let col = 0; col < tray.columnCount; col++) {
       const pieceType = PieceSpawnOperations.pickRandom(pieceTypes);
+      const rotations = rotatedShapes.get(pieceType);
+      if (!rotations || rotations.length === 0) {
+        throw new Error(`PieceSpawnOperations: no rotation pool for piece type "${pieceType.name}"`);
+      }
+      const cells = PieceSpawnOperations.pickRandom(rotations);
       const color = colorPool[col]!;
-      tray.addCellItem(col, 0, new GameBoardItem(ids.allocate(), pieceType, color));
+      tray.addCellItem(col, 0, new GameBoardItem(ids.allocate(), pieceType, cells, color));
     }
   }
 
