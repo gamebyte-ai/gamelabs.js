@@ -2,7 +2,7 @@
 
 The minimum starting point for a new Gamelabs.js game: one `GameScreen` with a title and an empty world.
 
-## What it has
+## What it shows
 
 - `TemplateApp` — extends `GamelabsApp`, registers one screen, creates it in `postInitialize`.
 - `GameScreenView` / `GameScreenViewController` — full-screen Pixi screen that renders the configured title.
@@ -11,7 +11,7 @@ The minimum starting point for a new Gamelabs.js game: one `GameScreen` with a t
 
 The Three.js world layer is created by the framework but left empty — add cameras, views, and modules as your game needs them.
 
-## Project layout
+## Project structure
 
 ```
 example_template

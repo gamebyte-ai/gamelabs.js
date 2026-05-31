@@ -288,7 +288,7 @@ Without `autoDestroy`, a paused-and-drained emitter stays registered indefinitel
 - **diContainer** — `ParticleManager`, `ParticleModel` (also under `IParticleModel`), `ParticleBudget`. Resolved by controllers and the app for registration, querying, and budget tuning.
 - **viewDiContainer** — `ParticleBudget` only. Views need it at construction time to instantiate emitters; the manager and model stay diContainer-only so controllers own registration and views don't reach across the architectural boundary.
 
-Views that own an emitter typically expose it through `IParticleEmitter` (renderer-agnostic) so the controller can register / unregister without manipulating renderer types — see `examples/avoidance/src/views/IGameAreaView.ts` for the pattern.
+Views that own an emitter typically expose it through `IParticleEmitter` (renderer-agnostic) so the controller can register / unregister without manipulating renderer types — see the examples repository for the full pattern.
 
 ## Exports
 

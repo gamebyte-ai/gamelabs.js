@@ -102,11 +102,11 @@ MyGame/src
 
 Three buckets with strict definitions:
 
-- **Domain rules / operations** (`utilities/`, suffix `*Operations` / `*Rules` / `*Solver`): pure in-app logic on models. No DOM, no THREE/PIXI, no I/O. Unit-testable without a view. Examples: `GameOperations` (the per-game operations class in match3 and 2048), `WaterSortOperations`, match-finders, move solvers.
+- **Domain rules / operations** (`utilities/`, suffix `*Operations` / `*Rules` / `*Solver`): pure in-app logic on models. No DOM, no THREE/PIXI, no I/O. Unit-testable without a view. Examples: `*Operations` per-game classes, match-finders, move solvers.
 - **State managers** (`utilities/`, suffix `*Manager`): own mutable subsystem state across controller methods. Examples: `TurnManager`, `WaveManager`, `UpdateManager`, `SettingsManager`.
 - **Services** (`services/`, suffix `*Service`): boundaries to the outside world — anything that can fail because of the environment. Examples: `StorageService`, `AudioService`, `NotificationService`, `*ApiService`. **Do not use the `*Service` suffix for in-app logic.**
 
-Controllers stay thin: sequence async work, branch on results, dispatch events. Extract computation into an `*Operations` / `*Rules` / `*Manager` class in `utilities/` when it would be unit-testable without a view. See `DeveloperNotes.md` for the full rationale and a worked example.
+Controllers stay thin: sequence async work, branch on results, dispatch events. Extract computation into an `*Operations` / `*Rules` / `*Manager` class in `utilities/` when it would be unit-testable without a view.
 
 ### File naming conventions
 
@@ -118,13 +118,11 @@ Controllers stay thin: sequence async work, branch on results, dispatch events. 
 - In-domain logic: `FooOperations.ts` / `FooRules.ts` / `FooManager.ts` (in `utilities/`)
 - External-boundary services: `FooService.ts` (in `services/`)
 - Asset IDs: `MyGameAssetIds.ts` (enum with namespaced values: `"MyGame.ItemName"`)
-- Every per-board `gamegrid` class an example defines uses the role-based `GameBoard*`
+- Every per-board `gamegrid` class uses the role-based `GameBoard*`
   prefix (`GameBoardItem`, `IGameBoardsView`, `GameBoardsView`, `GameBoardsViewController`,
   `GameBoardCellObject`, `GameBoardItemObject`, `GameBoardItemObjectOptions`,
   `GameBoardObjectCreator`) instead of a game-specific prefix. App / Config / AssetIds
-  / Events / Operations / Binding / screen views keep the game prefix. See
-  `DeveloperNotes.md` for the canonical table, and `examples/match3` / `examples/2048`
-  for the convention applied end-to-end.
+  / Events / Operations / Binding / screen views keep the game prefix.
 
 ## Repository layout
 
@@ -145,26 +143,6 @@ src/
 └── index.ts       Barrel exports
 ```
 
-## Examples
-
-| Example | Description |
-|---------|-------------|
-| `helloworld` | 3D cube with orbital camera and HUD controls |
-| `screens` | Screen navigation using built-in modules |
-| `tictactoe` | TicTacToe with gamegrid module, win detection |
-| `match3` | Match-3 puzzle with animated gem board |
-| `avoidance` | Survival game with keyboard + on-screen joystick input |
-| `watersort` | Puzzle game with tween pour animations |
-| `2048` | 2048 sliding-tile puzzle with keyboard / swipe input and best-score persistence |
-| `colorblockjam` | Color-matching brick puzzle with pre-baked GLB brick shapes, silhouette outlines, and smooth drag |
-| `hexasort` | Hexagonal sort puzzle with decoupled sorting manager |
-| `towerdefense` | Tower defense with pure-state managers and reconcile-based rendering |
-
-```bash
-npm run build                    # Build library first
-cd examples/<name> && npm i && npm run dev
-```
-
 ## Commands
 
 ```bash
@@ -180,9 +158,6 @@ CI gate order: `typecheck` → `lint` → `format:check` → `test` → `build`.
 
 ## Documentation
 
-- **AGENTS.md** — Project policies, architecture rules, module lifecycle and binding-shape conventions
-- **DeveloperNotes.md** — Full architecture, implementation details, naming conventions
 - **CHANGELOG.md** — Version history
 - **ISSUES.md** — Known bugs and technical debt with severity ratings
 - **Module READMEs** — `src/modules/*/README.md` for per-module documentation
-- **Example READMEs** — `examples/*/README.md` for per-example documentation

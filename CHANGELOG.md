@@ -70,7 +70,7 @@ Consumers upgrading from 1.0.0 must update any code that touched these APIs:
 - `HudViewBase` / `WorldViewBase` now inject `IApp` + `AppEvents` and auto-fire `onResize(w, h, dpr)` in `postInitialize`. Subclasses just override `onResize`.
 - `FullscreenLayoutComponent` (uicomponents) — container whose `@pixi/layout` box tracks the canvas via `AppEvents`, independent of parent.
 - `stripInternal: true` in `tsconfig.json` so `@internal` members disappear from the published `.d.ts`.
-- Module lifecycle + binding-shape rules documented in `AGENTS.md`, `DeveloperNotes.md`, and `ModuleBinding` JSDoc.
+- Module lifecycle + binding-shape rules documented in `ModuleBinding` JSDoc.
 - DI tests for alias/primary collision guards (3 new cases).
 
 ### Changed
@@ -133,7 +133,7 @@ Consumers upgrading from 1.0.0 must update any code that touched these APIs:
 > Published but not documented at the time. The following is reconstructed from git history and is approximate.
 
 ### Added
-- `Constants` convention documented in `DeveloperNotes.md` — pure types and static tables live in `constants/` directories.
+- `Constants` convention — pure types and static tables live in `constants/` directories.
 - 12 findings from a Codex review added to `ISSUES.md`, with 2 prior issues marked resolved.
 
 ### Changed
