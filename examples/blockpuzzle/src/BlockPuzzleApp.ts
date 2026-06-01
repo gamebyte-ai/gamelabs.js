@@ -1,9 +1,12 @@
 import {
+  AssetTypes,
   GamelabsApp,
   GameCameraBinding,
   GameCameraManager,
   GridsModel,
   LogTypes,
+  ParticleManager,
+  ParticlesBinding,
   RectGrid,
   Topdown2dCameraController,
   UIComponentsBinding,
@@ -11,6 +14,7 @@ import {
   World,
   GridEvents,
 } from "@gamebyte/gamelabsjs";
+import { BlockPuzzleAssetIds } from "./BlockPuzzleAssetIds";
 import { BlockPuzzleConfig } from "./BlockPuzzleConfig";
 import { BlockPuzzleUIIds } from "./BlockPuzzleUIIds";
 import { BlockPuzzleGameGridBinding } from "./modules/gamegrid/BlockPuzzleGameGridBinding";
@@ -18,10 +22,14 @@ import { GameBoardsView } from "./modules/gamegrid/views/GameBoardsView.three";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { BoardLayoutCalculator, type BoardLayout } from "./utilities/BoardLayoutCalculator";
+import { BoosterPanelModel } from "./models/BoosterPanelModel";
 import { ComboModel } from "./models/ComboModel";
 import { GameStateModel } from "./models/GameStateModel";
 import { ScoreModel } from "./models/ScoreModel";
 import { TimerModel } from "./models/TimerModel";
+import { TrayPlaceabilityModel } from "./models/TrayPlaceabilityModel";
+import { BoosterPanelState } from "./constants/BoosterPanelState";
+import { BoosterType } from "./constants/BoosterType";
 import { GameState } from "./constants/GameState";
 import { ItemIdGenerator } from "./utilities/ItemIdGenerator";
 import { LineClearRule } from "./utilities/LineClearRule";
@@ -66,13 +74,27 @@ export class BlockPuzzleApp extends GamelabsApp {
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _gameGridBinding = new BlockPuzzleGameGridBinding(this._config);
   private readonly _uiComponentsBinding = new UIComponentsBinding();
+  private readonly _particlesBinding = new ParticlesBinding();
   private readonly _gameState = new GameStateModel();
   private readonly _scoreModel = new ScoreModel();
   private readonly _timerModel = new TimerModel();
   private readonly _comboModel = new ComboModel(this._config.combo.maxMoves);
+  // TESTING: start in Hammer-Selecting so the Selecting visuals
+  // (dimmed background, X cancel, scaled-up button) and the
+  // hammer-tap destruction flow are reachable at game start without
+  // first earning a charge. Revert to
+  //   `new BoosterPanelModel(this._config.booster.stagesPerCharge)`
+  // for the normal Charging-from-zero flow.
+  private readonly _boosterModel = new BoosterPanelModel(
+    this._config.booster.stagesPerCharge,
+    BoosterPanelState.Selecting,
+    BoosterType.Hammer,
+  );
+  private readonly _placeabilityModel = new TrayPlaceabilityModel();
   private _cameraController: Topdown2dCameraController | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _layout: BoardLayout | null = null;
+  private _particleManager: ParticleManager | null = null;
 
   public constructor(stageEl: HTMLElement) {
     super({ mount: stageEl });
@@ -82,6 +104,29 @@ export class BlockPuzzleApp extends GamelabsApp {
     this.addModule(this._gameCameraBinding);
     this.addModule(this._gameGridBinding);
     this.addModule(this._uiComponentsBinding);
+    this.addModule(this._particlesBinding);
+  }
+
+  protected override loadAssets(): void {
+    // Booster button icons — single-colour SVGs the HUD view paints
+    // into Sprites and tints to `booster.buttonLabelColor`. Loaded
+    // as HUD textures (Pixi `Assets.load`) because they only render
+    // in the booster panel inside the screen-view layer.
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      BlockPuzzleAssetIds.HammerIcon,
+      new URL("../assets/hammer.svg", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      BlockPuzzleAssetIds.UnitBlockIcon,
+      new URL("../assets/unit-block.svg", import.meta.url).href,
+    );
+    this.assetManager.load(
+      AssetTypes.HudTexture,
+      BlockPuzzleAssetIds.TrayRefreshIcon,
+      new URL("../assets/recycle.svg", import.meta.url).href,
+    );
   }
 
   protected override configureDI(): void {
@@ -97,8 +142,10 @@ export class BlockPuzzleApp extends GamelabsApp {
     // and exposes a predictive call so the view can paint the
     // would-clear rows/columns in the ghost preview.
     this.diContainer.bindInstance(LineClearRule, new LineClearRule());
-    // Top-level game state (Playing / GameOver). Controller flips it
-    // to GameOver when every remaining tray piece is unplaceable.
+    // Top-level game state (Playing / GameOver / TimeUp). Boards
+    // controller writes GameOver when every tray piece is
+    // unplaceable; HUD controller writes TimeUp when the countdown
+    // hits zero. Both writers guard on `state === Playing`.
     this.diContainer.bindInstance(GameStateModel, this._gameState);
     // Score + timer. ScoreModel is the controller's write target on
     // placement / clear; TimerModel accumulates elapsed time in
@@ -109,6 +156,14 @@ export class BlockPuzzleApp extends GamelabsApp {
     // Combo streak — written by the boards controller per
     // placement, read by the HUD controller via `onChange`.
     this.diContainer.bindInstance(ComboModel, this._comboModel);
+    // Booster panel lifecycle — boards controller calls
+    // registerClear per placement; HUD controller subscribes for
+    // the visual state and routes button taps to consume().
+    this.diContainer.bindInstance(BoosterPanelModel, this._boosterModel);
+    // "Any tray piece placeable?" — boards controller writes per
+    // recompute, HUD controller reads to choose the ready-state
+    // booster label.
+    this.diContainer.bindInstance(TrayPlaceabilityModel, this._placeabilityModel);
     // `GameBoardsView` raycasts piece meshes against the active
     // camera — it needs the World instance for the renderer canvas
     // and scene access.
@@ -160,6 +215,12 @@ export class BlockPuzzleApp extends GamelabsApp {
     this._cameraController = new Topdown2dCameraController(this._cameraManager).register();
     this._cameraController.followPosition(0, 0, 0);
     this._fitOrthoToBoard(this.width, this.height);
+
+    // Particle pipeline — `ParticlesBinding` bound `ParticleManager`
+    // and `ParticleBudget`; the boards view constructs the
+    // {@link HammerParticleEmitter} and the boards controller
+    // registers it with the manager. `onStep` ticks the manager.
+    this._particleManager = this.diContainer.getInstance(ParticleManager);
   }
 
   protected override onResize(width: number, height: number, dpr: number): void {
@@ -171,6 +232,7 @@ export class BlockPuzzleApp extends GamelabsApp {
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
     this._cameraManager?.update(timestepSeconds);
+    this._particleManager?.update(timestepSeconds);
     // Tick the timer only while in the Playing state — game-over
     // freezes the clock so the displayed time matches the moment
     // the player lost.
@@ -180,6 +242,8 @@ export class BlockPuzzleApp extends GamelabsApp {
   }
 
   protected override preDestroy(): void {
+    this._particleManager?.destroyAll();
+    this._particleManager = null;
     this._cameraController = null;
     this._cameraManager = null;
     super.preDestroy();

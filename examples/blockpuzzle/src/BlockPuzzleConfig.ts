@@ -1,6 +1,78 @@
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "@gamebyte/gamelabsjs";
 import { BoardKind } from "./constants/BoardKind";
+import { BoosterType } from "./constants/BoosterType";
 import { PieceRotationCalculator } from "./utilities/PieceRotationCalculator";
+
+/**
+ * Game-screen background colours (Three.js renderer clear colour).
+ * The default tints the whole screen; the selecting variant darkens
+ * everything while a target-selection booster is pending so the
+ * grid stands out. Tray Refresh is instant (no Selecting state) so
+ * it never triggers the variant.
+ */
+export interface BackgroundColorsConfig {
+  readonly default: number;
+  /** Applied while the booster panel is in `Selecting` and the
+   *  selected booster is a target-selection booster (Hammer or
+   *  Unit Block). Reverts to {@link default} once the booster is
+   *  consumed or cancelled. */
+  readonly selecting: number;
+}
+
+/**
+ * Hammer-booster particle burst. When the hammer empties a cell,
+ * the view spawns `count` flat coloured particles at the cell's
+ * world position; each gets a random initial speed in
+ * `[spawnSpeedMin, spawnSpeedMax)`, a random in-plane direction,
+ * and is accelerated toward screen-down (`+Z` in world space) by
+ * `gravity`. Each particle fades from full to zero opacity over
+ * `lifetime` seconds. Sizes are in world units; speeds are world
+ * units / second; gravity is world units / second².
+ */
+export interface HammerParticlesConfig {
+  readonly count: number;
+  readonly size: number;
+  readonly spawnSpeedMin: number;
+  readonly spawnSpeedMax: number;
+  readonly gravity: number;
+  readonly lifetime: number;
+}
+
+/**
+ * Per-block wobble while the Hammer booster is in Selecting. The
+ * controller drives a time accumulator; the view applies a
+ * `sin(2π · frequencyHz · t + phase)` rotation around each grid
+ * block's vertical axis, with the per-block `phase` lazily picked
+ * uniformly from `[0, phaseRandomnessRange)` so the grid doesn't
+ * read as synchronised. Amplitude is in degrees (converted at the
+ * apply site).
+ *
+ * Only Hammer Selecting triggers it; Unit Block Selecting does
+ * not.
+ */
+export interface HammerWobbleConfig {
+  readonly amplitudeDegrees: number;
+  readonly frequencyHz: number;
+  readonly phaseRandomnessRange: number;
+}
+
+/**
+ * Background panel + separator visuals for the playing grid. The
+ * panel is a rounded rectangle, `padding` world units larger than
+ * the grid on every side, drawn in `panelColor` — visible as a
+ * border around the cell area. The separator is a regular rectangle
+ * exactly the grid's cell extent in `separatorColor`, drawn on top
+ * of the panel and below the cell fills, so the 8% inset between
+ * adjacent cell fills reads as `separatorColor`. The per-cell
+ * outline colour for the Grid surface mirrors `separatorColor` so
+ * the cell border line blends with the gap backplate.
+ */
+export interface GridBackgroundPanelConfig {
+  readonly padding: number;
+  readonly cornerRadius: number;
+  readonly panelColor: number;
+  readonly separatorColor: number;
+}
 
 export interface BoardPalette {
   /** Cell fill colour. Tray slots are intentionally larger and lighter
@@ -107,6 +179,93 @@ export interface TimeConfig {
   readonly startSeconds: number;
   readonly direction: TimeDirection;
   readonly displayFormat: TimeDisplayFormat;
+}
+
+/**
+ * Visual definition of one button in the booster panel. The HUD
+ * draws a filled circle in `color` and overlays a procedural icon
+ * chosen by `BoosterType` (hammer / plus / recycle). `label` is
+ * kept for accessibility / debug surfaces; the panel UI itself no
+ * longer renders it now that icons replaced text labels.
+ */
+export interface BoosterButtonConfig {
+  readonly color: number;
+  readonly label: string;
+}
+
+/**
+ * Floating cancel-button visuals. Positioned at
+ * `(offsetX, offsetY)` from the centre of the **selected** booster
+ * button while in Selecting; hidden in every other state.
+ */
+export interface BoosterCancelButtonConfig {
+  readonly size: number;
+  readonly backgroundColor: number;
+  readonly iconColor: number;
+  readonly offsetX: number;
+  readonly offsetY: number;
+}
+
+/**
+ * Booster panel + progress-bar tunables. The HUD renders the panel
+ * bottom-pinned; the progress bar sits directly above it. Buttons
+ * are visually-distinguishable rectangles (`buttons[type].color +
+ * .label`); the progress bar fills left to right in
+ * `progressFillColor`. All dimensions in screen pixels.
+ */
+export interface BoosterPanelConfig {
+  /** Number of line clears (one per cleared row or column)
+   *  required to charge the panel. */
+  readonly stagesPerCharge: number;
+  /** Distance from the screen bottom to the bottom of the panel. */
+  readonly bottomMargin: number;
+  readonly buttonSize: number;
+  /** Horizontal gap between adjacent buttons. */
+  readonly buttonSpacing: number;
+  /** Alpha when the panel is Ready (active). */
+  readonly buttonActiveAlpha: number;
+  /** Alpha when the panel is Charging (buttons disabled). */
+  readonly buttonInactiveAlpha: number;
+  readonly buttonLabelFontSize: number;
+  readonly buttonLabelColor: number;
+  /** Per-booster visual settings, keyed by `BoosterType`. */
+  readonly buttons: Readonly<Record<BoosterType, BoosterButtonConfig>>;
+  /** Vertical gap between the bottom of the progress bar and the
+   *  top of the button row. */
+  readonly progressGapAbove: number;
+  readonly progressWidth: number;
+  readonly progressHeight: number;
+  readonly progressFillColor: number;
+  readonly progressTrackColor: number;
+  /** Text shown in place of the progress bar while Ready, when the
+   *  player has at least one placeable tray piece. */
+  readonly readyLabelChooseOne: string;
+  /** Text shown in place of the progress bar while Ready, when no
+   *  tray piece is placeable. Acts as a "use a booster to recover"
+   *  prompt — the new game-over rule lets the player live until the
+   *  next Charging state. */
+  readonly readyLabelNoMoves: string;
+  readonly readyLabelFontSize: number;
+  readonly readyLabelColor: number;
+  /** Filled rectangle drawn behind the buttons + bar. Defines the
+   *  panel's visual footprint at the bottom of the screen. */
+  readonly panelBackgroundColor: number;
+  /** Padding between the panel content and the background's edge. */
+  readonly panelPadding: number;
+  /** Corner radius of the panel background. */
+  readonly panelCornerRadius: number;
+  /** Multiplier applied to the selected booster button's scale
+   *  while in Selecting (e.g. `1.2` = "scale up 20%"). */
+  readonly selectedScale: number;
+  /** Floating X cancel button shown over the selected booster. */
+  readonly cancel: BoosterCancelButtonConfig;
+  /** Instruction text shown in the combo widget's position while a
+   *  Hammer Selecting is pending. The combo indicator (label +
+   *  circles) is hidden while this prompt is visible. */
+  readonly selectingPromptHammer: string;
+  /** Instruction text shown in the combo widget's position while a
+   *  Unit Block Selecting is pending. */
+  readonly selectingPromptUnitBlock: string;
 }
 
 /**
@@ -219,10 +378,64 @@ export class BlockPuzzleConfig {
   // so the full content + margin fits regardless of aspect ratio.
   public readonly boardMargin: number = 1;
 
+  /**
+   * Three.js renderer clear colours for the game screen. `default`
+   * is set on app init; the boards controller swaps to `selecting`
+   * while a target-selection booster is pending and reverts on
+   * consume / cancel.
+   */
+  public readonly backgroundColors: BackgroundColorsConfig = {
+    default: 0x5254a7,
+    selecting: 0x0a0a17,
+  };
+
+  /**
+   * Playing-grid background + separator visuals. The view installs
+   * both meshes (panel + backplate) under the playing grid's
+   * `GridObject` the moment the grid is added. Padding is in world
+   * units (matches `gridCellSize`).
+   */
+  public readonly gridBackgroundPanel: GridBackgroundPanelConfig = {
+    padding: 0.25,
+    cornerRadius: 0.45,
+    panelColor: 0x3b3f8b,
+    separatorColor: 0x4c50ad,
+  };
+
+  /**
+   * Hammer booster — destruction particle burst. Spawned by the
+   * boards view at the destroyed cell's world position, tinted with
+   * the destroyed block's colour.
+   */
+  public readonly hammerParticles: HammerParticlesConfig = {
+    count: 14,
+    size: 0.16,
+    spawnSpeedMin: 1.5,
+    spawnSpeedMax: 3.5,
+    gravity: 7.0,
+    lifetime: 0.7,
+  };
+
+  /**
+   * Hammer booster — grid wobble during Selecting. The boards
+   * controller drives a time accumulator while Hammer is the
+   * pending booster; the view applies `sin`-based rotation per
+   * grid block with a per-block random phase.
+   */
+  public readonly hammerWobble: HammerWobbleConfig = {
+    amplitudeDegrees: 3,
+    frequencyHz: 4,
+    phaseRandomnessRange: Math.PI * 2,
+  };
+
+  // `Grid.cellOutline` is bound to the separator colour on purpose
+  // — the per-cell outline line shouldn't read as a competing
+  // colour against the separator backplate, so the two stay in
+  // sync from this single source.
   public readonly palettes: Readonly<Record<BoardKind, BoardPalette>> = {
     [BoardKind.Grid]: {
       cellFill: 0x1f2a44,
-      cellOutline: 0x3b4a6b,
+      cellOutline: this.gridBackgroundPanel.separatorColor,
     },
     [BoardKind.Tray]: {
       cellFill: 0x2a1f44,
@@ -301,7 +514,9 @@ export class BlockPuzzleConfig {
    *
    * Default: count down from 4:00. When the displayed value hits
    * zero while in Playing, the HUD controller transitions to
-   * GameOver (same end state as running out of placeable pieces).
+   * {@link GameState.TimeUp} — an independent terminal state from
+   * {@link GameState.GameOver}, with its own "TIME UP!" overlay
+   * and the booster ready-label suppressed.
    */
   public readonly time: TimeConfig = {
     startSeconds: 240,
@@ -319,6 +534,48 @@ export class BlockPuzzleConfig {
   public readonly score: ScoreConfig = {
     placedBlock: 10,
     clearedLine: 100,
+  };
+
+  /**
+   * Booster panel + progress-bar visuals. `BoosterPanelModel` reads
+   * `stagesPerCharge`; the HUD view reads everything else.
+   */
+  public readonly booster: BoosterPanelConfig = {
+    stagesPerCharge: 3,
+    bottomMargin: 24,
+    buttonSize: 56,
+    buttonSpacing: 20,
+    buttonActiveAlpha: 1,
+    buttonInactiveAlpha: 0.35,
+    buttonLabelFontSize: 14,
+    buttonLabelColor: 0xffffff,
+    buttons: {
+      [BoosterType.Hammer]: { color: 0xff6644, label: "HAMMER" },
+      [BoosterType.UnitBlock]: { color: 0x44aaff, label: "UNIT" },
+      [BoosterType.TrayRefresh]: { color: 0x66cc66, label: "REFRESH" },
+    },
+    progressGapAbove: 10,
+    progressWidth: 220,
+    progressHeight: 8,
+    progressFillColor: 0x66cc66,
+    progressTrackColor: 0x333333,
+    readyLabelChooseOne: "CHOOSE ONE!",
+    readyLabelNoMoves: "NO MOVES LEFT, USE BOOSTER!",
+    readyLabelFontSize: 14,
+    readyLabelColor: 0xffffff,
+    panelBackgroundColor: 0x1a1a1a,
+    panelPadding: 12,
+    panelCornerRadius: 16,
+    selectedScale: 1.2,
+    cancel: {
+      size: 24,
+      backgroundColor: 0x333333,
+      iconColor: 0xffffff,
+      offsetX: 24,
+      offsetY: -24,
+    },
+    selectingPromptHammer: "Destroy a block",
+    selectingPromptUnitBlock: "Use a single block",
   };
 
   /**

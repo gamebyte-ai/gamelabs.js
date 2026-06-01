@@ -1,4 +1,6 @@
-import type { IScreenView } from "@gamebyte/gamelabsjs";
+import type { IScreenView, Unsubscribe } from "@gamebyte/gamelabsjs";
+import type { BoosterPanelState } from "../constants/BoosterPanelState";
+import type { BoosterType } from "../constants/BoosterType";
 
 /**
  * Snapshot of the combo state pushed to the view by the HUD
@@ -15,9 +17,33 @@ export interface ComboHudState {
 }
 
 /**
- * Game screen surface in the Pixi HUD layer. Owns the corner title,
- * corner score + time labels, top-centre combo widget, and the
- * centered end-state label the controller toggles on game-over.
+ * Snapshot of the booster panel state pushed to the view by the
+ * HUD controller. The view derives button alpha / hit-test state
+ * + progress-bar fill from these.
+ */
+export interface BoosterPanelHudState {
+  readonly state: BoosterPanelState;
+  /** 0..`config.booster.stagesPerCharge`. Drives the progress bar
+   *  fill width while Charging. */
+  readonly stagesFilled: number;
+  /** Text shown in place of the progress bar while Ready
+   *  ("CHOOSE ONE!" vs "NO MOVES LEFT, USE BOOSTER!"). `null`
+   *  hides the label — the controller passes `null` while Charging
+   *  or Selecting (the bar shows in Charging; nothing shows in
+   *  Selecting). */
+  readonly readyLabel: string | null;
+  /** While in Selecting, the booster type that's pending a target
+   *  pick. The view scales this button up, shows the floating X
+   *  cancel button over it, and dims the others. `null` outside
+   *  Selecting. */
+  readonly selectedBooster: BoosterType | null;
+}
+
+/**
+ * Game screen surface in the Pixi HUD layer. Owns the corner score
+ * + time labels, top-centre combo widget, bottom booster panel +
+ * progress bar, and the centered end-state label the controller
+ * toggles on game-over.
  */
 export interface IGameScreenView extends IScreenView {
   /** Pre-formatted score string (e.g. `"Score: 42"`). The controller
@@ -26,8 +52,33 @@ export interface IGameScreenView extends IScreenView {
   /** Pre-formatted time string (e.g. `"01:23"`). */
   setTimeText(text: string): void;
   /** Push the combo state into the top-centre widget. The view
-   *  derives the label text + circle colours from this. */
+   *  derives the label text + circle colours from this. The combo
+   *  visuals are hidden while {@link setBoosterPrompt} is active —
+   *  the state is still latched so the combo reappears in its
+   *  correct shape when the prompt clears. */
   setComboState(state: ComboHudState): void;
+  /** Show a booster-instruction prompt in the combo widget's
+   *  position (top centre). While `text` is non-null, the combo
+   *  label + circles are hidden and the prompt label shows in
+   *  their place. `null` clears the prompt and restores the combo
+   *  to its latched state. */
+  setBoosterPrompt(text: string | null): void;
+  /** Push the booster panel state. The view styles the buttons
+   *  (active / dim), sets their hit-test eligibility, and draws the
+   *  progress-bar fill from `stagesFilled`. The bar hides while in
+   *  Ready (buttons take the focus instead). */
+  setBoosterPanelState(state: BoosterPanelHudState): void;
+  /** Fires when the player taps any of the booster buttons while
+   *  the panel is in Ready. The HUD controller chooses the next
+   *  transition based on the booster type — target-selection
+   *  boosters (Hammer / UnitBlock) call `selectBooster(type)`;
+   *  instant boosters (TrayRefresh) run their mechanic and then
+   *  `consume()`. */
+  onBoosterActivated(callback: (type: BoosterType) => void): Unsubscribe;
+  /** Fires when the player taps the floating X over the selected
+   *  booster while in Selecting. The controller calls
+   *  `BoosterPanelModel.cancelSelection()`. */
+  onBoosterCancelled(callback: () => void): Unsubscribe;
   /** Show / hide the centered end-state label. `null` hides it; a
    *  non-null appearance shows the given text in the given colour
    *  (applied via container tint, the base label is white). */

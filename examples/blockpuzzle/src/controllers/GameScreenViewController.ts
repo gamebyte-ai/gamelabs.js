@@ -1,30 +1,51 @@
 import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
+import type { RectGrid } from "@gamebyte/gamelabsjs";
+import { GridsModel } from "@gamebyte/gamelabsjs";
 import { BlockPuzzleConfig } from "../BlockPuzzleConfig";
 import { GameState } from "../constants/GameState";
+import { BoosterPanelState } from "../constants/BoosterPanelState";
+import { BoosterType } from "../constants/BoosterType";
+import { BoosterPanelModel } from "../models/BoosterPanelModel";
 import { ComboModel } from "../models/ComboModel";
 import { GameStateModel } from "../models/GameStateModel";
 import { ScoreModel } from "../models/ScoreModel";
 import { TimerModel } from "../models/TimerModel";
+import { TrayPlaceabilityModel } from "../models/TrayPlaceabilityModel";
+import { ItemIdGenerator } from "../utilities/ItemIdGenerator";
+import { PieceSpawnOperations } from "../utilities/PieceSpawnOperations";
 import { TimeFormatter } from "../utilities/TimeFormatter";
 import type { IGameScreenView } from "../views/IGameScreenView";
 
-// Game-over text colour. Tints the centered label (which renders at
-// white) so the rendered colour ends up as a clearly-different hue
-// against the dark board background.
+// End-state text colours. Tints the centered label (which renders
+// at white) so the rendered colour ends up as a clearly-different
+// hue against the dark board background. Two independent end
+// states: no-moves locks the player out via {@link GameState.GameOver};
+// the countdown timer hitting zero hits {@link GameState.TimeUp}.
 const GAME_OVER_COLOR = 0xff5555;
 const GAME_OVER_TEXT = "NO MOVES LEFT";
+const TIME_UP_COLOR = 0xff5555;
+const TIME_UP_TEXT = "TIME UP!";
 
 /**
  * HUD controller for the game screen. Subscribes to the score,
- * timer, and game-state models; pushes their values into the view's
- * three render targets (score label, time label, centered end-state
- * label).
+ * timer, game-state, combo, booster-panel, and tray-placeability
+ * models; pushes their values into the view's render targets
+ * (score / time labels, combo widget, booster panel, centered
+ * end-state label).
  *
- * Time formatting goes through {@link TimeFormatter} (lifted from
- * Solitaire), so the `BlockPuzzleConfig.time` direction / format
- * settings drive how the rendered string looks. Score formatting is
- * a single `"Score: N"` template here — the controller owns the
- * prefix so the view stays render-only.
+ * The booster panel's ready-state label ("CHOOSE ONE!" vs
+ * "NO MOVES LEFT, USE BOOSTER!") depends on the cross-model
+ * "is any tray piece placeable" signal, so the controller derives
+ * it here (not in the view) and pushes the resolved string in
+ * `BoosterPanelHudState.readyLabel`.
+ *
+ * Booster button taps route by type:
+ * - Target-selection boosters (Hammer / UnitBlock) call
+ *   `selectBooster(type)` — boards controller handles the cell-tap
+ *   half of the mechanic.
+ * - Instant boosters (TrayRefresh) run their mechanic inline (clear
+ *   the tray + deal a fresh hand) and then `consume()`.
+ * X tap on the floating cancel button calls `cancelSelection()`.
  */
 export class GameScreenViewController implements IViewController<IGameScreenView> {
   private _view: IGameScreenView | null = null;
@@ -33,6 +54,10 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   private _timerModel: TimerModel | null = null;
   private _gameState: GameStateModel | null = null;
   private _comboModel: ComboModel | null = null;
+  private _boosterPanel: BoosterPanelModel | null = null;
+  private _placeability: TrayPlaceabilityModel | null = null;
+  private _gridsModel: GridsModel | null = null;
+  private _ids: ItemIdGenerator | null = null;
   private _lastTimeText = "";
   private readonly _subs = new UnsubscribeBag();
 
@@ -42,6 +67,10 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._timerModel = resolver.getInstance(TimerModel);
     this._gameState = resolver.getInstance(GameStateModel);
     this._comboModel = resolver.getInstance(ComboModel);
+    this._boosterPanel = resolver.getInstance(BoosterPanelModel);
+    this._placeability = resolver.getInstance(TrayPlaceabilityModel);
+    this._gridsModel = resolver.getInstance(GridsModel);
+    this._ids = resolver.getInstance(ItemIdGenerator);
   }
 
   public initialize(view: IGameScreenView): void {
@@ -57,13 +86,31 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     }
     if (this._gameState) {
       view.setEndStateLabel(this.endStateLabelFor(this._gameState.state));
-      this._subs.add(this._gameState.onStateChanged((state) => view.setEndStateLabel(this.endStateLabelFor(state))));
+      this._subs.add(
+        this._gameState.onStateChanged((state) => {
+          view.setEndStateLabel(this.endStateLabelFor(state));
+          // Booster panel ready-label is suppressed off-Playing
+          // ("NO MOVES LEFT, USE BOOSTER!" must not leak through
+          // after TIME UP) — re-push so the suppression takes
+          // effect immediately on the terminal transition.
+          this.pushBoosterPanelState(view);
+        }),
+      );
     }
     if (this._comboModel) {
       view.setComboState({ level: this._comboModel.level, movesRemaining: this._comboModel.movesRemaining });
       this._subs.add(
         this._comboModel.onChange((m) => view.setComboState({ level: m.level, movesRemaining: m.movesRemaining })),
       );
+    }
+    if (this._boosterPanel) {
+      this.pushBoosterPanelState(view);
+      this._subs.add(this._boosterPanel.onChange(() => this.pushBoosterPanelState(view)));
+      if (this._placeability) {
+        this._subs.add(this._placeability.onChange(() => this.pushBoosterPanelState(view)));
+      }
+      this._subs.add(view.onBoosterActivated((type) => this.handleBoosterTap(type)));
+      this._subs.add(view.onBoosterCancelled(() => this._boosterPanel?.cancelSelection()));
     }
   }
 
@@ -75,7 +122,92 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._timerModel = null;
     this._gameState = null;
     this._comboModel = null;
+    this._boosterPanel = null;
+    this._placeability = null;
+    this._gridsModel = null;
+    this._ids = null;
     this._lastTimeText = "";
+  }
+
+  /**
+   * Push the booster panel snapshot to the view. Includes the
+   * ready-state label (derived from booster state + cross-model
+   * placeability) and the selected booster (for the scaled-up
+   * visual + floating cancel button).
+   */
+  private pushBoosterPanelState(view: IGameScreenView): void {
+    if (!this._boosterPanel || !this._config) return;
+    const cfg = this._config.booster;
+    // Ready-label is only meaningful while in Playing. After an end
+    // state ("NO MOVES LEFT, USE BOOSTER!" must not show post-TIME
+    // UP — TimeUp is its own terminal condition independent from
+    // no-moves), suppress the label entirely. The centered overlay
+    // takes the focus.
+    const isPlaying = this._gameState === null || this._gameState.state === GameState.Playing;
+    let readyLabel: string | null = null;
+    if (isPlaying && this._boosterPanel.state === BoosterPanelState.Ready) {
+      const hasPlaceable = this._placeability?.hasPlaceable ?? true;
+      readyLabel = hasPlaceable ? cfg.readyLabelChooseOne : cfg.readyLabelNoMoves;
+    }
+    view.setBoosterPanelState({
+      state: this._boosterPanel.state,
+      stagesFilled: this._boosterPanel.stagesFilled,
+      readyLabel,
+      selectedBooster: this._boosterPanel.selectedBooster,
+    });
+    // Booster-selecting instruction in the combo widget's slot. Only
+    // the two target-selection boosters surface a prompt; instant
+    // boosters never reach Selecting. Off-Playing transitions clear
+    // the prompt for the same reason readyLabel is suppressed.
+    let prompt: string | null = null;
+    if (isPlaying && this._boosterPanel.state === BoosterPanelState.Selecting) {
+      if (this._boosterPanel.selectedBooster === BoosterType.Hammer) {
+        prompt = cfg.selectingPromptHammer;
+      } else if (this._boosterPanel.selectedBooster === BoosterType.UnitBlock) {
+        prompt = cfg.selectingPromptUnitBlock;
+      }
+    }
+    view.setBoosterPrompt(prompt);
+  }
+
+  /**
+   * Route a booster-button tap by type. Target-selection boosters
+   * flip the model to Selecting; instant boosters run their
+   * mechanic inline and consume the activation in one shot.
+   */
+  private handleBoosterTap(type: BoosterType): void {
+    if (this._boosterPanel === null) return;
+    if (this._boosterPanel.state !== BoosterPanelState.Ready) return;
+    if (type === BoosterType.TrayRefresh) {
+      this.performTrayRefresh();
+      this._boosterPanel.consume();
+    } else {
+      this._boosterPanel.selectBooster(type);
+    }
+  }
+
+  /**
+   * Tray Refresh booster: discard every piece currently in the
+   * tray and deal a fresh hand. `dealHand` enforces a never-K-of-
+   * a-kind constraint, so the new hand is at least as varied as
+   * a normal deal.
+   */
+  private performTrayRefresh(): void {
+    if (!this._gridsModel || !this._config || !this._ids) return;
+    const tray = this._gridsModel.getGrid(this._config.boardIds.tray) as RectGrid | undefined;
+    if (!tray) return;
+    for (let col = 0; col < tray.columnCount; col++) {
+      while ((tray.getCell(col, 0)?.size ?? 0) > 0) {
+        tray.removeCellItem(col, 0);
+      }
+    }
+    PieceSpawnOperations.dealHand(
+      tray,
+      this._config.pieceTypes,
+      this._config.rotatedShapes,
+      this._config.blockColors,
+      this._ids,
+    );
   }
 
   /**
@@ -85,9 +217,10 @@ export class GameScreenViewController implements IViewController<IGameScreenView
    *
    * Doubles as the zero-detection point for count-down mode: once
    * the displayed seconds hits zero while still Playing, transition
-   * to GameOver so the timer freezes (App's onStep gates ticks on
-   * Playing) and the end-state label shows. Same pattern Solitaire
-   * uses for its TimeOver state.
+   * to TimeUp so the timer freezes (App's onStep gates ticks on
+   * Playing) and the "TIME UP!" overlay shows. TimeUp is independent
+   * from the no-moves GameOver — neither overwrites the other (both
+   * sites guard on `state === Playing`).
    */
   private pushTimeText(view: IGameScreenView, elapsed: number): void {
     if (!this._config) return;
@@ -103,7 +236,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
       this._gameState !== null &&
       this._gameState.state === GameState.Playing
     ) {
-      this._gameState.setState(GameState.GameOver);
+      this._gameState.setState(GameState.TimeUp);
     }
   }
 
@@ -111,6 +244,8 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     switch (state) {
       case GameState.GameOver:
         return { text: GAME_OVER_TEXT, color: GAME_OVER_COLOR };
+      case GameState.TimeUp:
+        return { text: TIME_UP_TEXT, color: TIME_UP_COLOR };
       default:
         return null;
     }

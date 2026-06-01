@@ -1,4 +1,4 @@
-import type { GridCoord, IGridView, Unsubscribe } from "@gamebyte/gamelabsjs";
+import type { GridCoord, IGridView, IParticleEmitter, Unsubscribe } from "@gamebyte/gamelabsjs";
 import type { GameBoardItem } from "../models/GameBoardItem";
 
 /**
@@ -59,8 +59,14 @@ export interface IGameBoardsView extends IGridView {
   setClearPreviewProvider(provider: ClearPreviewProvider | null): void;
   /** Master toggle for drag interaction. When `false`,
    *  pointer-down on tray pieces is ignored — used by the game-over
-   *  state. Default is `true`. */
+   *  state and during booster Selecting. Default is `true`. */
   setDragEnabled(enabled: boolean): void;
+  /** Master toggle for grid-cell tap detection. When `true`, a
+   *  pointer-down + pointer-up on the same cell with negligible
+   *  pointer movement fires {@link onGridCellTapped}. Drag and
+   *  cell-tap are mutually exclusive — flip drag off while turning
+   *  cell-tap on (used by the Hammer booster target-selection). */
+  setCellTapEnabled(enabled: boolean): void;
   /** Update the per-slot placeable / unplaceable state. Unplaceable
    *  slots render with the faded opacity from
    *  `BlockPuzzleConfig.trayUnplaceableOpacity`; placeable slots
@@ -70,4 +76,26 @@ export interface IGameBoardsView extends IGridView {
    *  {@link PiecePlacementPredicate}. Invalid drops snap the piece
    *  back to its tray slot inside the view and do not fire this. */
   onPiecePlacement(callback: (info: PiecePlacementInfo) => void): Unsubscribe;
+  /** Fired when {@link setCellTapEnabled} is true and the player
+   *  taps a grid cell (pointer-down + pointer-up at the same cell
+   *  with negligible movement). Used by target-selection boosters
+   *  (Hammer) to pick the target cell. */
+  onGridCellTapped(callback: (col: number, row: number) => void): Unsubscribe;
+  /** Set the Three.js renderer clear colour. The boards controller
+   *  uses this to dim the screen behind the grid while a
+   *  target-selection booster is pending. */
+  setBackgroundColor(color: number): void;
+  /** Particle emitter for Hammer destruction bursts. The controller
+   *  registers it with `ParticleManager` so the framework ticks it
+   *  every frame, and calls {@link emitHammerBurst} to fire one. */
+  readonly hammerEmitter: IParticleEmitter;
+  /** Fire a one-shot Hammer particle burst at a grid cell. Passes
+   *  through to the emitter with the destroyed block's colour so the
+   *  particles inherit it. */
+  emitHammerBurst(col: number, row: number, color: number): void;
+  /** Apply the Hammer-Selecting wobble to every grid block, sampling
+   *  a `sin` rotation at `time`. Pass `null` to snap blocks back to
+   *  resting rotation (called on Selecting exit). The view manages
+   *  per-block phase persistence internally. */
+  setHammerWobble(time: number | null): void;
 }

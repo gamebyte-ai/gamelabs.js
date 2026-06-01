@@ -1,13 +1,23 @@
-import { Container, Graphics } from "pixi.js";
+import { Container, Graphics, Sprite, Texture } from "pixi.js";
 import {
   LabelComponent,
   ScreenView,
   UIComponentsStyleIds,
   type IInstanceResolver,
   type LabelComponentStyle,
+  type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
+import { BlockPuzzleAssetIds } from "../BlockPuzzleAssetIds";
 import { BlockPuzzleConfig } from "../BlockPuzzleConfig";
-import type { ComboHudState, IGameScreenView } from "./IGameScreenView";
+import { BoosterPanelState } from "../constants/BoosterPanelState";
+import { BOOSTER_DISPLAY_ORDER, BoosterType } from "../constants/BoosterType";
+import type { BoosterPanelHudState, ComboHudState, IGameScreenView } from "./IGameScreenView";
+
+const BOOSTER_ICON_ASSET_IDS: Readonly<Record<BoosterType, BlockPuzzleAssetIds>> = {
+  [BoosterType.Hammer]: BlockPuzzleAssetIds.HammerIcon,
+  [BoosterType.UnitBlock]: BlockPuzzleAssetIds.UnitBlockIcon,
+  [BoosterType.TrayRefresh]: BlockPuzzleAssetIds.TrayRefreshIcon,
+};
 
 const TITLE_LABEL_SIZE = 22;
 const HUD_LABEL_SIZE = 22;
@@ -16,19 +26,31 @@ const HUD_LABEL_MARGIN = 16;
 // terminal state reads clearly across the board layout.
 const END_STATE_LABEL_SIZE = 56;
 
+interface BoosterButton {
+  readonly type: BoosterType;
+  readonly container: Container;
+  readonly background: Graphics;
+  readonly icon: Sprite;
+}
+
 /**
  * HUD overlay for the game screen.
  *
  * Corner-pinned: score (top-left), time (top-right). Top-centre:
- * combo widget (N circles + state-driven label). Centered overlay:
- * end-state label, hidden while playing, shown when the controller
- * pushes a non-null appearance (currently only triggered on
- * game-over).
+ * combo widget (N circles + state-driven label). Bottom-pinned:
+ * booster panel — filled background rectangle behind a row of
+ * circular booster buttons (sprite icons from
+ * {@link BlockPuzzleAssetIds}, tinted to `booster.buttonLabelColor`)
+ * with a progress bar / ready label above them and a floating X
+ * cancel button that appears over the selected booster during
+ * Selecting. Centered overlay: end-state label, hidden while
+ * playing.
  *
  * Absolute-positioned children resolve against the screen's own
- * layout box, which is set every resize so the corner pins actually
- * pin. The combo widget and the end-state label are positioned with
- * raw `x` / `y` so centering doesn't depend on a flex container.
+ * layout box, which is set every resize so the corner pins
+ * actually pin. The combo widget, booster panel and end-state
+ * label are positioned with raw `x` / `y` so centering doesn't
+ * depend on a flex container.
  */
 export class GameScreenView extends ScreenView implements IGameScreenView {
   private _config: BlockPuzzleConfig | null = null;
@@ -38,6 +60,23 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private _comboContainer: Container | null = null;
   private _comboCircles: Graphics[] = [];
   private _comboLabel: LabelComponent | null = null;
+  private _boosterPromptLabel: LabelComponent | null = null;
+  /** Latest combo state pushed by the controller. The view keeps it
+   *  so it can restore the combo visuals correctly when the booster
+   *  prompt clears (without the controller having to re-push). */
+  private _lastComboState: ComboHudState = { level: 0, movesRemaining: 0 };
+  /** True while a booster-selection prompt is showing in the combo
+   *  widget's position; gates `_applyComboVisibility`. */
+  private _boosterPromptActive = false;
+  private _boosterContainer: Container | null = null;
+  private _boosterBackground: Graphics | null = null;
+  private _boosterButtons: BoosterButton[] = [];
+  private _progressTrack: Graphics | null = null;
+  private _progressFill: Graphics | null = null;
+  private _readyLabel: LabelComponent | null = null;
+  private _cancelButton: Container | null = null;
+  private readonly _boosterListeners = new Set<(type: BoosterType) => void>();
+  private readonly _cancelListeners = new Set<() => void>();
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
@@ -58,36 +97,39 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._comboContainer = this.buildComboWidget();
     this.addChild(this._comboContainer);
 
+    this._boosterContainer = this.buildBoosterPanel();
+    this.addChild(this._boosterContainer);
+
     this._endStateLabel = this.buildEndStateLabel();
     this._endStateLabel.visible = false;
     this.addChild(this._endStateLabel);
 
-    // Initial paint — combo starts inactive.
+    // Initial paint — combo idle, booster panel charging at 0.
     this.setComboState({ level: 0, movesRemaining: 0 });
+    this.setBoosterPanelState({
+      state: BoosterPanelState.Charging,
+      stagesFilled: 0,
+      readyLabel: null,
+      selectedBooster: null,
+    });
   }
 
   public override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
-    // Absolute-positioned children resolve against the screen's own
-    // layout box, so the screen needs explicit width/height every
-    // time the canvas changes size. Without this the children stack
-    // at (0, 0).
     this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
 
     const w = Math.max(1, width);
     const h = Math.max(1, height);
 
     if (this._comboContainer && this._config) {
-      // Centre horizontally; vertical position is the **top** of the
-      // widget (the label's top edge). The widget lays itself out
-      // downward from there: label first, then `labelGapAbove`, then
-      // the row of circles.
       this._comboContainer.x = w / 2;
       this._comboContainer.y = this._config.combo.topMargin;
     }
+    if (this._boosterContainer && this._config) {
+      this._boosterContainer.x = w / 2;
+      this._boosterContainer.y = h - this._config.booster.bottomMargin - this._config.booster.buttonSize / 2;
+    }
     if (this._endStateLabel) {
-      // Anchored at (0.5, 0.5); position via raw x/y rather than
-      // layout so centering doesn't depend on a flex container.
       this._endStateLabel.x = w / 2;
       this._endStateLabel.y = h / 2;
     }
@@ -103,25 +145,124 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
   public setComboState(state: ComboHudState): void {
     if (!this._config || this._comboContainer === null || this._comboLabel === null) return;
+    this._lastComboState = state;
     const combo = this._config.combo;
-
-    // Circle colours — circles at indices [0, movesRemaining) are
-    // active; the rest are inactive. Depletion reads as "rightmost
-    // circle goes gray first" because the active band shrinks from
-    // the right.
     for (let i = 0; i < this._comboCircles.length; i++) {
       const active = i < state.movesRemaining;
       this._paintCircle(this._comboCircles[i]!, combo.circleRadius, active ? combo.circleColorActive : combo.circleColorInactive);
     }
-
-    // Label visibility + text — hidden when inactive, "COMBO READY"
-    // on the first hit (level 1), "COMBO Xn" on subsequent hits.
-    if (state.level <= 0) {
-      this._comboLabel.visible = false;
-    } else {
-      this._comboLabel.visible = true;
+    if (state.level > 0) {
       this._comboLabel.setText(state.level === 1 ? "COMBO READY" : `COMBO X${state.level}`);
     }
+    this._applyComboVisibility();
+  }
+
+  public setBoosterPrompt(text: string | null): void {
+    this._boosterPromptActive = text !== null;
+    if (text !== null && this._boosterPromptLabel !== null) {
+      this._boosterPromptLabel.setText(text);
+    }
+    this._applyComboVisibility();
+  }
+
+  /**
+   * Reconcile combo + booster-prompt visibility from the two latched
+   * signals. Booster prompt wins — when it's active the combo label
+   * + circles hide; when it clears, the combo restores per the last
+   * state pushed via {@link setComboState}.
+   */
+  private _applyComboVisibility(): void {
+    const promptOn = this._boosterPromptActive;
+    if (this._boosterPromptLabel !== null) {
+      this._boosterPromptLabel.visible = promptOn;
+    }
+    if (this._comboLabel !== null) {
+      this._comboLabel.visible = !promptOn && this._lastComboState.level > 0;
+    }
+    for (const circle of this._comboCircles) {
+      circle.visible = !promptOn;
+    }
+  }
+
+  public setBoosterPanelState(state: BoosterPanelHudState): void {
+    if (!this._config) return;
+    const cfg = this._config.booster;
+    const isReady = state.state === BoosterPanelState.Ready;
+    const isSelecting = state.state === BoosterPanelState.Selecting;
+
+    // Buttons:
+    // - Ready: all active + tappable.
+    // - Selecting: selected booster active + scaled up, *not* tappable
+    //   (the X handles cancel); other boosters dim + not tappable.
+    // - Charging: all dim + not tappable.
+    for (const button of this._boosterButtons) {
+      const isSelected = isSelecting && state.selectedBooster === button.type;
+      const active = isReady || isSelected;
+      button.container.alpha = active ? cfg.buttonActiveAlpha : cfg.buttonInactiveAlpha;
+      button.container.scale.set(isSelected ? cfg.selectedScale : 1);
+      // Ready boosters take pointer events; selected one doesn't —
+      // tapping it again would re-trigger select. The X intercepts
+      // cancel input.
+      button.container.eventMode = isReady ? "static" : "none";
+      button.container.cursor = isReady ? "pointer" : "default";
+    }
+
+    // Progress bar: visible only while Charging.
+    if (this._progressTrack !== null && this._progressFill !== null) {
+      const visible = state.state === BoosterPanelState.Charging;
+      this._progressTrack.visible = visible;
+      this._progressFill.visible = visible;
+      if (visible) {
+        const ratio = Math.max(0, Math.min(1, state.stagesFilled / cfg.stagesPerCharge));
+        this._paintProgressFill(this._progressFill, cfg.progressWidth * ratio, cfg.progressHeight, cfg.progressFillColor);
+      }
+    }
+
+    // Ready-state label: shown only when Ready (controller passes
+    // null in Charging / Selecting).
+    if (this._readyLabel !== null) {
+      if (isReady && state.readyLabel !== null) {
+        this._readyLabel.setText(state.readyLabel);
+        this._readyLabel.visible = true;
+      } else {
+        this._readyLabel.visible = false;
+      }
+    }
+
+    // Floating X cancel: shown over the selected booster while
+    // Selecting. Position it relative to the selected button's
+    // centre using config offsets (scaled by `selectedScale` so the
+    // X tracks the enlarged button visually).
+    if (this._cancelButton !== null) {
+      const selected = isSelecting
+        ? this._boosterButtons.find((b) => b.type === state.selectedBooster) ?? null
+        : null;
+      if (selected !== null) {
+        this._cancelButton.x = selected.container.x + cfg.cancel.offsetX;
+        this._cancelButton.y = selected.container.y + cfg.cancel.offsetY;
+        this._cancelButton.visible = true;
+        this._cancelButton.eventMode = "static";
+        this._cancelButton.cursor = "pointer";
+      } else {
+        this._cancelButton.visible = false;
+        this._cancelButton.eventMode = "none";
+        this._cancelButton.cursor = "default";
+      }
+    }
+  }
+
+  public onBoosterActivated(callback: (type: BoosterType) => void): Unsubscribe {
+    this._boosterListeners.add(callback);
+    return () => {
+      this._boosterListeners.delete(callback);
+    };
+  }
+
+  public onBoosterCancelled(callback: () => void): Unsubscribe {
+    this._cancelListeners.add(callback);
+    return () => {
+      this._cancelListeners.delete(callback);
+    };
   }
 
   public setEndStateLabel(appearance: { readonly text: string; readonly color: number } | null): void {
@@ -131,11 +272,14 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       return;
     }
     this._endStateLabel.setText(appearance.text);
-    // Per-state colour comes through Container.tint — the resolved
-    // label style keeps the base text colour at white so the tint
-    // multiplies cleanly to the desired hue.
     this._endStateLabel.tint = appearance.color;
     this._endStateLabel.visible = true;
+  }
+
+  public override preDestroy(): void {
+    this._boosterListeners.clear();
+    this._cancelListeners.clear();
+    super.preDestroy();
   }
 
   private buildComboWidget(): Container {
@@ -143,10 +287,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     const combo = this._config.combo;
     const container = new Container();
 
-    // Container origin = top of widget. Layout is top-down:
-    //   - Label at y = 0 (anchorY = 0 so its top edge sits there).
-    //   - Gap of `labelGapAbove`.
-    //   - Circle row centres at y = labelFontSize + labelGapAbove + circleRadius.
     const labelStyle = this.styleManager.resolve<LabelComponentStyle>(UIComponentsStyleIds.Label, {
       text: { fontSize: combo.labelFontSize, fontWeight: "700", color: combo.labelColor },
     });
@@ -160,9 +300,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     this._comboLabel.visible = false;
     container.addChild(this._comboLabel);
 
-    // Circle row, centres at the vertical position derived above.
-    // Horizontal: index `i` lands at `(i - (N-1)/2) * step` where
-    // `step = diameter + spacing`.
     const step = combo.circleRadius * 2 + combo.circleSpacing;
     const circleY = combo.labelFontSize + combo.labelGapAbove + combo.circleRadius;
     for (let i = 0; i < combo.maxMoves; i++) {
@@ -174,12 +311,170 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       this._comboCircles.push(circle);
     }
 
+    // Booster-selecting prompt — same container as the combo so the
+    // resize-time position pin applies to both. Centred vertically
+    // across the combo widget's footprint (label height + gap +
+    // circle diameter) so the text reads as occupying the same
+    // visual slot the indicator would.
+    const promptStyle = this.styleManager.resolve<LabelComponentStyle>(UIComponentsStyleIds.Label, {
+      text: { fontSize: combo.labelFontSize, fontWeight: "700", color: combo.labelColor },
+    });
+    this._boosterPromptLabel = new LabelComponent(this.assetLoader, promptStyle, {
+      text: "",
+      anchorX: 0.5,
+      anchorY: 0.5,
+    });
+    this._boosterPromptLabel.x = 0;
+    this._boosterPromptLabel.y = (combo.labelFontSize + combo.labelGapAbove + combo.circleRadius * 2) / 2;
+    this._boosterPromptLabel.visible = false;
+    container.addChild(this._boosterPromptLabel);
+
+    return container;
+  }
+
+  private buildBoosterPanel(): Container {
+    if (!this._config) throw new Error("GameScreenView: config not injected before postInitialize");
+    const cfg = this._config.booster;
+    const container = new Container();
+
+    // Background first so everything else renders on top of it.
+    // Sized to wrap the whole content (progress bar / label above
+    // the button row, plus the row itself, plus padding).
+    const buttonsHalfHeight = cfg.buttonSize / 2;
+    const topReach = cfg.buttonSize / 2 + cfg.progressGapAbove + cfg.progressHeight;
+    const bgWidth = BOOSTER_DISPLAY_ORDER.length * cfg.buttonSize + (BOOSTER_DISPLAY_ORDER.length - 1) * cfg.buttonSpacing + 2 * cfg.panelPadding;
+    const bgHeight = buttonsHalfHeight + topReach + 2 * cfg.panelPadding;
+    const bgTop = -topReach - cfg.panelPadding;
+    this._boosterBackground = new Graphics();
+    this._boosterBackground.roundRect(-bgWidth / 2, bgTop, bgWidth, bgHeight, cfg.panelCornerRadius).fill(cfg.panelBackgroundColor);
+    container.addChild(this._boosterBackground);
+
+    // Circular buttons with procedural icons. `pointertap` only
+    // fires while `eventMode === "static"` — flipped per state in
+    // `setBoosterPanelState`.
+    const step = cfg.buttonSize + cfg.buttonSpacing;
+    const radius = cfg.buttonSize / 2;
+    BOOSTER_DISPLAY_ORDER.forEach((type, i) => {
+      const buttonCfg = cfg.buttons[type];
+      const buttonContainer = new Container();
+      buttonContainer.x = (i - (BOOSTER_DISPLAY_ORDER.length - 1) / 2) * step;
+      buttonContainer.y = 0;
+
+      const background = new Graphics();
+      this._paintBoosterCircle(background, radius, buttonCfg.color);
+      buttonContainer.addChild(background);
+
+      const icon = this._buildBoosterIcon(type, cfg.buttonSize * 0.55, cfg.buttonLabelColor);
+      buttonContainer.addChild(icon);
+
+      buttonContainer.on("pointertap", () => {
+        for (const cb of this._boosterListeners) cb(type);
+      });
+
+      container.addChild(buttonContainer);
+      this._boosterButtons.push({ type, container: buttonContainer, background, icon });
+    });
+
+    // Progress bar above the button row.
+    const progressY = -(cfg.buttonSize / 2) - cfg.progressGapAbove - cfg.progressHeight / 2;
+    this._progressTrack = new Graphics();
+    this._progressFill = new Graphics();
+    this._paintProgressTrack(this._progressTrack, cfg.progressWidth, cfg.progressHeight, cfg.progressTrackColor);
+    this._paintProgressFill(this._progressFill, 0, cfg.progressHeight, cfg.progressFillColor);
+    this._progressTrack.x = -cfg.progressWidth / 2;
+    this._progressFill.x = -cfg.progressWidth / 2;
+    this._progressTrack.y = progressY - cfg.progressHeight / 2;
+    this._progressFill.y = progressY - cfg.progressHeight / 2;
+    container.addChild(this._progressTrack);
+    container.addChild(this._progressFill);
+
+    // Ready-state label at the same Y as the progress bar.
+    const readyLabelStyle = this.styleManager.resolve<LabelComponentStyle>(UIComponentsStyleIds.Label, {
+      text: { fontSize: cfg.readyLabelFontSize, fontWeight: "700", color: cfg.readyLabelColor },
+    });
+    this._readyLabel = new LabelComponent(this.assetLoader, readyLabelStyle, {
+      text: "",
+      anchorX: 0.5,
+      anchorY: 0.5,
+    });
+    this._readyLabel.x = 0;
+    this._readyLabel.y = progressY;
+    this._readyLabel.visible = false;
+    container.addChild(this._readyLabel);
+
+    // Floating X cancel button — positioned per-frame in
+    // `setBoosterPanelState`. Built once and reused across all
+    // Selecting transitions.
+    this._cancelButton = this.buildCancelButton();
+    this._cancelButton.visible = false;
+    container.addChild(this._cancelButton);
+
+    return container;
+  }
+
+  private buildCancelButton(): Container {
+    if (!this._config) throw new Error("GameScreenView: config not injected");
+    const cancelCfg = this._config.booster.cancel;
+    const container = new Container();
+
+    const radius = cancelCfg.size / 2;
+    const bg = new Graphics();
+    bg.circle(0, 0, radius).fill(cancelCfg.backgroundColor);
+    container.addChild(bg);
+
+    // Two diagonal lines forming an X. Length = ~half the button
+    // size; line width proportional to the size.
+    const tipReach = radius * 0.5;
+    const lineWidth = Math.max(1.5, cancelCfg.size * 0.1);
+    const x = new Graphics();
+    x.moveTo(-tipReach, -tipReach).lineTo(tipReach, tipReach);
+    x.moveTo(tipReach, -tipReach).lineTo(-tipReach, tipReach);
+    x.stroke({ width: lineWidth, color: cancelCfg.iconColor, cap: "round" });
+    container.addChild(x);
+
+    container.on("pointertap", () => {
+      for (const cb of this._cancelListeners) cb();
+    });
+
     return container;
   }
 
   private _paintCircle(g: Graphics, radius: number, color: number): void {
     g.clear();
     g.circle(0, 0, radius).fill(color);
+  }
+
+  private _paintBoosterCircle(g: Graphics, radius: number, color: number): void {
+    g.clear();
+    g.circle(0, 0, radius).fill(color);
+  }
+
+  /**
+   * Build the booster button icon as a `Sprite` from the texture
+   * loaded by `BlockPuzzleApp.loadAssets`. The source SVGs are
+   * white-fill so tinting to the configured label colour just
+   * recolours them; sized as a square (`size × size`), anchored at
+   * the centre so it sits on the button's origin.
+   */
+  private _buildBoosterIcon(type: BoosterType, size: number, color: number): Sprite {
+    const texture = this.assetLoader.getAsset<Texture>(BOOSTER_ICON_ASSET_IDS[type]);
+    const sprite = new Sprite(texture);
+    sprite.anchor.set(0.5);
+    sprite.width = size;
+    sprite.height = size;
+    sprite.tint = color;
+    return sprite;
+  }
+
+  private _paintProgressTrack(g: Graphics, width: number, height: number, color: number): void {
+    g.clear();
+    g.roundRect(0, 0, width, height, height / 2).fill(color);
+  }
+
+  private _paintProgressFill(g: Graphics, width: number, height: number, color: number): void {
+    g.clear();
+    if (width <= 0) return;
+    g.roundRect(0, 0, width, height, height / 2).fill(color);
   }
 
   private buildHudLabel(initialText: string, fontSize: number): LabelComponent {

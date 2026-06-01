@@ -1,9 +1,12 @@
 import * as THREE from "three";
 import {
   GridsView,
+  ParticleBudget,
   World,
+  type AddGridData,
   type GridCoord,
   type IInstanceResolver,
+  type IParticleEmitter,
   type IPointerInputHandler,
   type Unsubscribe,
 } from "@gamebyte/gamelabsjs";
@@ -11,6 +14,7 @@ import { BlockPuzzleConfig, type PieceCells } from "../../../BlockPuzzleConfig";
 import { GameBoardItem } from "../models/GameBoardItem";
 import { GameBoardCellObject } from "./GameBoardCellObject";
 import { GameBoardItemObject } from "./GameBoardItemObject";
+import { HammerParticleEmitter } from "./HammerParticleEmitter";
 import { PieceMeshBuilder } from "./PieceMeshBuilder";
 import type {
   ClearPreviewProvider,
@@ -89,6 +93,8 @@ interface DragSession {
 export class GameBoardsView extends GridsView implements IGameBoardsView, IPointerInputHandler {
   private _world: World | null = null;
   private _config: BlockPuzzleConfig | null = null;
+  private _particleBudget: ParticleBudget | null = null;
+  private _hammerEmitter: HammerParticleEmitter | null = null;
 
   private _dragRoot: THREE.Group | null = null;
   private _ghostRoot: THREE.Group | null = null;
@@ -97,10 +103,20 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   private _validityPredicate: PiecePlacementPredicate | null = null;
   private _clearPreviewProvider: ClearPreviewProvider | null = null;
   private _dragEnabled = true;
+  private _cellTapEnabled = false;
   /** Last placeability map the controller pushed. Drag-start reads
    *  it to decide whether the lifted piece visual should render
    *  faded — matching the piece's tray-slot appearance. */
   private _trayPlaceability: TrayPlaceability | null = null;
+  /** Pending cell-tap state captured on pointer-down while
+   *  `_cellTapEnabled`. Cleared on pointer-up or pointer-cancel. */
+  private _pendingCellTap: {
+    readonly col: number;
+    readonly row: number;
+    readonly pointerId: number;
+    readonly startX: number;
+    readonly startY: number;
+  } | null = null;
 
   private readonly _raycaster = new THREE.Raycaster();
   private readonly _ndc = new THREE.Vector2();
@@ -109,11 +125,18 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   private readonly _scratchVec = new THREE.Vector3();
 
   private readonly _placementListeners = new Set<(info: PiecePlacementInfo) => void>();
+  private readonly _cellTapListeners = new Set<(col: number, row: number) => void>();
+  /** Pointer-up + pointer-down must be within this many CSS pixels
+   *  of each other (and on the same cell) for a grid tap to fire.
+   *  Hardcoded — booster cell-tap is a discrete action, not tuned
+   *  per device. */
+  private static readonly CELL_TAP_THRESHOLD_PX = 8;
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
     this._world = resolver.getInstance(World);
     this._config = resolver.getInstance(BlockPuzzleConfig);
+    this._particleBudget = resolver.getInstance(ParticleBudget);
   }
 
   public override postInitialize(): void {
@@ -127,6 +150,16 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     this._ghostRoot.name = "BlockPuzzle.GhostRoot";
     this._ghostRoot.visible = false;
     this.add(this._ghostRoot);
+
+    // Build the Hammer destruction emitter. It lives at the view's
+    // origin (no parent grid offset) and operates in world-space
+    // coordinates — `emitHammerBurst` resolves the destroyed cell's
+    // world position before forwarding to `burst()`.
+    if (this._particleBudget !== null && this._config !== null) {
+      this._hammerEmitter = new HammerParticleEmitter(this._particleBudget, this._config);
+      this._hammerEmitter.name = "BlockPuzzle.HammerEmitter";
+      this.add(this._hammerEmitter);
+    }
   }
 
   public setPlacementPredicate(predicate: PiecePlacementPredicate | null): void {
@@ -139,6 +172,11 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
 
   public setDragEnabled(enabled: boolean): void {
     this._dragEnabled = enabled;
+  }
+
+  public setCellTapEnabled(enabled: boolean): void {
+    this._cellTapEnabled = enabled;
+    if (!enabled) this._pendingCellTap = null;
   }
 
   public setTrayPlaceability(perSlot: TrayPlaceability | null): void {
@@ -162,10 +200,179 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     };
   }
 
+  public onGridCellTapped(callback: (col: number, row: number) => void): Unsubscribe {
+    this._cellTapListeners.add(callback);
+    return () => {
+      this._cellTapListeners.delete(callback);
+    };
+  }
+
+  public setBackgroundColor(color: number): void {
+    this._world?.renderer.setClearColor(color, 1);
+  }
+
+  public get hammerEmitter(): IParticleEmitter {
+    if (!this._hammerEmitter) {
+      throw new Error("GameBoardsView: hammerEmitter accessed before postInitialize");
+    }
+    return this._hammerEmitter;
+  }
+
+  /**
+   * Resolve the destroyed cell's world position and fire the emitter
+   * once at that point with `color`. The position is taken from the
+   * cell's visual object (its world matrix is up-to-date because the
+   * grid's transform is stable for the lifetime of the view).
+   */
+  public emitHammerBurst(col: number, row: number, color: number): void {
+    if (!this._hammerEmitter || !this._config) return;
+    const gridObj = this.getGridObject(this._config.boardIds.grid);
+    if (!gridObj) return;
+    const cellObj = gridObj.getCell(col, row);
+    if (!cellObj) return;
+    cellObj.updateWorldMatrix(true, false);
+    const worldPos = cellObj.getWorldPosition(GameBoardsView._scratchWorldPos);
+    this._hammerEmitter.burst(worldPos.x, worldPos.z, color);
+  }
+
+  /**
+   * Apply / clear the Hammer wobble on every block in the playing
+   * grid. `time === null` snaps blocks back to zero rotation (called
+   * on Selecting exit). Otherwise computes
+   * `rotation.y = amp · sin(2π · f · t + phase)` per block, sampling
+   * `phase` lazily on first touch and stashing it on the block's
+   * `userData` so it persists across frames.
+   */
+  public setHammerWobble(time: number | null): void {
+    if (!this._config) return;
+    const gridObj = this.getGridObject(this._config.boardIds.grid);
+    if (!gridObj) return;
+    const cfg = this._config.hammerWobble;
+    const ampRad = (cfg.amplitudeDegrees * Math.PI) / 180;
+    const omega = 2 * Math.PI * cfg.frequencyHz;
+    for (let col = 0; col < gridObj.columnCount; col++) {
+      for (let row = 0; row < gridObj.rowCount; row++) {
+        const cell = gridObj.getCell(col, row);
+        const item = cell?.item;
+        if (!(item instanceof GameBoardItemObject)) continue;
+        if (time === null) {
+          item.rotation.y = 0;
+          continue;
+        }
+        let phase = item.userData["wobblePhase"] as number | undefined;
+        if (phase === undefined) {
+          phase = Math.random() * cfg.phaseRandomnessRange;
+          item.userData["wobblePhase"] = phase;
+        }
+        item.rotation.y = ampRad * Math.sin(omega * time + phase);
+      }
+    }
+  }
+
+  private static readonly _scratchWorldPos = new THREE.Vector3();
+
+  /**
+   * Overrides the framework's grid-creation path so the playing
+   * grid gets a background frame attached as soon as its
+   * `GridObject` exists. The tray grid takes the default path with
+   * no frame.
+   */
+  public override addGrid(data: AddGridData): void {
+    super.addGrid(data);
+    if (this._config !== null && data.id === this._config.boardIds.grid) {
+      this._installPlayingGridBackground(data.id);
+    }
+  }
+
+  /**
+   * Build the playing grid's background: a rounded-corner outer
+   * panel (`gridBackgroundPanel.panelColor`) sized `padding` world
+   * units larger than the cell area, plus an inner backplate
+   * (`separatorColor`) sized exactly to the cell area. Both are
+   * children of the `GridObject` so they translate with it and get
+   * disposed alongside it.
+   *
+   * Y layering keeps both meshes below the cell fill at 0.005 so
+   * the cells render on top, with their 8% inset gap revealing the
+   * separator backplate.
+   */
+  private _installPlayingGridBackground(gridId: number): void {
+    if (!this._config) return;
+    const gridObj = this.getGridObject(gridId);
+    if (!gridObj) return;
+
+    const cfg = this._config.gridBackgroundPanel;
+    const cw = this._config.gridCellSize;
+    const cols = this._config.gridColumns;
+    const rows = this._config.gridRows;
+
+    const gridW = cols * cw;
+    const gridD = rows * cw;
+    // Cells span from (-cw/2, -cw/2) at col=0/row=0 to (cols*cw - cw/2,
+    // rows*cw - cw/2) at the far corner in `GridObject` local space.
+    // Centre of that bbox is offset from the GridObject origin.
+    const centerX = ((cols - 1) * cw) / 2;
+    const centerZ = ((rows - 1) * cw) / 2;
+
+    const panelW = gridW + 2 * cfg.padding;
+    const panelD = gridD + 2 * cfg.padding;
+    const radius = Math.min(cfg.cornerRadius, panelW / 2, panelD / 2);
+    const panelShape = GameBoardsView._buildRoundedRectShape(panelW, panelD, radius);
+    const panelMesh = new THREE.Mesh(
+      new THREE.ShapeGeometry(panelShape),
+      new THREE.MeshBasicMaterial({ color: cfg.panelColor }),
+    );
+    panelMesh.name = "BlockPuzzle.GridPanel";
+    panelMesh.rotation.x = -Math.PI / 2;
+    panelMesh.position.set(centerX, 0.001, centerZ);
+    gridObj.add(panelMesh);
+
+    const separatorMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(gridW, gridD),
+      new THREE.MeshBasicMaterial({ color: cfg.separatorColor }),
+    );
+    separatorMesh.name = "BlockPuzzle.GridSeparator";
+    separatorMesh.rotation.x = -Math.PI / 2;
+    separatorMesh.position.set(centerX, 0.002, centerZ);
+    gridObj.add(separatorMesh);
+  }
+
+  private static _buildRoundedRectShape(width: number, depth: number, radius: number): THREE.Shape {
+    const w = width;
+    const h = depth;
+    const r = radius;
+    const shape = new THREE.Shape();
+    shape.moveTo(-w / 2 + r, -h / 2);
+    shape.lineTo(w / 2 - r, -h / 2);
+    shape.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r);
+    shape.lineTo(w / 2, h / 2 - r);
+    shape.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2);
+    shape.lineTo(-w / 2 + r, h / 2);
+    shape.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r);
+    shape.lineTo(-w / 2, -h / 2 + r);
+    shape.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
+    return shape;
+  }
+
   // IPointerInputHandler — the view does its own raycasting against
   // tray-piece meshes; `onThisObject` from the InputManager is unused.
 
   public onPointerDown(event: PointerEvent, _onThisObject: boolean): void {
+    // Cell-tap takes priority when enabled (drag is off in that
+    // mode anyway — see `setCellTapEnabled` callers).
+    if (this._cellTapEnabled) {
+      const cell = this._pickGridCell(event);
+      if (cell !== null) {
+        this._pendingCellTap = {
+          col: cell.col,
+          row: cell.row,
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+        };
+      }
+      return;
+    }
     if (!this._dragEnabled) return;
     if (this._dragSession !== null) return;
     if (!this._config) return;
@@ -185,6 +392,24 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   }
 
   public onPointerUp(event: PointerEvent, _onThisObject: boolean): void {
+    // Resolve a pending cell-tap first — same pointer, within
+    // threshold, and the up cell matches the down cell.
+    const pending = this._pendingCellTap;
+    if (pending !== null && pending.pointerId === event.pointerId) {
+      const dx = event.clientX - pending.startX;
+      const dy = event.clientY - pending.startY;
+      const finalHit = this._pickGridCell(event);
+      const inside =
+        Math.hypot(dx, dy) <= GameBoardsView.CELL_TAP_THRESHOLD_PX &&
+        finalHit !== null &&
+        finalHit.col === pending.col &&
+        finalHit.row === pending.row;
+      if (inside) {
+        for (const cb of this._cellTapListeners) cb(pending.col, pending.row);
+      }
+      this._pendingCellTap = null;
+      return;
+    }
     const session = this._dragSession;
     if (session === null) return;
     if (event.pointerId !== session.pointerId) return;
@@ -211,15 +436,18 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   }
 
   public onPointerCancel(_event: PointerEvent): void {
+    this._pendingCellTap = null;
     if (this._dragSession === null) return;
     this._endDragSession(true);
   }
 
   public override preDestroy(): void {
     this._placementListeners.clear();
+    this._cellTapListeners.clear();
     this._validityPredicate = null;
     this._clearPreviewProvider = null;
     this._trayPlaceability = null;
+    this._pendingCellTap = null;
     if (this._dragSession !== null) this._endDragSession(true);
     if (this._dragRoot !== null) {
       this._dragRoot.removeFromParent();
@@ -528,6 +756,28 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       out.push({ col: anchorCol + c, row: anchorRow + r });
     }
     return out;
+  }
+
+  /**
+   * Pointer-to-cell mapping for the playing grid. Returns the
+   * cell directly under the pointer (using the same ground-plane
+   * projection the drag pipeline uses), or `null` when the
+   * projection lands outside the grid bounds. Used by the cell-tap
+   * flow for booster target selection.
+   */
+  private _pickGridCell(event: PointerEvent): { readonly col: number; readonly row: number } | null {
+    if (!this._world || !this._config) return null;
+    const ground = this._projectPointerToGround(event);
+    if (ground === null) return null;
+    const grid = this.getGridObject(this._config.boardIds.grid);
+    if (!grid) return null;
+    grid.getWorldPosition(this._scratchVec);
+    const cellSize = this._config.gridCellSize;
+    const col = Math.round((ground.x - this._scratchVec.x) / cellSize);
+    const row = Math.round((ground.z - this._scratchVec.z) / cellSize);
+    if (col < 0 || col >= grid.columnCount) return null;
+    if (row < 0 || row >= grid.rowCount) return null;
+    return { col, row };
   }
 
   /**

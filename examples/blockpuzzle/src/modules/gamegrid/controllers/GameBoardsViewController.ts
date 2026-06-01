@@ -1,10 +1,21 @@
 import type { GridCoord, IBaseGrid, IGridItem, IInstanceResolver, RectGrid, RectGridPreset } from "@gamebyte/gamelabsjs";
-import { GridEvents, GridsModel, GridsViewController, UnsubscribeBag } from "@gamebyte/gamelabsjs";
+import {
+  GridEvents,
+  GridsModel,
+  GridsViewController,
+  ParticleManager,
+  UnsubscribeBag,
+  UpdateManager,
+} from "@gamebyte/gamelabsjs";
 import { BlockPuzzleConfig } from "../../../BlockPuzzleConfig";
 import { GameState } from "../../../constants/GameState";
+import { BoosterPanelState } from "../../../constants/BoosterPanelState";
+import { BoosterType } from "../../../constants/BoosterType";
+import { BoosterPanelModel } from "../../../models/BoosterPanelModel";
 import { ComboModel } from "../../../models/ComboModel";
 import { GameStateModel } from "../../../models/GameStateModel";
 import { ScoreModel } from "../../../models/ScoreModel";
+import { TrayPlaceabilityModel } from "../../../models/TrayPlaceabilityModel";
 import { ItemIdGenerator } from "../../../utilities/ItemIdGenerator";
 import { LineClearRule } from "../../../utilities/LineClearRule";
 import { PiecePlacementOperations } from "../../../utilities/PiecePlacementOperations";
@@ -42,11 +53,22 @@ export class GameBoardsViewController extends GridsViewController {
   private _gameState: GameStateModel | null = null;
   private _scoreModel: ScoreModel | null = null;
   private _comboModel: ComboModel | null = null;
+  private _boosterPanel: BoosterPanelModel | null = null;
+  private _placeabilityModel: TrayPlaceabilityModel | null = null;
   private _boardsView: IGameBoardsView | null = null;
+  private _particleManager: ParticleManager | null = null;
+  private _updateManager: UpdateManager | null = null;
   /** Coalescing flag for {@link _scheduleRecompute}. A single
    *  `_onPiecePlacement` commit fires N+1+M+K grid events; we want
    *  one recompute at the end, not per-event. */
   private _recomputePending = false;
+  /** Hammer wobble lifecycle. While Hammer Selecting is active, the
+   *  per-frame tick increments `_wobbleTime` and pushes it to the
+   *  view; on exit the controller pushes `null` once to snap blocks
+   *  back to rest. Tracked here (not on the booster panel) because
+   *  it's a view-pacing concern, not a model state. */
+  private _wobbleActive = false;
+  private _wobbleTime = 0;
   private readonly _ownSubs = new UnsubscribeBag();
 
   public override inject(resolver: IInstanceResolver): void {
@@ -59,6 +81,10 @@ export class GameBoardsViewController extends GridsViewController {
     this._gameState = resolver.getInstance(GameStateModel);
     this._scoreModel = resolver.getInstance(ScoreModel);
     this._comboModel = resolver.getInstance(ComboModel);
+    this._boosterPanel = resolver.getInstance(BoosterPanelModel);
+    this._placeabilityModel = resolver.getInstance(TrayPlaceabilityModel);
+    this._particleManager = resolver.getInstance(ParticleManager);
+    this._updateManager = resolver.getInstance(UpdateManager);
   }
 
   public override initialize(view: IGameBoardsView): void {
@@ -77,6 +103,36 @@ export class GameBoardsViewController extends GridsViewController {
     if (this._gridEvents) {
       this._ownSubs.add(this._gridEvents.onItemAdded(() => this._scheduleRecompute()));
       this._ownSubs.add(this._gridEvents.onItemRemoved(() => this._scheduleRecompute()));
+    }
+    // Booster panel state shifts (consume → Charging, select →
+    // Selecting, cancel → Ready) without any grid event, so
+    // subscribe explicitly — the recompute updates the drag /
+    // cell-tap gates AND can fire a deferred game-over that was
+    // held off while the panel was Ready.
+    if (this._boosterPanel) {
+      this._ownSubs.add(this._boosterPanel.onChange(() => this._scheduleRecompute()));
+    }
+    // Grid-cell taps for booster target selection (Hammer). Wired
+    // even when the panel isn't Selecting — the view's gate is the
+    // master switch.
+    this._ownSubs.add(view.onGridCellTapped((col, row) => this._handleGridCellTap(col, row)));
+    // Initial renderer clear colour. `_recomputeTrayState` keeps it
+    // in sync afterward (swaps to the `selecting` variant while a
+    // target-selection booster is pending; reverts otherwise).
+    if (this._config) view.setBackgroundColor(this._config.backgroundColors.default);
+
+    // Particle pipeline — register the Hammer emitter so the
+    // framework's `ParticleManager` ticks it every frame and bursts
+    // get drawn / lifetimed correctly.
+    if (this._particleManager) {
+      this._particleManager.register(view.hammerEmitter);
+    }
+
+    // Per-frame wobble lifecycle — see `_onTick`. Single registration
+    // for the lifetime of the controller; the tick gates on the
+    // booster panel state internally.
+    if (this._updateManager) {
+      this._ownSubs.add(this._updateManager.register((dt) => this._onTick(dt)));
     }
   }
 
@@ -98,10 +154,14 @@ export class GameBoardsViewController extends GridsViewController {
 
   public override destroy(): void {
     this._ownSubs.flush();
+    if (this._particleManager && this._boardsView) {
+      this._particleManager.unregister(this._boardsView.hammerEmitter);
+    }
     this._boardsView?.setPlacementPredicate(null);
     this._boardsView?.setClearPreviewProvider(null);
     this._boardsView?.setTrayPlaceability(null);
     this._boardsView?.setDragEnabled(true);
+    this._boardsView?.setHammerWobble(null);
     this._boardsView = null;
     this._config = null;
     this._gridsModel = null;
@@ -111,6 +171,10 @@ export class GameBoardsViewController extends GridsViewController {
     this._gameState = null;
     this._scoreModel = null;
     this._comboModel = null;
+    this._boosterPanel = null;
+    this._placeabilityModel = null;
+    this._particleManager = null;
+    this._updateManager = null;
     super.destroy();
   }
 
@@ -180,6 +244,10 @@ export class GameBoardsViewController extends GridsViewController {
     // no-clear placement. The model handles the activate / extend /
     // deactivate state transitions; the HUD listens for changes.
     this._comboModel?.registerPlacement(lineCount > 0);
+    // Booster panel charge: one stage per cleared row / column.
+    // No-clear placements don't advance the bar (Charging keeps
+    // its progress, Ready stays Ready).
+    if (lineCount > 0) this._boosterPanel?.registerClear(lineCount);
     if (GameBoardsViewController._isTrayEmpty(tray)) {
       PieceSpawnOperations.dealHand(tray, this._config.pieceTypes, this._config.rotatedShapes, this._config.blockColors, this._ids);
     }
@@ -245,9 +313,104 @@ export class GameBoardsViewController extends GridsViewController {
 
     const view: IGameBoardsView = this._boardsView;
     view.setTrayPlaceability(placeability satisfies TrayPlaceability);
+    this._placeabilityModel?.setHasPlaceable(anyPlaceable);
 
-    const gameOver = anyOccupied && !anyPlaceable;
-    if (gameOver) this._gameState.setState(GameState.GameOver);
-    view.setDragEnabled(!gameOver);
+    // Game-over rule: the tray must be locked AND the booster panel
+    // must NOT be Ready / Selecting. Both Ready and Selecting give
+    // the player a way to recover with a booster, so the HUD shows
+    // the "NO MOVES LEFT, USE BOOSTER!" prompt and the game
+    // continues until the player consumes the booster
+    // (`onChange` re-fires this recompute) without unlocking the
+    // tray.
+    const boosterCharging = this._boosterPanel === null || this._boosterPanel.state === BoosterPanelState.Charging;
+    const gameOver = anyOccupied && !anyPlaceable && boosterCharging;
+    // Only fire GameOver from Playing — otherwise a no-moves
+    // condition that hits while we're already in TimeUp would
+    // overwrite the time-up label.
+    if (gameOver && this._gameState.state === GameState.Playing) {
+      this._gameState.setState(GameState.GameOver);
+    }
+
+    // Drag + cell-tap gates derived from the same state:
+    // - Drag enabled while not Selecting and not game-over.
+    // - Cell-tap enabled only while in Selecting + Hammer (the only
+    //   target-selection mechanic implemented). UnitBlock SELECTING
+    //   leaves both flags off — only the X cancels.
+    const isSelecting =
+      this._boosterPanel !== null && this._boosterPanel.state === BoosterPanelState.Selecting;
+    view.setDragEnabled(!gameOver && !isSelecting);
+    view.setCellTapEnabled(
+      isSelecting && this._boosterPanel?.selectedBooster === BoosterType.Hammer,
+    );
+
+    // Background dim: only while Selecting AND the pending booster
+    // is a target-selection one. Tray Refresh consumes inline and
+    // never reaches Selecting, so the check on `selectedBooster` is
+    // belt-and-braces — keeps the rule explicit at the call site.
+    const selected = this._boosterPanel?.selectedBooster ?? null;
+    const dim =
+      isSelecting && (selected === BoosterType.Hammer || selected === BoosterType.UnitBlock);
+    const bgColors = this._config.backgroundColors;
+    view.setBackgroundColor(dim ? bgColors.selecting : bgColors.default);
+  }
+
+  /**
+   * Grid cell taps only matter during a Hammer target selection.
+   * On a filled cell: spawn a coloured destruction burst at the
+   * cell's world position (particles inherit the block's colour),
+   * empty it, then consume the booster. On an empty cell: ignore
+   * (Selecting state stays — player can try again or cancel).
+   */
+  private _handleGridCellTap(col: number, row: number): void {
+    if (!this._boosterPanel || !this._gridsModel || !this._config) return;
+    if (this._boosterPanel.state !== BoosterPanelState.Selecting) return;
+    if (this._boosterPanel.selectedBooster !== BoosterType.Hammer) return;
+
+    const grid = this._gridsModel.getGrid(this._config.boardIds.grid) as RectGrid | undefined;
+    if (!grid) return;
+    const cell = grid.getCellSafe(col, row);
+    if (cell === null || cell.size === 0) return;
+
+    // Read the destroyed block's colour off the model *before* the
+    // remove call — `removeCellItem` drops the item and the view
+    // disposes its visuals, so the colour would be unreadable by
+    // the time we ask afterward.
+    const item = cell.item;
+    if (item instanceof GameBoardItem && this._boardsView) {
+      this._boardsView.emitHammerBurst(col, row, item.color);
+    }
+
+    grid.removeCellItem(col, row);
+    this._boosterPanel.consume();
+  }
+
+  /**
+   * Per-frame Hammer wobble pacer. While the booster panel is in
+   * Selecting with Hammer pending, accumulate time and push the
+   * sample into the view. On the transition out of that state, push
+   * `null` once so the view snaps every block back to rest, then
+   * skip the per-frame work.
+   */
+  private _onTick(dt: number): void {
+    const isHammerSelecting =
+      this._boosterPanel !== null &&
+      this._boosterPanel.state === BoosterPanelState.Selecting &&
+      this._boosterPanel.selectedBooster === BoosterType.Hammer;
+
+    if (!isHammerSelecting) {
+      if (this._wobbleActive) {
+        this._wobbleActive = false;
+        this._wobbleTime = 0;
+        this._boardsView?.setHammerWobble(null);
+      }
+      return;
+    }
+
+    if (!this._wobbleActive) {
+      this._wobbleActive = true;
+      this._wobbleTime = 0;
+    }
+    this._wobbleTime += dt;
+    this._boardsView?.setHammerWobble(this._wobbleTime);
   }
 }
