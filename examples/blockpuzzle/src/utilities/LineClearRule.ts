@@ -1,11 +1,13 @@
 import type { GridCoord, IBaseGrid } from "@gamebyte/gamelabsjs";
-import type { IClearRule } from "./IClearRule";
+import type { ClearsResult, IClearRule } from "./IClearRule";
+
+const EMPTY_RESULT: ClearsResult = { cells: [], fullRows: [], fullCols: [] };
 
 /**
  * Full-row / full-column clear rule — the canonical Block Blast /
  * 1010! variant. Any row or column where every cell is occupied
  * after the placement is added to the clear set; cells in both a
- * full row and a full column appear in the output once.
+ * full row and a full column appear in the cell output once.
  *
  * The `placedCells` parameter serves two purposes at once:
  *
@@ -18,10 +20,14 @@ import type { IClearRule } from "./IClearRule";
  *   pre-placement prediction the view uses for the drag-time
  *   highlight (cells are not yet in the grid; the overlay is what
  *   makes them count as filled for the fullness test).
+ *
+ * The returned {@link ClearsResult} carries both the cell list (for
+ * the view's ghost highlight + the controller's per-cell removal)
+ * and the line counts (for the per-line score award).
  */
 export class LineClearRule implements IClearRule {
-  public computeClears(grid: IBaseGrid, placedCells: readonly GridCoord[]): readonly GridCoord[] {
-    if (placedCells.length === 0) return [];
+  public computeClears(grid: IBaseGrid, placedCells: readonly GridCoord[]): ClearsResult {
+    if (placedCells.length === 0) return EMPTY_RESULT;
 
     const placedKeys = new Set<string>();
     const rowsToCheck = new Set<number>();
@@ -46,16 +52,16 @@ export class LineClearRule implements IClearRule {
     for (const col of colsToCheck) {
       if (LineClearRule._isColFull(grid, col, isFilled)) fullCols.push(col);
     }
-    if (fullRows.length === 0 && fullCols.length === 0) return [];
+    if (fullRows.length === 0 && fullCols.length === 0) return EMPTY_RESULT;
 
-    const out: GridCoord[] = [];
+    const cells: GridCoord[] = [];
     const seen = new Set<string>();
     for (const row of fullRows) {
       for (let col = 0; col < grid.columnCount; col++) {
         const key = LineClearRule._key(col, row);
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push({ col, row });
+        cells.push({ col, row });
       }
     }
     for (const col of fullCols) {
@@ -63,10 +69,10 @@ export class LineClearRule implements IClearRule {
         const key = LineClearRule._key(col, row);
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push({ col, row });
+        cells.push({ col, row });
       }
     }
-    return out;
+    return { cells, fullRows, fullCols };
   }
 
   private static _isRowFull(grid: IBaseGrid, row: number, isFilled: (col: number, row: number) => boolean): boolean {

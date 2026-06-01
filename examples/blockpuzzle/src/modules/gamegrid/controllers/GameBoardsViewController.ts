@@ -3,6 +3,7 @@ import { GridEvents, GridsModel, GridsViewController, UnsubscribeBag } from "@ga
 import { BlockPuzzleConfig } from "../../../BlockPuzzleConfig";
 import { GameState } from "../../../constants/GameState";
 import { GameStateModel } from "../../../models/GameStateModel";
+import { ScoreModel } from "../../../models/ScoreModel";
 import { ItemIdGenerator } from "../../../utilities/ItemIdGenerator";
 import { LineClearRule } from "../../../utilities/LineClearRule";
 import { PiecePlacementOperations } from "../../../utilities/PiecePlacementOperations";
@@ -38,7 +39,12 @@ export class GameBoardsViewController extends GridsViewController {
   private _ids: ItemIdGenerator | null = null;
   private _clearRule: LineClearRule | null = null;
   private _gameState: GameStateModel | null = null;
+  private _scoreModel: ScoreModel | null = null;
   private _boardsView: IGameBoardsView | null = null;
+  /** Coalescing flag for {@link _scheduleRecompute}. A single
+   *  `_onPiecePlacement` commit fires N+1+M+K grid events; we want
+   *  one recompute at the end, not per-event. */
+  private _recomputePending = false;
   private readonly _ownSubs = new UnsubscribeBag();
 
   public override inject(resolver: IInstanceResolver): void {
@@ -49,6 +55,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._ids = resolver.getInstance(ItemIdGenerator);
     this._clearRule = resolver.getInstance(LineClearRule);
     this._gameState = resolver.getInstance(GameStateModel);
+    this._scoreModel = resolver.getInstance(ScoreModel);
   }
 
   public override initialize(view: IGameBoardsView): void {
@@ -57,13 +64,16 @@ export class GameBoardsViewController extends GridsViewController {
     view.setPlacementPredicate((footprint) => this._canPlace(footprint));
     view.setClearPreviewProvider((footprint) => this._predictClears(footprint));
     this._ownSubs.add(view.onPiecePlacement((info) => this._onPiecePlacement(info)));
-    // Recompute tray placeability + game-over after every grid mutation
-    // (initial deal, each placement, each cleared cell, each refill).
-    // Trailing the framework's own onItemAdded/Removed subscriptions
-    // means the model is already up-to-date by the time we read it.
+    // Recompute tray placeability + game-over after grid mutations.
+    // Subscribes go through {@link _scheduleRecompute} so a multi-
+    // step commit (place + tray remove + line clears + refill) ends
+    // up with one recompute over the **final** post-commit state,
+    // not one per intermediate event. Reading mid-commit can latch
+    // GameOver from a transient state where the line clear hasn't
+    // run yet but the tray piece is already gone.
     if (this._gridEvents) {
-      this._ownSubs.add(this._gridEvents.onItemAdded(() => this._recomputeTrayState()));
-      this._ownSubs.add(this._gridEvents.onItemRemoved(() => this._recomputeTrayState()));
+      this._ownSubs.add(this._gridEvents.onItemAdded(() => this._scheduleRecompute()));
+      this._ownSubs.add(this._gridEvents.onItemRemoved(() => this._scheduleRecompute()));
     }
   }
 
@@ -96,6 +106,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._ids = null;
     this._clearRule = null;
     this._gameState = null;
+    this._scoreModel = null;
     super.destroy();
   }
 
@@ -123,7 +134,7 @@ export class GameBoardsViewController extends GridsViewController {
     if (!this._gridsModel || !this._config || !this._clearRule) return [];
     const grid = this._gridsModel.getGrid(this._config.boardIds.grid);
     if (!grid) return [];
-    return this._clearRule.computeClears(grid, footprint);
+    return this._clearRule.computeClears(grid, footprint).cells;
   }
 
   /**
@@ -142,14 +153,24 @@ export class GameBoardsViewController extends GridsViewController {
     if (!grid || !tray) return;
     PiecePlacementOperations.place(grid, info.footprint, info.item.pieceType, info.item.color, this._ids);
     tray.removeCellItem(info.trayCol, 0);
+    // Score the placement: one award per cell of the piece's
+    // footprint.
+    this._scoreModel?.add(info.footprint.length * this._config.score.placedBlock);
     // Clear any full rows/columns. computeClears runs against the
     // post-placement grid state — placedCells already in the model,
     // so the overlay clause in `LineClearRule.computeClears` is
     // redundant here but harmless, and gives the same answer the
     // view's predictive preview reported.
     const clears = this._clearRule.computeClears(grid, info.footprint);
-    for (const { col, row } of clears) {
+    for (const { col, row } of clears.cells) {
       grid.removeCellItem(col, row);
+    }
+    // Score the line clear: one award per full row + per full
+    // column. A placement that completes both a row and a column at
+    // once awards twice.
+    const lineCount = clears.fullRows.length + clears.fullCols.length;
+    if (lineCount > 0) {
+      this._scoreModel?.add(lineCount * this._config.score.clearedLine);
     }
     if (GameBoardsViewController._isTrayEmpty(tray)) {
       PieceSpawnOperations.dealHand(tray, this._config.pieceTypes, this._config.rotatedShapes, this._config.blockColors, this._ids);
@@ -167,6 +188,23 @@ export class GameBoardsViewController extends GridsViewController {
   }
 
   /**
+   * Queue a recompute to run after the current synchronous
+   * mutation chain completes. Multiple calls within the same
+   * microtask collapse to a single recompute, so a commit
+   * sequence (place → remove tray → clear lines → refill) only
+   * triggers one game-over check, evaluated against the final
+   * grid + tray state.
+   */
+  private _scheduleRecompute(): void {
+    if (this._recomputePending) return;
+    this._recomputePending = true;
+    queueMicrotask(() => {
+      this._recomputePending = false;
+      this._recomputeTrayState();
+    });
+  }
+
+  /**
    * Walk every occupied tray slot, ask
    * {@link PiecePlacementOperations.hasAnyValidPlacement} whether
    * its piece can still go anywhere on the playing grid, and push
@@ -174,9 +212,9 @@ export class GameBoardsViewController extends GridsViewController {
    * `GameState.GameOver` (and disables drag) the moment every
    * occupied slot is unplaceable.
    *
-   * Runs on every `onItemAdded` / `onItemRemoved` event, so the
-   * view's faded state and the game-over gate always reflect the
-   * latest grid + tray contents.
+   * Scheduled via {@link _scheduleRecompute} once per synchronous
+   * commit chain, so the view's faded state and the game-over gate
+   * always reflect the **final** post-commit grid + tray contents.
    */
   private _recomputeTrayState(): void {
     if (!this._gridsModel || !this._config || !this._boardsView || !this._gameState) return;

@@ -19,6 +19,9 @@ import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { BoardLayoutCalculator, type BoardLayout } from "./utilities/BoardLayoutCalculator";
 import { GameStateModel } from "./models/GameStateModel";
+import { ScoreModel } from "./models/ScoreModel";
+import { TimerModel } from "./models/TimerModel";
+import { GameState } from "./constants/GameState";
 import { ItemIdGenerator } from "./utilities/ItemIdGenerator";
 import { LineClearRule } from "./utilities/LineClearRule";
 import { PieceSpawnOperations } from "./utilities/PieceSpawnOperations";
@@ -62,6 +65,9 @@ export class BlockPuzzleApp extends GamelabsApp {
   private readonly _gameCameraBinding = new GameCameraBinding();
   private readonly _gameGridBinding = new BlockPuzzleGameGridBinding(this._config);
   private readonly _uiComponentsBinding = new UIComponentsBinding();
+  private readonly _gameState = new GameStateModel();
+  private readonly _scoreModel = new ScoreModel();
+  private readonly _timerModel = new TimerModel();
   private _cameraController: Topdown2dCameraController | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _layout: BoardLayout | null = null;
@@ -91,7 +97,13 @@ export class BlockPuzzleApp extends GamelabsApp {
     this.diContainer.bindInstance(LineClearRule, new LineClearRule());
     // Top-level game state (Playing / GameOver). Controller flips it
     // to GameOver when every remaining tray piece is unplaceable.
-    this.diContainer.bindInstance(GameStateModel, new GameStateModel());
+    this.diContainer.bindInstance(GameStateModel, this._gameState);
+    // Score + timer. ScoreModel is the controller's write target on
+    // placement / clear; TimerModel accumulates elapsed time in
+    // `onStep` while the game is Playing. Both reuse Solitaire's
+    // model shapes; the HUD reads them via `onChange` subscriptions.
+    this.diContainer.bindInstance(ScoreModel, this._scoreModel);
+    this.diContainer.bindInstance(TimerModel, this._timerModel);
     // `GameBoardsView` raycasts piece meshes against the active
     // camera — it needs the World instance for the renderer canvas
     // and scene access.
@@ -154,6 +166,12 @@ export class BlockPuzzleApp extends GamelabsApp {
   protected override onStep(timestepSeconds: number): void {
     super.onStep(timestepSeconds);
     this._cameraManager?.update(timestepSeconds);
+    // Tick the timer only while in the Playing state — game-over
+    // freezes the clock so the displayed time matches the moment
+    // the player lost.
+    if (this._gameState.state === GameState.Playing) {
+      this._timerModel.tick(timestepSeconds);
+    }
   }
 
   protected override preDestroy(): void {

@@ -93,6 +93,36 @@ export interface DragConfig {
   readonly pointerAreaMargin: number;
 }
 
+export type TimeDirection = "up" | "down";
+export type TimeDisplayFormat = "mm:ss" | "hh:mm:ss" | "ss";
+
+/**
+ * HUD time configuration. `startSeconds` is the initial display
+ * value; `direction = "up"` adds elapsed time to it, `"down"` ticks
+ * toward zero from it. `displayFormat` controls how the rendered
+ * label looks. Same shape as Solitaire's `TimeConfig` so the same
+ * `TimeFormatter` works for both.
+ */
+export interface TimeConfig {
+  readonly startSeconds: number;
+  readonly direction: TimeDirection;
+  readonly displayFormat: TimeDisplayFormat;
+}
+
+/**
+ * Per-event score awards. Multiplied by the relevant count at the
+ * call site (e.g. `placedBlock × footprint cells`,
+ * `clearedLine × (fullRows + fullCols)`).
+ */
+export interface ScoreConfig {
+  /** Per-cell award for a successful placement. */
+  readonly placedBlock: number;
+  /** Award per cleared row or column. Multi-line clears (e.g. a
+   *  placement that finishes both a row and a column at once) award
+   *  `clearedLine × line count`. */
+  readonly clearedLine: number;
+}
+
 /**
  * Central tuning surface for the static layout, the piece catalog,
  * and the block colour palette.
@@ -234,6 +264,34 @@ export class BlockPuzzleConfig {
     ghostOpacity: 0.6,
     pickupLift: 1.5,
     pointerAreaMargin: 0.5,
+  };
+
+  /**
+   * Time-display tuning. Same field shape as Solitaire's
+   * `SolitaireConfig.time` — `TimerModel` accumulates elapsed
+   * seconds while the game is Playing; `TimeFormatter` applies the
+   * direction + format to produce the rendered string.
+   *
+   * Default: count down from 4:00. When the displayed value hits
+   * zero while in Playing, the HUD controller transitions to
+   * GameOver (same end state as running out of placeable pieces).
+   */
+  public readonly time: TimeConfig = {
+    startSeconds: 240,
+    direction: "down",
+    displayFormat: "mm:ss",
+  };
+
+  /**
+   * Score awards. `placedBlock` multiplies by the placed piece's
+   * footprint cell count; `clearedLine` multiplies by the number
+   * of full rows + columns cleared by the placement (so a single
+   * placement that completes both a row and a column awards
+   * `2 × clearedLine`).
+   */
+  public readonly score: ScoreConfig = {
+    placedBlock: 10,
+    clearedLine: 100,
   };
 
   public readonly transitions: { readonly gameScreenEnter: ScreenTransition } = {
