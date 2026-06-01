@@ -60,26 +60,40 @@ export class GameBoardCellObject extends GridCellObject {
   private _buildVisuals(): void {
     const cw = this.preset.columnSize * GameBoardCellObject.CELL_INSET;
     const ch = this.preset.rowSize * GameBoardCellObject.CELL_INSET;
+    // Palette default is "draw"; only the tray opts out today.
+    const drawBackground = this._palette.drawBackground !== false;
 
-    const fill = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch), new THREE.MeshBasicMaterial({ color: this._palette.cellFill }));
+    // The fill mesh is always built — the boards view raycasts
+    // against it to pick up tray pieces. When the palette opts out
+    // of drawing, the material renders as zero-alpha so the mesh
+    // stays in the scene + raycaster but contributes no pixels.
+    const fillMat = new THREE.MeshBasicMaterial({
+      color: this._palette.cellFill,
+      transparent: !drawBackground,
+      opacity: drawBackground ? 1 : 0,
+      depthWrite: drawBackground,
+    });
+    const fill = new THREE.Mesh(new THREE.PlaneGeometry(cw, ch), fillMat);
     fill.rotation.x = -Math.PI / 2;
     fill.position.set(0, GameBoardCellObject.FILL_Y, 0);
     this.add(fill);
     this._fillMesh = fill;
 
-    const halfW = cw / 2;
-    const halfH = ch / 2;
-    const outlineGeom = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-halfW, GameBoardCellObject.OUTLINE_Y, -halfH),
-      new THREE.Vector3(halfW, GameBoardCellObject.OUTLINE_Y, -halfH),
-      new THREE.Vector3(halfW, GameBoardCellObject.OUTLINE_Y, -halfH),
-      new THREE.Vector3(halfW, GameBoardCellObject.OUTLINE_Y, halfH),
-      new THREE.Vector3(halfW, GameBoardCellObject.OUTLINE_Y, halfH),
-      new THREE.Vector3(-halfW, GameBoardCellObject.OUTLINE_Y, halfH),
-      new THREE.Vector3(-halfW, GameBoardCellObject.OUTLINE_Y, halfH),
-      new THREE.Vector3(-halfW, GameBoardCellObject.OUTLINE_Y, -halfH),
-    ]);
-    const outline = new THREE.LineSegments(outlineGeom, new THREE.LineBasicMaterial({ color: this._palette.cellOutline }));
-    this.add(outline);
+    if (drawBackground) {
+      const halfW = cw / 2;
+      const halfH = ch / 2;
+      const outlineGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-halfW, GameBoardCellObject.OUTLINE_Y, -halfH),
+        new THREE.Vector3(halfW, GameBoardCellObject.OUTLINE_Y, -halfH),
+        new THREE.Vector3(halfW, GameBoardCellObject.OUTLINE_Y, -halfH),
+        new THREE.Vector3(halfW, GameBoardCellObject.OUTLINE_Y, halfH),
+        new THREE.Vector3(halfW, GameBoardCellObject.OUTLINE_Y, halfH),
+        new THREE.Vector3(-halfW, GameBoardCellObject.OUTLINE_Y, halfH),
+        new THREE.Vector3(-halfW, GameBoardCellObject.OUTLINE_Y, halfH),
+        new THREE.Vector3(-halfW, GameBoardCellObject.OUTLINE_Y, -halfH),
+      ]);
+      const outline = new THREE.LineSegments(outlineGeom, new THREE.LineBasicMaterial({ color: this._palette.cellOutline }));
+      this.add(outline);
+    }
   }
 }

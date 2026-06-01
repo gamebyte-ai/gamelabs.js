@@ -25,22 +25,37 @@ import type {
 } from "./IGameBoardsView";
 
 /**
- * Bookkeeping for an in-flight drag. The view is the only thing that
- * mutates `DragSession`; the controller learns about the drop via
- * the `onPiecePlacement` event after pointer-up.
+ * Source-specific bookkeeping for an in-flight drag. The two source
+ * shapes share the common drag fields ({@link DragSession}) and
+ * differ only in (a) the model item the drop maps back to, and (b)
+ * the visual that gets hidden during the drag and restored on
+ * cancel.
  */
-interface DragSession {
+type DragSourceTray = {
+  readonly kind: "tray";
   readonly trayCol: number;
   readonly item: GameBoardItem;
+  /** Reference to the tray cell's visual. Hidden during the drag,
+   *  restored on cancel; on success the controller's commit fires
+   *  `onItemRemoved` which destroys it. */
+  readonly hiddenCellItem: GameBoardItemObject;
+};
+
+type DragSourceUnitBlock = {
+  readonly kind: "unitBlock";
+  /** Temp 1-cell visual built by `enterUnitBlockMode`. Hidden during
+   *  the drag; restored on cancel; destroyed (along with the rest of
+   *  Unit Block mode) when the booster is consumed. */
+  readonly hiddenGroup: THREE.Group;
+};
+
+interface DragSession {
+  readonly source: DragSourceTray | DragSourceUnitBlock;
   /** Rendered shape for this drag (the rotation the spawner picked
-   *  for the model item). All bbox math + footprint computation
-   *  reads from here. */
+   *  for tray pieces; `[[0, 0]]` for Unit Block). All bbox math +
+   *  footprint computation reads from here. */
   readonly cells: PieceCells;
   readonly color: number;
-  /** Reference to the tray cell's visual `GameBoardItemObject`. It's
-   *  hidden during the drag and either restored (invalid drop) or
-   *  removed by the framework's `onItemRemoved` path (valid drop). */
-  readonly hiddenCellItem: GameBoardItemObject;
   readonly pointerId: number;
   readonly liftedGroup: THREE.Group;
   /** World-space delta from the pointer's ground projection to the
@@ -126,6 +141,14 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
 
   private readonly _placementListeners = new Set<(info: PiecePlacementInfo) => void>();
   private readonly _cellTapListeners = new Set<(col: number, row: number) => void>();
+  private readonly _unitBlockPlacementListeners = new Set<(footprint: readonly GridCoord[]) => void>();
+  /** Active Unit Block mode visual + state. The group sits as a
+   *  direct child of the boards view at its home position; drag
+   *  hides it, drop replaces it (via consume on the booster) or
+   *  cancel restores it. */
+  private _unitBlockGroup: THREE.Group | null = null;
+  private _unitBlockColor = 0xffffff;
+  private _unitBlockPlaceable = true;
   /** Pointer-up + pointer-down must be within this many CSS pixels
    *  of each other (and on the same cell) for a grid tap to fire.
    *  Hardcoded — booster cell-tap is a discrete action, not tuned
@@ -269,6 +292,142 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     }
   }
 
+  public enterUnitBlockMode(color: number, worldX: number, worldZ: number): void {
+    if (!this._config) return;
+    // Re-entry: reposition the existing group + restore state.
+    if (this._unitBlockGroup !== null) {
+      this._unitBlockGroup.position.set(worldX, 0, worldZ);
+      this._unitBlockGroup.visible = true;
+      this._unitBlockColor = color;
+      return;
+    }
+    this._setTrayVisualsVisible(false);
+
+    const group = new THREE.Group();
+    group.name = "BlockPuzzle.UnitBlock";
+    group.position.set(worldX, 0, worldZ);
+    PieceMeshBuilder.appendBlocks(group, [[0, 0]], this._config.trayPieceCellSize, color, {
+      opacity: 1,
+    });
+    this.add(group);
+    this._unitBlockGroup = group;
+    this._unitBlockColor = color;
+    this._unitBlockPlaceable = true;
+  }
+
+  public exitUnitBlockMode(): void {
+    // Cancel any in-flight Unit Block drag — its `hiddenGroup` is
+    // about to be disposed, so finishing the drag normally would
+    // either flash the (about-to-be-discarded) group or leave dead
+    // state. Force an invalid teardown that doesn't try to restore
+    // the soon-gone group.
+    if (this._dragSession !== null && this._dragSession.source.kind === "unitBlock") {
+      this._endDragSession(false);
+    }
+    if (this._unitBlockGroup !== null) {
+      this.remove(this._unitBlockGroup);
+      GameBoardsView._disposeGroupChildren(this._unitBlockGroup);
+      this._unitBlockGroup = null;
+    }
+    this._unitBlockPlaceable = true;
+    this._setTrayVisualsVisible(true);
+  }
+
+  public setUnitBlockPlaceable(placeable: boolean): void {
+    if (!this._unitBlockGroup || !this._config) return;
+    this._unitBlockPlaceable = placeable;
+    const opacity = placeable ? 1 : this._config.trayUnplaceableOpacity;
+    this._unitBlockGroup.traverse((node) => {
+      const mesh = node as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      mat.transparent = opacity < 1;
+      mat.opacity = opacity;
+      mat.needsUpdate = true;
+    });
+  }
+
+  public onUnitBlockPlacement(callback: (footprint: readonly GridCoord[]) => void): Unsubscribe {
+    this._unitBlockPlacementListeners.add(callback);
+    return () => {
+      this._unitBlockPlacementListeners.delete(callback);
+    };
+  }
+
+  /**
+   * Raycast against the Unit Block temp piece's block meshes. The
+   * group includes one mesh per cell (just one for the 1-cell unit
+   * block); we return `true` on any hit so the caller can start a
+   * drag session.
+   */
+  private _pickUnitBlock(event: PointerEvent): boolean {
+    if (!this._unitBlockGroup || !this._world) return false;
+    const rect = this._world.renderer.domElement.getBoundingClientRect();
+    this._ndc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this._ndc.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+    this._raycaster.setFromCamera(this._ndc, this._world.activeCamera);
+    const meshes: THREE.Object3D[] = [];
+    this._unitBlockGroup.traverse((node) => {
+      if ((node as THREE.Mesh).isMesh) meshes.push(node);
+    });
+    if (meshes.length === 0) return false;
+    return this._raycaster.intersectObjects(meshes, false).length > 0;
+  }
+
+  /**
+   * Mirror of `_beginDragSession` for the Unit Block temp piece.
+   * Reuses the same lifted/ghost pipeline; difference is the source
+   * shape (no tray cell, no model item) and a synthesised pickup
+   * offset since the unit block isn't anchored to a tray slot.
+   */
+  private _beginUnitBlockDragSession(event: PointerEvent): void {
+    if (!this._config || !this._dragRoot || !this._unitBlockGroup) return;
+    const ground = this._projectPointerToGround(event);
+    if (ground === null) return;
+
+    const cells: PieceCells = [[0, 0]];
+    const gridBlockSize = this._config.gridCellSize;
+    // bbox is 1x1; pickup offset X = 0; Z = (centerZ) - ground.z - lift.
+    const pickupOffsetX = 0;
+    const centerZ = this._unitBlockGroup.position.z;
+    const pickupOffsetZ = centerZ - ground.z - this._config.drag.pickupLift;
+
+    this._unitBlockGroup.visible = false;
+    const liftedOpacity = this._unitBlockPlaceable ? 1 : this._config.trayUnplaceableOpacity;
+
+    const liftedGroup = new THREE.Group();
+    PieceMeshBuilder.appendBlocks(liftedGroup, cells, gridBlockSize, this._unitBlockColor, {
+      opacity: liftedOpacity,
+      y: 0,
+    });
+    this._dragRoot.add(liftedGroup);
+    this._dragRoot.visible = true;
+
+    this._dragSession = {
+      source: { kind: "unitBlock", hiddenGroup: this._unitBlockGroup },
+      cells,
+      color: this._unitBlockColor,
+      pointerId: event.pointerId,
+      liftedGroup,
+      pickupOffset: { x: pickupOffsetX, z: pickupOffsetZ },
+    };
+
+    this._updateLiftedAt(this._dragSession, ground);
+    this._updateGhostAt(this._dragSession, this._computeAnchorAt(this._dragSession, ground));
+  }
+
+  /** Toggle every tray-piece visual's `visible` flag — used by the
+   *  Unit Block mode enter/exit to hide / restore the 3 tray pieces. */
+  private _setTrayVisualsVisible(visible: boolean): void {
+    if (!this._config) return;
+    const trayObj = this.getGridObject(this._config.boardIds.tray);
+    if (!trayObj) return;
+    for (let col = 0; col < trayObj.columnCount; col++) {
+      const item = trayObj.getCell(col, 0)?.item;
+      if (item instanceof GameBoardItemObject) item.visible = visible;
+    }
+  }
+
   private static readonly _scratchWorldPos = new THREE.Vector3();
 
   /**
@@ -376,6 +535,13 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     if (!this._dragEnabled) return;
     if (this._dragSession !== null) return;
     if (!this._config) return;
+    // Try the Unit Block temp piece first — it sits in the tray area
+    // but isn't owned by a tray cell, so the regular tray pickup
+    // wouldn't find it.
+    if (this._unitBlockGroup !== null && this._pickUnitBlock(event)) {
+      this._beginUnitBlockDragSession(event);
+      return;
+    }
     const hit = this._pickTrayPiece(event);
     if (hit === null) return;
     this._beginDragSession(hit.trayCol, hit.cellItem, event);
@@ -419,17 +585,25 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       anchor !== null ? GameBoardsView._footprintFor(anchor.col, anchor.row, session.cells) : null;
     const valid = footprint !== null && this._validityPredicate !== null && this._validityPredicate(footprint);
     if (valid && footprint !== null) {
-      const info: PiecePlacementInfo = {
-        trayCol: session.trayCol,
-        item: session.item,
-        footprint,
-      };
       // Tear down view-side state BEFORE notifying the controller —
       // the controller's commit will fire `onItemRemoved` on the
       // tray item and remove its visual from the cell, which is fine
-      // because we already un-parented our lifted visual.
-      this._endDragSession(false);
-      for (const cb of this._placementListeners) cb(info);
+      // because we already un-parented our lifted visual. For Unit
+      // Block the commit doesn't fire item-removed events on this
+      // view; the discard happens inside `exitUnitBlockMode` when
+      // the booster consume completes.
+      if (session.source.kind === "tray") {
+        const info: PiecePlacementInfo = {
+          trayCol: session.source.trayCol,
+          item: session.source.item,
+          footprint,
+        };
+        this._endDragSession(false);
+        for (const cb of this._placementListeners) cb(info);
+      } else {
+        this._endDragSession(false);
+        for (const cb of this._unitBlockPlacementListeners) cb(footprint);
+      }
     } else {
       this._endDragSession(true);
     }
@@ -444,11 +618,17 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   public override preDestroy(): void {
     this._placementListeners.clear();
     this._cellTapListeners.clear();
+    this._unitBlockPlacementListeners.clear();
     this._validityPredicate = null;
     this._clearPreviewProvider = null;
     this._trayPlaceability = null;
     this._pendingCellTap = null;
     if (this._dragSession !== null) this._endDragSession(true);
+    if (this._unitBlockGroup !== null) {
+      this.remove(this._unitBlockGroup);
+      GameBoardsView._disposeGroupChildren(this._unitBlockGroup);
+      this._unitBlockGroup = null;
+    }
     if (this._dragRoot !== null) {
       this._dragRoot.removeFromParent();
       this._dragRoot = null;
@@ -492,11 +672,9 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     this._dragRoot.visible = true;
 
     this._dragSession = {
-      trayCol,
-      item: modelItem,
+      source: { kind: "tray", trayCol, item: modelItem, hiddenCellItem: cellItem },
       cells: modelItem.cells,
       color: modelItem.color,
-      hiddenCellItem: cellItem,
       pointerId: event.pointerId,
       liftedGroup,
       pickupOffset,
@@ -517,7 +695,13 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     if (session === null) return;
     this._dragSession = null;
 
-    if (restoreCellItem) session.hiddenCellItem.visible = true;
+    if (restoreCellItem) {
+      if (session.source.kind === "tray") {
+        session.source.hiddenCellItem.visible = true;
+      } else {
+        session.source.hiddenGroup.visible = true;
+      }
+    }
 
     if (this._dragRoot !== null) {
       session.liftedGroup.removeFromParent();

@@ -1,4 +1,5 @@
 import type { GridCoord, IBaseGrid, IGridItem, IInstanceResolver, RectGrid, RectGridPreset } from "@gamebyte/gamelabsjs";
+import type { PieceType } from "../../../BlockPuzzleConfig";
 import {
   GridEvents,
   GridsModel,
@@ -69,7 +70,23 @@ export class GameBoardsViewController extends GridsViewController {
    *  it's a view-pacing concern, not a model state. */
   private _wobbleActive = false;
   private _wobbleTime = 0;
+  /** Tracks whether the boards view is currently in Unit Block mode
+   *  so {@link _syncUnitBlockMode} only enters / exits on real
+   *  transitions (not on every booster-panel onChange tick). */
+  private _unitBlockEntered = false;
+  /** Colour sampled from `blockColors` for the active Unit Block
+   *  session. Captured at entry so the placed grid item matches the
+   *  temp piece the player dragged. `null` outside Unit Block mode. */
+  private _unitBlockColor: number | null = null;
   private readonly _ownSubs = new UnsubscribeBag();
+
+  /** Synthetic piece type used by Unit Block placements so the
+   *  resulting grid item has the same shape as any other 1-cell
+   *  item placed by a normal piece commit. */
+  private static readonly UNIT_BLOCK_PIECE_TYPE: PieceType = {
+    name: "UnitBlockBooster",
+    cells: [[0, 0]],
+  };
 
   public override inject(resolver: IInstanceResolver): void {
     super.inject(resolver);
@@ -103,15 +120,31 @@ export class GameBoardsViewController extends GridsViewController {
     if (this._gridEvents) {
       this._ownSubs.add(this._gridEvents.onItemAdded(() => this._scheduleRecompute()));
       this._ownSubs.add(this._gridEvents.onItemRemoved(() => this._scheduleRecompute()));
+      // Unit Block mode entry needs the tray grid in place to
+      // compute the temp piece's world position — re-sync once the
+      // tray is added so test-mode startup (App constructs the
+      // booster panel directly in Selecting) still spawns the temp
+      // piece.
+      this._ownSubs.add(this._gridEvents.onGridAdded(() => this._syncUnitBlockMode()));
     }
     // Booster panel state shifts (consume → Charging, select →
     // Selecting, cancel → Ready) without any grid event, so
     // subscribe explicitly — the recompute updates the drag /
     // cell-tap gates AND can fire a deferred game-over that was
-    // held off while the panel was Ready.
+    // held off while the panel was Ready. The mode-sync runs first
+    // (synchronously, before the debounced recompute) so the Unit
+    // Block visual is in place by the time recompute reads its
+    // placeability.
     if (this._boosterPanel) {
-      this._ownSubs.add(this._boosterPanel.onChange(() => this._scheduleRecompute()));
+      this._ownSubs.add(this._boosterPanel.onChange(() => this._onBoosterPanelChange()));
     }
+    // Initial Unit Block sync — if the App started directly in
+    // UnitBlock Selecting (test mode), enter mode now so the temp
+    // piece spawns at the right time relative to the initial deal.
+    this._syncUnitBlockMode();
+    // Drop of the Unit Block temp piece on a valid empty grid cell —
+    // commit a 1-cell grid item and consume the booster.
+    this._ownSubs.add(view.onUnitBlockPlacement((footprint) => this._handleUnitBlockPlacement(footprint)));
     // Grid-cell taps for booster target selection (Hammer). Wired
     // even when the panel isn't Selecting — the view's gate is the
     // master switch.
@@ -162,6 +195,11 @@ export class GameBoardsViewController extends GridsViewController {
     this._boardsView?.setTrayPlaceability(null);
     this._boardsView?.setDragEnabled(true);
     this._boardsView?.setHammerWobble(null);
+    if (this._unitBlockEntered) {
+      this._unitBlockEntered = false;
+      this._boardsView?.exitUnitBlockMode();
+    }
+    this._unitBlockColor = null;
     this._boardsView = null;
     this._config = null;
     this._gridsModel = null;
@@ -332,16 +370,16 @@ export class GameBoardsViewController extends GridsViewController {
     }
 
     // Drag + cell-tap gates derived from the same state:
-    // - Drag enabled while not Selecting and not game-over.
-    // - Cell-tap enabled only while in Selecting + Hammer (the only
-    //   target-selection mechanic implemented). UnitBlock SELECTING
-    //   leaves both flags off — only the X cancels.
+    // - Drag stays enabled during UnitBlock Selecting so the temp
+    //   1-cell piece is draggable; only Hammer Selecting disables it
+    //   (Hammer uses the cell-tap path instead).
+    // - Cell-tap is enabled only while in Selecting + Hammer.
     const isSelecting =
       this._boosterPanel !== null && this._boosterPanel.state === BoosterPanelState.Selecting;
-    view.setDragEnabled(!gameOver && !isSelecting);
-    view.setCellTapEnabled(
-      isSelecting && this._boosterPanel?.selectedBooster === BoosterType.Hammer,
-    );
+    const isHammerSelecting =
+      isSelecting && this._boosterPanel?.selectedBooster === BoosterType.Hammer;
+    view.setDragEnabled(!gameOver && !isHammerSelecting);
+    view.setCellTapEnabled(isHammerSelecting);
 
     // Background dim: only while Selecting AND the pending booster
     // is a target-selection one. Tray Refresh consumes inline and
@@ -352,6 +390,99 @@ export class GameBoardsViewController extends GridsViewController {
       isSelecting && (selected === BoosterType.Hammer || selected === BoosterType.UnitBlock);
     const bgColors = this._config.backgroundColors;
     view.setBackgroundColor(dim ? bgColors.selecting : bgColors.default);
+
+    // Unit Block placeability — mirrors the per-tray-slot fading
+    // logic for the single temp piece. The 1-cell piece is
+    // placeable as long as any grid cell is empty; the view's
+    // `setUnitBlockPlaceable` no-ops outside Unit Block mode.
+    if (this._unitBlockEntered) {
+      const unitBlockPlaceable = PiecePlacementOperations.hasAnyValidPlacement(grid, [[0, 0]]);
+      view.setUnitBlockPlaceable(unitBlockPlaceable);
+    }
+  }
+
+  /**
+   * Booster panel transition handler. Synchronously enters / exits
+   * Unit Block mode (so the temp piece is in place before the
+   * debounced recompute reads its placeability) and schedules the
+   * tray-state recompute for the next microtask.
+   */
+  private _onBoosterPanelChange(): void {
+    this._syncUnitBlockMode();
+    this._scheduleRecompute();
+  }
+
+  /**
+   * Enter / exit the Unit Block booster's drag mode in sync with
+   * the booster panel state. Synchronously called from the booster
+   * panel's `onChange` so the temp piece is in place before the
+   * debounced `_recomputeTrayState` runs.
+   */
+  private _syncUnitBlockMode(): void {
+    if (!this._boosterPanel || !this._boardsView || !this._config || !this._gridsModel) return;
+    const shouldBeOn =
+      this._boosterPanel.state === BoosterPanelState.Selecting &&
+      this._boosterPanel.selectedBooster === BoosterType.UnitBlock;
+    if (shouldBeOn && !this._unitBlockEntered) {
+      const trayGrid = this._gridsModel.getGrid(this._config.boardIds.tray);
+      if (!trayGrid) return;
+      // tray.position = (-getCenterOffset() + layoutCenter), so the
+      // tray's world centre is `tray.position + getCenterOffset()`.
+      // Config offset shifts the unit block from that centre.
+      const preset = trayGrid.preset as RectGridPreset;
+      const centerOffset = preset.getCenterOffset();
+      const trayPos = trayGrid.position;
+      const offset = this._config.unitBlock.trayPositionOffset;
+      const worldX = trayPos.x + centerOffset.x + offset.x;
+      const worldZ = trayPos.z + centerOffset.z + offset.z;
+      // Sample a colour from the regular palette so the temp piece
+      // reads as a normal game block (not a special-case white).
+      const palette = this._config.blockColors;
+      const color = palette[Math.floor(Math.random() * palette.length)] ?? 0xffffff;
+      this._unitBlockColor = color;
+      this._boardsView.enterUnitBlockMode(color, worldX, worldZ);
+      this._unitBlockEntered = true;
+    } else if (!shouldBeOn && this._unitBlockEntered) {
+      this._unitBlockEntered = false;
+      this._unitBlockColor = null;
+      this._boardsView.exitUnitBlockMode();
+    }
+  }
+
+  /**
+   * Commit a Unit Block drop on a valid empty grid cell — same
+   * post-placement pipeline as a normal piece (score / clears /
+   * combo / charge), minus the tray-slot removal. The booster is
+   * consumed last so the view's recompute reads the post-consume
+   * state when it runs.
+   */
+  private _handleUnitBlockPlacement(footprint: readonly GridCoord[]): void {
+    if (!this._gridsModel || !this._config || !this._ids || !this._clearRule || !this._boosterPanel) return;
+    const grid = this._gridsModel.getGrid(this._config.boardIds.grid) as RectGrid | undefined;
+    if (!grid) return;
+    // `_unitBlockColor` is set on Selecting entry; if it's somehow
+    // unset by the time the drop fires, fall back to a palette pick.
+    const palette = this._config.blockColors;
+    const color = this._unitBlockColor ?? palette[Math.floor(Math.random() * palette.length)] ?? 0xffffff;
+    PiecePlacementOperations.place(
+      grid,
+      footprint,
+      GameBoardsViewController.UNIT_BLOCK_PIECE_TYPE,
+      color,
+      this._ids,
+    );
+    this._scoreModel?.add(footprint.length * this._config.score.placedBlock);
+    const clears = this._clearRule.computeClears(grid, footprint);
+    for (const { col, row } of clears.cells) grid.removeCellItem(col, row);
+    const lineCount = clears.fullRows.length + clears.fullCols.length;
+    if (lineCount > 0) {
+      this._scoreModel?.add(lineCount * this._config.score.clearedLine);
+    }
+    this._comboModel?.registerPlacement(lineCount > 0);
+    // Consume FIRST so the booster panel is Charging when
+    // `registerClear` runs — the model is no-op during Selecting.
+    this._boosterPanel.consume();
+    if (lineCount > 0) this._boosterPanel.registerClear(lineCount);
   }
 
   /**

@@ -98,4 +98,24 @@ export interface IGameBoardsView extends IGridView {
    *  resting rotation (called on Selecting exit). The view manages
    *  per-block phase persistence internally. */
   setHammerWobble(time: number | null): void;
+  /** Enter Unit Block booster mode. Hides every tray-piece visual
+   *  and spawns a single 1-cell block at `(worldX, worldZ)` in
+   *  `color`. The player drags this temp block through the standard
+   *  drag pipeline; on valid drop it fires
+   *  {@link onUnitBlockPlacement}. Idempotent re-entry restores
+   *  position. */
+  enterUnitBlockMode(color: number, worldX: number, worldZ: number): void;
+  /** Exit Unit Block mode. Discards the temp 1-cell visual,
+   *  restores every tray-piece visual. Cancels any in-flight drag
+   *  of the temp block. Idempotent. */
+  exitUnitBlockMode(): void;
+  /** Set placeable / unplaceable styling on the Unit Block temp
+   *  visual — same effect `setTrayPlaceability` has on per-slot tray
+   *  pieces. No-op when Unit Block mode is not active. */
+  setUnitBlockPlaceable(placeable: boolean): void;
+  /** Fires on pointer-up when the temp Unit Block was dropped on a
+   *  valid empty grid cell. `footprint` is the single
+   *  `{col, row}` the block lands on. The controller places a 1-cell
+   *  grid item there and consumes the booster. */
+  onUnitBlockPlacement(callback: (footprint: readonly GridCoord[]) => void): Unsubscribe;
 }

@@ -86,16 +86,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     }
     if (this._gameState) {
       view.setEndStateLabel(this.endStateLabelFor(this._gameState.state));
-      this._subs.add(
-        this._gameState.onStateChanged((state) => {
-          view.setEndStateLabel(this.endStateLabelFor(state));
-          // Booster panel ready-label is suppressed off-Playing
-          // ("NO MOVES LEFT, USE BOOSTER!" must not leak through
-          // after TIME UP) — re-push so the suppression takes
-          // effect immediately on the terminal transition.
-          this.pushBoosterPanelState(view);
-        }),
-      );
+      this._subs.add(this._gameState.onStateChanged((state) => this.onGameStateChanged(state)));
     }
     if (this._comboModel) {
       view.setComboState({ level: this._comboModel.level, movesRemaining: this._comboModel.movesRemaining });
@@ -135,6 +126,19 @@ export class GameScreenViewController implements IViewController<IGameScreenView
    * placeability) and the selected booster (for the scaled-up
    * visual + floating cancel button).
    */
+  /**
+   * Game-state transition (Playing → GameOver / TimeUp). Flip the
+   * centered overlay label, then re-push the booster panel state so
+   * the ready-label suppression off-Playing takes effect on the
+   * same tick (otherwise "NO MOVES LEFT, USE BOOSTER!" can leak
+   * through after a TIME UP).
+   */
+  private onGameStateChanged(state: GameState): void {
+    if (this._view === null) return;
+    this._view.setEndStateLabel(this.endStateLabelFor(state));
+    this.pushBoosterPanelState(this._view);
+  }
+
   private pushBoosterPanelState(view: IGameScreenView): void {
     if (!this._boosterPanel || !this._config) return;
     const cfg = this._config.booster;
@@ -171,12 +175,21 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   }
 
   /**
-   * Route a booster-button tap by type. Target-selection boosters
-   * flip the model to Selecting; instant boosters run their
-   * mechanic inline and consume the activation in one shot.
+   * Route a booster-button tap by type. From Ready: target-selection
+   * boosters flip the model to Selecting; instant boosters run their
+   * mechanic inline and consume the activation in one shot. From
+   * Selecting: a tap on the currently-selected booster is equivalent
+   * to tapping the X — it cancels the selection.
    */
   private handleBoosterTap(type: BoosterType): void {
     if (this._boosterPanel === null) return;
+    if (
+      this._boosterPanel.state === BoosterPanelState.Selecting &&
+      this._boosterPanel.selectedBooster === type
+    ) {
+      this._boosterPanel.cancelSelection();
+      return;
+    }
     if (this._boosterPanel.state !== BoosterPanelState.Ready) return;
     if (type === BoosterType.TrayRefresh) {
       this.performTrayRefresh();

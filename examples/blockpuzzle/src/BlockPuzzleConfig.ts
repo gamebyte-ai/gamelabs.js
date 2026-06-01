@@ -20,6 +20,19 @@ export interface BackgroundColorsConfig {
 }
 
 /**
+ * Unit Block booster — the temp single-cell piece the player drags
+ * during Unit Block Selecting. Position is in world units relative
+ * to the tray's geometric centre, so the default `{x: 0, z: 0}`
+ * parks the block at the tray centre and a non-zero offset shifts
+ * it from there. The block's colour is sampled from the regular
+ * `blockColors` palette at entry so the temp piece reads as a
+ * normal game block.
+ */
+export interface UnitBlockBoosterConfig {
+  readonly trayPositionOffset: { readonly x: number; readonly z: number };
+}
+
+/**
  * Hammer-booster particle burst. When the hammer empties a cell,
  * the view spawns `count` flat coloured particles at the cell's
  * world position; each gets a random initial speed in
@@ -80,6 +93,11 @@ export interface BoardPalette {
   readonly cellFill: number;
   /** Thin border on each cell. Doubles as the surface accent. */
   readonly cellOutline: number;
+  /** When `false`, the cell renders no visible fill or outline — the
+   *  background is whatever lies behind it. The fill mesh is still
+   *  built (kept invisible via material opacity) because the boards
+   *  view uses it as the hit target for picking up tray pieces. */
+  readonly drawBackground?: boolean;
 }
 
 /**
@@ -403,6 +421,16 @@ export class BlockPuzzleConfig {
   };
 
   /**
+   * Unit Block booster — temp 1-cell piece spawned in the tray
+   * centre during Selecting. The boards view resolves the
+   * absolute world position from the tray's geometric centre +
+   * `trayPositionOffset`.
+   */
+  public readonly unitBlock: UnitBlockBoosterConfig = {
+    trayPositionOffset: { x: 0, z: 0 },
+  };
+
+  /**
    * Hammer booster — destruction particle burst. Spawned by the
    * boards view at the destroyed cell's world position, tinted with
    * the destroyed block's colour.
@@ -440,6 +468,7 @@ export class BlockPuzzleConfig {
     [BoardKind.Tray]: {
       cellFill: 0x2a1f44,
       cellOutline: 0x6b3b8a,
+      drawBackground: false,
     },
   };
 
@@ -474,7 +503,7 @@ export class BlockPuzzleConfig {
    * definition or rendering code touches the palette.
    */
   public readonly blockColors: readonly number[] = [
-    0xff5566, 0xff9944, 0xffcc33, 0x66cc66, 0x33aaaa, 0x5599ff, 0x9966ff, 0xff66cc,
+    0xff1a31, 0xff9944, 0xffe01b, 0x53e553, 0x31dbdb, 0xb519f5, 0x9966ff, 0xff66cc,
   ];
 
   /**

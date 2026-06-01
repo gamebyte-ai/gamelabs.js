@@ -200,11 +200,14 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       const active = isReady || isSelected;
       button.container.alpha = active ? cfg.buttonActiveAlpha : cfg.buttonInactiveAlpha;
       button.container.scale.set(isSelected ? cfg.selectedScale : 1);
-      // Ready boosters take pointer events; selected one doesn't —
-      // tapping it again would re-trigger select. The X intercepts
-      // cancel input.
-      button.container.eventMode = isReady ? "static" : "none";
-      button.container.cursor = isReady ? "pointer" : "default";
+      // Ready boosters take pointer events as normal activation.
+      // Selected booster *also* stays tappable so a re-tap cancels
+      // (equivalent to the X) — the controller routes
+      // `onBoosterActivated(currentlySelectedType)` to cancel.
+      // Non-selected boosters during Selecting / Charging stay off.
+      const tappable = isReady || isSelected;
+      button.container.eventMode = tappable ? "static" : "none";
+      button.container.cursor = tappable ? "pointer" : "default";
     }
 
     // Progress bar: visible only while Charging.
@@ -367,9 +370,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       const icon = this._buildBoosterIcon(type, cfg.buttonSize * 0.55, cfg.buttonLabelColor);
       buttonContainer.addChild(icon);
 
-      buttonContainer.on("pointertap", () => {
-        for (const cb of this._boosterListeners) cb(type);
-      });
+      buttonContainer.on("pointertap", () => this._fireBoosterActivated(type));
 
       container.addChild(buttonContainer);
       this._boosterButtons.push({ type, container: buttonContainer, background, icon });
@@ -432,11 +433,17 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     x.stroke({ width: lineWidth, color: cancelCfg.iconColor, cap: "round" });
     container.addChild(x);
 
-    container.on("pointertap", () => {
-      for (const cb of this._cancelListeners) cb();
-    });
+    container.on("pointertap", () => this._fireBoosterCancelled());
 
     return container;
+  }
+
+  private _fireBoosterActivated(type: BoosterType): void {
+    for (const cb of this._boosterListeners) cb(type);
+  }
+
+  private _fireBoosterCancelled(): void {
+    for (const cb of this._cancelListeners) cb();
   }
 
   private _paintCircle(g: Graphics, radius: number, color: number): void {
