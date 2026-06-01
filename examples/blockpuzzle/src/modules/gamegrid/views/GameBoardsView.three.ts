@@ -11,7 +11,13 @@ import { BlockPuzzleConfig, type PieceCells } from "../../../BlockPuzzleConfig";
 import { GameBoardItem } from "../models/GameBoardItem";
 import { GameBoardItemObject } from "./GameBoardItemObject";
 import { PieceMeshBuilder } from "./PieceMeshBuilder";
-import type { ClearPreviewProvider, IGameBoardsView, PiecePlacementInfo, PiecePlacementPredicate } from "./IGameBoardsView";
+import type {
+  ClearPreviewProvider,
+  IGameBoardsView,
+  PiecePlacementInfo,
+  PiecePlacementPredicate,
+  TrayPlaceability,
+} from "./IGameBoardsView";
 
 /**
  * Bookkeeping for an in-flight drag. The view is the only thing that
@@ -89,6 +95,11 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   private _dragSession: DragSession | null = null;
   private _validityPredicate: PiecePlacementPredicate | null = null;
   private _clearPreviewProvider: ClearPreviewProvider | null = null;
+  private _dragEnabled = true;
+  /** Last placeability map the controller pushed. Drag-start reads
+   *  it to decide whether the lifted piece visual should render
+   *  faded — matching the piece's tray-slot appearance. */
+  private _trayPlaceability: TrayPlaceability | null = null;
 
   private readonly _raycaster = new THREE.Raycaster();
   private readonly _ndc = new THREE.Vector2();
@@ -125,6 +136,24 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     this._clearPreviewProvider = provider;
   }
 
+  public setDragEnabled(enabled: boolean): void {
+    this._dragEnabled = enabled;
+  }
+
+  public setTrayPlaceability(perSlot: TrayPlaceability | null): void {
+    this._trayPlaceability = perSlot;
+    if (this._config === null) return;
+    const trayObj = this.getGridObject(this._config.boardIds.tray);
+    if (!trayObj) return;
+    const fadedOpacity = this._config.trayUnplaceableOpacity;
+    for (let col = 0; col < trayObj.columnCount; col++) {
+      const cell = trayObj.getCell(col, 0);
+      if (!(cell?.item instanceof GameBoardItemObject)) continue;
+      const placeable = perSlot === null ? true : (perSlot.get(col) ?? true);
+      cell.item.setFaded(!placeable, fadedOpacity);
+    }
+  }
+
   public onPiecePlacement(callback: (info: PiecePlacementInfo) => void): Unsubscribe {
     this._placementListeners.add(callback);
     return () => {
@@ -136,6 +165,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   // tray-piece meshes; `onThisObject` from the InputManager is unused.
 
   public onPointerDown(event: PointerEvent, _onThisObject: boolean): void {
+    if (!this._dragEnabled) return;
     if (this._dragSession !== null) return;
     if (!this._config) return;
     const hit = this._pickTrayPiece(event);
@@ -188,6 +218,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     this._placementListeners.clear();
     this._validityPredicate = null;
     this._clearPreviewProvider = null;
+    this._trayPlaceability = null;
     if (this._dragSession !== null) this._endDragSession(true);
     if (this._dragRoot !== null) {
       this._dragRoot.removeFromParent();
@@ -217,9 +248,15 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
 
     cellItem.visible = false;
 
+    // Carry the tray slot's faded state onto the lifted visual when
+    // the piece is unplaceable — otherwise dragging would visually
+    // "un-fade" the piece even though it can't be dropped anywhere.
+    const placeable = this._trayPlaceability === null ? true : (this._trayPlaceability.get(trayCol) ?? true);
+    const liftedOpacity = placeable ? 1 : this._config.trayUnplaceableOpacity;
+
     const liftedGroup = new THREE.Group();
     PieceMeshBuilder.appendBlocks(liftedGroup, modelItem.cells, this._config.gridCellSize, modelItem.color, {
-      opacity: 1,
+      opacity: liftedOpacity,
       y: 0,
     });
     this._dragRoot.add(liftedGroup);
@@ -353,22 +390,49 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     grid.getWorldPosition(this._scratchVec);
     this._ghostRoot.position.set(this._scratchVec.x, this._config.drag.ghostY, this._scratchVec.z);
 
-    // Union of (a) the footprint itself and (b) the cells that
-    // would be cleared if the player dropped here. The line
-    // preview paints whole rows / columns in the piece colour —
-    // including the cells the piece would occupy — so what the
-    // player sees is exactly what disappears on drop.
-    const cellsToRender = GameBoardsView._unionCells(footprint, this._clearPreviewProvider?.(footprint) ?? []);
+    // Two visual layers on the ghost root:
+    // - Footprint cells (the piece the player is dropping) render
+    //   translucent at `drag.ghostOpacity` — "this is where the
+    //   piece would land", with the underlying empty cell paint
+    //   showing through.
+    // - Line-clear cells (the rest of the rows/columns that would
+    //   clear) render fully opaque in the same piece colour —
+    //   "these cells are about to disappear", completely replacing
+    //   the existing block colours so the preview reads as a clean
+    //   solid line, not a tinted blend.
+    const footprintKeys = new Set<string>();
+    for (const c of footprint) footprintKeys.add(`${c.col},${c.row}`);
+    const clearOnly: GridCoord[] = [];
+    const seen = new Set<string>();
+    for (const c of this._clearPreviewProvider?.(footprint) ?? []) {
+      const key = `${c.col},${c.row}`;
+      if (footprintKeys.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      clearOnly.push(c);
+    }
 
     const cellSize = this._config.gridCellSize;
     const drawSize = cellSize * PieceMeshBuilder.BLOCK_INSET;
-    for (const { col, row } of cellsToRender) {
+    const ghostOpacity = this._config.drag.ghostOpacity;
+
+    for (const { col, row } of footprint) {
       const geom = new THREE.PlaneGeometry(drawSize, drawSize);
       const mat = new THREE.MeshBasicMaterial({
         color: session.color,
         side: THREE.DoubleSide,
         transparent: true,
-        opacity: this._config.drag.ghostOpacity,
+        opacity: ghostOpacity,
+      });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(col * cellSize, 0, row * cellSize);
+      this._ghostRoot.add(mesh);
+    }
+    for (const { col, row } of clearOnly) {
+      const geom = new THREE.PlaneGeometry(drawSize, drawSize);
+      const mat = new THREE.MeshBasicMaterial({
+        color: session.color,
+        side: THREE.DoubleSide,
       });
       const mesh = new THREE.Mesh(geom, mat);
       mesh.rotation.x = -Math.PI / 2;
@@ -376,26 +440,6 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       this._ghostRoot.add(mesh);
     }
     this._ghostRoot.visible = true;
-  }
-
-  private static _unionCells(a: readonly GridCoord[], b: readonly GridCoord[]): GridCoord[] {
-    const seen = new Set<string>();
-    const out: GridCoord[] = [];
-    for (const c of a) {
-      const key = `${c.col},${c.row}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        out.push(c);
-      }
-    }
-    for (const c of b) {
-      const key = `${c.col},${c.row}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        out.push(c);
-      }
-    }
-    return out;
   }
 
   /**

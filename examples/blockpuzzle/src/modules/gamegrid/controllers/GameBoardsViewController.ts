@@ -1,12 +1,14 @@
 import type { GridCoord, IBaseGrid, IGridItem, IInstanceResolver, RectGrid, RectGridPreset } from "@gamebyte/gamelabsjs";
-import { GridsModel, GridsViewController, UnsubscribeBag } from "@gamebyte/gamelabsjs";
+import { GridEvents, GridsModel, GridsViewController, UnsubscribeBag } from "@gamebyte/gamelabsjs";
 import { BlockPuzzleConfig } from "../../../BlockPuzzleConfig";
+import { GameState } from "../../../constants/GameState";
+import { GameStateModel } from "../../../models/GameStateModel";
 import { ItemIdGenerator } from "../../../utilities/ItemIdGenerator";
 import { LineClearRule } from "../../../utilities/LineClearRule";
 import { PiecePlacementOperations } from "../../../utilities/PiecePlacementOperations";
 import { PieceSpawnOperations } from "../../../utilities/PieceSpawnOperations";
 import { GameBoardItem } from "../models/GameBoardItem";
-import type { IGameBoardsView, PiecePlacementInfo } from "../views/IGameBoardsView";
+import type { IGameBoardsView, PiecePlacementInfo, TrayPlaceability } from "../views/IGameBoardsView";
 import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions";
 
 /**
@@ -20,6 +22,11 @@ import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions"
  * - drag-driven placement: installs the validity predicate on the
  *   view, listens for the view's `onPiecePlacement` event, and
  *   commits the model mutation via {@link PiecePlacementOperations}
+ * - per-placement recompute of tray placeability + game-over state:
+ *   after every grid mutation (placement / clear / refill), each
+ *   tray piece is tested against the post-mutation grid; unplaceable
+ *   pieces fade on the view; once every non-empty slot is
+ *   unplaceable, `GameState.GameOver` fires and drag is disabled.
  *
  * The view stays render-only and never touches the model — every
  * model mutation flows through this controller.
@@ -27,8 +34,10 @@ import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions"
 export class GameBoardsViewController extends GridsViewController {
   private _config: BlockPuzzleConfig | null = null;
   private _gridsModel: GridsModel | null = null;
+  private _gridEvents: GridEvents | null = null;
   private _ids: ItemIdGenerator | null = null;
   private _clearRule: LineClearRule | null = null;
+  private _gameState: GameStateModel | null = null;
   private _boardsView: IGameBoardsView | null = null;
   private readonly _ownSubs = new UnsubscribeBag();
 
@@ -36,8 +45,10 @@ export class GameBoardsViewController extends GridsViewController {
     super.inject(resolver);
     this._config = resolver.getInstance(BlockPuzzleConfig);
     this._gridsModel = resolver.getInstance(GridsModel);
+    this._gridEvents = resolver.getInstance(GridEvents);
     this._ids = resolver.getInstance(ItemIdGenerator);
     this._clearRule = resolver.getInstance(LineClearRule);
+    this._gameState = resolver.getInstance(GameStateModel);
   }
 
   public override initialize(view: IGameBoardsView): void {
@@ -46,6 +57,14 @@ export class GameBoardsViewController extends GridsViewController {
     view.setPlacementPredicate((footprint) => this._canPlace(footprint));
     view.setClearPreviewProvider((footprint) => this._predictClears(footprint));
     this._ownSubs.add(view.onPiecePlacement((info) => this._onPiecePlacement(info)));
+    // Recompute tray placeability + game-over after every grid mutation
+    // (initial deal, each placement, each cleared cell, each refill).
+    // Trailing the framework's own onItemAdded/Removed subscriptions
+    // means the model is already up-to-date by the time we read it.
+    if (this._gridEvents) {
+      this._ownSubs.add(this._gridEvents.onItemAdded(() => this._recomputeTrayState()));
+      this._ownSubs.add(this._gridEvents.onItemRemoved(() => this._recomputeTrayState()));
+    }
   }
 
   protected override createItemObjectOption(item: IGridItem, grid: IBaseGrid): GameBoardItemObjectOptions {
@@ -68,11 +87,15 @@ export class GameBoardsViewController extends GridsViewController {
     this._ownSubs.flush();
     this._boardsView?.setPlacementPredicate(null);
     this._boardsView?.setClearPreviewProvider(null);
+    this._boardsView?.setTrayPlaceability(null);
+    this._boardsView?.setDragEnabled(true);
     this._boardsView = null;
     this._config = null;
     this._gridsModel = null;
+    this._gridEvents = null;
     this._ids = null;
     this._clearRule = null;
+    this._gameState = null;
     super.destroy();
   }
 
@@ -141,5 +164,44 @@ export class GameBoardsViewController extends GridsViewController {
       if (cell !== null && cell.size > 0) return false;
     }
     return true;
+  }
+
+  /**
+   * Walk every occupied tray slot, ask
+   * {@link PiecePlacementOperations.hasAnyValidPlacement} whether
+   * its piece can still go anywhere on the playing grid, and push
+   * the per-slot placeable / unplaceable map to the view. Fires
+   * `GameState.GameOver` (and disables drag) the moment every
+   * occupied slot is unplaceable.
+   *
+   * Runs on every `onItemAdded` / `onItemRemoved` event, so the
+   * view's faded state and the game-over gate always reflect the
+   * latest grid + tray contents.
+   */
+  private _recomputeTrayState(): void {
+    if (!this._gridsModel || !this._config || !this._boardsView || !this._gameState) return;
+    const grid = this._gridsModel.getGrid(this._config.boardIds.grid);
+    const tray = this._gridsModel.getGrid(this._config.boardIds.tray);
+    if (!grid || !tray) return;
+
+    const placeability = new Map<number, boolean>();
+    let anyOccupied = false;
+    let anyPlaceable = false;
+    for (let col = 0; col < tray.columnCount; col++) {
+      const cell = tray.getCell(col, 0);
+      const item = cell?.item;
+      if (!(item instanceof GameBoardItem)) continue;
+      anyOccupied = true;
+      const placeable = PiecePlacementOperations.hasAnyValidPlacement(grid, item.cells);
+      placeability.set(col, placeable);
+      if (placeable) anyPlaceable = true;
+    }
+
+    const view: IGameBoardsView = this._boardsView;
+    view.setTrayPlaceability(placeability satisfies TrayPlaceability);
+
+    const gameOver = anyOccupied && !anyPlaceable;
+    if (gameOver) this._gameState.setState(GameState.GameOver);
+    view.setDragEnabled(!gameOver);
   }
 }

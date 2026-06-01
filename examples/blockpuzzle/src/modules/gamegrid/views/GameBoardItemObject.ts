@@ -56,4 +56,22 @@ export class GameBoardItemObject extends GridItemObject {
   public get pickableMeshes(): THREE.Object3D[] {
     return this.children.filter((c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true);
   }
+
+  /**
+   * Toggle the faded visual used for unplaceable tray pieces. When
+   * `faded` is true, every block mesh switches to a transparent
+   * material at `fadedOpacity`; when false, the material returns to
+   * fully opaque. `needsUpdate` is set on each toggle so the
+   * renderer rebuilds the transparent-vs-opaque pass assignment.
+   */
+  public setFaded(faded: boolean, fadedOpacity: number): void {
+    for (const child of this.children) {
+      if (!(child instanceof THREE.Mesh)) continue;
+      const mat = child.material;
+      if (!(mat instanceof THREE.MeshBasicMaterial)) continue;
+      mat.transparent = faded;
+      mat.opacity = faded ? fadedOpacity : 1;
+      mat.needsUpdate = true;
+    }
+  }
 }

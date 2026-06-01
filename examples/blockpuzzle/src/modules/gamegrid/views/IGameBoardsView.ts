@@ -40,6 +40,13 @@ export type PiecePlacementPredicate = (footprint: readonly GridCoord[]) => boole
 export type ClearPreviewProvider = (footprint: readonly GridCoord[]) => readonly GridCoord[];
 
 /**
+ * Per-slot placeability map. Keyed by tray column; missing entries
+ * default to "placeable" (no fade). The view dims any slot whose
+ * entry is `false`.
+ */
+export type TrayPlaceability = ReadonlyMap<number, boolean>;
+
+/**
  * View interface for the boards world view. Adds drag-driven piece
  * placement on top of the framework's `IGridView` auto-sync surface.
  */
@@ -50,6 +57,15 @@ export interface IGameBoardsView extends IGridView {
   /** Install / clear the clear-preview provider. Without one the
    *  ghost only shows footprint cells (no line highlight). */
   setClearPreviewProvider(provider: ClearPreviewProvider | null): void;
+  /** Master toggle for drag interaction. When `false`,
+   *  pointer-down on tray pieces is ignored — used by the game-over
+   *  state. Default is `true`. */
+  setDragEnabled(enabled: boolean): void;
+  /** Update the per-slot placeable / unplaceable state. Unplaceable
+   *  slots render with the faded opacity from
+   *  `BlockPuzzleConfig.trayUnplaceableOpacity`; placeable slots
+   *  render fully opaque. Pass `null` to clear all fades. */
+  setTrayPlaceability(perSlot: TrayPlaceability | null): void;
   /** Fired on pointer-up when the dragged piece passed
    *  {@link PiecePlacementPredicate}. Invalid drops snap the piece
    *  back to its tray slot inside the view and do not fire this. */

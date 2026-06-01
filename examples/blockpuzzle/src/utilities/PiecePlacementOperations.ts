@@ -75,4 +75,40 @@ export class PiecePlacementOperations {
       grid.addCellItem(col, row, new GameBoardItem(ids.allocate(), pieceType, SINGLE_BLOCK_CELLS, color));
     }
   }
+
+  /**
+   * True iff there is at least one anchor `(col, row)` on the grid
+   * where `cells` would pass {@link canPlace}. Used by the tray
+   * placeability recompute (faded visual + game-over gate) — only
+   * the piece's current rotation is tested; the spawner is what
+   * decided which rotation to spawn.
+   */
+  public static hasAnyValidPlacement(grid: IBaseGrid, cells: PieceCells): boolean {
+    if (cells.length === 0) return true;
+    const bbox = PiecePlacementOperations._computeBbox(cells);
+    const maxAnchorCol = grid.columnCount - bbox.width;
+    const maxAnchorRow = grid.rowCount - bbox.height;
+    if (maxAnchorCol < 0 || maxAnchorRow < 0) return false;
+    for (let row = 0; row <= maxAnchorRow; row++) {
+      for (let col = 0; col <= maxAnchorCol; col++) {
+        if (PiecePlacementOperations.canPlace(grid, PiecePlacementOperations.computeFootprint(col, row, cells))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /** Bounding box (in cells) that contains all of `cells`. Mirrors
+   *  `PieceMeshBuilder.computeBbox` — kept private to avoid the
+   *  utilities layer importing from views. */
+  private static _computeBbox(cells: PieceCells): { readonly width: number; readonly height: number } {
+    let maxCol = 0;
+    let maxRow = 0;
+    for (const [c, r] of cells) {
+      if (c > maxCol) maxCol = c;
+      if (r > maxRow) maxRow = r;
+    }
+    return { width: maxCol + 1, height: maxRow + 1 };
+  }
 }

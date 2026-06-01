@@ -40,19 +40,30 @@ export interface PieceType {
 /**
  * Visual constants for the drag pipeline. The lifted piece floats
  * above the grid plane while following the pointer; the ghost
- * preview snaps onto the candidate footprint cells. Both Y values
- * are tuned to layer correctly against the static board: ghost
- * sits above grid cell paint (Y = 0.005 / 0.01) so its colour
- * reads on top, lifted piece sits above any placed pieces (Y =
- * PieceMeshBuilder.DEFAULT_BLOCK_Y = 0.05).
+ * preview snaps onto the candidate footprint cells and onto the
+ * cells of any rows/columns that would clear on drop.
+ *
+ * Y-layering (top-down ortho camera; higher Y wins depth test):
+ *
+ * - grid cell paint: 0.005 / 0.01
+ * - **ghost preview: above placed blocks** so the line-clear
+ *   highlight reads on top of cells already occupied by other
+ *   pieces (otherwise the only visible part of the highlight is
+ *   the empty footprint cells).
+ * - placed blocks (`PieceMeshBuilder.DEFAULT_BLOCK_Y = 0.05`).
+ * - lifted piece: well above everything else.
  */
 export interface DragConfig {
   /** World Y at which the lifted piece floats. */
   readonly liftedY: number;
   /** World Y the ghost preview renders at. */
   readonly ghostY: number;
-  /** 0..1 — semi-transparent so the ghost reads as a preview rather
-   *  than a placed piece. */
+  /** Alpha applied to **ghost-preview** cells — the cells the piece
+   *  itself would occupy on drop. Line-clear highlight cells (the
+   *  rest of the rows/cols that would clear) deliberately render
+   *  fully opaque to completely replace the underlying colour and
+   *  read as "this is about to disappear", separate from the
+   *  translucent "this is where the piece would land" feel. */
   readonly ghostOpacity: number;
   /**
    * Pointer-area margin around the playing grid, in cell-size units.
@@ -121,6 +132,13 @@ export class BlockPuzzleConfig {
   // stays within the grid's footprint.
   public readonly gridCellSize: number = 1;
   public readonly traySlotSize: number = 2.5;
+
+  // Opacity tray pieces fade to when they have no valid placement
+  // anywhere on the grid (per their current rotation). 0 hides them
+  // entirely, 1 leaves them at full strength. The controller
+  // recomputes per-piece placeability on every grid mutation and
+  // pushes the result to the view.
+  public readonly trayUnplaceableOpacity: number = 0.3;
 
   // World-space size of one block when rendered inside a tray slot.
   // Chosen so the longest piece in the catalog (1×5 line) fits inside
@@ -203,8 +221,11 @@ export class BlockPuzzleConfig {
    */
   public readonly drag: DragConfig = {
     liftedY: 0.6,
-    ghostY: 0.04,
-    ghostOpacity: 0.55,
+    // Must stay above `PieceMeshBuilder.DEFAULT_BLOCK_Y` (0.05) so
+    // the predictive line-clear highlight reads on top of already-
+    // placed pieces in the clearing row / column.
+    ghostY: 0.06,
+    ghostOpacity: 0.6,
     pointerAreaMargin: 0.5,
   };
 

@@ -18,6 +18,7 @@ import { GameBoardsView } from "./modules/gamegrid/views/GameBoardsView.three";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { BoardLayoutCalculator, type BoardLayout } from "./utilities/BoardLayoutCalculator";
+import { GameStateModel } from "./models/GameStateModel";
 import { ItemIdGenerator } from "./utilities/ItemIdGenerator";
 import { LineClearRule } from "./utilities/LineClearRule";
 import { PieceSpawnOperations } from "./utilities/PieceSpawnOperations";
@@ -88,6 +89,9 @@ export class BlockPuzzleApp extends GamelabsApp {
     // and exposes a predictive call so the view can paint the
     // would-clear rows/columns in the ghost preview.
     this.diContainer.bindInstance(LineClearRule, new LineClearRule());
+    // Top-level game state (Playing / GameOver). Controller flips it
+    // to GameOver when every remaining tray piece is unplaceable.
+    this.diContainer.bindInstance(GameStateModel, new GameStateModel());
     // `GameBoardsView` raycasts piece meshes against the active
     // camera — it needs the World instance for the renderer canvas
     // and scene access.
