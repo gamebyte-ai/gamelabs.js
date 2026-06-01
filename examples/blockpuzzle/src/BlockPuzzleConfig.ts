@@ -65,6 +65,12 @@ export interface DragConfig {
    *  read as "this is about to disappear", separate from the
    *  translucent "this is where the piece would land" feel. */
   readonly ghostOpacity: number;
+  /** Vertical world-space lift applied to the lifted piece on drag
+   *  start: the piece's anchor is shifted by this many units in the
+   *  -Z direction (screen-up under the top-down camera) on top of
+   *  the natural grab offset. Larger values pull the piece further
+   *  above the finger / cursor so it stays visible during drag. */
+  readonly pickupLift: number;
   /**
    * Pointer-area margin around the playing grid, in cell-size units.
    * Placement is active whenever the pointer (ground projection)
@@ -226,6 +232,7 @@ export class BlockPuzzleConfig {
     // placed pieces in the clearing row / column.
     ghostY: 0.06,
     ghostOpacity: 0.6,
+    pickupLift: 1.5,
     pointerAreaMargin: 0.5,
   };
 

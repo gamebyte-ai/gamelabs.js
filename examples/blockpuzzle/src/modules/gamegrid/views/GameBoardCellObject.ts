@@ -21,6 +21,7 @@ export class GameBoardCellObject extends GridCellObject {
   public declare readonly preset: RectGridPreset;
 
   private readonly _palette: BoardPalette;
+  private _fillMesh: THREE.Mesh | null = null;
 
   public constructor(
     options: GridCellObjectOptions,
@@ -34,6 +35,17 @@ export class GameBoardCellObject extends GridCellObject {
     // landed, so the override is a no-op and we build visuals here.
     this._palette = palette;
     this._buildVisuals();
+  }
+
+  /**
+   * The cell's coloured fill mesh. The boards view uses it as an
+   * extended hit area for tray pieces — the fill spans the full
+   * cell inset, which is larger than any piece-block layout the
+   * cell hosts, so taps that miss the piece blocks but land on the
+   * cell paint still pick the piece up.
+   */
+  public get fillMesh(): THREE.Mesh | null {
+    return this._fillMesh;
   }
 
   protected override createVisual(): void {
@@ -53,6 +65,7 @@ export class GameBoardCellObject extends GridCellObject {
     fill.rotation.x = -Math.PI / 2;
     fill.position.set(0, GameBoardCellObject.FILL_Y, 0);
     this.add(fill);
+    this._fillMesh = fill;
 
     const halfW = cw / 2;
     const halfH = ch / 2;

@@ -9,6 +9,7 @@ import {
 } from "@gamebyte/gamelabsjs";
 import { BlockPuzzleConfig, type PieceCells } from "../../../BlockPuzzleConfig";
 import { GameBoardItem } from "../models/GameBoardItem";
+import { GameBoardCellObject } from "./GameBoardCellObject";
 import { GameBoardItemObject } from "./GameBoardItemObject";
 import { PieceMeshBuilder } from "./PieceMeshBuilder";
 import type {
@@ -306,9 +307,23 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
    * Capture the world-space delta from the pointer to the piece's
    * top-left cell (cell (0, 0)) at grab time.
    *
-   * The tray-cell visual centres the piece's bbox on the cell, so
-   * cell (0, 0)'s world position is the cell centre minus the
-   * bbox-half offset (computed at tray block size).
+   * X is overridden so the lifted piece is **horizontally centred**
+   * on the touch X at pickup, regardless of where inside the tray
+   * slot the player tapped: `pickupOffset.x = -((w - 1) / 2) *
+   * gridCellSize`, derived purely from the piece's bbox width and
+   * the grid block size the lifted piece renders at. Locking the
+   * X delta means subsequent drag motion keeps the bbox centre
+   * aligned with the cursor.
+   *
+   * Z keeps the natural grab offset (piece top-left vs pointer at
+   * pickup, computed at tray block size — that's where the piece
+   * actually was) and bakes the configured `drag.pickupLift` shift
+   * into the captured value, so the piece floats above the cursor
+   * for the rest of the drag.
+   *
+   * The captured offset is what every downstream consumer
+   * (lifted-piece position, anchor / ghost computation, drop) uses,
+   * so they all agree on the same elevated, centred reference.
    */
   private _capturePickupOffset(
     cellItem: GameBoardItemObject,
@@ -316,20 +331,25 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     ground: { readonly x: number; readonly z: number },
   ): { x: number; z: number } {
     if (!this._config) throw new Error("GameBoardsView: config not injected");
-    // The piece's visual is parented to its tray cell object, and the
-    // tray cell object sits at the cell centre. So the cell centre
-    // world position is the cell-item visual's parent world position.
-    cellItem.getWorldPosition(this._scratchVec);
-    const cellCenterX = this._scratchVec.x;
-    const cellCenterZ = this._scratchVec.z;
     const { width, height } = PieceMeshBuilder.computeBbox(cells);
+    const gridBlockSize = this._config.gridCellSize;
     const trayBlockSize = this._config.trayPieceCellSize;
-    const topLeftCellWorldX = cellCenterX - ((width - 1) / 2) * trayBlockSize;
+
+    // X: centre the piece's bbox on the pointer at pickup. Cell (0, 0)
+    // sits half a bbox-width to the left of the pointer; downstream
+    // shifts the drag root by the same half-bbox to land cell (0, 0)
+    // at `pointer + pickupOffset`, putting the bbox centre on the
+    // cursor.
+    const pickupOffsetX = -((width - 1) / 2) * gridBlockSize;
+
+    // Z: natural grab offset (piece top-left in the tray slot vs
+    // pointer at grab time) plus the configured lift in -Z.
+    cellItem.getWorldPosition(this._scratchVec);
+    const cellCenterZ = this._scratchVec.z;
     const topLeftCellWorldZ = cellCenterZ - ((height - 1) / 2) * trayBlockSize;
-    return {
-      x: topLeftCellWorldX - ground.x,
-      z: topLeftCellWorldZ - ground.z,
-    };
+    const pickupOffsetZ = topLeftCellWorldZ - ground.z - this._config.drag.pickupLift;
+
+    return { x: pickupOffsetX, z: pickupOffsetZ };
   }
 
   /**
@@ -443,11 +463,15 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   }
 
   /**
-   * Pointer-area gate + clamp-into-bounds anchor.
+   * Piece-bbox overlap gate + clamp-into-bounds anchor.
    *
-   * Returns `null` when the pointer (ground projection) sits outside
-   * the grid bbox extended by `drag.pointerAreaMargin` cells on
-   * every side — that's the "no preview, no commit" zone.
+   * Returns `null` when the **dragged piece's bbox** doesn't overlap
+   * the grid extended by `drag.pointerAreaMargin` cells on every
+   * side. The gate tracks the piece's position rather than the
+   * pointer because `drag.pickupLift` shifts the piece up off the
+   * cursor — a pointer-based gate would hide the ghost the moment
+   * the player's finger dipped below the grid, even though the piece
+   * was clearly hovering over it.
    *
    * Otherwise returns the anchor cell: the raw target from the
    * piece's top-left (round-to-nearest), clamped to
@@ -469,22 +493,28 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     const cellSize = this._config.gridCellSize;
     const margin = this._config.drag.pointerAreaMargin;
 
-    // Pointer-area gate, in cell units. The grid's visible bbox spans
-    // `[-0.5, columnCount - 0.5]` in cell units (cell centres run
-    // 0..columnCount-1, each cell is one unit wide); the margin
-    // extends that on every side.
-    const pointerCol = (ground.x - this._scratchVec.x) / cellSize;
-    const pointerRow = (ground.z - this._scratchVec.z) / cellSize;
-    if (pointerCol < -0.5 - margin || pointerCol > grid.columnCount - 0.5 + margin) return null;
-    if (pointerRow < -0.5 - margin || pointerRow > grid.rowCount - 0.5 + margin) return null;
-
-    // Raw target from the piece's top-left in grid-local cell units,
-    // then clamp so the entire footprint stays inside the grid.
+    // Piece top-left in grid-local cell units (continuous, not yet
+    // rounded). Drives both the bbox-overlap gate below and the
+    // clamp-into-bounds anchor afterwards.
     const topLeftX = ground.x + session.pickupOffset.x;
     const topLeftZ = ground.z + session.pickupOffset.z;
-    const rawCol = Math.round((topLeftX - this._scratchVec.x) / cellSize);
-    const rawRow = Math.round((topLeftZ - this._scratchVec.z) / cellSize);
+    const topLeftCol = (topLeftX - this._scratchVec.x) / cellSize;
+    const topLeftRow = (topLeftZ - this._scratchVec.z) / cellSize;
     const { width: pieceCols, height: pieceRows } = PieceMeshBuilder.computeBbox(session.cells);
+
+    // Piece-bbox overlap gate. In cell units the grid spans
+    // `[-0.5, gridCols - 0.5]`, the piece spans `[topLeftCol - 0.5,
+    // topLeftCol + pieceCols - 0.5]`. Adding the margin to the grid
+    // and applying AABB overlap simplifies to `topLeftCol >
+    // -pieceCols - margin && topLeftCol < gridCols + margin`.
+    if (topLeftCol <= -pieceCols - margin) return null;
+    if (topLeftCol >= grid.columnCount + margin) return null;
+    if (topLeftRow <= -pieceRows - margin) return null;
+    if (topLeftRow >= grid.rowCount + margin) return null;
+
+    // Clamp anchor so the entire footprint stays inside the grid.
+    const rawCol = Math.round(topLeftCol);
+    const rawRow = Math.round(topLeftRow);
     const maxAnchorCol = Math.max(0, grid.columnCount - pieceCols);
     const maxAnchorRow = Math.max(0, grid.rowCount - pieceRows);
     const col = Math.max(0, Math.min(maxAnchorCol, rawCol));
@@ -501,9 +531,14 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   }
 
   /**
-   * Raycast against every visible tray-cell item's block meshes and
-   * return the hit piece (plus its tray column). The piece's model
-   * back-reference is recovered later via {@link _readModelItem}.
+   * Raycast against every visible tray-cell item's block meshes
+   * **and** the tray cell paint behind it, then return the hit
+   * piece (plus its tray column). Folding the cell fill into the
+   * hit-test set extends the interaction area beyond the piece
+   * visual itself — important for narrow shapes like a vertical
+   * 1×5 line where the piece blocks cover only a sliver of the
+   * slot's width. The piece's model back-reference is recovered
+   * later via {@link _readModelItem}.
    */
   private _pickTrayPiece(event: PointerEvent): { readonly trayCol: number; readonly cellItem: GameBoardItemObject } | null {
     if (!this._world || !this._config) return null;
@@ -524,6 +559,14 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
           meshes.push(mesh);
           meshToItem.set(mesh, ref);
         }
+      }
+      // Extended hit area: the cell paint behind the piece. A tap
+      // anywhere on the slot's coloured fill picks up its piece, so
+      // narrow shapes (vertical lines, small L's) aren't fiddly to
+      // grab.
+      if (cell instanceof GameBoardCellObject && cell.fillMesh !== null) {
+        meshes.push(cell.fillMesh);
+        meshToItem.set(cell.fillMesh, ref);
       }
     }
     if (meshes.length === 0) return null;

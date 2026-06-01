@@ -14,7 +14,10 @@ import { ItemIdGenerator } from "./ItemIdGenerator";
  *
  * Per-spawn picks:
  * - Piece type: uniform random with replacement from the catalog
- *   (same piece can appear in multiple slots).
+ *   (same piece can appear in multiple slots) — with one guard:
+ *   the last slot in a deal must differ from the previous picks if
+ *   they were all the same, so a hand is never K-of-a-kind. Two
+ *   matching pieces in a hand is still allowed.
  * - Rotation: uniform random from the piece type's de-duplicated
  *   rotation pool ({@link BlockPuzzleConfig.rotatedShapes}). Symmetric
  *   shapes pick from a smaller pool so a square rotation isn't
@@ -47,8 +50,19 @@ export class PieceSpawnOperations {
       throw new Error(`PieceSpawnOperations: blockColors has ${blockColors.length} entries but tray has ${tray.columnCount} slots — need at least one colour per slot`);
     }
     const colorPool = PieceSpawnOperations.sampleDistinct(blockColors, tray.columnCount);
+    const picked: PieceType[] = [];
     for (let col = 0; col < tray.columnCount; col++) {
-      const pieceType = PieceSpawnOperations.pickRandom(pieceTypes);
+      // Avoid hands that are all the same piece type. The constraint
+      // only kicks in on the last slot — earlier slots are free to
+      // match (two of three matching is still possible) — and only
+      // when the catalog has alternatives to choose from.
+      const isLastSlot = col === tray.columnCount - 1;
+      const allPrevSame = picked.length > 0 && picked.every((p) => p === picked[0]);
+      const forceDiffer = isLastSlot && allPrevSame && pieceTypes.length > 1;
+      const pieceType = forceDiffer
+        ? PieceSpawnOperations.pickRandomExcluding(pieceTypes, picked[0]!)
+        : PieceSpawnOperations.pickRandom(pieceTypes);
+      picked.push(pieceType);
       const rotations = rotatedShapes.get(pieceType);
       if (!rotations || rotations.length === 0) {
         throw new Error(`PieceSpawnOperations: no rotation pool for piece type "${pieceType.name}"`);
@@ -62,6 +76,15 @@ export class PieceSpawnOperations {
   /** Uniform random pick from a non-empty list. */
   private static pickRandom<T>(pool: readonly T[]): T {
     return pool[Math.floor(Math.random() * pool.length)]!;
+  }
+
+  /** Uniform random pick from `pool` excluding any entry equal to
+   *  `exclude` by reference. Caller must guarantee the filtered pool
+   *  is non-empty (the constraint here is `pool.length > 1` plus the
+   *  exclude appearing once). */
+  private static pickRandomExcluding<T>(pool: readonly T[], exclude: T): T {
+    const filtered = pool.filter((x) => x !== exclude);
+    return PieceSpawnOperations.pickRandom(filtered);
   }
 
   /** Pick `count` distinct entries from `pool` uniformly at random.
