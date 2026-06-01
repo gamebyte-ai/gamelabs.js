@@ -1,18 +1,15 @@
 import { UnsubscribeBag, UpdateManager, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
-import type { RectGrid } from "@gamebyte/gamelabsjs";
-import { GridsModel } from "@gamebyte/gamelabsjs";
 import { BlockPuzzleConfig } from "../BlockPuzzleConfig";
 import { GameState } from "../constants/GameState";
 import { BoosterPanelState } from "../constants/BoosterPanelState";
 import { BoosterType } from "../constants/BoosterType";
+import { TrayEvents } from "../events/TrayEvents";
 import { BoosterPanelModel } from "../models/BoosterPanelModel";
 import { ComboModel } from "../models/ComboModel";
 import { GameStateModel } from "../models/GameStateModel";
 import { ScoreModel } from "../models/ScoreModel";
 import { TimerModel } from "../models/TimerModel";
 import { TrayPlaceabilityModel } from "../models/TrayPlaceabilityModel";
-import { ItemIdGenerator } from "../utilities/ItemIdGenerator";
-import { PieceSpawnOperations } from "../utilities/PieceSpawnOperations";
 import { TimeFormatter } from "../utilities/TimeFormatter";
 import type { IGameScreenView } from "../views/IGameScreenView";
 
@@ -56,8 +53,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   private _comboModel: ComboModel | null = null;
   private _boosterPanel: BoosterPanelModel | null = null;
   private _placeability: TrayPlaceabilityModel | null = null;
-  private _gridsModel: GridsModel | null = null;
-  private _ids: ItemIdGenerator | null = null;
+  private _trayEvents: TrayEvents | null = null;
   private _updateManager: UpdateManager | null = null;
   private _lastTimeText = "";
   /** Combo loss shake — driven from `_onTick` while
@@ -76,8 +72,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._comboModel = resolver.getInstance(ComboModel);
     this._boosterPanel = resolver.getInstance(BoosterPanelModel);
     this._placeability = resolver.getInstance(TrayPlaceabilityModel);
-    this._gridsModel = resolver.getInstance(GridsModel);
-    this._ids = resolver.getInstance(ItemIdGenerator);
+    this._trayEvents = resolver.getInstance(TrayEvents);
     this._updateManager = resolver.getInstance(UpdateManager);
   }
 
@@ -125,8 +120,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._comboModel = null;
     this._boosterPanel = null;
     this._placeability = null;
-    this._gridsModel = null;
-    this._ids = null;
+    this._trayEvents = null;
     this._updateManager = null;
     this._lastTimeText = "";
     this._comboShakeTime = null;
@@ -254,35 +248,16 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     }
     if (this._boosterPanel.state !== BoosterPanelState.Ready) return;
     if (type === BoosterType.TrayRefresh) {
-      this.performTrayRefresh();
+      // Consume first (transitions Charging) so the boosters are
+      // visibly inert during the exit slide. The boards controller
+      // owns the tray view + animation pipeline, so the refresh
+      // sequence (exit slide → model clear → deal → entry slide)
+      // is orchestrated there via `TrayEvents.onRefreshRequested`.
       this._boosterPanel.consume();
+      this._trayEvents?.requestRefresh();
     } else {
       this._boosterPanel.selectBooster(type);
     }
-  }
-
-  /**
-   * Tray Refresh booster: discard every piece currently in the
-   * tray and deal a fresh hand. `dealHand` enforces a never-K-of-
-   * a-kind constraint, so the new hand is at least as varied as
-   * a normal deal.
-   */
-  private performTrayRefresh(): void {
-    if (!this._gridsModel || !this._config || !this._ids) return;
-    const tray = this._gridsModel.getGrid(this._config.boardIds.tray) as RectGrid | undefined;
-    if (!tray) return;
-    for (let col = 0; col < tray.columnCount; col++) {
-      while ((tray.getCell(col, 0)?.size ?? 0) > 0) {
-        tray.removeCellItem(col, 0);
-      }
-    }
-    PieceSpawnOperations.dealHand(
-      tray,
-      this._config.pieceTypes,
-      this._config.rotatedShapes,
-      this._config.blockColors,
-      this._ids,
-    );
   }
 
   /**

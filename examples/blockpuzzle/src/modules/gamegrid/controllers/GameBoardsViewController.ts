@@ -12,6 +12,7 @@ import { BlockPuzzleConfig } from "../../../BlockPuzzleConfig";
 import { GameState } from "../../../constants/GameState";
 import { BoosterPanelState } from "../../../constants/BoosterPanelState";
 import { BoosterType } from "../../../constants/BoosterType";
+import { TrayEvents } from "../../../events/TrayEvents";
 import { BoosterPanelModel } from "../../../models/BoosterPanelModel";
 import { ComboModel } from "../../../models/ComboModel";
 import { GameStateModel } from "../../../models/GameStateModel";
@@ -59,6 +60,7 @@ export class GameBoardsViewController extends GridsViewController {
   private _boardsView: IGameBoardsView | null = null;
   private _particleManager: ParticleManager | null = null;
   private _updateManager: UpdateManager | null = null;
+  private _trayEvents: TrayEvents | null = null;
   /** Coalescing flag for {@link _scheduleRecompute}. A single
    *  `_onPiecePlacement` commit fires N+1+M+K grid events; we want
    *  one recompute at the end, not per-event. */
@@ -108,6 +110,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._placeabilityModel = resolver.getInstance(TrayPlaceabilityModel);
     this._particleManager = resolver.getInstance(ParticleManager);
     this._updateManager = resolver.getInstance(UpdateManager);
+    this._trayEvents = resolver.getInstance(TrayEvents);
   }
 
   public override initialize(view: IGameBoardsView): void {
@@ -180,6 +183,13 @@ export class GameBoardsViewController extends GridsViewController {
     if (this._updateManager) {
       this._ownSubs.add(this._updateManager.register((dt) => this._onTick(dt)));
     }
+
+    // Tray Refresh booster — the HUD controller consumes the booster
+    // and fires this event; we own the tray view + animation pipeline
+    // so we orchestrate the exit slide, model clear, and re-deal here.
+    if (this._trayEvents) {
+      this._ownSubs.add(this._trayEvents.onRefreshRequested(() => this._onTrayRefreshRequested()));
+    }
   }
 
   protected override createItemObjectOption(item: IGridItem, grid: IBaseGrid): GameBoardItemObjectOptions {
@@ -231,6 +241,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._placeabilityModel = null;
     this._particleManager = null;
     this._updateManager = null;
+    this._trayEvents = null;
     super.destroy();
   }
 
@@ -555,9 +566,38 @@ export class GameBoardsViewController extends GridsViewController {
    * `null` once so the view snaps every block back to rest, then
    * skip the per-frame work.
    */
+  /**
+   * Tray Refresh orchestration. The HUD controller has already
+   * consumed the booster; here we slide the current pieces out,
+   * then clear the model cells, then deal a fresh hand (which auto-
+   * starts the entry slide via the view's `createItem` hook).
+   * Same `dealHand` contract as the post-placement refill — the
+   * never-K-of-a-kind constraint applies.
+   */
+  private _onTrayRefreshRequested(): void {
+    if (!this._boardsView || !this._gridsModel || !this._config || !this._ids) return;
+    const tray = this._gridsModel.getGrid(this._config.boardIds.tray) as RectGrid | undefined;
+    if (!tray) return;
+    this._boardsView.beginTrayExit(() => {
+      for (let col = 0; col < tray.columnCount; col++) {
+        while ((tray.getCell(col, 0)?.size ?? 0) > 0) {
+          tray.removeCellItem(col, 0);
+        }
+      }
+      PieceSpawnOperations.dealHand(
+        tray,
+        this._config!.pieceTypes,
+        this._config!.rotatedShapes,
+        this._config!.blockColors,
+        this._ids!,
+      );
+    });
+  }
+
   private _onTick(dt: number): void {
     this._tickHammerWobble(dt);
     this._tickGridShake(dt);
+    this._boardsView?.tickTrayAnimations(dt);
   }
 
   private _tickHammerWobble(dt: number): void {

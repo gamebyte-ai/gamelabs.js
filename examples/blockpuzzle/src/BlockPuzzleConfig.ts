@@ -354,6 +354,31 @@ export interface ShakeConfig {
 }
 
 /**
+ * Tray piece slide-in / slide-out animation. Entry fires whenever
+ * a new tray item is added (initial deal, full-tray refill,
+ * post-Tray-Refresh re-deal); exit fires only on Tray Refresh.
+ *
+ * Both animations stagger by tray column index so the leftmost slot
+ * moves first. Pieces are non-interactable while their animation
+ * is in flight (the pickup raycast skips animating items). World
+ * units throughout; an `xOffset` of `~15` is comfortably outside
+ * the camera's ortho extent for the default board.
+ */
+export interface TrayAnimationConfig {
+  readonly entryDurationSeconds: number;
+  readonly entryStaggerSeconds: number;
+  /** Positive world-X displacement applied to each item at the start
+   *  of its entry animation — items spawn off-screen-right and ease
+   *  back to their slot position. */
+  readonly entryStartXOffset: number;
+  readonly exitDurationSeconds: number;
+  readonly exitStaggerSeconds: number;
+  /** Negative world-X displacement applied to each item at the end
+   *  of its exit animation — items slide off-screen-left. */
+  readonly exitEndXOffset: number;
+}
+
+/**
  * Trauma-style impact shake for the playing grid on line clear.
  * Each frame the grid is displaced by an *independent* random
  * offset on both axes (and optionally a small random rotation),
@@ -570,7 +595,7 @@ export class BlockPuzzleConfig {
    * definition or rendering code touches the palette.
    */
   public readonly blockColors: readonly number[] = [
-    0xff1a31, 0xff9944, 0xffe01b, 0x53e553, 0x31dbdb, 0xb519f5, 0x9966ff, 0xff66cc,
+    0xff1a31, 0xff9944, 0xffe01b, 0x53e553, 0x31dbdb, 0x9966ff, 0xff66cc,
   ];
 
   /**
@@ -714,6 +739,20 @@ export class BlockPuzzleConfig {
     amplitudeLineScale: 0.6,
     rotationAmplitudeDegrees: 1.5,
     decayPower: 1.7,
+  };
+
+  /**
+   * Tray piece entry / exit slide animation. Entry fires for every
+   * tray add (initial, refill, post-refresh); exit fires only when
+   * Tray Refresh is used.
+   */
+  public readonly trayAnimation: TrayAnimationConfig = {
+    entryDurationSeconds: 0.32,
+    entryStaggerSeconds: 0.08,
+    entryStartXOffset: 15,
+    exitDurationSeconds: 0.26,
+    exitStaggerSeconds: 0.07,
+    exitEndXOffset: -15,
   };
 
   public readonly transitions: { readonly gameScreenEnter: ScreenTransition } = {

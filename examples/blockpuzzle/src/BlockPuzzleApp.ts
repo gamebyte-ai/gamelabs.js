@@ -28,8 +28,7 @@ import { GameStateModel } from "./models/GameStateModel";
 import { ScoreModel } from "./models/ScoreModel";
 import { TimerModel } from "./models/TimerModel";
 import { TrayPlaceabilityModel } from "./models/TrayPlaceabilityModel";
-import { BoosterPanelState } from "./constants/BoosterPanelState";
-import { BoosterType } from "./constants/BoosterType";
+import { TrayEvents } from "./events/TrayEvents";
 import { GameState } from "./constants/GameState";
 import { ItemIdGenerator } from "./utilities/ItemIdGenerator";
 import { LineClearRule } from "./utilities/LineClearRule";
@@ -79,17 +78,7 @@ export class BlockPuzzleApp extends GamelabsApp {
   private readonly _scoreModel = new ScoreModel();
   private readonly _timerModel = new TimerModel();
   private readonly _comboModel = new ComboModel(this._config.combo.maxMoves);
-  // TESTING: start in Hammer-Selecting so the Selecting visuals
-  // (dimmed background, X cancel, scaled-up button) and the
-  // hammer-tap destruction flow are reachable at game start without
-  // first earning a charge. Revert to
-  //   `new BoosterPanelModel(this._config.booster.stagesPerCharge)`
-  // for the normal Charging-from-zero flow.
-  private readonly _boosterModel = new BoosterPanelModel(
-    this._config.booster.stagesPerCharge,
-    BoosterPanelState.Selecting,
-    BoosterType.Hammer,
-  );
+  private readonly _boosterModel = new BoosterPanelModel(this._config.booster.stagesPerCharge);
   private readonly _placeabilityModel = new TrayPlaceabilityModel();
   private _cameraController: Topdown2dCameraController | null = null;
   private _cameraManager: GameCameraManager | null = null;
@@ -164,6 +153,10 @@ export class BlockPuzzleApp extends GamelabsApp {
     // recompute, HUD controller reads to choose the ready-state
     // booster label.
     this.diContainer.bindInstance(TrayPlaceabilityModel, this._placeabilityModel);
+    // Tray-lifecycle event channel — HUD controller fires
+    // `requestRefresh` after a Tray Refresh consume; boards
+    // controller orchestrates the exit-clear-deal sequence.
+    this.diContainer.bindInstance(TrayEvents, new TrayEvents());
     // `GameBoardsView` raycasts piece meshes against the active
     // camera — it needs the World instance for the renderer canvas
     // and scene access.

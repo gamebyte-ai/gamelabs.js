@@ -5,6 +5,7 @@ import {
   World,
   type AddGridData,
   type GridCoord,
+  type GridItemObjectOptions,
   type IInstanceResolver,
   type IParticleEmitter,
   type IPointerInputHandler,
@@ -48,6 +49,20 @@ type DragSourceUnitBlock = {
    *  Unit Block mode) when the booster is consumed. */
   readonly hiddenGroup: THREE.Group;
 };
+
+/**
+ * In-flight tray slide animation. Both entry and exit move the
+ * item along the local X axis; positions are in the item's
+ * cell-local space (which is offset by an unchanging amount per
+ * cell, so adding to the cell's natural X gives the visible slide).
+ */
+interface TrayAnimState {
+  readonly startX: number;
+  readonly targetX: number;
+  readonly duration: number;
+  readonly delay: number;
+  elapsed: number;
+}
 
 interface DragSession {
   readonly source: DragSourceTray | DragSourceUnitBlock;
@@ -158,6 +173,16 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     readonly z: number;
     readonly rotY: number;
   } | null = null;
+  /** Tray entry / exit animation state. Each map is keyed by the
+   *  animating item visual so the pickup raycast can short-circuit
+   *  on membership without iterating. */
+  private readonly _trayEntryAnimations = new Map<GameBoardItemObject, TrayAnimState>();
+  private readonly _trayExitAnimations = new Map<GameBoardItemObject, TrayAnimState>();
+  /** Fired once after the *last* in-flight exit animation finishes —
+   *  the caller (boards controller) clears the model items and deals
+   *  a new hand inside this callback. Set by `beginTrayExit`,
+   *  cleared on fire. */
+  private _trayExitDoneCallback: (() => void) | null = null;
   /** Pointer-up + pointer-down must be within this many CSS pixels
    *  of each other (and on the same cell) for a grid tap to fire.
    *  Hardcoded — booster cell-tap is a discrete action, not tuned
@@ -475,6 +500,135 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   }
 
   /**
+   * Wrap the framework's item creation: every tray-cell add (initial
+   * deal, refill, post-refresh) kicks off the entry slide-in. The
+   * super call positions the item at the cell's rest position, then
+   * we shift it off-screen-right and stash that as the starting X
+   * for the per-frame interpolator.
+   */
+  public override createItem(itemOptions: GridItemObjectOptions, gridId: number, col: number, row: number): void {
+    super.createItem(itemOptions, gridId, col, row);
+    if (this._config === null) return;
+    if (gridId !== this._config.boardIds.tray) return;
+    const gridObj = this.getGridObject(gridId);
+    if (!gridObj) return;
+    const item = gridObj.getCell(col, row)?.item;
+    if (!(item instanceof GameBoardItemObject)) return;
+    const cfg = this._config.trayAnimation;
+    const targetX = item.position.x;
+    const startX = targetX + cfg.entryStartXOffset;
+    item.position.x = startX;
+    this._trayEntryAnimations.set(item, {
+      startX,
+      targetX,
+      duration: cfg.entryDurationSeconds,
+      delay: col * cfg.entryStaggerSeconds,
+      elapsed: 0,
+    });
+  }
+
+  /**
+   * Clean up any in-flight animation entries for the item being
+   * removed — happens on regular drag-drop placement (tray slot
+   * empties), full-tray clears, and the post-exit refresh clear.
+   */
+  public override destroyItem(itemId: number, gridId: number, col: number, row: number): void {
+    const gridObj = this.getGridObject(gridId);
+    const item = gridObj?.getCell(col, row)?.item;
+    if (item instanceof GameBoardItemObject) {
+      this._trayEntryAnimations.delete(item);
+      this._trayExitAnimations.delete(item);
+    }
+    super.destroyItem(itemId, gridId, col, row);
+  }
+
+  public beginTrayExit(onComplete: () => void): void {
+    if (this._config === null) {
+      onComplete();
+      return;
+    }
+    const cfg = this._config.trayAnimation;
+    const tray = this.getGridObject(this._config.boardIds.tray);
+    if (!tray) {
+      onComplete();
+      return;
+    }
+    // Cancel any in-flight entry — items teleport to their rest
+    // position before the exit slide starts so the two animations
+    // don't fight for the same X.
+    for (const [item, anim] of this._trayEntryAnimations) {
+      item.position.x = anim.targetX;
+    }
+    this._trayEntryAnimations.clear();
+
+    let any = false;
+    for (let col = 0; col < tray.columnCount; col++) {
+      const item = tray.getCell(col, 0)?.item;
+      if (!(item instanceof GameBoardItemObject)) continue;
+      const startX = item.position.x;
+      this._trayExitAnimations.set(item, {
+        startX,
+        targetX: startX + cfg.exitEndXOffset,
+        duration: cfg.exitDurationSeconds,
+        delay: col * cfg.exitStaggerSeconds,
+        elapsed: 0,
+      });
+      any = true;
+    }
+    if (!any) {
+      onComplete();
+      return;
+    }
+    this._trayExitDoneCallback = onComplete;
+  }
+
+  public tickTrayAnimations(dt: number): void {
+    if (this._trayEntryAnimations.size > 0) {
+      for (const [item, anim] of this._trayEntryAnimations) {
+        anim.elapsed += dt;
+        if (anim.elapsed < anim.delay) {
+          item.position.x = anim.startX;
+          continue;
+        }
+        const t = Math.min(1, (anim.elapsed - anim.delay) / anim.duration);
+        const eased = GameBoardsView._easeOutCubic(t);
+        item.position.x = anim.startX + (anim.targetX - anim.startX) * eased;
+        if (t >= 1) {
+          item.position.x = anim.targetX;
+          this._trayEntryAnimations.delete(item);
+        }
+      }
+    }
+    if (this._trayExitAnimations.size > 0) {
+      for (const [item, anim] of this._trayExitAnimations) {
+        anim.elapsed += dt;
+        if (anim.elapsed < anim.delay) continue;
+        const t = Math.min(1, (anim.elapsed - anim.delay) / anim.duration);
+        const eased = GameBoardsView._easeInCubic(t);
+        item.position.x = anim.startX + (anim.targetX - anim.startX) * eased;
+        if (t >= 1) {
+          item.position.x = anim.targetX;
+          this._trayExitAnimations.delete(item);
+        }
+      }
+      if (this._trayExitAnimations.size === 0 && this._trayExitDoneCallback !== null) {
+        const cb = this._trayExitDoneCallback;
+        this._trayExitDoneCallback = null;
+        cb();
+      }
+    }
+  }
+
+  private static _easeOutCubic(t: number): number {
+    const u = 1 - t;
+    return 1 - u * u * u;
+  }
+
+  private static _easeInCubic(t: number): number {
+    return t * t * t;
+  }
+
+  /**
    * Build the playing grid's background: a rounded-corner outer
    * panel (`gridBackgroundPanel.panelColor`) sized `padding` world
    * units larger than the cell area, plus an inner backplate
@@ -650,6 +804,9 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     this._placementListeners.clear();
     this._cellTapListeners.clear();
     this._unitBlockPlacementListeners.clear();
+    this._trayEntryAnimations.clear();
+    this._trayExitAnimations.clear();
+    this._trayExitDoneCallback = null;
     this._validityPredicate = null;
     this._clearPreviewProvider = null;
     this._trayPlaceability = null;
@@ -1129,6 +1286,13 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       if (!cell?.item) continue;
       if (!cell.item.visible) continue;
       if (!(cell.item instanceof GameBoardItemObject)) continue;
+      // Pieces mid-slide aren't tappable — they haven't visually
+      // settled into their slot (entry) or are on their way off
+      // (exit). The booster panel is already disabled during a
+      // Tray Refresh exit phase, but defending here too keeps the
+      // pickup gate self-consistent.
+      if (this._trayEntryAnimations.has(cell.item)) continue;
+      if (this._trayExitAnimations.has(cell.item)) continue;
       const ref = { trayCol: col, cellItem: cell.item };
       for (const mesh of cell.item.pickableMeshes) {
         if (mesh instanceof THREE.Mesh) {

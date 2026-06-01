@@ -134,4 +134,17 @@ export interface IGameBoardsView extends IGridView {
    *  `0, 0, 0` snaps the grid back to its layout-resolved base
    *  position and rotation. */
   setGridShakeTransform(offsetX: number, offsetZ: number, rotationY: number): void;
+  /** Slide every currently-occupied tray item off-screen left
+   *  (staggered by column) and fire `onComplete` once the last
+   *  item finishes. Items remain non-interactable during the
+   *  slide via the pickup raycast skipping them. The caller is
+   *  expected to do its model-side cleanup + re-deal inside the
+   *  callback; the entry animation for the new hand starts
+   *  automatically from `createItem`. No-op if the tray is
+   *  already empty (callback still fires). */
+  beginTrayExit(onComplete: () => void): void;
+  /** Per-frame tick that advances any in-flight tray entry / exit
+   *  animations. The boards controller invokes this from its
+   *  `UpdateManager.register` callback. */
+  tickTrayAnimations(dt: number): void;
 }
