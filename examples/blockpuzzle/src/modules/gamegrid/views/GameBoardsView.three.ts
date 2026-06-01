@@ -149,6 +149,15 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   private _unitBlockGroup: THREE.Group | null = null;
   private _unitBlockColor = 0xffffff;
   private _unitBlockPlaceable = true;
+  /** Playing grid's base position + rotation captured at `addGrid`
+   *  — the shake transform is applied relative to these. `null`
+   *  until the playing grid is added. */
+  private _playingGridBaseTransform: {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+    readonly rotY: number;
+  } | null = null;
   /** Pointer-up + pointer-down must be within this many CSS pixels
    *  of each other (and on the same cell) for a grid tap to fire.
    *  Hardcoded — booster cell-tap is a discrete action, not tuned
@@ -195,6 +204,13 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
 
   public setDragEnabled(enabled: boolean): void {
     this._dragEnabled = enabled;
+    // Going off mid-drag (e.g. countdown hit zero while the player
+    // was dragging) — abort the current session as if the drop were
+    // invalid so the tray-piece visual snaps back / the unit-block
+    // visual reappears.
+    if (!enabled && this._dragSession !== null) {
+      this._endDragSession(true);
+    }
   }
 
   public setCellTapEnabled(enabled: boolean): void {
@@ -354,6 +370,15 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     };
   }
 
+  public setGridShakeTransform(offsetX: number, offsetZ: number, rotationY: number): void {
+    if (!this._config || this._playingGridBaseTransform === null) return;
+    const gridObj = this.getGridObject(this._config.boardIds.grid);
+    if (!gridObj) return;
+    const base = this._playingGridBaseTransform;
+    gridObj.position.set(base.x + offsetX, base.y, base.z + offsetZ);
+    gridObj.rotation.y = base.rotY + rotationY;
+  }
+
   /**
    * Raycast against the Unit Block temp piece's block meshes. The
    * group includes one mesh per cell (just one for the 1-cell unit
@@ -440,6 +465,12 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     super.addGrid(data);
     if (this._config !== null && data.id === this._config.boardIds.grid) {
       this._installPlayingGridBackground(data.id);
+      this._playingGridBaseTransform = {
+        x: data.position.x,
+        y: data.position.y,
+        z: data.position.z,
+        rotY: data.rotation.y,
+      };
     }
   }
 
@@ -832,11 +863,12 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     //   "these cells are about to disappear", completely replacing
     //   the existing block colours so the preview reads as a clean
     //   solid line, not a tinted blend.
+    const preview = this._clearPreviewProvider?.(footprint) ?? GameBoardsView._EMPTY_CLEAR_PREVIEW;
     const footprintKeys = new Set<string>();
     for (const c of footprint) footprintKeys.add(`${c.col},${c.row}`);
     const clearOnly: GridCoord[] = [];
     const seen = new Set<string>();
-    for (const c of this._clearPreviewProvider?.(footprint) ?? []) {
+    for (const c of preview.cells) {
       const key = `${c.col},${c.row}`;
       if (footprintKeys.has(key) || seen.has(key)) continue;
       seen.add(key);
@@ -871,8 +903,118 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       mesh.position.set(col * cellSize, 0, row * cellSize);
       this._ghostRoot.add(mesh);
     }
+
+    // Glowing white frame around each cleared row + column. Each
+    // line gets its own frame (rows and columns overlap naturally
+    // where they intersect since the strips are drawn independently).
+    const totalCols = grid.columnCount;
+    const totalRows = grid.rowCount;
+    const halfCell = cellSize / 2;
+    for (const r of preview.fullRows) {
+      const minX = -halfCell;
+      const maxX = totalCols * cellSize - halfCell;
+      const minZ = r * cellSize - halfCell;
+      const maxZ = r * cellSize + halfCell;
+      this._buildClearLineOutline(this._ghostRoot, minX, maxX, minZ, maxZ);
+    }
+    for (const c of preview.fullCols) {
+      const minX = c * cellSize - halfCell;
+      const maxX = c * cellSize + halfCell;
+      const minZ = -halfCell;
+      const maxZ = totalRows * cellSize - halfCell;
+      this._buildClearLineOutline(this._ghostRoot, minX, maxX, minZ, maxZ);
+    }
+
     this._ghostRoot.visible = true;
   }
+
+  /**
+   * Build a glowing frame around `[minX..maxX] × [minZ..maxZ]` and
+   * append the strips to `parent`. Inner solid frame + outer halo
+   * frame fakes a glow without post-processing — each frame is four
+   * thin `PlaneGeometry` strips (top / bottom / left / right). All
+   * strips render slightly above the ghost-root's local origin so
+   * they sit on top of the cell highlights underneath.
+   */
+  private _buildClearLineOutline(
+    parent: THREE.Group,
+    minX: number,
+    maxX: number,
+    minZ: number,
+    maxZ: number,
+  ): void {
+    if (!this._config) return;
+    const cfg = this._config.drag.clearPreviewOutline;
+    // Halo first so the solid inner frame paints over its inner
+    // edge — gives a soft outside, crisp inside look.
+    GameBoardsView._appendFrameStrips(
+      parent,
+      minX - cfg.haloPadding,
+      maxX + cfg.haloPadding,
+      minZ - cfg.haloPadding,
+      maxZ + cfg.haloPadding,
+      cfg.thickness + cfg.haloPadding,
+      cfg.haloColor,
+      cfg.haloAlpha,
+      0.0005,
+    );
+    GameBoardsView._appendFrameStrips(
+      parent,
+      minX,
+      maxX,
+      minZ,
+      maxZ,
+      cfg.thickness,
+      cfg.color,
+      1,
+      0.001,
+    );
+  }
+
+  private static _appendFrameStrips(
+    parent: THREE.Group,
+    minX: number,
+    maxX: number,
+    minZ: number,
+    maxZ: number,
+    thickness: number,
+    color: number,
+    opacity: number,
+    y: number,
+  ): void {
+    const w = maxX - minX;
+    const d = maxZ - minZ;
+    const transparent = opacity < 1;
+    const make = (sx: number, sz: number, cx: number, cz: number): void => {
+      const mat = new THREE.MeshBasicMaterial({
+        color,
+        side: THREE.DoubleSide,
+        transparent,
+        opacity,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(sx, sz), mat);
+      mesh.rotation.x = -Math.PI / 2;
+      mesh.position.set(cx, y, cz);
+      parent.add(mesh);
+    };
+    // Top + bottom strips run the full width; left + right strips
+    // span the inner depth so corners are covered by the top/bottom
+    // bars (no gap, no double-paint).
+    make(w, thickness, minX + w / 2, minZ + thickness / 2);
+    make(w, thickness, minX + w / 2, maxZ - thickness / 2);
+    const innerD = Math.max(0, d - 2 * thickness);
+    if (innerD > 0) {
+      make(thickness, innerD, minX + thickness / 2, minZ + thickness + innerD / 2);
+      make(thickness, innerD, maxX - thickness / 2, minZ + thickness + innerD / 2);
+    }
+  }
+
+  private static readonly _EMPTY_CLEAR_PREVIEW = {
+    cells: [] as readonly GridCoord[],
+    fullRows: [] as readonly number[],
+    fullCols: [] as readonly number[],
+  };
 
   /**
    * Piece-bbox overlap gate + clamp-into-bounds anchor.

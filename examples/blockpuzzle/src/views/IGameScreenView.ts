@@ -37,6 +37,11 @@ export interface BoosterPanelHudState {
    *  cancel button over it, and dims the others. `null` outside
    *  Selecting. */
   readonly selectedBooster: BoosterType | null;
+  /** Whole-panel non-interactability gate — true after the game
+   *  has ended (TimeUp / GameOver). View suppresses button taps,
+   *  hides the X, and suppresses the ready label regardless of the
+   *  underlying `state`. */
+  readonly disabled: boolean;
 }
 
 /**
@@ -79,6 +84,11 @@ export interface IGameScreenView extends IScreenView {
    *  booster while in Selecting. The controller calls
    *  `BoosterPanelModel.cancelSelection()`. */
   onBoosterCancelled(callback: () => void): Unsubscribe;
+  /** Set the synchronised horizontal shake offset applied to the
+   *  combo widget's three circles. The HUD controller drives the
+   *  decaying sin externally; this method just applies the current
+   *  offset to the circles' container. `0` snaps them back. */
+  setComboShakeOffset(offsetX: number): void;
   /** Show / hide the centered end-state label. `null` hides it; a
    *  non-null appearance shows the given text in the given colour
    *  (applied via container tint, the base label is white). */

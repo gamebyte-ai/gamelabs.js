@@ -22,7 +22,7 @@ import { LineClearRule } from "../../../utilities/LineClearRule";
 import { PiecePlacementOperations } from "../../../utilities/PiecePlacementOperations";
 import { PieceSpawnOperations } from "../../../utilities/PieceSpawnOperations";
 import { GameBoardItem } from "../models/GameBoardItem";
-import type { IGameBoardsView, PiecePlacementInfo, TrayPlaceability } from "../views/IGameBoardsView";
+import type { ClearPreviewResult, IGameBoardsView, PiecePlacementInfo, TrayPlaceability } from "../views/IGameBoardsView";
 import { GameBoardItemObjectOptions } from "../views/GameBoardItemObjectOptions";
 
 /**
@@ -70,6 +70,12 @@ export class GameBoardsViewController extends GridsViewController {
    *  it's a view-pacing concern, not a model state. */
   private _wobbleActive = false;
   private _wobbleTime = 0;
+  /** Grid impact-shake state. `_gridShakeTime !== null` while a
+   *  shake is in flight; `_gridShakeAmplitude` is captured at trigger
+   *  time so the per-frame integrator uses the same amplitude (which
+   *  scales with the placement's line count). */
+  private _gridShakeTime: number | null = null;
+  private _gridShakeAmplitude = 0;
   /** Tracks whether the boards view is currently in Unit Block mode
    *  so {@link _syncUnitBlockMode} only enters / exits on real
    *  transitions (not on every booster-panel onChange tick). */
@@ -138,6 +144,13 @@ export class GameBoardsViewController extends GridsViewController {
     if (this._boosterPanel) {
       this._ownSubs.add(this._boosterPanel.onChange(() => this._onBoosterPanelChange()));
     }
+    // Terminal transitions (TimeUp / GameOver) need to flip drag off
+    // too. Recompute re-evaluates the gate against the new game
+    // state and the view aborts any in-flight drag inside
+    // `setDragEnabled(false)`.
+    if (this._gameState) {
+      this._ownSubs.add(this._gameState.onStateChanged(() => this._scheduleRecompute()));
+    }
     // Initial Unit Block sync — if the App started directly in
     // UnitBlock Selecting (test mode), enter mode now so the temp
     // piece spawns at the right time relative to the initial deal.
@@ -199,6 +212,11 @@ export class GameBoardsViewController extends GridsViewController {
       this._unitBlockEntered = false;
       this._boardsView?.exitUnitBlockMode();
     }
+    if (this._gridShakeTime !== null) {
+      this._gridShakeTime = null;
+      this._gridShakeAmplitude = 0;
+      this._boardsView?.setGridShakeTransform(0, 0, 0);
+    }
     this._unitBlockColor = null;
     this._boardsView = null;
     this._config = null;
@@ -236,12 +254,20 @@ export class GameBoardsViewController extends GridsViewController {
    * filled. So the highlight on the ghost exactly matches the
    * lines that will clear if the player drops here.
    */
-  private _predictClears(footprint: readonly GridCoord[]): readonly GridCoord[] {
-    if (!this._gridsModel || !this._config || !this._clearRule) return [];
+  private _predictClears(footprint: readonly GridCoord[]): ClearPreviewResult {
+    if (!this._gridsModel || !this._config || !this._clearRule) {
+      return GameBoardsViewController._EMPTY_CLEAR_PREVIEW;
+    }
     const grid = this._gridsModel.getGrid(this._config.boardIds.grid);
-    if (!grid) return [];
-    return this._clearRule.computeClears(grid, footprint).cells;
+    if (!grid) return GameBoardsViewController._EMPTY_CLEAR_PREVIEW;
+    return this._clearRule.computeClears(grid, footprint);
   }
+
+  private static readonly _EMPTY_CLEAR_PREVIEW: ClearPreviewResult = {
+    cells: [],
+    fullRows: [],
+    fullCols: [],
+  };
 
   /**
    * Commit a valid drop. The view has already validated via the
@@ -286,6 +312,7 @@ export class GameBoardsViewController extends GridsViewController {
     // No-clear placements don't advance the bar (Charging keeps
     // its progress, Ready stays Ready).
     if (lineCount > 0) this._boosterPanel?.registerClear(lineCount);
+    if (lineCount > 0) this._triggerGridShake(lineCount);
     if (GameBoardsViewController._isTrayEmpty(tray)) {
       PieceSpawnOperations.dealHand(tray, this._config.pieceTypes, this._config.rotatedShapes, this._config.blockColors, this._ids);
     }
@@ -374,12 +401,17 @@ export class GameBoardsViewController extends GridsViewController {
     //   1-cell piece is draggable; only Hammer Selecting disables it
     //   (Hammer uses the cell-tap path instead).
     // - Cell-tap is enabled only while in Selecting + Hammer.
+    // - Any terminal game state (TimeUp / GameOver) shuts both off
+    //   so the player can't place blocks after the game ends. The
+    //   view's `setDragEnabled(false)` also aborts any in-flight
+    //   drag (e.g. countdown ran out mid-drag).
     const isSelecting =
       this._boosterPanel !== null && this._boosterPanel.state === BoosterPanelState.Selecting;
     const isHammerSelecting =
       isSelecting && this._boosterPanel?.selectedBooster === BoosterType.Hammer;
-    view.setDragEnabled(!gameOver && !isHammerSelecting);
-    view.setCellTapEnabled(isHammerSelecting);
+    const terminal = this._gameState.state !== GameState.Playing;
+    view.setDragEnabled(!terminal && !gameOver && !isHammerSelecting);
+    view.setCellTapEnabled(!terminal && isHammerSelecting);
 
     // Background dim: only while Selecting AND the pending booster
     // is a target-selection one. Tray Refresh consumes inline and
@@ -483,6 +515,7 @@ export class GameBoardsViewController extends GridsViewController {
     // `registerClear` runs — the model is no-op during Selecting.
     this._boosterPanel.consume();
     if (lineCount > 0) this._boosterPanel.registerClear(lineCount);
+    if (lineCount > 0) this._triggerGridShake(lineCount);
   }
 
   /**
@@ -523,6 +556,11 @@ export class GameBoardsViewController extends GridsViewController {
    * skip the per-frame work.
    */
   private _onTick(dt: number): void {
+    this._tickHammerWobble(dt);
+    this._tickGridShake(dt);
+  }
+
+  private _tickHammerWobble(dt: number): void {
     const isHammerSelecting =
       this._boosterPanel !== null &&
       this._boosterPanel.state === BoosterPanelState.Selecting &&
@@ -543,5 +581,47 @@ export class GameBoardsViewController extends GridsViewController {
     }
     this._wobbleTime += dt;
     this._boardsView?.setHammerWobble(this._wobbleTime);
+  }
+
+  /**
+   * Capture the impact-shake amplitude for a placement that cleared
+   * `lineCount` lines. Amplitude scales linearly with extra lines
+   * via `gridShake.amplitudeLineScale` (single-line clears use the
+   * base amplitude unchanged).
+   */
+  private _triggerGridShake(lineCount: number): void {
+    if (!this._config) return;
+    const cfg = this._config.gridShake;
+    const scaled = cfg.amplitude * (1 + cfg.amplitudeLineScale * Math.max(0, lineCount - 1));
+    this._gridShakeAmplitude = scaled;
+    this._gridShakeTime = 0;
+  }
+
+  /**
+   * Trauma-style impact shake. Each frame, independent random
+   * offsets on X and Z (and a small random Y-axis rotation) are
+   * applied, all scaled by `(1 - t/duration)^decayPower` so the
+   * shake reads as a sudden jolt that settles — not a controlled
+   * sinusoid. Random per-frame direction prevents the eye from
+   * locking onto a wobble period.
+   */
+  private _tickGridShake(dt: number): void {
+    if (this._gridShakeTime === null || this._config === null || this._boardsView === null) return;
+    const cfg = this._config.gridShake;
+    this._gridShakeTime += dt;
+    if (this._gridShakeTime >= cfg.durationSeconds) {
+      this._gridShakeTime = null;
+      this._gridShakeAmplitude = 0;
+      this._boardsView.setGridShakeTransform(0, 0, 0);
+      return;
+    }
+    const trauma = 1 - this._gridShakeTime / cfg.durationSeconds;
+    const decay = Math.pow(trauma, cfg.decayPower);
+    const ampOffset = this._gridShakeAmplitude * decay;
+    const ampRotRad = ((cfg.rotationAmplitudeDegrees * Math.PI) / 180) * decay;
+    const offsetX = (Math.random() * 2 - 1) * ampOffset;
+    const offsetZ = (Math.random() * 2 - 1) * ampOffset;
+    const rotationY = (Math.random() * 2 - 1) * ampRotRad;
+    this._boardsView.setGridShakeTransform(offsetX, offsetZ, rotationY);
   }
 }

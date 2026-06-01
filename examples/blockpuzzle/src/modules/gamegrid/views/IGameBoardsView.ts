@@ -27,17 +27,27 @@ export interface PiecePlacementInfo {
 export type PiecePlacementPredicate = (footprint: readonly GridCoord[]) => boolean;
 
 /**
+ * Predictive clear-preview result. `cells` are every cell that
+ * would clear (full row + full column union); `fullRows` /
+ * `fullCols` are the line indices that triggered the clear. The
+ * view paints `cells` in the piece's colour and frames each
+ * `fullRows` / `fullCols` line with a glowing outline.
+ *
+ * Empty `cells` AND empty rows/cols means nothing would clear.
+ */
+export interface ClearPreviewResult {
+  readonly cells: readonly GridCoord[];
+  readonly fullRows: readonly number[];
+  readonly fullCols: readonly number[];
+}
+
+/**
  * Predictive clears for the ghost preview. The view calls this
  * with the candidate footprint and the controller returns the
- * cells that *would* be cleared if the player dropped here. The
- * view paints those cells in the dragged piece's colour as part of
- * the ghost — same colour, same opacity — so the player sees the
- * full row/column that's about to disappear.
- *
- * Empty array = no lines would clear (normal ghost with footprint
- * cells only).
+ * cells + line indices that *would* be cleared if the player
+ * dropped here.
  */
-export type ClearPreviewProvider = (footprint: readonly GridCoord[]) => readonly GridCoord[];
+export type ClearPreviewProvider = (footprint: readonly GridCoord[]) => ClearPreviewResult;
 
 /**
  * Per-slot placeability map. Keyed by tray column; missing entries
@@ -118,4 +128,10 @@ export interface IGameBoardsView extends IGridView {
    *  `{col, row}` the block lands on. The controller places a 1-cell
    *  grid item there and consumes the booster. */
   onUnitBlockPlacement(callback: (footprint: readonly GridCoord[]) => void): Unsubscribe;
+  /** Apply an impact-shake transform to the playing grid (cells +
+   *  the panel + separator children of its `GridObject`). The
+   *  controller drives random per-frame offset + rotation values;
+   *  `0, 0, 0` snaps the grid back to its layout-resolved base
+   *  position and rotation. */
+  setGridShakeTransform(offsetX: number, offsetZ: number, rotationY: number): void;
 }

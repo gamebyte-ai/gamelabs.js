@@ -58,6 +58,10 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
   private _timeLabel: LabelComponent | null = null;
   private _endStateLabel: LabelComponent | null = null;
   private _comboContainer: Container | null = null;
+  /** Inner wrapper around the 3 combo circles, so the loss-shake
+   *  can jitter the circles independently of the combo label and
+   *  the booster-selecting prompt that share the outer widget. */
+  private _comboCirclesContainer: Container | null = null;
   private _comboCircles: Graphics[] = [];
   private _comboLabel: LabelComponent | null = null;
   private _boosterPromptLabel: LabelComponent | null = null;
@@ -111,6 +115,7 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       stagesFilled: 0,
       readyLabel: null,
       selectedBooster: null,
+      disabled: false,
     });
   }
 
@@ -195,17 +200,20 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     // - Selecting: selected booster active + scaled up, *not* tappable
     //   (the X handles cancel); other boosters dim + not tappable.
     // - Charging: all dim + not tappable.
+    // - Disabled (game ended): every button dim + not tappable
+    //   regardless of underlying state.
     for (const button of this._boosterButtons) {
       const isSelected = isSelecting && state.selectedBooster === button.type;
-      const active = isReady || isSelected;
+      const active = (isReady || isSelected) && !state.disabled;
       button.container.alpha = active ? cfg.buttonActiveAlpha : cfg.buttonInactiveAlpha;
-      button.container.scale.set(isSelected ? cfg.selectedScale : 1);
+      button.container.scale.set(isSelected && !state.disabled ? cfg.selectedScale : 1);
       // Ready boosters take pointer events as normal activation.
       // Selected booster *also* stays tappable so a re-tap cancels
       // (equivalent to the X) — the controller routes
       // `onBoosterActivated(currentlySelectedType)` to cancel.
       // Non-selected boosters during Selecting / Charging stay off.
-      const tappable = isReady || isSelected;
+      // After game end every booster is off.
+      const tappable = (isReady || isSelected) && !state.disabled;
       button.container.eventMode = tappable ? "static" : "none";
       button.container.cursor = tappable ? "pointer" : "default";
     }
@@ -222,9 +230,10 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     }
 
     // Ready-state label: shown only when Ready (controller passes
-    // null in Charging / Selecting).
+    // null in Charging / Selecting), suppressed entirely when the
+    // panel is disabled.
     if (this._readyLabel !== null) {
-      if (isReady && state.readyLabel !== null) {
+      if (isReady && state.readyLabel !== null && !state.disabled) {
         this._readyLabel.setText(state.readyLabel);
         this._readyLabel.visible = true;
       } else {
@@ -233,11 +242,12 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     }
 
     // Floating X cancel: shown over the selected booster while
-    // Selecting. Position it relative to the selected button's
-    // centre using config offsets (scaled by `selectedScale` so the
-    // X tracks the enlarged button visually).
+    // Selecting (never when disabled — the panel auto-exits
+    // Selecting on game end). Position it relative to the selected
+    // button's centre using config offsets (scaled by `selectedScale`
+    // so the X tracks the enlarged button visually).
     if (this._cancelButton !== null) {
-      const selected = isSelecting
+      const selected = isSelecting && !state.disabled
         ? this._boosterButtons.find((b) => b.type === state.selectedBooster) ?? null
         : null;
       if (selected !== null) {
@@ -266,6 +276,12 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     return () => {
       this._cancelListeners.delete(callback);
     };
+  }
+
+  public setComboShakeOffset(offsetX: number): void {
+    if (this._comboCirclesContainer !== null) {
+      this._comboCirclesContainer.x = offsetX;
+    }
   }
 
   public setEndStateLabel(appearance: { readonly text: string; readonly color: number } | null): void {
@@ -305,14 +321,17 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
 
     const step = combo.circleRadius * 2 + combo.circleSpacing;
     const circleY = combo.labelFontSize + combo.labelGapAbove + combo.circleRadius;
+    const circles = new Container();
     for (let i = 0; i < combo.maxMoves; i++) {
       const circle = new Graphics();
       circle.x = (i - (combo.maxMoves - 1) / 2) * step;
       circle.y = circleY;
       this._paintCircle(circle, combo.circleRadius, combo.circleColorInactive);
-      container.addChild(circle);
+      circles.addChild(circle);
       this._comboCircles.push(circle);
     }
+    container.addChild(circles);
+    this._comboCirclesContainer = circles;
 
     // Booster-selecting prompt — same container as the combo so the
     // resize-time position pin applies to both. Centred vertically

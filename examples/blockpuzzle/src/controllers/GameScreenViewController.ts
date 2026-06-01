@@ -1,4 +1,4 @@
-import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
+import { UnsubscribeBag, UpdateManager, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
 import type { RectGrid } from "@gamebyte/gamelabsjs";
 import { GridsModel } from "@gamebyte/gamelabsjs";
 import { BlockPuzzleConfig } from "../BlockPuzzleConfig";
@@ -58,7 +58,14 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   private _placeability: TrayPlaceabilityModel | null = null;
   private _gridsModel: GridsModel | null = null;
   private _ids: ItemIdGenerator | null = null;
+  private _updateManager: UpdateManager | null = null;
   private _lastTimeText = "";
+  /** Combo loss shake — driven from `_onTick` while
+   *  `_comboShakeTime !== null`. Tracks elapsed time within the
+   *  shake; the previous moves-remaining catches the 1 → 0
+   *  chain-break transition. */
+  private _comboShakeTime: number | null = null;
+  private _lastComboMovesRemaining = 0;
   private readonly _subs = new UnsubscribeBag();
 
   public inject(resolver: IInstanceResolver): void {
@@ -71,6 +78,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._placeability = resolver.getInstance(TrayPlaceabilityModel);
     this._gridsModel = resolver.getInstance(GridsModel);
     this._ids = resolver.getInstance(ItemIdGenerator);
+    this._updateManager = resolver.getInstance(UpdateManager);
   }
 
   public initialize(view: IGameScreenView): void {
@@ -89,10 +97,9 @@ export class GameScreenViewController implements IViewController<IGameScreenView
       this._subs.add(this._gameState.onStateChanged((state) => this.onGameStateChanged(state)));
     }
     if (this._comboModel) {
+      this._lastComboMovesRemaining = this._comboModel.movesRemaining;
       view.setComboState({ level: this._comboModel.level, movesRemaining: this._comboModel.movesRemaining });
-      this._subs.add(
-        this._comboModel.onChange((m) => view.setComboState({ level: m.level, movesRemaining: m.movesRemaining })),
-      );
+      this._subs.add(this._comboModel.onChange((m) => this.onComboChanged(m.level, m.movesRemaining)));
     }
     if (this._boosterPanel) {
       this.pushBoosterPanelState(view);
@@ -102,6 +109,9 @@ export class GameScreenViewController implements IViewController<IGameScreenView
       }
       this._subs.add(view.onBoosterActivated((type) => this.handleBoosterTap(type)));
       this._subs.add(view.onBoosterCancelled(() => this._boosterPanel?.cancelSelection()));
+    }
+    if (this._updateManager) {
+      this._subs.add(this._updateManager.register((dt) => this._onTick(dt)));
     }
   }
 
@@ -117,7 +127,46 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._placeability = null;
     this._gridsModel = null;
     this._ids = null;
+    this._updateManager = null;
     this._lastTimeText = "";
+    this._comboShakeTime = null;
+    this._lastComboMovesRemaining = 0;
+  }
+
+  /**
+   * Combo state transition handler. Pushes the new state to the
+   * view and detects the chain-break (1 → 0 movesRemaining) to
+   * trigger the loss shake. A clear-driven decrement still ends
+   * up at 0 only after intervening clears reset the counter, so
+   * the 1 → 0 transition exclusively catches no-clear breaks.
+   */
+  private onComboChanged(level: number, movesRemaining: number): void {
+    if (this._view === null) return;
+    this._view.setComboState({ level, movesRemaining });
+    const broke = this._lastComboMovesRemaining === 1 && movesRemaining === 0;
+    this._lastComboMovesRemaining = movesRemaining;
+    if (broke) this._comboShakeTime = 0;
+  }
+
+  /**
+   * Per-frame tick — drives the combo loss shake while
+   * `_comboShakeTime !== null`. Offset is a decaying sinusoid:
+   * `amp · (1 - t/duration) · sin(2π · f · t)`. End-of-shake snaps
+   * the circles back to zero offset.
+   */
+  private _onTick(dt: number): void {
+    if (this._comboShakeTime === null || this._view === null || this._config === null) return;
+    const cfg = this._config.combo.lossShake;
+    this._comboShakeTime += dt;
+    if (this._comboShakeTime >= cfg.durationSeconds) {
+      this._comboShakeTime = null;
+      this._view.setComboShakeOffset(0);
+      return;
+    }
+    const t = this._comboShakeTime;
+    const decay = 1 - t / cfg.durationSeconds;
+    const offset = cfg.amplitude * decay * Math.sin(2 * Math.PI * cfg.frequencyHz * t);
+    this._view.setComboShakeOffset(offset);
   }
 
   /**
@@ -135,6 +184,14 @@ export class GameScreenViewController implements IViewController<IGameScreenView
    */
   private onGameStateChanged(state: GameState): void {
     if (this._view === null) return;
+    // Auto-exit any pending Selecting on terminal transition. The
+    // resulting `BoosterPanelModel.cancelSelection()` fires its own
+    // onChange → pushBoosterPanelState, but the post-cancel state
+    // (Ready, no selectedBooster) is still pushed as `disabled`
+    // because gameState is now terminal.
+    if (state !== GameState.Playing && this._boosterPanel?.state === BoosterPanelState.Selecting) {
+      this._boosterPanel.cancelSelection();
+    }
     this._view.setEndStateLabel(this.endStateLabelFor(state));
     this.pushBoosterPanelState(this._view);
   }
@@ -158,6 +215,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
       stagesFilled: this._boosterPanel.stagesFilled,
       readyLabel,
       selectedBooster: this._boosterPanel.selectedBooster,
+      disabled: !isPlaying,
     });
     // Booster-selecting instruction in the combo widget's slot. Only
     // the two target-selection boosters surface a prompt; instant
@@ -183,6 +241,10 @@ export class GameScreenViewController implements IViewController<IGameScreenView
    */
   private handleBoosterTap(type: BoosterType): void {
     if (this._boosterPanel === null) return;
+    // Defensive guard — the view already gates `eventMode` off
+    // post-terminal, but a tap mid-transition could still land
+    // here. Drop any activation while the game is over.
+    if (this._gameState !== null && this._gameState.state !== GameState.Playing) return;
     if (
       this._boosterPanel.state === BoosterPanelState.Selecting &&
       this._boosterPanel.selectedBooster === type

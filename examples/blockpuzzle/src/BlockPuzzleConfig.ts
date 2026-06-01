@@ -181,6 +181,30 @@ export interface DragConfig {
    * edges, lower it for a tighter pointer-area gate.
    */
   readonly pointerAreaMargin: number;
+  /** Glowing frame drawn around any row / column the ghost preview
+   *  would clear. Rendered in addition to the recoloured clear-line
+   *  cells so the player sees both signals (cells about to vanish
+   *  + outlined line bounds). */
+  readonly clearPreviewOutline: ClearPreviewOutlineConfig;
+}
+
+/**
+ * Visual tuning for the row / column outline shown on the ghost
+ * preview when a drop would trigger a line clear. The outline is
+ * built from rectangle strips — an inner solid frame at full alpha
+ * plus an outer halo frame at reduced alpha — to fake a glow under
+ * vanilla Three.js (no post-processing). All sizes in world units.
+ */
+export interface ClearPreviewOutlineConfig {
+  readonly color: number;
+  /** Thickness of the inner solid frame strips. */
+  readonly thickness: number;
+  readonly haloColor: number;
+  /** Alpha applied to the outer halo strips. */
+  readonly haloAlpha: number;
+  /** Extra outset (per side) of the halo frame outside the inner
+   *  frame, in world units. */
+  readonly haloPadding: number;
 }
 
 export type TimeDirection = "up" | "down";
@@ -311,6 +335,49 @@ export interface ComboConfig {
   /** Vertical gap between the label's bottom and the top of the
    *  circles. */
   readonly labelGapAbove: number;
+  /** Synchronised horizontal jitter applied to the three combo
+   *  circles when the chain breaks (movesRemaining 1 → 0 without
+   *  an intervening clear). One shake per loss. */
+  readonly lossShake: ShakeConfig;
+}
+
+/**
+ * Decaying-sinusoid shake. `offset(t) = amplitude · (1 - t / duration) ·
+ * sin(2π · frequencyHz · t)`. `amplitude` is in the shake target's
+ * native units (screen px for HUD widgets, world units for World
+ * objects).
+ */
+export interface ShakeConfig {
+  readonly durationSeconds: number;
+  readonly amplitude: number;
+  readonly frequencyHz: number;
+}
+
+/**
+ * Trauma-style impact shake for the playing grid on line clear.
+ * Each frame the grid is displaced by an *independent* random
+ * offset on both axes (and optionally a small random rotation),
+ * scaled by `amplitude · trauma^decayPower` where
+ * `trauma = 1 - t/duration`. Quadratic decay (`decayPower = 2`)
+ * is the canonical trauma shake — strong initial jolt that settles
+ * quickly. Random-per-frame displacement (vs. a fixed-frequency
+ * sinusoid) reads as a jolt, not a wobble.
+ */
+export interface GridShakeConfig {
+  readonly durationSeconds: number;
+  /** Base offset amplitude per axis, world units. The actual
+   *  per-frame offset is uniform in `[-amp·decay, amp·decay]`. */
+  readonly amplitude: number;
+  /** Per-extra-line amplitude scale: total amplitude becomes
+   *  `amplitude · (1 + amplitudeLineScale · (lineCount - 1))`. Set
+   *  to `0` to disable scaling. */
+  readonly amplitudeLineScale: number;
+  /** Maximum random Y-axis rotation per frame (degrees), decayed
+   *  by the same curve. `0` disables rotation jitter. */
+  readonly rotationAmplitudeDegrees: number;
+  /** Decay exponent on `(1 - t/duration)`. `1` is linear, `2` is
+   *  the canonical trauma-shake quadratic, higher = sharper jolt. */
+  readonly decayPower: number;
 }
 
 /**
@@ -403,7 +470,7 @@ export class BlockPuzzleConfig {
    * consume / cancel.
    */
   public readonly backgroundColors: BackgroundColorsConfig = {
-    default: 0x5254a7,
+    default: 0x6f6fab,
     selecting: 0x0a0a17,
   };
 
@@ -533,6 +600,13 @@ export class BlockPuzzleConfig {
     ghostOpacity: 0.6,
     pickupLift: 1.5,
     pointerAreaMargin: 0.5,
+    clearPreviewOutline: {
+      color: 0xffffff,
+      thickness: 0.08,
+      haloColor: 0xffffff,
+      haloAlpha: 0.35,
+      haloPadding: 0.1,
+    },
   };
 
   /**
@@ -621,6 +695,25 @@ export class BlockPuzzleConfig {
     labelFontSize: 20,
     labelColor: 0xffffff,
     labelGapAbove: 8,
+    lossShake: {
+      durationSeconds: 0.35,
+      amplitude: 6,
+      frequencyHz: 22,
+    },
+  };
+
+  /**
+   * Trauma-style impact shake on line clear. Per-axis random
+   * displacement + optional rotation jitter every frame, amplitude
+   * decays as `(1 - t/duration)^decayPower`. Amplitude scales with
+   * the placement's line count via `amplitudeLineScale`.
+   */
+  public readonly gridShake: GridShakeConfig = {
+    durationSeconds: 0.32,
+    amplitude: 0.12,
+    amplitudeLineScale: 0.6,
+    rotationAmplitudeDegrees: 1.5,
+    decayPower: 1.7,
   };
 
   public readonly transitions: { readonly gameScreenEnter: ScreenTransition } = {
