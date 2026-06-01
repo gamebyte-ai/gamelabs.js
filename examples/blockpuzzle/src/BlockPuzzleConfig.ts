@@ -110,6 +110,33 @@ export interface TimeConfig {
 }
 
 /**
+ * Combo HUD widget tunables. The widget renders `maxMoves` circles
+ * at the top centre of the screen with a state-driven label above
+ * them; circles flip between `circleColorActive` (combo still has
+ * moves) and `circleColorInactive` (depleted / inactive). All
+ * dimensions in screen pixels.
+ */
+export interface ComboConfig {
+  /** Number of circles AND the cap on `movesRemaining`. A combo
+   *  survives this many no-clear placements before deactivating. */
+  readonly maxMoves: number;
+  readonly circleRadius: number;
+  /** Edge-to-edge gap between adjacent circles. */
+  readonly circleSpacing: number;
+  readonly circleColorActive: number;
+  readonly circleColorInactive: number;
+  /** Distance from the screen top to the **top of the widget** (the
+   *  label's top edge). The circles sit below the label with
+   *  `labelGapAbove` between them. */
+  readonly topMargin: number;
+  readonly labelFontSize: number;
+  readonly labelColor: number;
+  /** Vertical gap between the label's bottom and the top of the
+   *  circles. */
+  readonly labelGapAbove: number;
+}
+
+/**
  * Per-event score awards. Multiplied by the relevant count at the
  * call site (e.g. `placedBlock × footprint cells`,
  * `clearedLine × (fullRows + fullCols)`).
@@ -292,6 +319,22 @@ export class BlockPuzzleConfig {
   public readonly score: ScoreConfig = {
     placedBlock: 10,
     clearedLine: 100,
+  };
+
+  /**
+   * Combo widget visuals + the streak's max-moves budget. `ComboModel`
+   * reads `maxMoves`; the HUD view reads everything else.
+   */
+  public readonly combo: ComboConfig = {
+    maxMoves: 3,
+    circleRadius: 14,
+    circleSpacing: 12,
+    circleColorActive: 0x66cc66,
+    circleColorInactive: 0x555555,
+    topMargin: 16,
+    labelFontSize: 20,
+    labelColor: 0xffffff,
+    labelGapAbove: 8,
   };
 
   public readonly transitions: { readonly gameScreenEnter: ScreenTransition } = {

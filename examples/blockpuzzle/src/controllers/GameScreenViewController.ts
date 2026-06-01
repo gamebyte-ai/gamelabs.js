@@ -1,6 +1,7 @@
 import { UnsubscribeBag, type IInstanceResolver, type IViewController } from "@gamebyte/gamelabsjs";
 import { BlockPuzzleConfig } from "../BlockPuzzleConfig";
 import { GameState } from "../constants/GameState";
+import { ComboModel } from "../models/ComboModel";
 import { GameStateModel } from "../models/GameStateModel";
 import { ScoreModel } from "../models/ScoreModel";
 import { TimerModel } from "../models/TimerModel";
@@ -31,6 +32,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
   private _scoreModel: ScoreModel | null = null;
   private _timerModel: TimerModel | null = null;
   private _gameState: GameStateModel | null = null;
+  private _comboModel: ComboModel | null = null;
   private _lastTimeText = "";
   private readonly _subs = new UnsubscribeBag();
 
@@ -39,6 +41,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._scoreModel = resolver.getInstance(ScoreModel);
     this._timerModel = resolver.getInstance(TimerModel);
     this._gameState = resolver.getInstance(GameStateModel);
+    this._comboModel = resolver.getInstance(ComboModel);
   }
 
   public initialize(view: IGameScreenView): void {
@@ -56,6 +59,12 @@ export class GameScreenViewController implements IViewController<IGameScreenView
       view.setEndStateLabel(this.endStateLabelFor(this._gameState.state));
       this._subs.add(this._gameState.onStateChanged((state) => view.setEndStateLabel(this.endStateLabelFor(state))));
     }
+    if (this._comboModel) {
+      view.setComboState({ level: this._comboModel.level, movesRemaining: this._comboModel.movesRemaining });
+      this._subs.add(
+        this._comboModel.onChange((m) => view.setComboState({ level: m.level, movesRemaining: m.movesRemaining })),
+      );
+    }
   }
 
   public destroy(): void {
@@ -65,6 +74,7 @@ export class GameScreenViewController implements IViewController<IGameScreenView
     this._scoreModel = null;
     this._timerModel = null;
     this._gameState = null;
+    this._comboModel = null;
     this._lastTimeText = "";
   }
 

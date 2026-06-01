@@ -2,6 +2,7 @@ import type { GridCoord, IBaseGrid, IGridItem, IInstanceResolver, RectGrid, Rect
 import { GridEvents, GridsModel, GridsViewController, UnsubscribeBag } from "@gamebyte/gamelabsjs";
 import { BlockPuzzleConfig } from "../../../BlockPuzzleConfig";
 import { GameState } from "../../../constants/GameState";
+import { ComboModel } from "../../../models/ComboModel";
 import { GameStateModel } from "../../../models/GameStateModel";
 import { ScoreModel } from "../../../models/ScoreModel";
 import { ItemIdGenerator } from "../../../utilities/ItemIdGenerator";
@@ -40,6 +41,7 @@ export class GameBoardsViewController extends GridsViewController {
   private _clearRule: LineClearRule | null = null;
   private _gameState: GameStateModel | null = null;
   private _scoreModel: ScoreModel | null = null;
+  private _comboModel: ComboModel | null = null;
   private _boardsView: IGameBoardsView | null = null;
   /** Coalescing flag for {@link _scheduleRecompute}. A single
    *  `_onPiecePlacement` commit fires N+1+M+K grid events; we want
@@ -56,6 +58,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._clearRule = resolver.getInstance(LineClearRule);
     this._gameState = resolver.getInstance(GameStateModel);
     this._scoreModel = resolver.getInstance(ScoreModel);
+    this._comboModel = resolver.getInstance(ComboModel);
   }
 
   public override initialize(view: IGameBoardsView): void {
@@ -107,6 +110,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._clearRule = null;
     this._gameState = null;
     this._scoreModel = null;
+    this._comboModel = null;
     super.destroy();
   }
 
@@ -172,6 +176,10 @@ export class GameBoardsViewController extends GridsViewController {
     if (lineCount > 0) {
       this._scoreModel?.add(lineCount * this._config.score.clearedLine);
     }
+    // Combo streak: bump on any line clear, deplete one move on a
+    // no-clear placement. The model handles the activate / extend /
+    // deactivate state transitions; the HUD listens for changes.
+    this._comboModel?.registerPlacement(lineCount > 0);
     if (GameBoardsViewController._isTrayEmpty(tray)) {
       PieceSpawnOperations.dealHand(tray, this._config.pieceTypes, this._config.rotatedShapes, this._config.blockColors, this._ids);
     }

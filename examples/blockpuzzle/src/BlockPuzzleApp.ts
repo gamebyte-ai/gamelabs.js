@@ -18,6 +18,7 @@ import { GameBoardsView } from "./modules/gamegrid/views/GameBoardsView.three";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
 import { BoardLayoutCalculator, type BoardLayout } from "./utilities/BoardLayoutCalculator";
+import { ComboModel } from "./models/ComboModel";
 import { GameStateModel } from "./models/GameStateModel";
 import { ScoreModel } from "./models/ScoreModel";
 import { TimerModel } from "./models/TimerModel";
@@ -68,6 +69,7 @@ export class BlockPuzzleApp extends GamelabsApp {
   private readonly _gameState = new GameStateModel();
   private readonly _scoreModel = new ScoreModel();
   private readonly _timerModel = new TimerModel();
+  private readonly _comboModel = new ComboModel(this._config.combo.maxMoves);
   private _cameraController: Topdown2dCameraController | null = null;
   private _cameraManager: GameCameraManager | null = null;
   private _layout: BoardLayout | null = null;
@@ -104,6 +106,9 @@ export class BlockPuzzleApp extends GamelabsApp {
     // model shapes; the HUD reads them via `onChange` subscriptions.
     this.diContainer.bindInstance(ScoreModel, this._scoreModel);
     this.diContainer.bindInstance(TimerModel, this._timerModel);
+    // Combo streak — written by the boards controller per
+    // placement, read by the HUD controller via `onChange`.
+    this.diContainer.bindInstance(ComboModel, this._comboModel);
     // `GameBoardsView` raycasts piece meshes against the active
     // camera — it needs the World instance for the renderer canvas
     // and scene access.
