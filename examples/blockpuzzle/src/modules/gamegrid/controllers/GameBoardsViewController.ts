@@ -82,6 +82,13 @@ export class GameBoardsViewController extends GridsViewController {
    *  so {@link _syncUnitBlockMode} only enters / exits on real
    *  transitions (not on every booster-panel onChange tick). */
   private _unitBlockEntered = false;
+  /** True between Tray Refresh request and the moment the new hand
+   *  is committed. Used to defer the game-over check, which would
+   *  otherwise fire on the recompute scheduled by the booster's
+   *  `consume()` (state flips to Charging while the *old* tray is
+   *  still in the model — animation hasn't completed yet) and end
+   *  the game before the new pieces even exist. */
+  private _trayRefreshInFlight = false;
   /** Colour sampled from `blockColors` for the active Unit Block
    *  session. Captured at entry so the placed grid item matches the
    *  temp piece the player dragged. `null` outside Unit Block mode. */
@@ -234,6 +241,7 @@ export class GameBoardsViewController extends GridsViewController {
       this._boardsView?.setGridShakeTransform(0, 0, 0);
     }
     this._unitBlockColor = null;
+    this._trayRefreshInFlight = false;
     this._boardsView = null;
     this._config = null;
     this._gridsModel = null;
@@ -408,8 +416,13 @@ export class GameBoardsViewController extends GridsViewController {
     const gameOver = anyOccupied && !anyPlaceable && boosterCharging;
     // Only fire GameOver from Playing — otherwise a no-moves
     // condition that hits while we're already in TimeUp would
-    // overwrite the time-up label.
-    if (gameOver && this._gameState.state === GameState.Playing) {
+    // overwrite the time-up label. Also skip while a Tray Refresh
+    // is in flight: the recompute scheduled by the booster's
+    // synchronous consume() runs before the new hand is dealt, so
+    // the placeability map still reflects the (now-irrelevant) old
+    // pieces. The post-deal recompute fires with the flag cleared
+    // and evaluates against the new tray.
+    if (gameOver && this._gameState.state === GameState.Playing && !this._trayRefreshInFlight) {
       this._gameState.setState(GameState.GameOver);
     }
 
@@ -584,6 +597,14 @@ export class GameBoardsViewController extends GridsViewController {
     if (!this._boardsView || !this._gridsModel || !this._config || !this._ids) return;
     const tray = this._gridsModel.getGrid(this._config.boardIds.tray) as RectGrid | undefined;
     if (!tray) return;
+    // Mark in-flight before kicking the exit animation. The micro-
+    // task recompute queued by the booster's already-fired
+    // `consume()` (state went Ready → Charging) sees this flag and
+    // skips the game-over check, so the stale old-tray placeability
+    // doesn't end the game. Flag clears in the deal callback so the
+    // post-`addCellItem` recompute runs the check against the new
+    // hand.
+    this._trayRefreshInFlight = true;
     this._boardsView.beginTrayExit(() => {
       for (let col = 0; col < tray.columnCount; col++) {
         while ((tray.getCell(col, 0)?.size ?? 0) > 0) {
@@ -597,6 +618,7 @@ export class GameBoardsViewController extends GridsViewController {
         this._config!.blockColors,
         this._ids!,
       );
+      this._trayRefreshInFlight = false;
     });
   }
 
