@@ -17,6 +17,7 @@ import { GameBoardCellObject } from "./GameBoardCellObject";
 import { GameBoardItemObject } from "./GameBoardItemObject";
 import { HammerParticleEmitter } from "./HammerParticleEmitter";
 import { PieceMeshBuilder } from "./PieceMeshBuilder";
+import { UnitBlockSparkleEmitter } from "./UnitBlockSparkleEmitter";
 import type {
   ClearPreviewProvider,
   IGameBoardsView,
@@ -125,6 +126,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
   private _config: BlockPuzzleConfig | null = null;
   private _particleBudget: ParticleBudget | null = null;
   private _hammerEmitter: HammerParticleEmitter | null = null;
+  private _unitBlockSparkleEmitter: UnitBlockSparkleEmitter | null = null;
 
   private _dragRoot: THREE.Group | null = null;
   private _ghostRoot: THREE.Group | null = null;
@@ -183,6 +185,10 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
    *  a new hand inside this callback. Set by `beginTrayExit`,
    *  cleared on fire. */
   private _trayExitDoneCallback: (() => void) | null = null;
+  /** Cache of gradient textures keyed by `${topHex}|${bottomHex}`.
+   *  Two entries are typical (default + selecting); they live for
+   *  the view's lifetime and are disposed in `preDestroy`. */
+  private readonly _gradientTextureCache = new Map<string, THREE.Texture>();
   /** Pointer-up + pointer-down must be within this many CSS pixels
    *  of each other (and on the same cell) for a grid tap to fire.
    *  Hardcoded — booster cell-tap is a discrete action, not tuned
@@ -216,6 +222,10 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       this._hammerEmitter = new HammerParticleEmitter(this._particleBudget, this._config);
       this._hammerEmitter.name = "BlockPuzzle.HammerEmitter";
       this.add(this._hammerEmitter);
+
+      this._unitBlockSparkleEmitter = new UnitBlockSparkleEmitter(this._particleBudget, this._config);
+      this._unitBlockSparkleEmitter.name = "BlockPuzzle.UnitBlockSparkleEmitter";
+      this.add(this._unitBlockSparkleEmitter);
     }
   }
 
@@ -271,8 +281,40 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     };
   }
 
-  public setBackgroundColor(color: number): void {
-    this._world?.renderer.setClearColor(color, 1);
+  public setBackgroundGradient(top: number, bottom: number): void {
+    if (!this._world) return;
+    const tex = this._getOrCreateGradientTexture(top, bottom);
+    this._world.scene.background = tex;
+    // Clear colour fallback for the brief frame between scene
+    // assignment and the next render — pick the bottom stop so any
+    // edge sampling reads as the gradient's lower band.
+    this._world.renderer.setClearColor(bottom, 1);
+  }
+
+  private _getOrCreateGradientTexture(top: number, bottom: number): THREE.Texture {
+    const key = `${top.toString(16)}|${bottom.toString(16)}`;
+    const cached = this._gradientTextureCache.get(key);
+    if (cached !== undefined) return cached;
+    const size = 256;
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) throw new Error("GameBoardsView: failed to acquire 2D canvas context for gradient");
+    const grad = ctx.createLinearGradient(0, 0, 0, size);
+    grad.addColorStop(0, GameBoardsView._cssHex(top));
+    grad.addColorStop(1, GameBoardsView._cssHex(bottom));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1, size);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.needsUpdate = true;
+    this._gradientTextureCache.set(key, tex);
+    return tex;
+  }
+
+  private static _cssHex(color: number): string {
+    return `#${color.toString(16).padStart(6, "0")}`;
   }
 
   public get hammerEmitter(): IParticleEmitter {
@@ -280,6 +322,13 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       throw new Error("GameBoardsView: hammerEmitter accessed before postInitialize");
     }
     return this._hammerEmitter;
+  }
+
+  public get unitBlockSparkleEmitter(): IParticleEmitter {
+    if (!this._unitBlockSparkleEmitter) {
+      throw new Error("GameBoardsView: unitBlockSparkleEmitter accessed before postInitialize");
+    }
+    return this._unitBlockSparkleEmitter;
   }
 
   /**
@@ -340,6 +389,7 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
       this._unitBlockGroup.position.set(worldX, 0, worldZ);
       this._unitBlockGroup.visible = true;
       this._unitBlockColor = color;
+      this._setUnitBlockSparkleEmissionAt(worldX, worldZ, true);
       return;
     }
     this._setTrayVisualsVisible(false);
@@ -354,9 +404,13 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     this._unitBlockGroup = group;
     this._unitBlockColor = color;
     this._unitBlockPlaceable = true;
+    this._setUnitBlockSparkleEmissionAt(worldX, worldZ, true);
   }
 
   public exitUnitBlockMode(): void {
+    // Sparkle emission off before the group is gone — in-flight
+    // particles finish their fade naturally.
+    this._setUnitBlockSparkleEmissionAt(0, 0, false);
     // Cancel any in-flight Unit Block drag — its `hiddenGroup` is
     // about to be disposed, so finishing the drag normally would
     // either flash the (about-to-be-discarded) group or leave dead
@@ -393,6 +447,22 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     return () => {
       this._unitBlockPlacementListeners.delete(callback);
     };
+  }
+
+  /**
+   * Toggle the Unit Block sparkle stream. When enabling, reposition
+   * the emission centre at the temp piece's current idle world
+   * position; particles already alive keep their trajectories so
+   * the transition reads as continuous rather than a hard stop.
+   */
+  private _setUnitBlockSparkleEmissionAt(x: number, z: number, enabled: boolean): void {
+    if (this._unitBlockSparkleEmitter === null || this._config === null) return;
+    if (enabled) {
+      this._unitBlockSparkleEmitter.setSpawnCenter(x, z);
+      this._unitBlockSparkleEmitter.setRate(this._config.unitBlockSparkles.rate);
+    } else {
+      this._unitBlockSparkleEmitter.setRate(0);
+    }
   }
 
   public setGridShakeTransform(offsetX: number, offsetZ: number, rotationY: number): void {
@@ -443,6 +513,10 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     const pickupOffsetZ = centerZ - ground.z - this._config.drag.pickupLift;
 
     this._unitBlockGroup.visible = false;
+    // Sparkles only emit while the piece is idle — turn the stream
+    // off for the duration of the drag. In-flight particles finish
+    // their fade naturally.
+    this._setUnitBlockSparkleEmissionAt(0, 0, false);
     const liftedOpacity = this._unitBlockPlaceable ? 1 : this._config.trayUnplaceableOpacity;
 
     const liftedGroup = new THREE.Group();
@@ -495,6 +569,29 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
         y: data.position.y,
         z: data.position.z,
         rotY: data.rotation.y,
+      };
+    }
+  }
+
+  /**
+   * Refresh the playing grid's cached shake base whenever the model
+   * pushes a new position (the App's `_applyLayout` does this on
+   * every resize since the grid is top-anchored). Without this, the
+   * shake offsets and the eventual snap-back would land on the
+   * initial-deal base captured in `addGrid`, leaving the grid stuck
+   * at the old layout position.
+   *
+   * Shake itself bypasses this path — it writes to `gridObj.position`
+   * directly, so the offset never leaks into the cached base.
+   */
+  public override updateGridPosition(gridId: number, position: { x: number; y: number; z: number }): void {
+    super.updateGridPosition(gridId, position);
+    if (this._config !== null && gridId === this._config.boardIds.grid && this._playingGridBaseTransform !== null) {
+      this._playingGridBaseTransform = {
+        x: position.x,
+        y: position.y,
+        z: position.z,
+        rotY: this._playingGridBaseTransform.rotY,
       };
     }
   }
@@ -807,6 +904,13 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
     this._trayEntryAnimations.clear();
     this._trayExitAnimations.clear();
     this._trayExitDoneCallback = null;
+    if (this._world !== null) {
+      this._world.scene.background = null;
+    }
+    for (const tex of this._gradientTextureCache.values()) {
+      tex.dispose();
+    }
+    this._gradientTextureCache.clear();
     this._validityPredicate = null;
     this._clearPreviewProvider = null;
     this._trayPlaceability = null;
@@ -888,6 +992,10 @@ export class GameBoardsView extends GridsView implements IGameBoardsView, IPoint
         session.source.hiddenCellItem.visible = true;
       } else {
         session.source.hiddenGroup.visible = true;
+        // Unit Block snapped back to its idle pose — resume sparkle
+        // emission at the (unchanged) home position.
+        const home = session.source.hiddenGroup.position;
+        this._setUnitBlockSparkleEmissionAt(home.x, home.z, true);
       }
     }
 

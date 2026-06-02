@@ -4,19 +4,30 @@ import { BoosterType } from "./constants/BoosterType";
 import { PieceRotationCalculator } from "./utilities/PieceRotationCalculator";
 
 /**
- * Game-screen background colours (Three.js renderer clear colour).
- * The default tints the whole screen; the selecting variant darkens
+ * Vertical gradient stops in `0xRRGGBB`. `top` paints the top edge
+ * of the camera viewport, `bottom` paints the bottom edge; the
+ * boards view rasterises this into a 1×N `CanvasTexture` and
+ * assigns it to `world.scene.background`.
+ */
+export interface BackgroundGradientConfig {
+  readonly top: number;
+  readonly bottom: number;
+}
+
+/**
+ * Game-screen background gradients. The default paints the whole
+ * screen during normal play; the selecting variant darkens
  * everything while a target-selection booster is pending so the
  * grid stands out. Tray Refresh is instant (no Selecting state) so
  * it never triggers the variant.
  */
 export interface BackgroundColorsConfig {
-  readonly default: number;
+  readonly default: BackgroundGradientConfig;
   /** Applied while the booster panel is in `Selecting` and the
    *  selected booster is a target-selection booster (Hammer or
    *  Unit Block). Reverts to {@link default} once the booster is
    *  consumed or cancelled. */
-  readonly selecting: number;
+  readonly selecting: BackgroundGradientConfig;
 }
 
 /**
@@ -30,6 +41,29 @@ export interface BackgroundColorsConfig {
  */
 export interface UnitBlockBoosterConfig {
   readonly trayPositionOffset: { readonly x: number; readonly z: number };
+}
+
+/**
+ * Sparkle / radiance particles emitted by the temp 1-cell piece
+ * while Unit Block is in Selecting. Continuous emission at `rate`
+ * particles per second. Each particle is a 5-pointed star at a
+ * random initial radius within `emitRadius` of the block's centre,
+ * drifting outward at `driftSpeed` over `lifetimeSeconds` while its
+ * alpha follows `sin(π·progress)` — appear, brighten, fade.
+ *
+ * Emission stops the moment the block is hidden (drag begin) or
+ * removed (placement / cancel) — particles already in flight just
+ * finish their lifetime.
+ */
+export interface UnitBlockSparklesConfig {
+  readonly rate: number;
+  readonly maxParticles: number;
+  readonly lifetimeSeconds: number;
+  readonly emitRadius: number;
+  readonly starOuterRadius: number;
+  readonly starInnerRadius: number;
+  readonly driftSpeed: number;
+  readonly color: number;
 }
 
 /**
@@ -326,10 +360,21 @@ export interface ComboConfig {
   readonly circleSpacing: number;
   readonly circleColorActive: number;
   readonly circleColorInactive: number;
-  /** Distance from the screen top to the **top of the widget** (the
-   *  label's top edge). The circles sit below the label with
-   *  `labelGapAbove` between them. */
-  readonly topMargin: number;
+  /** Fraction of the gap between the screen top and the grid top
+   *  at which the combo *label* is centered. Independent of the
+   *  circles' anchor so each component is positioned directly
+   *  relative to the grid distance. Range `[0, 1]`. */
+  readonly labelBiasRatio: number;
+  /** Same as `labelBiasRatio` but for the row of circles. Typically
+   *  larger than `labelBiasRatio` so the circles sit below the
+   *  label (closer to the grid). */
+  readonly circlesBiasRatio: number;
+  /** The "designed" world-units-to-pixels ratio for the combo
+   *  widget. The HUD view scales the whole widget by
+   *  `currentPxPerWorld / referencePxPerWorld`, so the combo's
+   *  pixel-defined sizes (font, circle radius, spacing) track the
+   *  grid's on-screen size as the viewport changes. */
+  readonly referencePxPerWorld: number;
   readonly labelFontSize: number;
   readonly labelColor: number;
   /** Vertical gap between the label's bottom and the top of the
@@ -456,14 +501,14 @@ export class BlockPuzzleConfig {
   // centred inside the slot. Three slots is the standard hand size.
   public readonly traySlots: number = 3;
 
-  // World-space cell sizes. The playing grid uses one block per cell;
-  // the tray slot is sized so K slots fit inside the playing grid's
-  // width — for the default 8×8 grid and 3-slot tray that's 2.5 ≤
-  // 8/3 ≈ 2.67. Tuning either `gridColumns`, `gridCellSize`, or
-  // `traySlots` should be matched with `traySlotSize` so the tray
-  // stays within the grid's footprint.
+  // World-space cell sizes. The playing grid uses one block per cell.
+  // The tray slot is sized so the longest piece in the catalog (1×5
+  // line) fits comfortably inside it (`5 × trayPieceCellSize <
+  // traySlotSize`). The tray can be wider than the grid — the camera
+  // ortho fit reads `max(grid.width, tray.width)` so both surfaces
+  // stay on screen regardless.
   public readonly gridCellSize: number = 1;
-  public readonly traySlotSize: number = 2.5;
+  public readonly traySlotSize: number = 3.75;
 
   // Opacity tray pieces fade to when they have no valid placement
   // anywhere on the grid (per their current rotation). 0 hides them
@@ -474,10 +519,10 @@ export class BlockPuzzleConfig {
 
   // World-space size of one block when rendered inside a tray slot.
   // Chosen so the longest piece in the catalog (1×5 line) fits inside
-  // `traySlotSize` with margin: 5 × 0.4 = 2.0 ≤ 2.5. Tuning this
+  // `traySlotSize` with margin: 5 × 0.6 = 3.0 ≤ 3.75. Tuning this
   // scales every piece's visual in the tray uniformly; pieces on
   // the playing grid render at `gridCellSize`.
-  public readonly trayPieceCellSize: number = 0.4;
+  public readonly trayPieceCellSize: number = 0.6;
 
   // Vertical gap between the bottom of the playing grid and the top
   // of the tray, in world units.
@@ -488,15 +533,25 @@ export class BlockPuzzleConfig {
   // so the full content + margin fits regardless of aspect ratio.
   public readonly boardMargin: number = 1;
 
+  // World-space distance from the top edge of the camera viewport to
+  // the top edge of the playing grid. The grid is *top-anchored*:
+  // its vertical position is recomputed on every resize so it stays
+  // exactly this far below the screen top, regardless of remaining
+  // space (which appears as extra room below the tray). Used by both
+  // the world layout (grid + tray Z positions) and the HUD (combo
+  // widget Y).
+  public readonly gridTopMargin: number = 3.5;
+
   /**
-   * Three.js renderer clear colours for the game screen. `default`
-   * is set on app init; the boards controller swaps to `selecting`
-   * while a target-selection booster is pending and reverts on
-   * consume / cancel.
+   * Vertical-gradient background pairs for the game screen.
+   * `default` paints during normal play; the boards controller
+   * swaps to `selecting` while a target-selection booster is
+   * pending and reverts on consume / cancel. Each pair becomes a
+   * `CanvasTexture` set as `world.scene.background`.
    */
   public readonly backgroundColors: BackgroundColorsConfig = {
-    default: 0x6f6fab,
-    selecting: 0x0a0a17,
+    default: { top: 0x9494d4, bottom: 0x3a3a7e },
+    selecting: { top: 0x1a1a2a, bottom: 0x05050d },
   };
 
   /**
@@ -534,6 +589,22 @@ export class BlockPuzzleConfig {
     spawnSpeedMax: 3.5,
     gravity: 7.0,
     lifetime: 0.7,
+  };
+
+  /**
+   * Unit Block booster — sparkle / radiance particles around the
+   * temp 1-cell piece while it's idle in the tray. See
+   * {@link UnitBlockSparklesConfig}.
+   */
+  public readonly unitBlockSparkles: UnitBlockSparklesConfig = {
+    rate: 22,
+    maxParticles: 48,
+    lifetimeSeconds: 0.9,
+    emitRadius: 0.55,
+    starOuterRadius: 0.14,
+    starInnerRadius: 0.06,
+    driftSpeed: 0.5,
+    color: 0xffffff,
   };
 
   /**
@@ -716,7 +787,9 @@ export class BlockPuzzleConfig {
     circleSpacing: 12,
     circleColorActive: 0x66cc66,
     circleColorInactive: 0x555555,
-    topMargin: 16,
+    labelBiasRatio: 0.4,
+    circlesBiasRatio: 0.75,
+    referencePxPerWorld: 40,
     labelFontSize: 20,
     labelColor: 0xffffff,
     labelGapAbove: 8,

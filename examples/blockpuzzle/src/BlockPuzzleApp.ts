@@ -21,7 +21,7 @@ import { BlockPuzzleGameGridBinding } from "./modules/gamegrid/BlockPuzzleGameGr
 import { GameBoardsView } from "./modules/gamegrid/views/GameBoardsView.three";
 import { GameScreenView } from "./views/GameScreenView.pixi";
 import { GameScreenViewController } from "./controllers/GameScreenViewController";
-import { BoardLayoutCalculator, type BoardLayout } from "./utilities/BoardLayoutCalculator";
+import { BoardLayoutCalculator } from "./utilities/BoardLayoutCalculator";
 import { BoosterPanelModel } from "./models/BoosterPanelModel";
 import { ComboModel } from "./models/ComboModel";
 import { GameStateModel } from "./models/GameStateModel";
@@ -82,7 +82,7 @@ export class BlockPuzzleApp extends GamelabsApp {
   private readonly _placeabilityModel = new TrayPlaceabilityModel();
   private _cameraController: Topdown2dCameraController | null = null;
   private _cameraManager: GameCameraManager | null = null;
-  private _layout: BoardLayout | null = null;
+  private _gridsModel: GridsModel | null = null;
   private _particleManager: ParticleManager | null = null;
 
   public constructor(stageEl: HTMLElement) {
@@ -175,8 +175,6 @@ export class BlockPuzzleApp extends GamelabsApp {
 
     this.diContainer.getInstance(UIEvents).createScreen(BlockPuzzleUIIds.GameScreen, this._config.transitions.gameScreenEnter);
 
-    this._layout = BoardLayoutCalculator.compute(this._config);
-
     // Instantiate the boards world view first. Its
     // `GameBoardsViewController` (registered by
     // `BlockPuzzleGameGridBinding`) subscribes to `GridEvents` during
@@ -189,25 +187,25 @@ export class BlockPuzzleApp extends GamelabsApp {
     // Build + register both grids. They share `GridEvents` /
     // `GridsModel`; the controller's `onGridAdded` handler creates
     // the corresponding `GridObject` (and its cell visuals) in the
-    // world view above.
+    // world view above. Positions get set just after — `_applyLayout`
+    // is the single owner of grid Z positions (recomputed on every
+    // resize since the grid is top-anchored to the camera viewport).
     const gridEvents = this.diContainer.getInstance(GridEvents);
-    const gridsModel = this.diContainer.getInstance(GridsModel);
+    this._gridsModel = this.diContainer.getInstance(GridsModel);
 
     const playingGrid = new RectGrid(this._config.boardIds.grid, BoardLayoutCalculator.makeGridPreset(this._config), gridEvents);
-    playingGrid.setPosition(this._layout.gridPosition);
-    gridsModel.addGrid(playingGrid);
+    this._gridsModel.addGrid(playingGrid);
 
     const tray = new RectGrid(this._config.boardIds.tray, BoardLayoutCalculator.makeTrayPreset(this._config), gridEvents);
-    tray.setPosition(this._layout.trayPosition);
-    gridsModel.addGrid(tray);
-
-    PieceSpawnOperations.dealHand(tray, this._config.pieceTypes, this._config.rotatedShapes, this._config.blockColors, this._itemIds);
+    this._gridsModel.addGrid(tray);
 
     this._cameraManager = this.diContainer.getInstance(GameCameraManager);
     this._cameraManager.initialize(this.world);
     this._cameraController = new Topdown2dCameraController(this._cameraManager).register();
     this._cameraController.followPosition(0, 0, 0);
-    this._fitOrthoToBoard(this.width, this.height);
+    this._applyLayout(this.width, this.height);
+
+    PieceSpawnOperations.dealHand(tray, this._config.pieceTypes, this._config.rotatedShapes, this._config.blockColors, this._itemIds);
 
     // Particle pipeline — `ParticlesBinding` bound `ParticleManager`
     // and `ParticleBudget`; the boards view constructs the
@@ -219,7 +217,7 @@ export class BlockPuzzleApp extends GamelabsApp {
   protected override onResize(width: number, height: number, dpr: number): void {
     super.onResize(width, height, dpr);
     this._cameraManager?.resize(width, height);
-    this._fitOrthoToBoard(width, height);
+    this._applyLayout(width, height);
   }
 
   protected override onStep(timestepSeconds: number): void {
@@ -243,18 +241,22 @@ export class BlockPuzzleApp extends GamelabsApp {
   }
 
   /**
-   * Pick an orthographic size that always leaves `boardMargin` world
-   * units free on every side of the combined grid + tray block, in
-   * both axes. Same pattern as `Game2048App._fitOrthoToBoard`.
+   * Single owner of the camera ortho size + the grid / tray Z
+   * positions. Recomputes both for the current viewport and pushes
+   * the new grid positions through `setPosition` (the framework
+   * relays via `onPositionChanged` → `updateGridPosition`, so the
+   * playing grid's children — cell visuals, panel, separator, item
+   * objects — all move along).
+   *
+   * Re-runs on every resize because the grid is *top-anchored*: its
+   * Z position depends on `orthoSize`, which depends on aspect.
    */
-  private _fitOrthoToBoard(viewportWidth: number, viewportHeight: number): void {
-    if (!this._cameraManager || !this._layout) return;
+  private _applyLayout(viewportWidth: number, viewportHeight: number): void {
+    if (!this._cameraManager || !this._gridsModel) return;
     if (viewportWidth <= 0 || viewportHeight <= 0) return;
-    const aspect = viewportWidth / viewportHeight;
-    const requiredW = this._layout.contentWidth + 2 * this._config.boardMargin;
-    const requiredH = this._layout.contentHeight + 2 * this._config.boardMargin;
-    const orthoForHeight = requiredH;
-    const orthoForWidth = requiredW / aspect;
-    this._cameraManager.setOrthoSize(Math.max(orthoForHeight, orthoForWidth));
+    const layout = BoardLayoutCalculator.compute(this._config, viewportWidth, viewportHeight);
+    this._cameraManager.setOrthoSize(layout.orthoSize);
+    this._gridsModel.getGrid(this._config.boardIds.grid)?.setPosition(layout.gridPosition);
+    this._gridsModel.getGrid(this._config.boardIds.tray)?.setPosition(layout.trayPosition);
   }
 }

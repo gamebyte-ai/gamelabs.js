@@ -165,16 +165,21 @@ export class GameBoardsViewController extends GridsViewController {
     // even when the panel isn't Selecting — the view's gate is the
     // master switch.
     this._ownSubs.add(view.onGridCellTapped((col, row) => this._handleGridCellTap(col, row)));
-    // Initial renderer clear colour. `_recomputeTrayState` keeps it
-    // in sync afterward (swaps to the `selecting` variant while a
-    // target-selection booster is pending; reverts otherwise).
-    if (this._config) view.setBackgroundColor(this._config.backgroundColors.default);
+    // Initial scene-background gradient. `_recomputeTrayState`
+    // keeps it in sync afterward (swaps to the `selecting` variant
+    // while a target-selection booster is pending; reverts
+    // otherwise).
+    if (this._config) {
+      const bg = this._config.backgroundColors.default;
+      view.setBackgroundGradient(bg.top, bg.bottom);
+    }
 
     // Particle pipeline — register the Hammer emitter so the
     // framework's `ParticleManager` ticks it every frame and bursts
     // get drawn / lifetimed correctly.
     if (this._particleManager) {
       this._particleManager.register(view.hammerEmitter);
+      this._particleManager.register(view.unitBlockSparkleEmitter);
     }
 
     // Per-frame wobble lifecycle — see `_onTick`. Single registration
@@ -212,6 +217,7 @@ export class GameBoardsViewController extends GridsViewController {
     this._ownSubs.flush();
     if (this._particleManager && this._boardsView) {
       this._particleManager.unregister(this._boardsView.hammerEmitter);
+      this._particleManager.unregister(this._boardsView.unitBlockSparkleEmitter);
     }
     this._boardsView?.setPlacementPredicate(null);
     this._boardsView?.setClearPreviewProvider(null);
@@ -431,8 +437,8 @@ export class GameBoardsViewController extends GridsViewController {
     const selected = this._boosterPanel?.selectedBooster ?? null;
     const dim =
       isSelecting && (selected === BoosterType.Hammer || selected === BoosterType.UnitBlock);
-    const bgColors = this._config.backgroundColors;
-    view.setBackgroundColor(dim ? bgColors.selecting : bgColors.default);
+    const bg = dim ? this._config.backgroundColors.selecting : this._config.backgroundColors.default;
+    view.setBackgroundGradient(bg.top, bg.bottom);
 
     // Unit Block placeability — mirrors the per-tray-slot fading
     // logic for the single temp piece. The 1-cell piece is

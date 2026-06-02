@@ -11,6 +11,7 @@ import { BlockPuzzleAssetIds } from "../BlockPuzzleAssetIds";
 import { BlockPuzzleConfig } from "../BlockPuzzleConfig";
 import { BoosterPanelState } from "../constants/BoosterPanelState";
 import { BOOSTER_DISPLAY_ORDER, BoosterType } from "../constants/BoosterType";
+import { BoardLayoutCalculator } from "../utilities/BoardLayoutCalculator";
 import type { BoosterPanelHudState, ComboHudState, IGameScreenView } from "./IGameScreenView";
 
 const BOOSTER_ICON_ASSET_IDS: Readonly<Record<BoosterType, BlockPuzzleAssetIds>> = {
@@ -127,8 +128,33 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     const h = Math.max(1, height);
 
     if (this._comboContainer && this._config) {
+      // Each combo component (label + circles + booster prompt) is
+      // independently bound to the screen-top → grid-top gap so the
+      // widget's vertical layout scales with the gap rather than
+      // having fixed pixel offsets.
+      //
+      // Plus: the whole widget scales by `currentPxPerWorld /
+      // referencePxPerWorld` so the pixel-defined sizes (font, circle
+      // radius, spacing) track the grid's on-screen size. Child Y
+      // positions are divided by `scale` so the render-time position
+      // (which Pixi multiplies by the container scale) still lands
+      // at `bias × gridTopPx` in screen pixels.
+      const combo = this._config.combo;
+      const layout = BoardLayoutCalculator.compute(this._config, w, h);
+      const pxPerWorld = h / layout.orthoSize;
+      const gridTopPx = this._config.gridTopMargin * pxPerWorld;
+      const scale = Math.max(0.1, pxPerWorld / combo.referencePxPerWorld);
       this._comboContainer.x = w / 2;
-      this._comboContainer.y = this._config.combo.topMargin;
+      this._comboContainer.y = 0;
+      this._comboContainer.scale.set(scale);
+      if (this._comboLabel) this._comboLabel.y = (gridTopPx * combo.labelBiasRatio) / scale;
+      if (this._comboCirclesContainer) {
+        this._comboCirclesContainer.y = (gridTopPx * combo.circlesBiasRatio) / scale;
+      }
+      if (this._boosterPromptLabel) {
+        this._boosterPromptLabel.y =
+          (gridTopPx * (combo.labelBiasRatio + combo.circlesBiasRatio) * 0.5) / scale;
+      }
     }
     if (this._boosterContainer && this._config) {
       this._boosterContainer.x = w / 2;
@@ -309,23 +335,27 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     const labelStyle = this.styleManager.resolve<LabelComponentStyle>(UIComponentsStyleIds.Label, {
       text: { fontSize: combo.labelFontSize, fontWeight: "700", color: combo.labelColor },
     });
+    // All three child anchors are centred so `onResize` can place
+    // each component directly at its own grid-bound bias Y without
+    // having to compensate for the component's height.
     this._comboLabel = new LabelComponent(this.assetLoader, labelStyle, {
       text: "",
       anchorX: 0.5,
-      anchorY: 0,
+      anchorY: 0.5,
     });
     this._comboLabel.x = 0;
-    this._comboLabel.y = 0;
     this._comboLabel.visible = false;
     container.addChild(this._comboLabel);
 
     const step = combo.circleRadius * 2 + combo.circleSpacing;
-    const circleY = combo.labelFontSize + combo.labelGapAbove + combo.circleRadius;
     const circles = new Container();
     for (let i = 0; i < combo.maxMoves; i++) {
       const circle = new Graphics();
       circle.x = (i - (combo.maxMoves - 1) / 2) * step;
-      circle.y = circleY;
+      // Circle drawn around its own (0, 0) — its centre is the
+      // circles-container's origin, which onResize parks at the
+      // circles bias Y.
+      circle.y = 0;
       this._paintCircle(circle, combo.circleRadius, combo.circleColorInactive);
       circles.addChild(circle);
       this._comboCircles.push(circle);
@@ -333,11 +363,9 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
     container.addChild(circles);
     this._comboCirclesContainer = circles;
 
-    // Booster-selecting prompt — same container as the combo so the
-    // resize-time position pin applies to both. Centred vertically
-    // across the combo widget's footprint (label height + gap +
-    // circle diameter) so the text reads as occupying the same
-    // visual slot the indicator would.
+    // Booster-selecting prompt — same container as the combo so
+    // both ride the same X centring. Y is set to the midpoint of
+    // the two bias ratios in `onResize`.
     const promptStyle = this.styleManager.resolve<LabelComponentStyle>(UIComponentsStyleIds.Label, {
       text: { fontSize: combo.labelFontSize, fontWeight: "700", color: combo.labelColor },
     });
@@ -347,7 +375,6 @@ export class GameScreenView extends ScreenView implements IGameScreenView {
       anchorY: 0.5,
     });
     this._boosterPromptLabel.x = 0;
-    this._boosterPromptLabel.y = (combo.labelFontSize + combo.labelGapAbove + combo.circleRadius * 2) / 2;
     this._boosterPromptLabel.visible = false;
     container.addChild(this._boosterPromptLabel);
 

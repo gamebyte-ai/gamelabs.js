@@ -91,14 +91,20 @@ export interface IGameBoardsView extends IGridView {
    *  with negligible movement). Used by target-selection boosters
    *  (Hammer) to pick the target cell. */
   onGridCellTapped(callback: (col: number, row: number) => void): Unsubscribe;
-  /** Set the Three.js renderer clear colour. The boards controller
-   *  uses this to dim the screen behind the grid while a
-   *  target-selection booster is pending. */
-  setBackgroundColor(color: number): void;
+  /** Apply a vertical gradient to the Three.js scene background.
+   *  `top` paints the top edge of the viewport, `bottom` the bottom.
+   *  The boards controller uses this to dim the screen behind the
+   *  grid while a target-selection booster is pending. */
+  setBackgroundGradient(top: number, bottom: number): void;
   /** Particle emitter for Hammer destruction bursts. The controller
    *  registers it with `ParticleManager` so the framework ticks it
    *  every frame, and calls {@link emitHammerBurst} to fire one. */
   readonly hammerEmitter: IParticleEmitter;
+  /** Continuous sparkle emitter around the Unit Block temp piece.
+   *  The controller registers it with `ParticleManager`; the view
+   *  toggles its emission rate on / off as the temp piece appears
+   *  / hides (drag begin) / is removed. */
+  readonly unitBlockSparkleEmitter: IParticleEmitter;
   /** Fire a one-shot Hammer particle burst at a grid cell. Passes
    *  through to the emitter with the destroyed block's colour so the
    *  particles inherit it. */
