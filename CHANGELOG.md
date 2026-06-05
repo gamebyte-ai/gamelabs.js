@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Optional physics modules: `physics2d` (matter-js) and `physics3d` (cannon-es).** Each ships from its own subpath (`@gamebyte/gamelabsjs/physics2d`, `@gamebyte/gamelabsjs/physics3d`) so games that don't use physics never load an engine. The engines are **optional peer dependencies**; the main entry has zero references to them.
+  - `Physics2DManager` / `Physics3DManager`: DI-bound, fixed-timestep (default 60 Hz, `maxSubSteps` clamp), interpolated transforms. Create bodies (2D: circle/rect/polygon; 3D: sphere/box/plane) as `dynamic`/`static`/`kinematic`, apply forces/impulses/velocities, query (point/AABB/raycast), and subscribe to collisions (`onCollisionStart`/`onCollisionEnd`) which carry **body ids** — engine types never leak across the API. `raycast` (both dims) takes an optional `{ collisionGroup, collisionMask }` filter so a ray can pass through some bodies (e.g. a pick ray that ignores walls), and returns a hit point on the ray. Motion setters (`setVelocity`/`applyForce`/`applyImpulse`/`setAngularVelocity`) wake sleeping bodies; `setKinematicTarget` reads as an instant teleport even with interpolation on; `getVelocity` throws for an unknown id (matching `getTransform`). Hot paths (forces, raycast, body-list queries) reuse scratch objects.
+  - `Physics2DSyncBag` / `Physics3DSyncBag`: bind a body id to a view-update callback; `sync()` pushes the current interpolated transform and auto-drops removed bodies. This one-way push is the only coupling between bodies and view objects.
+  - `Physics2DStage` / `Physics3DStage`: "prefab" ergonomics over the manager — one `spawn(body, view)` call creates the body (in the central world), pairs it with a renderer-agnostic `EntityView` (`setTransform`/`dispose`), and tracks the pair; the returned handle's `despawn()` removes both, and `sync()` pushes transforms + disposes views of vanished bodies. Keeps a physics-backed object's whole lifetime in one place (the body still lives in the central simulation). Use the stage when you own an entity's lifetime; use the sync bag to bind transforms for bodies created elsewhere.
+  - `FakePhysics2D` / `FakePhysics3D`: deterministic, engine-free stand-ins with the same public surface for unit-testing controllers without loading matter-js / cannon-es.
+  - `FixedStepAccumulator` (core utility): generic fixed-timestep clock with spiral-of-death clamp and interpolation alpha, exported from the main entry.
+- Wire with `addModule(new PhysicsXDBinding(config))` then step from the app: resolve the manager in `postInitialize()` and `updateManager.register((dt) => manager.step(dt), -1000)`. Physics stays a state producer behind the manager — never view-side.
+
 ## [3.1.0] - 2026-05-11
 
 ### Fixed
