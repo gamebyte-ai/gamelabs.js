@@ -1,0 +1,5 @@
+{
+  "name": "physics3d",
+  "description": "Optional 3D rigid-body physics backed by cannon-es. Exposes a DI-bound Physics3DManager stepped on a fixed timestep: create bodies (sphere/box/plane), apply forces, read interpolated position+quaternion transforms, and subscribe to collisions by body id. Engine types never leak; controllers stay engine-agnostic and the view layer never touches physics. Loaded via the @gamebyte/gamelabsjs/physics3d subpath; cannon-es is an optional peer dependency.",
+  "dependencies": []
+}
