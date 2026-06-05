@@ -139,3 +139,34 @@ describe("Physics3DManager — onCollisionEnd", () => {
     m.destroy();
   });
 });
+
+describe("Physics3DManager — queries & review fixes", () => {
+  it("queryPoint / queryAABB find bodies by bounding box", () => {
+    const m = new Physics3DManager({ gravity: { x: 0, y: 0, z: 0 } });
+    const a = m.createBody({ shape: { kind: "box", width: 1, height: 1, depth: 1 }, x: 0, y: 0, z: 0, type: "static" });
+    const far = m.createBody({ shape: { kind: "sphere", radius: 1 }, x: 50, y: 0, z: 0, type: "static" });
+    expect(m.queryPoint(0, 0, 0)).toContain(a);
+    expect(m.queryPoint(0, 0, 0)).not.toContain(far);
+    const hits = m.queryAABB(-2, -2, -2, 2, 2, 2);
+    expect(hits).toContain(a);
+    expect(hits).not.toContain(far);
+    m.destroy();
+  });
+
+  it("getVelocity throws for an unknown body", () => {
+    const m = new Physics3DManager();
+    expect(() => m.getVelocity(999 as BodyId)).toThrow();
+    m.destroy();
+  });
+
+  it("setKinematicTarget reads as an instant teleport with interpolation on", () => {
+    const m = new Physics3DManager({ gravity: { x: 0, y: 0, z: 0 } }); // interpolation default true
+    const id = m.createBody({ shape: { kind: "box", width: 1, height: 1, depth: 1 }, x: 0, y: 0, z: 0, type: "kinematic" });
+    m.setKinematicTarget(id, 3, 4, 5);
+    const t = m.getTransform(id); // no step
+    expect(t.x).toBeCloseTo(3, 3);
+    expect(t.y).toBeCloseTo(4, 3);
+    expect(t.z).toBeCloseTo(5, 3);
+    m.destroy();
+  });
+});

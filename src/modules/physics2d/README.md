@@ -130,7 +130,7 @@ The view's `createEntity` builds the graphic and returns the `setTransform`/`dis
 
 ## Queries
 
-`queryPoint`, `queryAABB`, and `raycast` return body ids. Note `raycast` uses matter-js's AABB-broadphase ray query — adequate for gameplay picking, approximate for thin/rotated shapes.
+`queryPoint`, `queryAABB`, and `raycast` return body ids. `raycast(x1,y1,x2,y2, filter?)` returns the nearest hit (its point lies on the ray) and accepts an optional `{ collisionMask }` that skips bodies whose `collisionCategory` is masked out (e.g. a pick ray that ignores walls). It uses matter-js's AABB-broadphase ray query — adequate for gameplay picking, approximate for thin/rotated shapes. `getVelocity`, like `getTransform`, throws for an unknown id.
 
 ## Notes & limitations
 

@@ -150,6 +150,7 @@ export class Physics2DManager {
     };
     this._records.set(id, record);
     this._matterToId.set(body.id, id);
+    this._bodiesDirty = true;
     return id;
   }
 
@@ -181,6 +182,7 @@ export class Physics2DManager {
     Matter.Composite.remove(this._engine.world, record.body);
     this._records.delete(id);
     this._matterToId.delete(record.body.id);
+    this._bodiesDirty = true;
   }
 
   private _flushRemovals(): void {
@@ -194,12 +196,14 @@ export class Physics2DManager {
   public applyForce(id: BodyId, fx: number, fy: number): void {
     const body = this._records.get(id)?.body;
     if (!body) return;
+    Matter.Sleeping.set(body, false); // a slept body ignores forces until woken
     Matter.Body.applyForce(body, body.position, { x: fx, y: fy });
   }
 
   public applyImpulse(id: BodyId, ix: number, iy: number): void {
     const body = this._records.get(id)?.body;
     if (!body || body.mass <= 0 || !Number.isFinite(body.mass)) return;
+    Matter.Sleeping.set(body, false);
     Matter.Body.setVelocity(body, {
       x: body.velocity.x + ix / body.mass,
       y: body.velocity.y + iy / body.mass,
@@ -209,12 +213,14 @@ export class Physics2DManager {
   public setVelocity(id: BodyId, vx: number, vy: number): void {
     const body = this._records.get(id)?.body;
     if (!body) return;
+    Matter.Sleeping.set(body, false); // matter skips integration for sleeping bodies
     Matter.Body.setVelocity(body, { x: vx, y: vy });
   }
 
   public setAngularVelocity(id: BodyId, omega: number): void {
     const body = this._records.get(id)?.body;
     if (!body) return;
+    Matter.Sleeping.set(body, false);
     Matter.Body.setAngularVelocity(body, omega);
   }
 
@@ -231,6 +237,11 @@ export class Physics2DManager {
     Matter.Body.setPosition(body, { x, y });
     Matter.Body.setVelocity(body, { x: 0, y: 0 });
     if (angle !== undefined) Matter.Body.setAngle(body, angle);
+    // Snap interpolation snapshots so the teleport reads as instant (otherwise
+    // getTransform would lerp from the old pose to the new one over a frame).
+    record.prevX = record.currX = x;
+    record.prevY = record.currY = y;
+    if (angle !== undefined) record.prevAngle = record.currAngle = angle;
   }
 
   //  READ STATE
@@ -257,16 +268,13 @@ export class Physics2DManager {
     return target;
   }
 
+  /** Current velocity. Throws for an unknown id (same contract as getTransform). */
   public getVelocity(id: BodyId, out?: Vec2): Vec2 {
     const body = this._records.get(id)?.body;
+    if (!body) throw new Error(`Physics2DManager.getVelocity: unknown body ${id}`);
     const target = out ?? { x: 0, y: 0 };
-    if (body) {
-      target.x = body.velocity.x;
-      target.y = body.velocity.y;
-    } else {
-      target.x = 0;
-      target.y = 0;
-    }
+    target.x = body.velocity.x;
+    target.y = body.velocity.y;
     return target;
   }
 
@@ -300,19 +308,31 @@ export class Physics2DManager {
 
   /**
    * Cast a ray from `(x1,y1)` to `(x2,y2)` and return the nearest hit, or null.
-   * Note: matter-js's ray query is AABB-broadphase based, so it is approximate
-   * for thin/rotated shapes near each other — adequate for gameplay picking,
-   * not for precise narrow-phase casts.
+   * Pass `filter.collisionMask` to ignore bodies whose `collisionCategory` is
+   * masked out (e.g. a pick ray that passes through walls). The hit point is
+   * the point on the ray closest to the hit body's center — matter-js's ray
+   * query is AABB-broadphase based, so it is approximate for thin/rotated
+   * shapes (adequate for gameplay picking, not precise narrow-phase casts).
    */
-  public raycast(x1: number, y1: number, x2: number, y2: number): RaycastHit2D | null {
-    const collisions = Matter.Query.ray(this._allBodies(), { x: x1, y: y1 }, { x: x2, y: y2 });
+  public raycast(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    filter?: { collisionGroup?: number; collisionMask?: number },
+  ): RaycastHit2D | null {
+    let bodies = this._allBodies();
+    if (filter?.collisionMask !== undefined) {
+      const mask = filter.collisionMask;
+      bodies = bodies.filter((b) => ((b.collisionFilter.category ?? DEFAULT_CATEGORY) & mask) !== 0);
+    }
+    const collisions = Matter.Query.ray(bodies, { x: x1, y: y1 }, { x: x2, y: y2 });
     if (collisions.length === 0) return null;
     let best: Matter.Collision | null = null;
     let bestDistSq = Infinity;
     for (const c of collisions) {
-      const body = c.bodyA;
-      const dx = body.position.x - x1;
-      const dy = body.position.y - y1;
+      const dx = c.bodyA.position.x - x1;
+      const dy = c.bodyA.position.y - y1;
       const distSq = dx * dx + dy * dy;
       if (distSq < bestDistSq) {
         bestDistSq = distSq;
@@ -322,7 +342,14 @@ export class Physics2DManager {
     if (!best) return null;
     const id = this._matterToId.get(best.bodyA.id);
     if (id === undefined) return null;
-    return { body: id, x: best.bodyA.position.x, y: best.bodyA.position.y };
+    // Point on the ray closest to the body center (a point on the ray, not the
+    // raw center) — a more useful "hit point" for impact FX / endpoints.
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    let t = len2 > 0 ? ((best.bodyA.position.x - x1) * dx + (best.bodyA.position.y - y1) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    return { body: id, x: x1 + dx * t, y: y1 + dy * t };
   }
 
   //  EVENTS
@@ -402,10 +429,17 @@ export class Physics2DManager {
     }
   }
 
+  /** Cached body list for queries; rebuilt only when bodies are added/removed. */
+  private _bodiesCache: Matter.Body[] = [];
+  private _bodiesDirty = true;
+
   private _allBodies(): Matter.Body[] {
-    const bodies: Matter.Body[] = [];
-    for (const r of this._records.values()) bodies.push(r.body);
-    return bodies;
+    if (this._bodiesDirty) {
+      this._bodiesCache = [];
+      for (const r of this._records.values()) this._bodiesCache.push(r.body);
+      this._bodiesDirty = false;
+    }
+    return this._bodiesCache;
   }
 
   private _mapBodies(bodies: Matter.Body[]): BodyId[] {

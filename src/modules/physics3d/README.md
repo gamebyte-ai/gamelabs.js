@@ -85,7 +85,7 @@ sync.bind(crateId, (t) => {
 - `static` — immovable.
 - `kinematic` — gravity-free; positioned via `setKinematicTarget(x, y, z)`; pushes dynamics.
 
-Drive dynamics with `applyForce` / `applyImpulse` / `setVelocity` / `setAngularVelocity`. Sensors (`isSensor: true`) report collisions without a response. `raycast(x1,y1,z1, x2,y2,z2, filter?)` returns the nearest hit body id + point; pass `filter.collisionMask` (matched against each body's `collisionGroup`) to shoot a ray that passes through some bodies — e.g. a pick ray that ignores walls and only hits gameplay bodies (see `factorymatch`).
+Drive dynamics with `applyForce` / `applyImpulse` / `setVelocity` / `setAngularVelocity` (all wake a sleeping body). Sensors (`isSensor: true`) report collisions without a response. `raycast(x1,y1,z1, x2,y2,z2, filter?)` returns the nearest hit body id + point; pass `filter.collisionMask` (matched against each body's `collisionGroup`) to shoot a ray that passes through some bodies — e.g. a pick ray that ignores walls and only hits gameplay bodies (see `factorymatch`). `queryPoint(x,y,z)` / `queryAABB(min…,max…)` return body ids by bounding box. `getVelocity`, like `getTransform`, throws for an unknown id.
 
 ## Spawning entities — `Physics3DStage` vs `Physics3DSyncBag`
 

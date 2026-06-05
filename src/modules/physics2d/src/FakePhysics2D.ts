@@ -137,9 +137,10 @@ export class FakePhysics2D {
 
   public getVelocity(id: BodyId, out?: Vec2): Vec2 {
     const b = this._bodies.get(id);
+    if (!b) throw new Error(`FakePhysics2D.getVelocity: unknown body ${id}`);
     const t = out ?? { x: 0, y: 0 };
-    t.x = b?.vx ?? 0;
-    t.y = b?.vy ?? 0;
+    t.x = b.vx;
+    t.y = b.vy;
     return t;
   }
 
@@ -174,7 +175,13 @@ export class FakePhysics2D {
     return ids;
   }
 
-  public raycast(_x1: number, _y1: number, _x2: number, _y2: number): RaycastHit2D | null {
+  public raycast(
+    _x1: number,
+    _y1: number,
+    _x2: number,
+    _y2: number,
+    _filter?: { collisionGroup?: number; collisionMask?: number },
+  ): RaycastHit2D | null {
     return null;
   }
 

@@ -151,3 +151,41 @@ describe("Physics2DManager — kinematic", () => {
     m.destroy();
   });
 });
+
+describe("Physics2DManager — raycast & review fixes", () => {
+  it("raycast hit point lies on the ray, not at the body center", () => {
+    const m = new Physics2DManager({ gravity: { x: 0, y: 0 } });
+    // Tall body whose center (y=40) is off the ray line (y=0) but which spans it.
+    m.createBody({ shape: { kind: "rect", width: 60, height: 240 }, x: 500, y: 40 });
+    const hit = m.raycast(0, 0, 1000, 0);
+    expect(hit).not.toBeNull();
+    expect(hit!.y).toBeCloseTo(0, 3); // on the ray, not the body center (40)
+    expect(hit!.x).toBeCloseTo(500, 0);
+    m.destroy();
+  });
+
+  it("raycast collisionMask skips bodies whose category is masked out", () => {
+    const m = new Physics2DManager({ gravity: { x: 0, y: 0 } });
+    const wall = m.createBody({ shape: { kind: "rect", width: 40, height: 200 }, x: 200, y: 0, collisionCategory: 0x0002 });
+    const target = m.createBody({ shape: { kind: "rect", width: 40, height: 200 }, x: 600, y: 0, collisionCategory: 0x0001 });
+    expect(m.raycast(0, 0, 1000, 0)?.body).toBe(wall); // no filter → nearer wall
+    expect(m.raycast(0, 0, 1000, 0, { collisionMask: 0x0001 })?.body).toBe(target); // skip the wall
+    m.destroy();
+  });
+
+  it("getVelocity throws for an unknown body", () => {
+    const m = new Physics2DManager();
+    expect(() => m.getVelocity(999 as BodyId)).toThrow();
+    m.destroy();
+  });
+
+  it("setKinematicTarget reads as an instant teleport with interpolation on", () => {
+    const m = new Physics2DManager({ gravity: { x: 0, y: 0 } }); // interpolation defaults to true
+    const id = m.createBody({ shape: { kind: "rect", width: 20, height: 20 }, x: 0, y: 0, type: "kinematic" });
+    m.setKinematicTarget(id, 120, 80);
+    const t = m.getTransform(id); // no step — must already read as the target, not lerped from (0,0)
+    expect(t.x).toBeCloseTo(120, 3);
+    expect(t.y).toBeCloseTo(80, 3);
+    m.destroy();
+  });
+});

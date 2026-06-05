@@ -64,6 +64,12 @@ export class Physics3DManager {
   private readonly _removeQueue: BodyId[] = [];
   private _stepping = false;
 
+  // Reused scratch objects to keep the force/raycast hot paths allocation-free.
+  private readonly _scratchVec = new CANNON.Vec3();
+  private readonly _rayFrom = new CANNON.Vec3();
+  private readonly _rayTo = new CANNON.Vec3();
+  private readonly _rayResult = new CANNON.RaycastResult();
+
   public constructor(config?: Physics3DConfig) {
     const g = config?.gravity ?? { x: 0, y: -9.82, z: 0 };
     this._world = new CANNON.World({
@@ -207,13 +213,17 @@ export class Physics3DManager {
   public applyForce(id: BodyId, fx: number, fy: number, fz: number): void {
     const body = this._records.get(id)?.body;
     if (!body) return;
-    body.applyForce(new CANNON.Vec3(fx, fy, fz));
+    body.wakeUp();
+    this._scratchVec.set(fx, fy, fz);
+    body.applyForce(this._scratchVec); // cannon copies the vector, so a reusable scratch is safe
   }
 
   public applyImpulse(id: BodyId, ix: number, iy: number, iz: number): void {
     const body = this._records.get(id)?.body;
     if (!body) return;
-    body.applyImpulse(new CANNON.Vec3(ix, iy, iz));
+    body.wakeUp();
+    this._scratchVec.set(ix, iy, iz);
+    body.applyImpulse(this._scratchVec);
   }
 
   public setVelocity(id: BodyId, vx: number, vy: number, vz: number): void {
@@ -242,6 +252,15 @@ export class Physics3DManager {
     const { body } = record;
     body.position.set(x, y, z);
     body.velocity.set(0, 0, 0);
+    // Snap interpolation snapshots so the teleport reads as instant rather than
+    // being lerped from the old pose over the next frame.
+    record.prevX = record.currX = x;
+    record.prevY = record.currY = y;
+    record.prevZ = record.currZ = z;
+    record.prevQx = record.currQx;
+    record.prevQy = record.currQy;
+    record.prevQz = record.currQz;
+    record.prevQw = record.currQw;
   }
 
   //  READ STATE
@@ -255,11 +274,15 @@ export class Physics3DManager {
       t.x = r.prevX + (r.currX - r.prevX) * a;
       t.y = r.prevY + (r.currY - r.prevY) * a;
       t.z = r.prevZ + (r.currZ - r.prevZ) * a;
-      // nlerp the orientation (cheap, stays close to slerp for small alpha).
-      let qx = r.prevQx + (r.currQx - r.prevQx) * a;
-      let qy = r.prevQy + (r.currQy - r.prevQy) * a;
-      let qz = r.prevQz + (r.currQz - r.prevQz) * a;
-      let qw = r.prevQw + (r.currQw - r.prevQw) * a;
+      // nlerp the orientation, taking the shortest arc: if the snapshots are in
+      // opposite hemispheres (dot < 0), flip curr so the lerp doesn't swing the
+      // long way round (or collapse toward the zero quaternion) on fast spins.
+      const dot = r.prevQx * r.currQx + r.prevQy * r.currQy + r.prevQz * r.currQz + r.prevQw * r.currQw;
+      const s = dot < 0 ? -1 : 1;
+      let qx = r.prevQx + (r.currQx * s - r.prevQx) * a;
+      let qy = r.prevQy + (r.currQy * s - r.prevQy) * a;
+      let qz = r.prevQz + (r.currQz * s - r.prevQz) * a;
+      let qw = r.prevQw + (r.currQw * s - r.prevQw) * a;
       const len = Math.hypot(qx, qy, qz, qw) || 1;
       qx /= len;
       qy /= len;
@@ -281,19 +304,41 @@ export class Physics3DManager {
     return t;
   }
 
+  /** Current velocity. Throws for an unknown id (same contract as getTransform). */
   public getVelocity(id: BodyId, out?: Vec3Like): Vec3Like {
     const body = this._records.get(id)?.body;
+    if (!body) throw new Error(`Physics3DManager.getVelocity: unknown body ${id}`);
     const t = out ?? { x: 0, y: 0, z: 0 };
-    if (body) {
-      t.x = body.velocity.x;
-      t.y = body.velocity.y;
-      t.z = body.velocity.z;
-    } else {
-      t.x = 0;
-      t.y = 0;
-      t.z = 0;
-    }
+    t.x = body.velocity.x;
+    t.y = body.velocity.y;
+    t.z = body.velocity.z;
     return t;
+  }
+
+  //  QUERIES (AABB-based, coarse — mirrors the 2D module's point/region queries)
+
+  /** Body ids whose (axis-aligned bounding box) contains the point. */
+  public queryPoint(x: number, y: number, z: number): readonly BodyId[] {
+    const ids: BodyId[] = [];
+    for (const [id, r] of this._records) {
+      r.body.updateAABB();
+      const { lowerBound: lo, upperBound: hi } = r.body.aabb;
+      if (x >= lo.x && x <= hi.x && y >= lo.y && y <= hi.y && z >= lo.z && z <= hi.z) ids.push(id);
+    }
+    return ids;
+  }
+
+  /** Body ids whose bounding box overlaps the given AABB. */
+  public queryAABB(minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number): readonly BodyId[] {
+    const ids: BodyId[] = [];
+    for (const [id, r] of this._records) {
+      r.body.updateAABB();
+      const { lowerBound: lo, upperBound: hi } = r.body.aabb;
+      if (lo.x <= maxX && hi.x >= minX && lo.y <= maxY && hi.y >= minY && lo.z <= maxZ && hi.z >= minZ) {
+        ids.push(id);
+      }
+    }
+    return ids;
   }
 
   public getTag(id: BodyId): string | undefined {
@@ -325,17 +370,18 @@ export class Physics3DManager {
     z2: number,
     filter?: { collisionGroup?: number; collisionMask?: number },
   ): RaycastHit3D | null {
-    const from = new CANNON.Vec3(x1, y1, z1);
-    const to = new CANNON.Vec3(x2, y2, z2);
+    this._rayFrom.set(x1, y1, z1);
+    this._rayTo.set(x2, y2, z2);
     const options: CANNON.RayOptions = {};
     if (filter?.collisionGroup !== undefined) options.collisionFilterGroup = filter.collisionGroup;
     if (filter?.collisionMask !== undefined) options.collisionFilterMask = filter.collisionMask;
-    const result = new CANNON.RaycastResult();
-    const hit = this._world.raycastClosest(from, to, options, result);
-    if (!hit || !result.body) return null;
-    const id = this._cannonToId.get(result.body.id);
+    this._rayResult.reset();
+    const hit = this._world.raycastClosest(this._rayFrom, this._rayTo, options, this._rayResult);
+    if (!hit || !this._rayResult.body) return null;
+    const id = this._cannonToId.get(this._rayResult.body.id);
     if (id === undefined) return null;
-    return { body: id, x: result.hitPointWorld.x, y: result.hitPointWorld.y, z: result.hitPointWorld.z };
+    const p = this._rayResult.hitPointWorld;
+    return { body: id, x: p.x, y: p.y, z: p.z };
   }
 
   //  EVENTS

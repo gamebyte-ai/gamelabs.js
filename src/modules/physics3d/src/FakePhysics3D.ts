@@ -151,11 +151,32 @@ export class FakePhysics3D {
 
   public getVelocity(id: BodyId, out?: Vec3Like): Vec3Like {
     const b = this._bodies.get(id);
+    if (!b) throw new Error(`FakePhysics3D.getVelocity: unknown body ${id}`);
     const t = out ?? { x: 0, y: 0, z: 0 };
-    t.x = b?.vx ?? 0;
-    t.y = b?.vy ?? 0;
-    t.z = b?.vz ?? 0;
+    t.x = b.vx;
+    t.y = b.vy;
+    t.z = b.vz;
     return t;
+  }
+
+  /** Bodies whose center lies within `radius` (default 0.5) of the point. */
+  public queryPoint(x: number, y: number, z: number): readonly BodyId[] {
+    const ids: BodyId[] = [];
+    for (const b of this._bodies.values()) {
+      const dx = b.x - x;
+      const dy = b.y - y;
+      const dz = b.z - z;
+      if (dx * dx + dy * dy + dz * dz <= 0.25) ids.push(b.id);
+    }
+    return ids;
+  }
+
+  public queryAABB(minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number): readonly BodyId[] {
+    const ids: BodyId[] = [];
+    for (const b of this._bodies.values()) {
+      if (b.x >= minX && b.x <= maxX && b.y >= minY && b.y <= maxY && b.z >= minZ && b.z <= maxZ) ids.push(b.id);
+    }
+    return ids;
   }
 
   public getTag(id: BodyId): string | undefined {
