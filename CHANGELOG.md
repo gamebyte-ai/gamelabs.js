@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-06-09
+
 ### Added
 
 - **Optional physics modules: `physics2d` (matter-js) and `physics3d` (cannon-es).** Each ships from its own subpath (`@gamebyte/gamelabsjs/physics2d`, `@gamebyte/gamelabsjs/physics3d`) so games that don't use physics never load an engine. The engines are **optional peer dependencies**; the main entry has zero references to them.
