@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-06-09
+
 ### Added
 
 - **Optional physics modules: `physics2d` (matter-js) and `physics3d` (cannon-es).** Each ships from its own subpath (`@gamebyte/gamelabsjs/physics2d`, `@gamebyte/gamelabsjs/physics3d`) so games that don't use physics never load an engine. The engines are **optional peer dependencies**; the main entry has zero references to them.
@@ -16,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `FakePhysics2D` / `FakePhysics3D`: deterministic, engine-free stand-ins with the same public surface for unit-testing controllers without loading matter-js / cannon-es.
   - `FixedStepAccumulator` (core utility): generic fixed-timestep clock with spiral-of-death clamp and interpolation alpha, exported from the main entry.
 - Wire with `addModule(new PhysicsXDBinding(config))` then step from the app: resolve the manager in `postInitialize()` and `updateManager.register((dt) => manager.step(dt), -1000)`. Physics stays a state producer behind the manager — never view-side.
+- **Viewport aspect-ratio fit (letterbox / pillarbox).** `GamelabsAppConfig.viewport` lets a game lock its aspect so it never stretches to fill the window — ideal for portrait mobile games. `{ fit: "contain", minAspect, maxAspect }` (or a single `aspectRatio`) sizes **both** the Three World canvas and the Pixi HUD canvas to a centered play-rect of the clamped aspect; the surrounding mount area becomes inert bars (set `background` to color them). The aspect band fills full-bleed when the device aspect is inside `[minAspect, maxAspect]` and only letterboxes outside it. Default (`fit: "fill"`, or omitted) is unchanged — canvases fill the mount. Pointer input in the bars is ignored; cameras, HUD layout, input mapping, and DPR all key off the play-rect automatically (no per-view work). New pure, headless-testable helper `computeViewportRect(availWidth, availHeight, config)` is exported from the main entry.
 
 ## [3.1.0] - 2026-05-11
 

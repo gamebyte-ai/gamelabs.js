@@ -1,4 +1,5 @@
 import type { GamelabsAppConfig } from "./types.js";
+import { computeViewportRect, type ViewportConfig, type ViewportRect } from "./utilities/computeViewportRect.js";
 import { World } from "./world/World.js";
 import { DevUtils } from "./dev/DevUtils.js";
 import { Logger } from "./dev/Logger.js";
@@ -54,6 +55,11 @@ export class GamelabsApp implements IApp {
   private readonly _fixedHeight: number | undefined;
 
   /**
+   * Optional viewport fit (letterbox / pillarbox). Undefined ⇒ canvases fill the mount.
+   */
+  private readonly _viewport: ViewportConfig | undefined;
+
+  /**
    * Last known logical dimensions (not DPR-scaled).
    */
   private _width: number | undefined;
@@ -74,8 +80,16 @@ export class GamelabsApp implements IApp {
 
     // Important: do NOT use the last known size as an override here.
     // Otherwise the resize handler will stop tracking DOM size changes and canvases will be CSS-scaled (stretched).
-    const width = Math.max(1, Math.floor(this._fixedWidth ?? measuredWidth));
-    const height = Math.max(1, Math.floor(this._fixedHeight ?? measuredHeight));
+    const availWidth = Math.max(1, Math.floor(this._fixedWidth ?? measuredWidth));
+    const availHeight = Math.max(1, Math.floor(this._fixedHeight ?? measuredHeight));
+
+    // Derive the play-rect from the available size. With no viewport config this
+    // is the full available area (legacy behavior); with fit:"contain" it is the
+    // centered, aspect-constrained sub-rect — the surrounding mount area becomes
+    // inert letterbox/pillarbox bars.
+    const playRect = computeViewportRect(availWidth, availHeight, this._viewport);
+    const width = playRect.width;
+    const height = playRect.height;
 
     this._width = width;
     this._height = height;
@@ -86,10 +100,32 @@ export class GamelabsApp implements IApp {
     this.world?.resize(width, height, dpr);
     this.hud?.resize(width, height);
 
+    // When letterboxing, the canvases are smaller than the mount and must be
+    // centered explicitly (the host's full-bleed `.layer` CSS would otherwise
+    // stretch them back to the mount size).
+    if (this._viewport?.fit === "contain") this._positionLayers(playRect);
+
     this.onResize(width, height, dpr);
     this._devUtils?.resize(width, height, dpr);
     this._appEvents.emitResize(width, height, dpr);
   };
+
+  /**
+   * Centers both render layers (Three World + Pixi HUD) on the given play-rect
+   * via inline styles. Inline beats the host `.layer` stylesheet rule, so this
+   * works regardless of the page's CSS.
+   */
+  private _positionLayers(rect: ViewportRect): void {
+    const layers: Array<HTMLElement | undefined> = [this.canvas, this.hud?.canvas as HTMLElement | undefined];
+    for (const el of layers) {
+      if (!el) continue;
+      el.style.position = "absolute";
+      el.style.left = `${rect.x}px`;
+      el.style.top = `${rect.y}px`;
+      el.style.width = `${rect.width}px`;
+      el.style.height = `${rect.height}px`;
+    }
+  }
 
   //  GETTERS
   protected get logger(): ILogger {
@@ -136,6 +172,13 @@ export class GamelabsApp implements IApp {
     this._fixedHeight = config.height;
     this._width = config.width;
     this._height = config.height;
+    this._viewport = config.viewport;
+
+    // Letterbox bars are simply the mount area not covered by the centered
+    // canvases; paint the mount background so they read as deliberate bars.
+    if (this._viewport?.background && this.mount) {
+      this.mount.style.background = this._viewport.background;
+    }
 
     this._logger = new Logger();
     this.diContainer = new DIContainer(this._logger);
