@@ -11,18 +11,13 @@ Starter project for building a game with [@gamebyte/gamelabsjs](https://github.c
 ├── vite.config.ts              ← regular Vite config
 ├── vite.playable.config.ts     ← playable Vite config (inlines everything)
 ├── assets/                     ← drop game assets here (create on demand)
-├── scripts/
-│   └── generate-playable-assets.mjs  ← base64-encodes assets/ into a TS registry
 └── src/
-    ├── main.ts                 ← regular entry point
-    ├── main.playable.ts        ← playable entry (overrides loadAssets)
+    ├── main.ts                 ← entry point (shared by both builds)
     ├── MyGameApp.ts
     ├── MyGameConfig.ts
     ├── MyGameUIIds.ts
     ├── controllers/
-    ├── views/
-    └── generated/
-        └── PlayableAssets.ts   ← AUTO-GENERATED, gitignored
+    └── views/
 ```
 
 ## Regular development
@@ -41,59 +36,43 @@ A playable ad is a single self-contained HTML file with all JS, CSS, and assets 
 ### Commands
 
 ```bash
-npm run playable:assets   # base64-encode assets/ → src/generated/PlayableAssets.ts
 npm run playable:dev      # dev server using the playable entry
 npm run playable:build    # production build → dist-playable/index.playable.html
 ```
 
-`playable:dev` and `playable:build` run `playable:assets` first, so you normally just run those two.
+Both reuse the regular `src/main.ts` — there is no separate playable entry point to maintain.
 
-### How the asset pipeline works
+### How it works
 
-The framework's `AssetManager.load(type, id, url)` accepts data URIs (`fetch`, Pixi `Assets.load`, and `THREE.TextureLoader` all support them natively). The build pipeline turns your `assets/` folder into a TS registry of those URIs:
+`vite.playable.config.ts` uses `vite-plugin-singlefile` plus `inlineDynamicImports` and `assetsInlineLimit: 100MB`, so Vite inlines the JS chunk, the CSS, and **every asset it can see** into one HTML — both your game's own assets and the framework's default UI textures. No codegen, no registry, no separate entry: the playable build is just your normal app, inlined.
 
-1. `scripts/generate-playable-assets.mjs` walks `./assets/`, base64-encodes every file, and emits `src/generated/PlayableAssets.ts`:
-   ```ts
-   export const PlayableAssets = {
-     logo: "data:image/png;base64,iVBORw0KGgo…",
-     sfx_jump: "data:audio/wav;base64,UklGR…",
-   } as const;
-   ```
-2. `src/main.playable.ts` imports that registry, subclasses `MyGameApp`, and overrides `loadAssets()` to pass data URIs into the existing `AssetManager.load(...)` calls.
-3. `vite.playable.config.ts` uses `vite-plugin-singlefile` plus `inlineDynamicImports` and `assetsInlineLimit: 100MB` so Rollup inlines the JS chunk, the CSS, and any framework-default UI textures into one HTML.
+"Assets it can see" means any asset you reference with a **static** `new URL(...)` literal — which is how the framework loads assets anyway, so it works automatically.
 
 ### Adding assets
 
-1. Drop the file into `assets/` (e.g. `assets/logo.png`, `assets/sfx_jump.wav`).
-2. Define an asset id enum if you don't have one:
-   ```ts
-   // src/MyGameAssetIds.ts
-   export enum MyGameAssetIds {
-     Logo = "MyGame.Logo",
-     SfxJump = "MyGame.SfxJump",
-   }
-   ```
-3. Wire it up in `src/main.playable.ts`:
-   ```ts
-   import { AssetTypes } from "@gamebyte/gamelabsjs";
-   import { MyGameApp } from "./MyGameApp";
-   import { MyGameAssetIds } from "./MyGameAssetIds";
-   import { PlayableAssets } from "./generated/PlayableAssets";
+Load assets the normal way, in your app's `loadAssets()`. Reference each file with `new URL("../assets/<file>", import.meta.url)` and pass it to `AssetManager.load(...)`:
 
-   class MyGamePlayableApp extends MyGameApp {
-     protected override loadAssets(): void {
-       this.assetManager.load(AssetTypes.HudTexture, MyGameAssetIds.Logo, PlayableAssets.logo);
-       this.assetManager.load(AssetTypes.Audio, MyGameAssetIds.SfxJump, PlayableAssets.sfx_jump);
-     }
-   }
+```ts
+// src/MyGameApp.ts
+import { AssetTypes } from "@gamebyte/gamelabsjs";
 
-   const app = new MyGamePlayableApp(document.getElementById("stage")!);
-   await app.initialize();
-   app.mainLoop();
-   ```
-4. `npm run playable:build` regenerates the registry and rebuilds.
+protected override loadAssets(): void {
+  this.assetManager.load(
+    AssetTypes.HudTexture,
+    MyGameAssetIds.Logo,
+    new URL("../assets/logo.png", import.meta.url).href,
+  );
+  this.assetManager.load(
+    AssetTypes.Audio,
+    MyGameAssetIds.SfxJump,
+    new URL("../assets/sfx_jump.wav", import.meta.url).href,
+  );
+}
+```
 
-The registry keys are the filename stems with non-identifier chars replaced by `_` (so `ui-button.png` becomes `PlayableAssets.ui_button`).
+In `dev`/`build` Vite serves/emits these as files; in `playable:build` it inlines them as `data:` URIs. Same code, no playable-specific branch.
+
+> **One constraint:** the path must be a static string literal inside `new URL(..., import.meta.url)`. Vite inlines by statically analyzing that exact form — a runtime-built path (e.g. `new URL(\`../assets/${name}.png\`, import.meta.url)`) can't be seen, so it won't be inlined and the playable will 404. Enumerate variants as explicit literals instead.
 
 ### Ad-network SDK
 
@@ -132,4 +111,3 @@ Base64 encoding adds ~33% to each asset's bytes. Tips to stay under cap:
 ### What gets gitignored
 
 - `dist-playable/` — build output
-- `src/generated/` — regenerated on every build
