@@ -56,7 +56,21 @@ export class InputManager implements IInputManager {
     return this._hud.hitTest(x, y) !== null;
   }
 
+  /**
+   * True when the pointer is outside the render surface (the play-rect). With a
+   * letterboxed viewport the event target is the full mount, so taps can land in
+   * the bars; those must not start an interaction. When the canvas fills the
+   * mount (no letterbox) the rect covers every event, so this is always false.
+   */
+  private _isOutsideViewport(event: PointerEvent): boolean {
+    const rect = this._canvas.getBoundingClientRect();
+    return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+  }
+
   private readonly _onPointerDown = (event: PointerEvent): void => {
+    // Don't begin interactions in the letterbox bars. Gestures that start inside
+    // still receive move/up even if they later stray into a bar (capture stays).
+    if (this._isOutsideViewport(event)) return;
     if (this._isHudEvent(event)) return;
     try {
       this._eventTarget.setPointerCapture(event.pointerId);
