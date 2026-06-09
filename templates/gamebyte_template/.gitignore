@@ -1,3 +1,5 @@
 node_modules
 dist
+dist-playable
+src/generated
 *.local
