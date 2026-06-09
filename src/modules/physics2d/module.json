@@ -1,0 +1,5 @@
+{
+  "name": "physics2d",
+  "description": "Optional 2D rigid-body physics backed by matter-js. Exposes a DI-bound Physics2DManager stepped on a fixed timestep: create bodies, apply forces, read interpolated transforms, and subscribe to collisions by body id. Engine types never leak; controllers stay engine-agnostic and the view layer never touches physics. Loaded via the @gamebyte/gamelabsjs/physics2d subpath; matter-js is an optional peer dependency.",
+  "dependencies": []
+}

@@ -120,7 +120,7 @@ The app's operations layer owns shape-level atomicity:
 - **Collision check**: skip cells whose top item has the same `groupId` as the moving shape. The dragged shape doesn't collide with itself.
 - **Clear / explode a shape**: `removeCellItem` for every cell of the shape; the items are dropped (no longer referenced).
 
-See `examples/colorblockjam/src/utilities/GameOperations.ts` for the canonical implementation: drag-time collision uses `cell.size` for occupancy, `_moveBlockToAnchor` does the coordinated detach/attach, `clearBlock` removes items at exit-animation start so vacated cells become available immediately.
+See the examples repository for the canonical implementation: drag-time collision uses `cell.size` for occupancy, `_moveBlockToAnchor` does the coordinated detach/attach, `clearBlock` removes items at exit-animation start so vacated cells become available immediately.
 
 ### Stacks via per-cell capacity
 

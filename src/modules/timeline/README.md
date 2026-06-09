@@ -164,7 +164,7 @@ const camera = resolver.getInstance(GameCameraManager);
 timelineManager.add(new CameraShakeTrack(camera, { amplitude: 22, duration: 0.45 }));
 ```
 
-See the avoidance example at `examples/avoidance/src/AvoidanceApp.ts` for full wiring.
+See the examples repository for full wiring.
 
 ## Update ordering
 

@@ -1,0 +1,10 @@
+export { Physics2DManager } from "./Physics2DManager.js";
+export { Physics2DBinding } from "./Physics2DBinding.js";
+export { Physics2DEvents } from "./Physics2DEvents.js";
+export type { CollisionStart2DCallback, CollisionEnd2DCallback } from "./Physics2DEvents.js";
+export { Physics2DSyncBag } from "./Physics2DSyncBag.js";
+export type { Transform2DSource, Transform2DSink } from "./Physics2DSyncBag.js";
+export { Physics2DStage } from "./Physics2DStage.js";
+export type { Physics2DWorld, Physics2DEntityView, Physics2DEntity } from "./Physics2DStage.js";
+export { FakePhysics2D } from "./FakePhysics2D.js";
+export type { BodyId, Body2DType, Shape2D, Body2DDef, Transform2D, Vec2, ContactInfo2D, RaycastHit2D, Physics2DConfig } from "./types.js";
