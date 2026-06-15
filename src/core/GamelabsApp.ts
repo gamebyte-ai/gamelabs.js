@@ -127,6 +127,53 @@ export class GamelabsApp implements IApp {
     }
   }
 
+  // Tracks whether the layer-default stylesheet has been injected into the
+  // document. Static so re-mounting the app (e.g. HMR) is idempotent.
+  private static _layerStylesInjected = false;
+  private static readonly _layerStyleElementId = "gamelabsjs-layer-defaults";
+
+  /**
+   * Injects a low-specificity (`:where()`) stylesheet so the two render
+   * canvases (`canvas.layer.world3d` + `canvas.layer.hud2d`) stack correctly
+   * even when the host page omits the canonical CSS. Any host CSS with
+   * non-zero specificity overrides this.
+   *
+   * Without this, a host page like `<div id="stage"></div>` with no canvas
+   * styling renders the opaque 3D canvas at full size and pushes the HUD
+   * canvas out of the viewport — a silent "black screen" with no error.
+   */
+  private static _ensureLayerStyles(): void {
+    if (GamelabsApp._layerStylesInjected) return;
+    if (typeof document === "undefined") return;
+    if (document.getElementById(GamelabsApp._layerStyleElementId)) {
+      GamelabsApp._layerStylesInjected = true;
+      return;
+    }
+    const style = document.createElement("style");
+    style.id = GamelabsApp._layerStyleElementId;
+    style.textContent =
+      ":where(canvas.layer){position:absolute;inset:0;width:100%;height:100%;display:block;}" +
+      ":where(canvas.layer.world3d){z-index:0;}" +
+      ":where(canvas.layer.hud2d){z-index:1;}";
+    document.head.appendChild(style);
+    GamelabsApp._layerStylesInjected = true;
+  }
+
+  /**
+   * Ensures the mount element creates a positioning context so absolutely
+   * positioned canvas layers resolve against it instead of the viewport.
+   * No-op if the host already set `position: relative|absolute|fixed|sticky`.
+   */
+  private _ensureMountPositioned(): void {
+    if (!this.mount) return;
+    if (typeof window === "undefined") return;
+    if (typeof window.getComputedStyle !== "function") return;
+    const computed = window.getComputedStyle(this.mount);
+    if (computed.position === "static") {
+      this.mount.style.position = "relative";
+    }
+  }
+
   //  GETTERS
   protected get logger(): ILogger {
     return this._logger;
@@ -215,6 +262,9 @@ export class GamelabsApp implements IApp {
     }
 
     try {
+      GamelabsApp._ensureLayerStyles();
+      this._ensureMountPositioned();
+
       await this.createWorld();
       await this.createHud();
 

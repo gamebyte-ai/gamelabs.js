@@ -106,7 +106,16 @@ export class HudViewBase extends PIXI.Container implements IView {
   public initialize(): void {}
 
   public postInitialize(): void {
-    if (this._app) this.onResize(this._app.width, this._app.height, this._app.dpr);
+    // Defer the initial onResize so subclass `postInitialize` bodies finish
+    // creating their children before resize fires. Calling synchronously here
+    // crashes subclasses that build graphics objects after `super.postInitialize()`.
+    if (this._app) {
+      const app = this._app;
+      queueMicrotask(() => {
+        if (this._app !== app || this.destroyed) return;
+        this.onResize(app.width, app.height, app.dpr);
+      });
+    }
     if (this._appEvents) {
       this._subs.add(this._appEvents.onResize((w, h, dpr) => this.onResize(w, h, dpr)));
     }

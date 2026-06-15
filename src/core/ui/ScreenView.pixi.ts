@@ -280,5 +280,18 @@ export class ScreenView extends HudViewBase implements IScreenView {
     this._viewportWidth = w;
     this._viewportHeight = h;
     this.ensureClipMask(w, h);
+
+    // Provide a sensible default `.layout` so `@pixi/layout`-aware children
+    // are sized against the viewport even when the subclass forgets to set
+    // its own. Without this, a screen using layout-based children silently
+    // collapses to zero size and renders nothing. Subclasses that need
+    // custom layout values can assign `this.layout = { ... }` after calling
+    // `super.onResize(...)`. Subclasses that don't use `@pixi/layout` at all
+    // are unaffected: children without their own `.layout` are positioned
+    // freely via `.x` / `.y`.
+    const currentLayout = (this as unknown as { layout?: unknown }).layout;
+    if (currentLayout === undefined || currentLayout === null) {
+      this.layout = { width: w, height: h };
+    }
   }
 }
