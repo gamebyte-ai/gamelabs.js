@@ -41,7 +41,7 @@ app.mainLoop();
 
 ### Vite setup
 
-Consumers using Vite need three settings in `vite.config.ts`. The `templates/gamebyte_template/vite.config.ts` is a ready-to-copy starter; the minimum is:
+Consumers using Vite need three settings in `vite.config.ts`. The [`gamelabs.examples/example_template/vite.config.ts`](https://github.com/gamebyte-ai/gamelabs.examples/blob/main/example_template/vite.config.ts) is a ready-to-copy starter; the minimum is:
 
 ```ts
 import { defineConfig } from "vite";
