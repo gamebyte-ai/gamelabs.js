@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { Group } from "three";
 import type { ParticleBudget } from "../utilities/ParticleBudget.js";
 import type { EmitterConfig } from "../emitter/EmitterConfig.js";
 import type { IParticleBehavior } from "../emitter/IParticleBehavior.js";
@@ -6,7 +6,7 @@ import type { IParticleEmitter } from "../emitter/IParticleEmitter.js";
 import { EmitterCore } from "../emitter/EmitterCore.js";
 
 /**
- * THREE-side base class for particle emitters. Extends `THREE.Group`
+ * THREE-side base class for particle emitters. Extends `Group`
  * so it can be parented to any scene-graph node (the world root, an
  * entity, a bone) — particle spawn/render is done relative to this
  * group's transform, so an emitter parented to a moving anchor follows
@@ -35,7 +35,7 @@ import { EmitterCore } from "../emitter/EmitterCore.js";
  * `autoDestroy` flag in `EmitterConfig` opts into self-removal once
  * the emitter stops emitting and drains.
  */
-export abstract class WorldParticleEmitter<TData> extends THREE.Group implements IParticleEmitter {
+export abstract class WorldParticleEmitter<TData> extends Group implements IParticleEmitter {
   private readonly _core: EmitterCore<TData>;
 
   public constructor(budget: ParticleBudget, config: EmitterConfig) {

@@ -1,8 +1,8 @@
-import * as THREE from "three";
+import { Group } from "three";
 import type { IInputManager } from "../input/IInputManager.js";
 import type { IPointerInputHandler } from "../input/IPointerInputHandler.js";
 
-export class WorldInteractiveObject extends THREE.Group {
+export class WorldInteractiveObject extends Group {
   //  MEMBERS
   private _isPointerInputHandlerCached: boolean | null = null;
   private _inputManager: IInputManager | null = null;

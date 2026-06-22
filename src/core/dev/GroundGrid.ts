@@ -1,11 +1,11 @@
-import * as THREE from "three";
+import { GridHelper } from "three";
 
 import type { World } from "../world/World.js";
 import type { GroundGridOptions, IGroundGrid } from "./IGroundGrid.js";
 
 export class GroundGrid implements IGroundGrid {
   private readonly _world: World;
-  private _grid: THREE.GridHelper | null = null;
+  private _grid: GridHelper | null = null;
   private _options: Required<GroundGridOptions> = { size: 20, divisions: 20, color1: 0x223047, color2: 0x152033, y: 0 };
 
   public constructor(world: World) {
@@ -41,7 +41,7 @@ export class GroundGrid implements IGroundGrid {
 
   private _createGrid(visible: boolean): void {
     this._destroyGrid();
-    const grid = new THREE.GridHelper(this._options.size, this._options.divisions, this._options.color1, this._options.color2);
+    const grid = new GridHelper(this._options.size, this._options.divisions, this._options.color1, this._options.color2);
     grid.position.y = this._options.y;
     grid.visible = visible;
     this._world.scene.add(grid);

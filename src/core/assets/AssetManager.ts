@@ -1,4 +1,5 @@
-import * as THREE from "three";
+import type { Texture as ThreeTexture } from "three";
+import { BoxGeometry, DataTexture, Group, Mesh, MeshBasicMaterial, TextureLoader } from "three";
 import { Assets, Texture } from "pixi.js";
 import { AssetTypes, type AssetType } from "./AssetTypes.js";
 import { AssetRequest } from "./AssetRequest.js";
@@ -10,7 +11,7 @@ import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 export class AssetManager implements IAssetManager {
   private _logger: ILogger;
   private _defaultHudTexture: Texture | null = null;
-  private _defaultWorldTexture: THREE.Texture | null = null;
+  private _defaultWorldTexture: ThreeTexture | null = null;
   private _defaultGltf: GLTF | null = null;
   private readonly _assetsById = new Map<string, unknown>();
   private readonly _inflightById = new Map<string, Promise<unknown>>();
@@ -146,21 +147,21 @@ export class AssetManager implements IAssetManager {
     return this._defaultHudTexture;
   }
 
-  private getDefaultWorldTexture(): THREE.Texture {
+  private getDefaultWorldTexture(): ThreeTexture {
     if (this._defaultWorldTexture) return this._defaultWorldTexture;
     const data = new Uint8Array([128, 0, 128, 255]);
-    this._defaultWorldTexture = new THREE.DataTexture(data, 1, 1);
+    this._defaultWorldTexture = new DataTexture(data, 1, 1);
     this._defaultWorldTexture.needsUpdate = true;
     return this._defaultWorldTexture;
   }
 
   private getDefaultGltf(): GLTF {
     if (this._defaultGltf) return this._defaultGltf;
-    const scene = new THREE.Group();
+    const scene = new Group();
     scene.name = "GLTF_Fallback";
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x800080 });
-    const mesh = new THREE.Mesh(geometry, material);
+    const geometry = new BoxGeometry(1, 1, 1);
+    const material = new MeshBasicMaterial({ color: 0x800080 });
+    const mesh = new Mesh(geometry, material);
     scene.add(mesh);
     this._defaultGltf = {
       scene,
@@ -215,8 +216,8 @@ export class AssetManager implements IAssetManager {
     }
   }
 
-  private async loadWorldTexture(url: string): Promise<THREE.Texture> {
-    const loader = new THREE.TextureLoader();
+  private async loadWorldTexture(url: string): Promise<ThreeTexture> {
+    const loader = new TextureLoader();
     return loader.loadAsync(url);
   }
 

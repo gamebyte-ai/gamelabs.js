@@ -1,4 +1,5 @@
-import * as THREE from "three";
+import type { Camera } from "three";
+import { Vector3 } from "three";
 import type { GameCameraManager } from "../utilities/GameCameraManager.js";
 import { GameCameraMode } from "../constants/GameCameraMode.js";
 import { ISOMETRIC_DISTANCE } from "../constants/GameCameraDefaults.js";
@@ -13,15 +14,15 @@ export class Isometric3dCameraController extends IsometricBaseCameraController {
     return false;
   }
 
-  public applyPositionToCamera(camera: THREE.Camera, focus: THREE.Vector3, _orthoSize: number): void {
+  public applyPositionToCamera(camera: Camera, focus: Vector3, _orthoSize: number): void {
     camera.rotation.set(0, 0, 0);
     camera.up.set(0, 1, 0);
     camera.position.set(focus.x + ISOMETRIC_DISTANCE, focus.y + ISOMETRIC_DISTANCE, focus.z + ISOMETRIC_DISTANCE);
     camera.lookAt(focus.x, focus.y, focus.z);
   }
 
-  public getFocusFromOrthoPosition(orthoPos: THREE.Vector3, _orthoSize: number): THREE.Vector3 {
-    return new THREE.Vector3(orthoPos.x - ISOMETRIC_DISTANCE, orthoPos.y - ISOMETRIC_DISTANCE, orthoPos.z - ISOMETRIC_DISTANCE);
+  public getFocusFromOrthoPosition(orthoPos: Vector3, _orthoSize: number): Vector3 {
+    return new Vector3(orthoPos.x - ISOMETRIC_DISTANCE, orthoPos.y - ISOMETRIC_DISTANCE, orthoPos.z - ISOMETRIC_DISTANCE);
   }
 
   public override move(x: number, y: number, z: number): void {

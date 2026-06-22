@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { Vector3 } from "three";
 import type { ICameraConstraint } from "./ICameraConstraint.js";
 
 export type DeadZonePlane = "xz" | "xy" | "yz";
@@ -35,7 +35,7 @@ export class DeadZoneFocusConstraint implements ICameraConstraint {
   private readonly _offAxis: "x" | "y" | "z";
   private readonly _halfA: number;
   private readonly _halfB: number;
-  private readonly _last = new THREE.Vector3();
+  private readonly _last = new Vector3();
   private _hasLast = false;
 
   public constructor(options: DeadZoneFocusConstraintOptions) {
@@ -48,7 +48,7 @@ export class DeadZoneFocusConstraint implements ICameraConstraint {
     this._halfB = options.halfHeight;
   }
 
-  public applyToFocus(focus: THREE.Vector3): void {
+  public applyToFocus(focus: Vector3): void {
     if (!this._hasLast) {
       this._last.copy(focus);
       this._hasLast = true;

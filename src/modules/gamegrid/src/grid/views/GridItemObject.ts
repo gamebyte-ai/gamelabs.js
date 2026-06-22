@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { BoxGeometry, Mesh, MeshStandardMaterial } from "three";
 import type { BaseGridPreset } from "../models/BaseGridPreset.js";
 import type { IAssetManager } from "../../../../../core/assets/IAssetManager.js";
 import type { GridCellObject } from "./GridCellObject.js";
@@ -56,9 +56,9 @@ export class GridItemObject extends WorldInteractiveObject {
   }
 
   protected createVisual(): void {
-    const material = new THREE.MeshStandardMaterial({ color: 0x334155 });
-    const geom = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-    const mesh = new THREE.Mesh(geom, material);
+    const material = new MeshStandardMaterial({ color: 0x334155 });
+    const geom = new BoxGeometry(0.5, 0.5, 0.5);
+    const mesh = new Mesh(geom, material);
     mesh.position.set(0, 0.25, 0);
     this.add(mesh);
   }

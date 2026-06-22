@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { Vector3 } from "three";
 import type { ICameraFollow } from "./ICameraFollow.js";
 import { DEFAULT_EASING } from "../constants/GameCameraDefaults.js";
 
@@ -13,7 +13,7 @@ import { DEFAULT_EASING } from "../constants/GameCameraDefaults.js";
  * (no snap).
  */
 export class FollowPosition implements ICameraFollow {
-  private readonly _target = new THREE.Vector3();
+  private readonly _target = new Vector3();
   private readonly _easing: number;
 
   public constructor(x: number, y: number, z: number, easing = DEFAULT_EASING) {
@@ -21,7 +21,7 @@ export class FollowPosition implements ICameraFollow {
     this._easing = easing;
   }
 
-  public get target(): THREE.Vector3 {
+  public get target(): Vector3 {
     return this._target;
   }
 
@@ -33,7 +33,7 @@ export class FollowPosition implements ICameraFollow {
     this._target.set(x, y, z);
   }
 
-  public step(current: THREE.Vector3, dtSeconds: number): void {
+  public step(current: Vector3, dtSeconds: number): void {
     const t = 1 - Math.exp(-this._easing * dtSeconds);
     current.lerp(this._target, t);
   }

@@ -1,4 +1,5 @@
-import * as THREE from "three";
+import type { Object3D } from "three";
+import { Raycaster, Vector2 } from "three";
 import type { Hud } from "../hud/Hud.js";
 import type { World } from "../world/World.js";
 import type { IInputManager } from "./IInputManager.js";
@@ -13,8 +14,8 @@ export class InputManager implements IInputManager {
   private readonly _world: World | null;
   private readonly _handlers = new Set<IPointerInputHandler>();
   private _listening = false;
-  private readonly _raycaster = new THREE.Raycaster();
-  private readonly _pointerNdc = new THREE.Vector2();
+  private readonly _raycaster = new Raycaster();
+  private readonly _pointerNdc = new Vector2();
 
   public constructor(canvas: HTMLCanvasElement, hud: Hud | null, world: World | null, eventTarget?: HTMLElement) {
     this._canvas = canvas;
@@ -33,7 +34,7 @@ export class InputManager implements IInputManager {
     const intersects = this._raycaster.intersectObjects(this._world.scene.children, true);
     const nearest = intersects[0];
     if (!nearest) return null;
-    let obj: THREE.Object3D | null = nearest.object;
+    let obj: Object3D | null = nearest.object;
     while (obj) {
       if (obj instanceof WorldInteractiveObject && obj.isPointerInputHandler) {
         return obj as WorldInteractiveObject & IPointerInputHandler;
