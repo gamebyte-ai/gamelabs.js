@@ -1,5 +1,6 @@
 import "@pixi/layout";
-import * as PIXI from "pixi.js";
+import type { DestroyOptions } from "pixi.js";
+import { Container } from "pixi.js";
 import type { IApp } from "../../../../core/app/IApp.js";
 import type { AppEvents } from "../../../../core/app/AppEvents.js";
 import { UnsubscribeBag } from "../../../../core/events/subscriptions.js";
@@ -12,7 +13,7 @@ import { UnsubscribeBag } from "../../../../core/events/subscriptions.js";
  * Useful as a layout root for HUD widgets that are created outside the
  * `ViewFactory` lifecycle (debug overlays, app-level content panels, etc.).
  */
-export class FullscreenLayoutComponent extends PIXI.Container {
+export class FullscreenLayoutComponent extends Container {
   private readonly _subs = new UnsubscribeBag();
 
   public constructor(app: IApp, appEvents: AppEvents) {
@@ -25,7 +26,7 @@ export class FullscreenLayoutComponent extends PIXI.Container {
     this.layout = { width: Math.max(1, width), height: Math.max(1, height) };
   }
 
-  public override destroy(options?: PIXI.DestroyOptions): void {
+  public override destroy(options?: DestroyOptions): void {
     this._subs.flush();
     super.destroy(options);
   }

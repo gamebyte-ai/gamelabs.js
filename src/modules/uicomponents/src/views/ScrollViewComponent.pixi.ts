@@ -1,5 +1,6 @@
 import type { LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import type { DestroyOptions, FederatedPointerEvent, FederatedWheelEvent, NineSliceSprite, Sprite } from "pixi.js";
+import { Container, Graphics, Rectangle } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
@@ -103,7 +104,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
    * container is translated as the user scrolls; its own children
    * keep their natural local coordinates.
    */
-  public readonly content: PIXI.Container;
+  public readonly content: Container;
 
   private readonly _viewportWidth: number;
   private readonly _viewportHeight: number;
@@ -116,14 +117,14 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
   private readonly _scrollbarMargin: number;
   private readonly _trackStyle: SpriteStyle | undefined;
   private readonly _thumbStyle: SpriteStyle | undefined;
-  private readonly _bg: PIXI.Graphics;
-  private readonly _mask: PIXI.Graphics;
-  private readonly _scrollbarV: PIXI.Container | null;
-  private readonly _scrollbarH: PIXI.Container | null;
-  private readonly _trackV: PIXI.Sprite | PIXI.NineSliceSprite | null;
-  private readonly _thumbV: PIXI.Sprite | PIXI.NineSliceSprite | null;
-  private readonly _trackH: PIXI.Sprite | PIXI.NineSliceSprite | null;
-  private readonly _thumbH: PIXI.Sprite | PIXI.NineSliceSprite | null;
+  private readonly _bg: Graphics;
+  private readonly _mask: Graphics;
+  private readonly _scrollbarV: Container | null;
+  private readonly _scrollbarH: Container | null;
+  private readonly _trackV: Sprite | NineSliceSprite | null;
+  private readonly _thumbV: Sprite | NineSliceSprite | null;
+  private readonly _trackH: Sprite | NineSliceSprite | null;
+  private readonly _thumbH: Sprite | NineSliceSprite | null;
   private readonly _scrollListeners = new Set<(x: number, y: number) => void>();
 
   private _scrollX = 0;
@@ -162,7 +163,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     this._trackStyle = style.track;
     this._thumbStyle = style.thumb;
 
-    this._bg = new PIXI.Graphics();
+    this._bg = new Graphics();
     this._bg.eventMode = "none";
     const fillAlpha = opts.fillAlpha ?? 0;
     if (fillAlpha > 0) {
@@ -174,11 +175,11 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     // lives in the scene graph as a sibling of `content` so its world
     // transform tracks the scroll view; Pixi renders it into the
     // stencil buffer rather than drawing it visibly.
-    this._mask = new PIXI.Graphics();
+    this._mask = new Graphics();
     this._mask.rect(0, 0, this._viewportWidth, this._viewportHeight).fill({ color: 0xffffff });
     this.addChild(this._mask);
 
-    this.content = new PIXI.Container();
+    this.content = new Container();
     this.content.mask = this._mask;
     this.addChild(this.content);
 
@@ -210,12 +211,12 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     this.layout = layout;
 
     this.eventMode = "static";
-    this.hitArea = new PIXI.Rectangle(0, 0, this._viewportWidth, this._viewportHeight);
-    this.on("pointerdown", (e: PIXI.FederatedPointerEvent) => this._onPointerDown(e));
-    this.on("globalpointermove", (e: PIXI.FederatedPointerEvent) => this._onGlobalPointerMove(e));
+    this.hitArea = new Rectangle(0, 0, this._viewportWidth, this._viewportHeight);
+    this.on("pointerdown", (e: FederatedPointerEvent) => this._onPointerDown(e));
+    this.on("globalpointermove", (e: FederatedPointerEvent) => this._onGlobalPointerMove(e));
     this.on("pointerup", () => this._endDrag());
     this.on("pointerupoutside", () => this._endDrag());
-    this.on("wheel", (e: PIXI.FederatedWheelEvent) => this._onWheel(e));
+    this.on("wheel", (e: FederatedWheelEvent) => this._onWheel(e));
 
     this._refreshScrollbars();
   }
@@ -308,7 +309,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     return () => this._scrollListeners.delete(cb);
   }
 
-  public override destroy(opts?: PIXI.DestroyOptions): void {
+  public override destroy(opts?: DestroyOptions): void {
     this._scrollListeners.clear();
     super.destroy(opts);
   }
@@ -316,11 +317,11 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
   // ── Internals ──────────────────────────────────────────────────────
 
   private _buildScrollbar(axis: "v" | "h"): {
-    container: PIXI.Container;
-    track: PIXI.Sprite | PIXI.NineSliceSprite;
-    thumb: PIXI.Sprite | PIXI.NineSliceSprite;
+    container: Container;
+    track: Sprite | NineSliceSprite;
+    thumb: Sprite | NineSliceSprite;
   } {
-    const container = new PIXI.Container();
+    const container = new Container();
     container.eventMode = "static";
     container.cursor = "pointer";
     // Build the track + thumb sprites using `_buildStyledSprite` so 9-slice
@@ -337,9 +338,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     thumb.eventMode = "none";
     container.addChild(thumb);
 
-    container.on("pointerdown", (e: PIXI.FederatedPointerEvent) =>
-      axis === "v" ? this._onScrollbarPressedV(e) : this._onScrollbarPressedH(e),
-    );
+    container.on("pointerdown", (e: FederatedPointerEvent) => (axis === "v" ? this._onScrollbarPressedV(e) : this._onScrollbarPressedH(e)));
     this.addChild(container);
     return { container, track, thumb };
   }
@@ -349,7 +348,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     return Math.max(0, Math.min(max, value));
   }
 
-  private _onPointerDown(e: PIXI.FederatedPointerEvent): void {
+  private _onPointerDown(e: FederatedPointerEvent): void {
     if (!this._dragEnabled) return;
     // Only drag when the pointer hits the viewport background — child
     // containers (buttons, list rows, etc.) keep their normal taps.
@@ -359,7 +358,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     this._beginDrag("viewport", e);
   }
 
-  private _onGlobalPointerMove(e: PIXI.FederatedPointerEvent): void {
+  private _onGlobalPointerMove(e: FederatedPointerEvent): void {
     switch (this._dragMode) {
       case "none":
         return;
@@ -396,7 +395,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     this._dragMode = "none";
   }
 
-  private _beginDrag(mode: "viewport" | "scrollbarV" | "scrollbarH", e: PIXI.FederatedPointerEvent): void {
+  private _beginDrag(mode: "viewport" | "scrollbarV" | "scrollbarH", e: FederatedPointerEvent): void {
     this._dragMode = mode;
     this._dragStartPointerX = e.global.x;
     this._dragStartPointerY = e.global.y;
@@ -404,7 +403,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     this._dragStartScrollY = this._scrollY;
   }
 
-  private _onScrollbarPressedV(e: PIXI.FederatedPointerEvent): void {
+  private _onScrollbarPressedV(e: FederatedPointerEvent): void {
     if (this.scrollableHeight <= 0) return;
     const local = e.getLocalPosition(this);
     const trackHeight = this._verticalTrackHeight();
@@ -427,7 +426,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     this._beginDrag("scrollbarV", e);
   }
 
-  private _onScrollbarPressedH(e: PIXI.FederatedPointerEvent): void {
+  private _onScrollbarPressedH(e: FederatedPointerEvent): void {
     if (this.scrollableWidth <= 0) return;
     const local = e.getLocalPosition(this);
     const trackWidth = this._horizontalTrackWidth();
@@ -446,7 +445,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     this._beginDrag("scrollbarH", e);
   }
 
-  private _onWheel(e: PIXI.FederatedWheelEvent): void {
+  private _onWheel(e: FederatedWheelEvent): void {
     let dx: number;
     let dy: number;
     if (this._direction === "horizontal") {
@@ -512,7 +511,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
     // the protruding parts of a wider thumb stay grabbable.
     const hitX = Math.min(trackX, thumbX);
     const hitW = Math.max(this._scrollbarThickness, this._thumbThickness);
-    container.hitArea = new PIXI.Rectangle(hitX, this._scrollbarMargin, hitW, trackHeight);
+    container.hitArea = new Rectangle(hitX, this._scrollbarMargin, hitW, trackHeight);
   }
 
   private _layoutHorizontalScrollbar(): void {
@@ -544,7 +543,7 @@ export class ScrollViewComponent extends StyledHudObject<ScrollViewComponentStyl
 
     const hitY = Math.min(trackY, thumbY);
     const hitH = Math.max(this._scrollbarThickness, this._thumbThickness);
-    container.hitArea = new PIXI.Rectangle(this._scrollbarMargin, hitY, trackWidth, hitH);
+    container.hitArea = new Rectangle(this._scrollbarMargin, hitY, trackWidth, hitH);
   }
 
   private _verticalTrackHeight(): number {

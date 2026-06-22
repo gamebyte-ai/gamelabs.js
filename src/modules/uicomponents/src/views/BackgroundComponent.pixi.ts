@@ -1,6 +1,6 @@
 import "@pixi/layout";
 import type { Layout } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import { Graphics, Sprite, Texture } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { BackgroundComponentStyle } from "../UIComponentsStyleTypes.js";
@@ -56,8 +56,8 @@ const DEFAULT_FALLBACK_ALPHA = 0.55;
  * single `bg.tint = 0xff0000` reddens the whole composite).
  */
 export class BackgroundComponent extends StyledHudObject<BackgroundComponentStyle> {
-  private readonly _bgSprite: PIXI.Sprite;
-  private readonly _overlay: PIXI.Graphics;
+  private readonly _bgSprite: Sprite;
+  private readonly _overlay: Graphics;
   private readonly _overlayColor: number;
   private readonly _overlayAlpha: number;
   private readonly _fallbackColor: number;
@@ -83,15 +83,15 @@ export class BackgroundComponent extends StyledHudObject<BackgroundComponentStyl
     // The texture sprite is NOT under @pixi/layout control. We size and
     // position it manually for "cover" behaviour — Yoga would only
     // stretch, which would distort the texture along whichever axis is
-    // over-sized. Built as a plain `PIXI.Sprite` (never NineSliceSprite)
+    // over-sized. Built as a plain `Sprite` (never NineSliceSprite)
     // because cover-fit assumes a single uniform scale across the
     // texture; nine-slice corner insets would be meaningless here.
-    this._bgSprite = new PIXI.Sprite(bgTexture);
+    this._bgSprite = new Sprite(bgTexture);
     if (style.bg?.color !== undefined) this._bgSprite.tint = style.bg.color;
     if (style.bg?.alpha !== undefined) this._bgSprite.alpha = style.bg.alpha;
     this.addChild(this._bgSprite);
 
-    this._overlay = new PIXI.Graphics();
+    this._overlay = new Graphics();
     this._overlay.layout = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
     this.addChild(this._overlay);
 
@@ -114,7 +114,7 @@ export class BackgroundComponent extends StyledHudObject<BackgroundComponentStyl
     if (width <= 0 || height <= 0) return;
 
     const tex = this._bgSprite.texture;
-    if (tex !== PIXI.Texture.EMPTY) {
+    if (tex !== Texture.EMPTY) {
       this._bgSprite.visible = true;
       const tw = Math.max(1, tex.width);
       const th = Math.max(1, tex.height);

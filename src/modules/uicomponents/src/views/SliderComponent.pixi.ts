@@ -1,4 +1,5 @@
-import * as PIXI from "pixi.js";
+import type { FederatedPointerEvent, NineSliceSprite, Sprite } from "pixi.js";
+import { Container, Rectangle } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
@@ -50,7 +51,7 @@ export type SliderComponentOpts = {
  * - **thumb** — draggable handle, sized to `thumbRadius * 2` square,
  *   anchored at its centre on the value position.
  *
- * Track + fill use `PIXI.NineSliceSprite` when their resolved
+ * Track + fill use `NineSliceSprite` when their resolved
  * `SpriteStyle.border` is positive so the corners stay crisp at any
  * length; the thumb is always a plain stretched sprite. Per-axis
  * `Container.tint` on the slider propagates to all three sub-sprites
@@ -63,10 +64,10 @@ export type SliderComponentOpts = {
  * back through `onChange`.
  */
 export class SliderComponent extends StyledHudObject<SliderComponentStyle> {
-  private readonly _trackHost: PIXI.Container;
-  private readonly _trackSprite: PIXI.Sprite | PIXI.NineSliceSprite;
-  private readonly _fillSprite: PIXI.Sprite | PIXI.NineSliceSprite;
-  private readonly _thumb: PIXI.Sprite | PIXI.NineSliceSprite;
+  private readonly _trackHost: Container;
+  private readonly _trackSprite: Sprite | NineSliceSprite;
+  private readonly _fillSprite: Sprite | NineSliceSprite;
+  private readonly _thumb: Sprite | NineSliceSprite;
 
   private readonly _trackStyle: SpriteStyle | undefined;
   private readonly _fillStyle: SpriteStyle | undefined;
@@ -102,7 +103,7 @@ export class SliderComponent extends StyledHudObject<SliderComponentStyle> {
 
     // Track host carries the hit area so taps anywhere along the track
     // register, even before the layout pass has computed real dims.
-    this._trackHost = new PIXI.Container();
+    this._trackHost = new Container();
     this._trackHost.eventMode = "static";
     this._trackHost.position.set(0, 0);
     this.addChild(this._trackHost);
@@ -123,11 +124,11 @@ export class SliderComponent extends StyledHudObject<SliderComponentStyle> {
     this._thumb.cursor = "pointer";
     this.addChild(this._thumb);
 
-    this._trackHost.hitArea = new PIXI.Rectangle(0, -this._trackHeight / 2, this._trackWidth, this._trackHeight);
+    this._trackHost.hitArea = new Rectangle(0, -this._trackHeight / 2, this._trackWidth, this._trackHeight);
 
-    this._trackHost.on("pointerdown", (e: PIXI.FederatedPointerEvent) => this.onTrackPointerDown(e));
+    this._trackHost.on("pointerdown", (e: FederatedPointerEvent) => this.onTrackPointerDown(e));
     this._thumb.on("pointerdown", () => this.onThumbPointerDown());
-    this.on("globalpointermove", (e: PIXI.FederatedPointerEvent) => this.onGlobalPointerMove(e));
+    this.on("globalpointermove", (e: FederatedPointerEvent) => this.onGlobalPointerMove(e));
     this.on("pointerup", () => this.onPointerUp());
     this.on("pointerupoutside", () => this.onPointerUp());
 
@@ -165,7 +166,7 @@ export class SliderComponent extends StyledHudObject<SliderComponentStyle> {
 
   // ── Internal: pointer handling ────────────────────────────────────
 
-  private onTrackPointerDown(e: PIXI.FederatedPointerEvent): void {
+  private onTrackPointerDown(e: FederatedPointerEvent): void {
     this._dragging = true;
     this.updateFromGlobalX(e.global.x);
   }
@@ -174,7 +175,7 @@ export class SliderComponent extends StyledHudObject<SliderComponentStyle> {
     this._dragging = true;
   }
 
-  private onGlobalPointerMove(e: PIXI.FederatedPointerEvent): void {
+  private onGlobalPointerMove(e: FederatedPointerEvent): void {
     if (this._dragging) this.updateFromGlobalX(e.global.x);
   }
 

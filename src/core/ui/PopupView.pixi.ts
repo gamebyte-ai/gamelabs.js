@@ -1,11 +1,12 @@
-import * as PIXI from "pixi.js";
+import type { FederatedPointerEvent } from "pixi.js";
+import { Graphics } from "pixi.js";
 import type { IPopupView } from "./IPopupView.js";
 import { HudViewBase } from "../hud/HudViewBase.js";
 
 /**
  * Base PixiJS popup view.
  *
- * - is a `PIXI.Container`
+ * - is a `Container`
  * - implements `IPopupView` (extends `IView`)
  * - provides a full-screen blocker that prevents interaction with content below
  * - fades in on open, fades out on close
@@ -18,7 +19,7 @@ import { HudViewBase } from "../hud/HudViewBase.js";
 export class PopupView extends HudViewBase implements IPopupView {
   private static readonly FADE_DURATION_MS = 200;
 
-  private _blocker: PIXI.Graphics | null = null;
+  private _blocker: Graphics | null = null;
   private _isInTransition = false;
   private _transitionRafId: number | null = null;
 
@@ -56,12 +57,12 @@ export class PopupView extends HudViewBase implements IPopupView {
 
   private _redrawBlocker(width: number, height: number): void {
     if (!this._blocker) {
-      this._blocker = new PIXI.Graphics();
+      this._blocker = new Graphics();
       this._blocker.eventMode = "static";
       this.addChildAt(this._blocker, 0);
-      this._blocker.on("pointerdown", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
-      this._blocker.on("pointerup", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
-      this._blocker.on("pointermove", (e: PIXI.FederatedPointerEvent) => e.stopPropagation());
+      this._blocker.on("pointerdown", (e: FederatedPointerEvent) => e.stopPropagation());
+      this._blocker.on("pointerup", (e: FederatedPointerEvent) => e.stopPropagation());
+      this._blocker.on("pointermove", (e: FederatedPointerEvent) => e.stopPropagation());
     }
     const w = Math.max(1, Math.floor(width));
     const h = Math.max(1, Math.floor(height));

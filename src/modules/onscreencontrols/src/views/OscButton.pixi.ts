@@ -1,11 +1,12 @@
-import * as PIXI from "pixi.js";
+import type { NineSliceSprite, Sprite } from "pixi.js";
+import { Graphics } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { OscButtonStyle } from "../OnScreenControlTypes.js";
 
 type ProgressRefs = {
-  sprite: PIXI.Sprite | PIXI.NineSliceSprite;
-  mask: PIXI.Graphics;
+  sprite: Sprite | NineSliceSprite;
+  mask: Graphics;
   /**
    * Cached max axis scale (= max(scaleX, scaleY) on the resolved
    * progress slot, defaulting to 1 when unset). Drives the circular
@@ -33,8 +34,8 @@ type ProgressRefs = {
 export class OscButton extends StyledHudObject<OscButtonStyle> {
   private readonly _size: number;
 
-  private _bg: PIXI.Sprite | PIXI.NineSliceSprite | null = null;
-  private _icon: PIXI.Sprite | PIXI.NineSliceSprite | null = null;
+  private _bg: Sprite | NineSliceSprite | null = null;
+  private _icon: Sprite | NineSliceSprite | null = null;
   /**
    * Resting alpha of the icon (= `style.icon?.alpha ?? 1`). `setEnabled`
    * multiplies this by 0.5 to dim the icon while disabled, then restores
@@ -136,7 +137,7 @@ export class OscButton extends StyledHudObject<OscButtonStyle> {
     sprite.position.set(this._size / 2, this._size / 2);
     sprite.visible = false;
 
-    const mask = new PIXI.Graphics();
+    const mask = new Graphics();
     mask.visible = false;
     sprite.mask = mask;
 

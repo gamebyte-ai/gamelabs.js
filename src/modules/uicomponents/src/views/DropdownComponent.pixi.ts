@@ -1,4 +1,5 @@
-import * as PIXI from "pixi.js";
+import type { DestroyOptions, NineSliceSprite, Sprite, Text } from "pixi.js";
+import { Container, Graphics, Rectangle } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
@@ -104,12 +105,12 @@ type ItemState = "idle" | "hover" | "selected";
  * to the re-parented list.
  */
 export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
-  private readonly _header: PIXI.Sprite | PIXI.NineSliceSprite;
-  private readonly _label: PIXI.Text;
-  private readonly _chevron: PIXI.Sprite | PIXI.NineSliceSprite;
-  private readonly _list: PIXI.Container;
-  private readonly _listBg: PIXI.Sprite | PIXI.NineSliceSprite;
-  private readonly _itemRows: Array<{ container: PIXI.Container; bg: PIXI.Sprite | PIXI.NineSliceSprite; text: PIXI.Text }> = [];
+  private readonly _header: Sprite | NineSliceSprite;
+  private readonly _label: Text;
+  private readonly _chevron: Sprite | NineSliceSprite;
+  private readonly _list: Container;
+  private readonly _listBg: Sprite | NineSliceSprite;
+  private readonly _itemRows: Array<{ container: Container; bg: Sprite | NineSliceSprite; text: Text }> = [];
   private readonly _changeListeners = new Set<(id: string, item: DropdownItem) => void>();
 
   private readonly _headerStyle: SpriteStyle | undefined;
@@ -127,8 +128,8 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
   private _items: readonly DropdownItem[];
   private _selectedId: string | null;
   private _isOpen = false;
-  private _scrim: PIXI.Graphics | null = null;
-  private _listOverlayParent: PIXI.Container | null = null;
+  private _scrim: Graphics | null = null;
+  private _listOverlayParent: Container | null = null;
 
   public constructor(assetManager: AssetManager, style: DropdownComponentStyle, opts: DropdownComponentOpts = {}) {
     super(assetManager, style);
@@ -178,7 +179,7 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
     this.addChild(this._chevron);
 
     // List container (hidden by default).
-    this._list = new PIXI.Container();
+    this._list = new Container();
     this._list.visible = false;
     this._list.eventMode = "static";
     this.addChild(this._list);
@@ -277,7 +278,7 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
     return () => this._changeListeners.delete(cb);
   }
 
-  public override destroy(opts?: PIXI.DestroyOptions): void {
+  public override destroy(opts?: DestroyOptions): void {
     if (this._isOpen) this.close();
     this._changeListeners.clear();
     super.destroy(opts);
@@ -324,13 +325,10 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
     }
   }
 
-  private _createItemRow(
-    item: DropdownItem,
-    index: number,
-  ): { container: PIXI.Container; bg: PIXI.Sprite | PIXI.NineSliceSprite; text: PIXI.Text } {
+  private _createItemRow(item: DropdownItem, index: number): { container: Container; bg: Sprite | NineSliceSprite; text: Text } {
     const w = this._width;
     const ih = this._itemHeight;
-    const container = new PIXI.Container();
+    const container = new Container();
     container.position.set(0, index * ih);
     container.eventMode = "static";
     container.cursor = "pointer";
@@ -339,7 +337,7 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
     // `eventMode: none`, so without this only the text bounds catch
     // pointer events. Defining the hit rect here makes the entire
     // row react to hover and tap.
-    container.hitArea = new PIXI.Rectangle(0, 0, w, ih);
+    container.hitArea = new Rectangle(0, 0, w, ih);
 
     const isSelected = this._selectedId === item.id;
     const initialState: ItemState = isSelected ? "selected" : "idle";
@@ -397,7 +395,7 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
 
     // Scrim sits behind the list; tapping it (anywhere outside the
     // list's hit bounds) closes the dropdown.
-    const scrim = new PIXI.Graphics();
+    const scrim = new Graphics();
     scrim.rect(-SCRIM_EXTENT, -SCRIM_EXTENT, SCRIM_EXTENT * 2, SCRIM_EXTENT * 2).fill({ color: 0x000000, alpha: 0.001 });
     scrim.eventMode = "static";
     scrim.on("pointertap", () => this.close());
@@ -429,9 +427,9 @@ export class DropdownComponent extends StyledHudObject<DropdownComponentStyle> {
     }
   }
 
-  private _findRoot(): PIXI.Container | null {
+  private _findRoot(): Container | null {
     if (!this.parent) return null;
-    let node: PIXI.Container = this.parent;
+    let node: Container = this.parent;
     while (node.parent) node = node.parent;
     return node;
   }

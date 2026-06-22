@@ -1,4 +1,5 @@
-import * as PIXI from "pixi.js";
+import type { Texture } from "pixi.js";
+import { Container, Point, Sprite, Text } from "pixi.js";
 import { ScreenView } from "../../../../core/ui/ScreenView.pixi.js";
 import { ButtonComponent } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
 import { BackgroundComponent } from "../../../uicomponents/src/views/BackgroundComponent.pixi.js";
@@ -16,7 +17,7 @@ import { LevelProgressScreenAssetIds } from "../LevelProgressScreenAssetIds.js";
 
 type LevelItemRefs = {
   button: ButtonComponent;
-  text: PIXI.Text;
+  text: Text;
 };
 
 /**
@@ -40,8 +41,8 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
   private levelsCol!: VerticalLayoutComponent;
 
-  private readonly connectors = new PIXI.Container();
-  private connectorSprites: PIXI.Sprite[] = [];
+  private readonly connectors = new Container();
+  private connectorSprites: Sprite[] = [];
 
   private visibleCount = LevelProgressScreenView.defaultVisibleCount;
   private currentLevel = 1;
@@ -205,7 +206,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       height: LevelProgressScreenView.itemHeight,
     });
 
-    const text = new PIXI.Text({
+    const text = new Text({
       text: "",
       style: {
         fill: 0xe8eef6,
@@ -270,7 +271,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
 
     if (this.items.length < 2) return;
 
-    const texture = this.assetLoader.getAsset<PIXI.Texture>(LevelProgressScreenAssetIds.Connector);
+    const texture = this.assetLoader.getAsset<Texture>(LevelProgressScreenAssetIds.Connector);
     if (!texture) return;
 
     const { currentIndex } = this.computeWindow();
@@ -287,8 +288,8 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
     };
 
     // Convert each button's top-left (its local 0,0) into connectors' local space.
-    const topLeftInConnectors = (button: PIXI.Container): PIXI.Point => {
-      return this.connectors.toLocal(new PIXI.Point(0, 0), button);
+    const topLeftInConnectors = (button: Container): Point => {
+      return this.connectors.toLocal(new Point(0, 0), button);
     };
 
     const spriteWidth = 8;
@@ -305,7 +306,7 @@ export class LevelProgressScreenView extends ScreenView implements ILevelProgres
       const length = by - ay;
       if (length <= 0) continue;
 
-      const sprite = new PIXI.Sprite(texture);
+      const sprite = new Sprite(texture);
       sprite.anchor.set(0.5, 0);
       sprite.width = spriteWidth;
       sprite.height = length;

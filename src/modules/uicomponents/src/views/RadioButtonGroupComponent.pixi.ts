@@ -1,5 +1,6 @@
 import type { LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import type { DestroyOptions } from "pixi.js";
+import { Container } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
 import { RadioButtonComponent } from "./RadioButtonComponent.pixi.js";
@@ -70,7 +71,7 @@ export type RadioButtonGroupComponentOpts = {
  *   don't notify, matching the rest of the module).
  * - Re-tapping the already-selected button is a no-op.
  */
-export class RadioButtonGroupComponent extends PIXI.Container {
+export class RadioButtonGroupComponent extends Container {
   private readonly _assetManager: AssetManager;
   private readonly _style: RadioButtonComponentStyle;
   private readonly _changeListeners = new Set<(id: string, item: RadioButtonGroupItem) => void>();
@@ -162,7 +163,7 @@ export class RadioButtonGroupComponent extends PIXI.Container {
     return () => this._changeListeners.delete(cb);
   }
 
-  public override destroy(opts?: PIXI.DestroyOptions): void {
+  public override destroy(opts?: DestroyOptions): void {
     for (const entry of this._entries) entry.unsubPress();
     this._entries.length = 0;
     this._changeListeners.clear();

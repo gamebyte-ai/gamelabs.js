@@ -1,5 +1,6 @@
 import type { LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import type { NineSliceSprite, Sprite } from "pixi.js";
+import { Rectangle } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
@@ -54,15 +55,15 @@ type TrackState = "on" | "off";
  * `onChange(cb)` receive the new boolean. `setValue` is silent on
  * purpose — programmatic updates don't echo back through `onChange`.
  *
- * The bg sprite type (`PIXI.Sprite` vs `PIXI.NineSliceSprite`) is fixed
+ * The bg sprite type (`Sprite` vs `NineSliceSprite`) is fixed
  * at construction by the resolved track-on style's `border`. The default
  * skin's pill track ships with a rounded outline so it sticks with
  * `border: 0` (plain stretch); custom skins with straight track edges
  * can opt into 9-slice via the style override.
  */
 export class ToggleComponent extends StyledHudObject<ToggleComponentStyle> {
-  private readonly _track: PIXI.Sprite | PIXI.NineSliceSprite;
-  private readonly _thumb: PIXI.Sprite | PIXI.NineSliceSprite;
+  private readonly _track: Sprite | NineSliceSprite;
+  private readonly _thumb: Sprite | NineSliceSprite;
 
   private readonly _trackStyles: Record<TrackState, SpriteStyle | undefined>;
   private readonly _thumbStyle: SpriteStyle | undefined;
@@ -115,7 +116,7 @@ export class ToggleComponent extends StyledHudObject<ToggleComponentStyle> {
 
     this.eventMode = "static";
     this.cursor = "pointer";
-    this.hitArea = new PIXI.Rectangle(0, 0, this._width, this._height);
+    this.hitArea = new Rectangle(0, 0, this._width, this._height);
     this.on("pointertap", () => this.toggle());
 
     this._refreshThumb();

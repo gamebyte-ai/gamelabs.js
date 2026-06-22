@@ -1,4 +1,5 @@
-import * as PIXI from "pixi.js";
+import type { FederatedPointerEvent } from "pixi.js";
+import { Container, Graphics } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { Unsubscribe } from "../../../../core/events/subscriptions.js";
@@ -31,10 +32,10 @@ export class OscJoystick extends StyledHudObject<OscJoystickStyle> {
   private readonly _knobSize: number;
   private readonly _dynamic: boolean;
 
-  private readonly _base: PIXI.Container;
-  private readonly _knob: PIXI.Container;
-  private readonly _dynamicArea: PIXI.Graphics | null;
-  private readonly _hitTarget: PIXI.Container;
+  private readonly _base: Container;
+  private readonly _knob: Container;
+  private readonly _dynamicArea: Graphics | null;
+  private readonly _hitTarget: Container;
 
   private _activePointerId: number | null = null;
   private _originX = 0;
@@ -50,7 +51,7 @@ export class OscJoystick extends StyledHudObject<OscJoystickStyle> {
     this._dynamic = options.dynamic;
 
     if (this._dynamic) {
-      this._dynamicArea = new PIXI.Graphics();
+      this._dynamicArea = new Graphics();
       this._dynamicArea.eventMode = "static";
       this.addChild(this._dynamicArea);
     } else {
@@ -79,10 +80,10 @@ export class OscJoystick extends StyledHudObject<OscJoystickStyle> {
       this._knob.visible = false;
     }
 
-    this._hitTarget.on("pointerdown", (e: PIXI.FederatedPointerEvent) => this._onDown(e));
-    this._hitTarget.on("globalpointermove", (e: PIXI.FederatedPointerEvent) => this._onMove(e));
-    this._hitTarget.on("pointerup", (e: PIXI.FederatedPointerEvent) => this._onUp(e));
-    this._hitTarget.on("pointerupoutside", (e: PIXI.FederatedPointerEvent) => this._onUp(e));
+    this._hitTarget.on("pointerdown", (e: FederatedPointerEvent) => this._onDown(e));
+    this._hitTarget.on("globalpointermove", (e: FederatedPointerEvent) => this._onMove(e));
+    this._hitTarget.on("pointerup", (e: FederatedPointerEvent) => this._onUp(e));
+    this._hitTarget.on("pointerupoutside", (e: FederatedPointerEvent) => this._onUp(e));
   }
 
   /**
@@ -139,22 +140,22 @@ export class OscJoystick extends StyledHudObject<OscJoystickStyle> {
 
   // ── INTERNAL ──
 
-  private _buildBase(): PIXI.Container {
-    const wrap = new PIXI.Container();
+  private _buildBase(): Container {
+    const wrap = new Container();
     const sprite = this._buildStyledSprite(this._style.base, this._baseSize * 2);
     sprite.position.set(this._baseSize, this._baseSize);
     wrap.addChild(sprite);
     return wrap;
   }
 
-  private _buildKnob(): PIXI.Container {
-    const wrap = new PIXI.Container();
+  private _buildKnob(): Container {
+    const wrap = new Container();
     const sprite = this._buildStyledSprite(this._style.knob, this._knobSize * 2);
     wrap.addChild(sprite);
     return wrap;
   }
 
-  private _onDown(e: PIXI.FederatedPointerEvent): void {
+  private _onDown(e: FederatedPointerEvent): void {
     e.stopPropagation();
     this._activePointerId = e.pointerId;
 
@@ -177,13 +178,13 @@ export class OscJoystick extends StyledHudObject<OscJoystickStyle> {
     }
   }
 
-  private _onMove(e: PIXI.FederatedPointerEvent): void {
+  private _onMove(e: FederatedPointerEvent): void {
     if (this._activePointerId !== e.pointerId) return;
     this._applyPointer(e);
   }
 
   /** Reads the pointer's local position, clamps it to the base radius, repositions the knob, and emits the direction. */
-  private _applyPointer(e: PIXI.FederatedPointerEvent): void {
+  private _applyPointer(e: FederatedPointerEvent): void {
     const local = this.toLocal(e.global);
     const dx = local.x - this._originX;
     const dy = local.y - this._originY;
@@ -204,7 +205,7 @@ export class OscJoystick extends StyledHudObject<OscJoystickStyle> {
     for (const cb of this._dirListeners) cb(nx, ny);
   }
 
-  private _onUp(e: PIXI.FederatedPointerEvent): void {
+  private _onUp(e: FederatedPointerEvent): void {
     if (this._activePointerId !== e.pointerId) return;
     this._activePointerId = null;
     this._knob.position.set(this._originX, this._originY);

@@ -1,5 +1,5 @@
 import type { LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import { Container } from "pixi.js";
 
 export type HorizontalLayoutComponentPreset = {
   /** X position. */
@@ -40,11 +40,11 @@ export function parseHorizontalLayoutComponentPreset(json: string): HorizontalLa
 /**
  * Reusable horizontal layout container.
  *
- * Thin wrapper over a `PIXI.Container` with `flexDirection: "row"` and
+ * Thin wrapper over a `Container` with `flexDirection: "row"` and
  * common flex options (gap, padding, alignItems, justifyContent) preconfigured.
  * Supports absolute positioning for use as a top/bottom bar or overlay.
  */
-export class HorizontalLayoutComponent extends PIXI.Container {
+export class HorizontalLayoutComponent extends Container {
   public constructor(opts: HorizontalLayoutComponentPreset = {}) {
     super();
 

@@ -1,4 +1,4 @@
-import * as PIXI from "pixi.js";
+import { Container } from "pixi.js";
 import type { IView } from "../views/IView.js";
 import type { IViewController } from "../views/IViewController.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
@@ -14,13 +14,13 @@ import { UnsubscribeBag } from "../events/subscriptions.js";
 /**
  * Base class for HUD (2D) views.
  *
- * - Extends `PIXI.Container` so it can be attached to the Pixi display tree.
+ * - Extends `Container` so it can be attached to the Pixi display tree.
  * - Implements the `IView` lifecycle used by `ViewFactory`.
  * - Subscribes to `AppEvents.onResize` in `postInitialize()` and dispatches
  *   to `onResize(w, h, dpr)` with the current app size so subclasses only
  *   need to override `onResize`.
  */
-export class HudViewBase extends PIXI.Container implements IView {
+export class HudViewBase extends Container implements IView {
   //  MEMBERS
   private _viewFactory: IViewFactory | null = null;
   private _addedForFactory: (() => void) | null = null;
