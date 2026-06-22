@@ -1,4 +1,5 @@
-import * as Matter from "matter-js";
+import type { Collision, IChamferableBodyDefinition, IEventCollision } from "matter-js";
+import { Bodies, Body, Bounds, Composite, Engine, Events, Query, Sleeping, Vector } from "matter-js";
 
 import { FixedStepAccumulator } from "../../../core/utilities/FixedStepAccumulator.js";
 import type { Unsubscribe } from "../../../core/events/subscriptions.js";
@@ -7,7 +8,7 @@ import type { Body2DDef, BodyId, ContactInfo2D, Physics2DConfig, RaycastHit2D, T
 
 interface BodyRecord {
   readonly id: BodyId;
-  readonly body: Matter.Body;
+  readonly body: Body;
   readonly tag: string | undefined;
   readonly kinematic: boolean;
   // Interpolation snapshots.
@@ -40,7 +41,7 @@ const DEFAULT_MASK = 0xffffffff;
  * runs before gameplay controllers each frame.
  */
 export class Physics2DManager {
-  private readonly _engine: Matter.Engine;
+  private readonly _engine: Engine;
   private readonly _accumulator: FixedStepAccumulator;
   private readonly _interpolation: boolean;
   private readonly _events = new Physics2DEvents();
@@ -60,7 +61,7 @@ export class Physics2DManager {
     const gravity = config?.gravity ?? { x: 0, y: 1 };
     const gravityScale = config?.gravityScale ?? 0.001;
 
-    this._engine = Matter.Engine.create({
+    this._engine = Engine.create({
       enableSleeping: config?.allowSleep ?? true,
       gravity: { x: gravity.x, y: gravity.y, scale: gravityScale },
     });
@@ -71,8 +72,8 @@ export class Physics2DManager {
     });
     this._interpolation = config?.interpolation ?? true;
 
-    Matter.Events.on(this._engine, "collisionStart", (e) => this._onCollision(e, "start"));
-    Matter.Events.on(this._engine, "collisionEnd", (e) => this._onCollision(e, "end"));
+    Events.on(this._engine, "collisionStart", (e) => this._onCollision(e, "start"));
+    Events.on(this._engine, "collisionEnd", (e) => this._onCollision(e, "end"));
   }
 
   //  STEP
@@ -95,7 +96,7 @@ export class Physics2DManager {
         r.prevY = r.currY;
         r.prevAngle = r.currAngle;
       }
-      Matter.Engine.update(this._engine, deltaMs);
+      Engine.update(this._engine, deltaMs);
       for (const r of this._records.values()) {
         r.currX = r.body.position.x;
         r.currY = r.body.position.y;
@@ -119,7 +120,7 @@ export class Physics2DManager {
     // with a static body that the game repositions via `setKinematicTarget`.
     const isStatic = def.type === "static" || kinematic;
 
-    const options: Matter.IChamferableBodyDefinition = {
+    const options: IChamferableBodyDefinition = {
       isStatic,
       isSensor: def.isSensor ?? false,
       angle: def.angle ?? 0,
@@ -134,7 +135,7 @@ export class Physics2DManager {
     if (def.restitution !== undefined) options.restitution = def.restitution;
 
     const body = this._createMatterBody(def, options);
-    Matter.Composite.add(this._engine.world, body);
+    Composite.add(this._engine.world, body);
 
     const record: BodyRecord = {
       id,
@@ -154,16 +155,16 @@ export class Physics2DManager {
     return id;
   }
 
-  private _createMatterBody(def: Body2DDef, options: Matter.IChamferableBodyDefinition): Matter.Body {
+  private _createMatterBody(def: Body2DDef, options: IChamferableBodyDefinition): Body {
     const { shape, x, y } = def;
     switch (shape.kind) {
       case "circle":
-        return Matter.Bodies.circle(x, y, shape.radius, options);
+        return Bodies.circle(x, y, shape.radius, options);
       case "rect":
-        return Matter.Bodies.rectangle(x, y, shape.width, shape.height, options);
+        return Bodies.rectangle(x, y, shape.width, shape.height, options);
       case "polygon": {
-        const verts = shape.vertices.map((v) => Matter.Vector.create(v.x, v.y));
-        return Matter.Bodies.fromVertices(x, y, [verts], options);
+        const verts = shape.vertices.map((v) => Vector.create(v.x, v.y));
+        return Bodies.fromVertices(x, y, [verts], options);
       }
     }
   }
@@ -179,7 +180,7 @@ export class Physics2DManager {
   private _removeNow(id: BodyId): void {
     const record = this._records.get(id);
     if (!record) return;
-    Matter.Composite.remove(this._engine.world, record.body);
+    Composite.remove(this._engine.world, record.body);
     this._records.delete(id);
     this._matterToId.delete(record.body.id);
     this._bodiesDirty = true;
@@ -196,15 +197,15 @@ export class Physics2DManager {
   public applyForce(id: BodyId, fx: number, fy: number): void {
     const body = this._records.get(id)?.body;
     if (!body) return;
-    Matter.Sleeping.set(body, false); // a slept body ignores forces until woken
-    Matter.Body.applyForce(body, body.position, { x: fx, y: fy });
+    Sleeping.set(body, false); // a slept body ignores forces until woken
+    Body.applyForce(body, body.position, { x: fx, y: fy });
   }
 
   public applyImpulse(id: BodyId, ix: number, iy: number): void {
     const body = this._records.get(id)?.body;
     if (!body || body.mass <= 0 || !Number.isFinite(body.mass)) return;
-    Matter.Sleeping.set(body, false);
-    Matter.Body.setVelocity(body, {
+    Sleeping.set(body, false);
+    Body.setVelocity(body, {
       x: body.velocity.x + ix / body.mass,
       y: body.velocity.y + iy / body.mass,
     });
@@ -213,15 +214,15 @@ export class Physics2DManager {
   public setVelocity(id: BodyId, vx: number, vy: number): void {
     const body = this._records.get(id)?.body;
     if (!body) return;
-    Matter.Sleeping.set(body, false); // matter skips integration for sleeping bodies
-    Matter.Body.setVelocity(body, { x: vx, y: vy });
+    Sleeping.set(body, false); // matter skips integration for sleeping bodies
+    Body.setVelocity(body, { x: vx, y: vy });
   }
 
   public setAngularVelocity(id: BodyId, omega: number): void {
     const body = this._records.get(id)?.body;
     if (!body) return;
-    Matter.Sleeping.set(body, false);
-    Matter.Body.setAngularVelocity(body, omega);
+    Sleeping.set(body, false);
+    Body.setAngularVelocity(body, omega);
   }
 
   /**
@@ -234,9 +235,9 @@ export class Physics2DManager {
     const record = this._records.get(id);
     if (!record || !record.kinematic) return;
     const { body } = record;
-    Matter.Body.setPosition(body, { x, y });
-    Matter.Body.setVelocity(body, { x: 0, y: 0 });
-    if (angle !== undefined) Matter.Body.setAngle(body, angle);
+    Body.setPosition(body, { x, y });
+    Body.setVelocity(body, { x: 0, y: 0 });
+    if (angle !== undefined) Body.setAngle(body, angle);
     // Snap interpolation snapshots so the teleport reads as instant (otherwise
     // getTransform would lerp from the old pose to the new one over a frame).
     record.prevX = record.currX = x;
@@ -293,16 +294,16 @@ export class Physics2DManager {
   //  QUERIES
 
   public queryPoint(x: number, y: number): readonly BodyId[] {
-    const bodies = Matter.Query.point(this._allBodies(), { x, y });
+    const bodies = Query.point(this._allBodies(), { x, y });
     return this._mapBodies(bodies);
   }
 
   public queryAABB(minX: number, minY: number, maxX: number, maxY: number): readonly BodyId[] {
-    const bounds = Matter.Bounds.create([
+    const bounds = Bounds.create([
       { x: minX, y: minY },
       { x: maxX, y: maxY },
     ]);
-    const bodies = Matter.Query.region(this._allBodies(), bounds);
+    const bodies = Query.region(this._allBodies(), bounds);
     return this._mapBodies(bodies);
   }
 
@@ -326,9 +327,9 @@ export class Physics2DManager {
       const mask = filter.collisionMask;
       bodies = bodies.filter((b) => ((b.collisionFilter.category ?? DEFAULT_CATEGORY) & mask) !== 0);
     }
-    const collisions = Matter.Query.ray(bodies, { x: x1, y: y1 }, { x: x2, y: y2 });
+    const collisions = Query.ray(bodies, { x: x1, y: y1 }, { x: x2, y: y2 });
     if (collisions.length === 0) return null;
-    let best: Matter.Collision | null = null;
+    let best: Collision | null = null;
     let bestDistSq = Infinity;
     for (const c of collisions) {
       const dx = c.bodyA.position.x - x1;
@@ -367,8 +368,8 @@ export class Physics2DManager {
   public destroy(): void {
     // The engine (and its event listeners, which only reference this manager)
     // is discarded here, so there is no listener to detach explicitly.
-    Matter.Composite.clear(this._engine.world, false, true);
-    Matter.Engine.clear(this._engine);
+    Composite.clear(this._engine.world, false, true);
+    Engine.clear(this._engine);
     this._records.clear();
     this._matterToId.clear();
     this._pendingContacts.length = 0;
@@ -378,7 +379,7 @@ export class Physics2DManager {
 
   //  INTERNAL
 
-  private _onCollision(e: Matter.IEventCollision<Matter.Engine>, kind: "start" | "end"): void {
+  private _onCollision(e: IEventCollision<Engine>, kind: "start" | "end"): void {
     for (const pair of e.pairs) {
       const aId = this._resolveMatterId(pair.bodyA);
       const bId = this._resolveMatterId(pair.bodyB);
@@ -402,7 +403,7 @@ export class Physics2DManager {
   }
 
   /** Map a matter body (or its compound parent) to our BodyId. */
-  private _resolveMatterId(body: Matter.Body): BodyId | undefined {
+  private _resolveMatterId(body: Body): BodyId | undefined {
     const direct = this._matterToId.get(body.id);
     if (direct !== undefined) return direct;
     return body.parent ? this._matterToId.get(body.parent.id) : undefined;
@@ -430,10 +431,10 @@ export class Physics2DManager {
   }
 
   /** Cached body list for queries; rebuilt only when bodies are added/removed. */
-  private _bodiesCache: Matter.Body[] = [];
+  private _bodiesCache: Body[] = [];
   private _bodiesDirty = true;
 
-  private _allBodies(): Matter.Body[] {
+  private _allBodies(): Body[] {
     if (this._bodiesDirty) {
       this._bodiesCache = [];
       for (const r of this._records.values()) this._bodiesCache.push(r.body);
@@ -442,7 +443,7 @@ export class Physics2DManager {
     return this._bodiesCache;
   }
 
-  private _mapBodies(bodies: Matter.Body[]): BodyId[] {
+  private _mapBodies(bodies: Body[]): BodyId[] {
     const ids: BodyId[] = [];
     for (const b of bodies) {
       const id = this._resolveMatterId(b);
