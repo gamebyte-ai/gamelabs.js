@@ -32,6 +32,7 @@ export * from "./core/dev/DevUtils.js";
 export * from "./core/assets/AssetTypes.js";
 export * from "./core/assets/IAssetManager.js";
 export * from "./core/assets/AssetManager.js";
+export * from "./core/assets/WorldAssetManager.js";
 export * from "./core/assets/AssetRequest.js";
 export * from "./core/assets/AssetRequestList.js";
 export * from "./core/ModuleBinding.js";

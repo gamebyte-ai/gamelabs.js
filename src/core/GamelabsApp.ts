@@ -10,6 +10,7 @@ import { UpdateManager } from "./utilities/UpdateManager.js";
 import { StorageService } from "./services/StorageService.js";
 import { Hud } from "./hud/Hud.js";
 import { AssetManager } from "./assets/AssetManager.js";
+import { WorldAssetManager } from "./assets/WorldAssetManager.js";
 import type { ModuleBinding } from "./ModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";
 import { LogTypes } from "./dev/LogTypes.js";
@@ -272,7 +273,7 @@ export class GamelabsApp implements IApp {
       this.diContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
       this.viewDiContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
 
-      this._assetManager = new AssetManager(this._logger);
+      this._assetManager = new WorldAssetManager(this._logger);
       this.viewDiContainer.bindInstance(AssetManager, this._assetManager);
 
       const uiEvents = new UIEvents();
