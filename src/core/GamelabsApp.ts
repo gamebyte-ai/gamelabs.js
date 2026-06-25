@@ -19,6 +19,8 @@ import { IDevUtils } from "./dev/IDevUtils.js";
 import { IViewFactory } from "./views/IViewFactory.js";
 import { InputManager } from "./input/InputManager.js";
 import { IInputManager } from "./input/IInputManager.js";
+import { WorldPointerInput } from "./world/WorldPointerInput.js";
+import { IWorldPointerInput } from "./world/IWorldPointerInput.js";
 import { UIEvents } from "./ui/UIEvents.js";
 import { KeyboardListener } from "./input/KeyboardListener.js";
 import { AudioService } from "./services/AudioService.js";
@@ -42,6 +44,7 @@ export class GamelabsApp implements IApp {
   public readonly viewDiContainer: DIContainer;
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
   private _inputManager: InputManager | null = null;
+  private _worldPointerInput: WorldPointerInput | null = null;
   private _keyboardListener: KeyboardListener | null = null;
   private _audioService: AudioService | null = null;
 
@@ -285,8 +288,13 @@ export class GamelabsApp implements IApp {
       this._viewFactory.setUIEvents(uiEvents);
       this.viewDiContainer.bindInstance(IViewFactory, this._viewFactory);
 
-      this._inputManager = new InputManager(this.canvas, this.hud, this.world, this.mount);
+      this._inputManager = new InputManager(this.canvas, this.hud, this.mount);
       this.viewDiContainer.bindInstance(IInputManager, this._inputManager);
+
+      if (this.world) {
+        this._worldPointerInput = new WorldPointerInput(this.canvas, this.world, this._inputManager);
+        this.viewDiContainer.bindInstance(IWorldPointerInput, this._worldPointerInput);
+      }
 
       this._keyboardListener = new KeyboardListener();
       this.diContainer.bindInstance(KeyboardListener, this._keyboardListener);

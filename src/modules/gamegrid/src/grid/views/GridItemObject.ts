@@ -3,7 +3,7 @@ import type { BaseGridPreset } from "../models/BaseGridPreset.js";
 import type { IAssetManager } from "../../../../../core/assets/IAssetManager.js";
 import type { GridCellObject } from "./GridCellObject.js";
 import type { IGridObjectListener } from "./IGridObjectListener.js";
-import type { IInputManager } from "../../../../../core/input/IInputManager.js";
+import type { IWorldPointerInput } from "../../../../../core/world/IWorldPointerInput.js";
 import { WorldInteractiveObject } from "../../../../../core/world/WorldInteractiveObject.three.js";
 
 export class GridItemObjectOptions {
@@ -36,7 +36,7 @@ export class GridItemObject extends WorldInteractiveObject {
   public constructor(
     options: GridItemObjectOptions,
     pointerListener: IGridObjectListener,
-    __inputManager: IInputManager | null,
+    __inputManager: IWorldPointerInput | null,
     assetManager?: IAssetManager | null,
   ) {
     super();
@@ -45,7 +45,7 @@ export class GridItemObject extends WorldInteractiveObject {
     this.itemId = options.itemId;
     this.preset = options.gridPreset;
     this._pointerListener = pointerListener;
-    this.setInputManager(__inputManager);
+    this.setWorldPointerInput(__inputManager);
     this._cell = null;
     this.createVisual();
     this.createCollider();

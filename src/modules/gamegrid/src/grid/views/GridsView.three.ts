@@ -22,7 +22,7 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
   }
 
   public addGrid(data: AddGridData): void {
-    const gridObj = new GridObject(data, this.creator, this, this.inputManager, this.assetLoader);
+    const gridObj = new GridObject(data, this.creator, this, this.worldPointerInput, this.assetLoader);
     this._gridObjects.set(data.id, gridObj);
     this.add(gridObj);
   }
@@ -59,7 +59,7 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
   public createItem(itemOptions: GridItemObjectOptions, gridId: number, col: number, row: number): void {
     const gridObj = this._gridObjects.get(gridId);
     if (!gridObj) return;
-    const itemObj = this.creator.createItemObject(itemOptions, this, this.inputManager, this.assetLoader);
+    const itemObj = this.creator.createItemObject(itemOptions, this, this.worldPointerInput, this.assetLoader);
     gridObj.addItem(itemObj, col, row);
   }
 

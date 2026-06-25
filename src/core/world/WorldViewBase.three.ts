@@ -5,7 +5,7 @@ import type { IViewFactory } from "../views/IViewFactory.js";
 import { AssetManager } from "../assets/AssetManager.js";
 import { WorldInteractiveObject } from "./WorldInteractiveObject.three.js";
 import { ILogger } from "../dev/ILogger.js";
-import { IInputManager as IInputManagerToken } from "../input/IInputManager.js";
+import { IWorldPointerInput as IWorldPointerInputToken } from "./IWorldPointerInput.js";
 import { LogTypes } from "../dev/LogTypes.js";
 import { IApp } from "../app/IApp.js";
 import { AppEvents } from "../app/AppEvents.js";
@@ -58,7 +58,7 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
 
   //  METHODS
   public inject(resolver: IInstanceResolver): void {
-    this.setInputManager(resolver.getInstance(IInputManagerToken));
+    this.setWorldPointerInput(resolver.getInstance(IWorldPointerInputToken));
     this._assetLoader = resolver.getInstance(AssetManager);
     this._logger = resolver.getInstance(ILogger);
     this._app = resolver.getInstance(IApp);

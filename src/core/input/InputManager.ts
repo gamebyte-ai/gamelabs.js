@@ -1,47 +1,18 @@
-import type { Object3D } from "three";
-import { Raycaster, Vector2 } from "three";
-import type { Hud } from "../hud/Hud.js";
-import type { World } from "../world/World.js";
+import type { IHud } from "../hud/IHud.js";
 import type { IInputManager } from "./IInputManager.js";
 import type { IPointerInputHandler } from "./IPointerInputHandler.js";
-import { POINTER_INPUT_LAYER } from "./PointerInputLayer.js";
-import { WorldInteractiveObject } from "../world/WorldInteractiveObject.three.js";
 
 export class InputManager implements IInputManager {
   private readonly _canvas: HTMLCanvasElement;
   private readonly _eventTarget: HTMLElement;
-  private readonly _hud: Hud | null;
-  private readonly _world: World | null;
+  private readonly _hud: IHud | null;
   private readonly _handlers = new Set<IPointerInputHandler>();
   private _listening = false;
-  private readonly _raycaster = new Raycaster();
-  private readonly _pointerNdc = new Vector2();
 
-  public constructor(canvas: HTMLCanvasElement, hud: Hud | null, world: World | null, eventTarget?: HTMLElement) {
+  public constructor(canvas: HTMLCanvasElement, hud: IHud | null, eventTarget?: HTMLElement) {
     this._canvas = canvas;
     this._eventTarget = eventTarget ?? canvas;
     this._hud = hud;
-    this._world = world;
-    this._raycaster.layers.set(POINTER_INPUT_LAYER);
-  }
-
-  private _getRaycastHandler(event: PointerEvent): (WorldInteractiveObject & IPointerInputHandler) | null {
-    if (!this._world) return null;
-    const rect = this._canvas.getBoundingClientRect();
-    this._pointerNdc.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    this._pointerNdc.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    this._raycaster.setFromCamera(this._pointerNdc, this._world.activeCamera);
-    const intersects = this._raycaster.intersectObjects(this._world.scene.children, true);
-    const nearest = intersects[0];
-    if (!nearest) return null;
-    let obj: Object3D | null = nearest.object;
-    while (obj) {
-      if (obj instanceof WorldInteractiveObject && obj.isPointerInputHandler) {
-        return obj as WorldInteractiveObject & IPointerInputHandler;
-      }
-      obj = obj.parent;
-    }
-    return null;
   }
 
   /**
@@ -79,20 +50,17 @@ export class InputManager implements IInputManager {
       // capture can throw if the target is detached; fall through — the
       // handler still runs and releases will arrive on the normal path.
     }
-    const raycastView = this._getRaycastHandler(event);
-    for (const h of this._handlers) h.onPointerDown(event, h === raycastView);
+    for (const h of this._handlers) h.onPointerDown(event, false);
   };
 
   private readonly _onPointerMove = (event: PointerEvent): void => {
     if (this._isHudEvent(event)) return;
-    const raycastView = this._getRaycastHandler(event);
-    for (const h of this._handlers) h.onPointerMove(event, h === raycastView);
+    for (const h of this._handlers) h.onPointerMove(event, false);
   };
 
   private readonly _onPointerUp = (event: PointerEvent): void => {
     if (this._isHudEvent(event)) return;
-    const raycastView = this._getRaycastHandler(event);
-    for (const h of this._handlers) h.onPointerUp(event, h === raycastView);
+    for (const h of this._handlers) h.onPointerUp(event, false);
   };
 
   private readonly _onPointerCancel = (event: PointerEvent): void => {

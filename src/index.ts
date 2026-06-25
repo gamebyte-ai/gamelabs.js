@@ -13,6 +13,8 @@ export * from "./core/hud/HudViewBase.pixi.js";
 export * from "./core/world/World.js";
 export * from "./core/world/WorldInteractiveObject.three.js";
 export * from "./core/world/WorldViewBase.three.js";
+export * from "./core/world/WorldPointerInput.js";
+export * from "./core/world/IWorldPointerInput.js";
 export * from "./core/utilities/UpdateManager.js";
 export * from "./core/utilities/FixedStepAccumulator.js";
 export * from "./core/utilities/computeViewportRect.js";
