@@ -2,7 +2,7 @@ import type { Camera, Object3D } from "three";
 import { AmbientLight, DirectionalLight, Fog, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 import type { ILogger } from "../dev/ILogger.js";
 import type { IWorld } from "./IWorld.js";
-import type { WorldViewBase } from "./WorldViewBase.js";
+import type { WorldViewBase } from "./WorldViewBase.three.js";
 
 type Create3DRendererOptions = ConstructorParameters<typeof WebGLRenderer>[0];
 

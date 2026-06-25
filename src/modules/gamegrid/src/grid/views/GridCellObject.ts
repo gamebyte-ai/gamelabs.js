@@ -3,7 +3,7 @@ import type { BaseGridPreset } from "../models/BaseGridPreset.js";
 import type { Vector3 } from "../models/Vector3.js";
 import type { IAssetManager } from "../../../../../core/assets/IAssetManager.js";
 import type { GridItemObject } from "./GridItemObject.js";
-import { WorldInteractiveObject } from "../../../../../core/world/WorldInteractiveObject.js";
+import { WorldInteractiveObject } from "../../../../../core/world/WorldInteractiveObject.three.js";
 import type { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../../core/input/IInputManager.js";
 

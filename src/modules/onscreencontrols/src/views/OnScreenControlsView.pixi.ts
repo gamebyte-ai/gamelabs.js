@@ -1,5 +1,5 @@
 import type * as PIXI from "pixi.js";
-import { HudViewBase } from "../../../../core/hud/HudViewBase.js";
+import { HudViewBase } from "../../../../core/hud/HudViewBase.pixi.js";
 import type { IOnScreenControlsView } from "./IOnScreenControlsView.js";
 import { OscButton } from "./OscButton.pixi.js";
 import { OscJoystick } from "./OscJoystick.pixi.js";

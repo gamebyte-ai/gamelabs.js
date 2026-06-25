@@ -1,6 +1,6 @@
 import type * as THREE from "three";
 import type { IInstanceResolver } from "../../../../../core/di/IInstanceResolver.js";
-import { WorldViewBase } from "../../../../../core/world/WorldViewBase.js";
+import { WorldViewBase } from "../../../../../core/world/WorldViewBase.three.js";
 import type { IGridView, AddGridData } from "./IGridView.js";
 import type { GridItemObjectOptions } from "./GridItemObject.js";
 import { GridObject } from "./GridObject.js";

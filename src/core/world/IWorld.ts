@@ -1,4 +1,4 @@
-import type { WorldViewBase } from "./WorldViewBase";
+import type { WorldViewBase } from "./WorldViewBase.three";
 
 export interface IWorld {
   addView(view: WorldViewBase): void;

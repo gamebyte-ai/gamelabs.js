@@ -8,7 +8,7 @@ import type { GridCellObject } from "./GridCellObject.js";
 import type { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../../core/input/IInputManager.js";
 import type { IPointerInputHandler } from "../../../../../core/input/IPointerInputHandler.js";
-import { WorldInteractiveObject } from "../../../../../core/world/WorldInteractiveObject.js";
+import { WorldInteractiveObject } from "../../../../../core/world/WorldInteractiveObject.three.js";
 
 export class GridObject extends WorldInteractiveObject {
   public readonly gridId: number;

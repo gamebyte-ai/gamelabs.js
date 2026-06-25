@@ -1,7 +1,7 @@
 import { Graphics } from "pixi.js";
 import type { IScreenView } from "./IScreenView.js";
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "./ScreenTransition.js";
-import { HudViewBase } from "../hud/HudViewBase.js";
+import { HudViewBase } from "../hud/HudViewBase.pixi.js";
 
 /**
  * Base PixiJS screen view.

@@ -1,7 +1,7 @@
 import type { FederatedPointerEvent } from "pixi.js";
 import { Graphics } from "pixi.js";
 import type { IPopupView } from "./IPopupView.js";
-import { HudViewBase } from "../hud/HudViewBase.js";
+import { HudViewBase } from "../hud/HudViewBase.pixi.js";
 
 /**
  * Base PixiJS popup view.

@@ -4,7 +4,7 @@ import type { IAssetManager } from "../../../../../core/assets/IAssetManager.js"
 import type { GridCellObject } from "./GridCellObject.js";
 import type { IGridObjectListener } from "./IGridObjectListener.js";
 import type { IInputManager } from "../../../../../core/input/IInputManager.js";
-import { WorldInteractiveObject } from "../../../../../core/world/WorldInteractiveObject.js";
+import { WorldInteractiveObject } from "../../../../../core/world/WorldInteractiveObject.three.js";
 
 export class GridItemObjectOptions {
   public readonly itemId: number;

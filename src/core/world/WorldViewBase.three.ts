@@ -3,7 +3,7 @@ import type { IViewController } from "../views/IViewController.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { IViewFactory } from "../views/IViewFactory.js";
 import { AssetManager } from "../assets/AssetManager.js";
-import { WorldInteractiveObject } from "./WorldInteractiveObject.js";
+import { WorldInteractiveObject } from "./WorldInteractiveObject.three.js";
 import { ILogger } from "../dev/ILogger.js";
 import { IInputManager as IInputManagerToken } from "../input/IInputManager.js";
 import { LogTypes } from "../dev/LogTypes.js";
