@@ -29,6 +29,7 @@ export * from "./core/dev/Logger.js";
 export * from "./core/dev/IGroundGrid.js";
 export * from "./core/dev/GroundGrid.js";
 export * from "./core/dev/DevUtils.js";
+export * from "./core/dev/DevUtils3D.js";
 export * from "./core/assets/AssetTypes.js";
 export * from "./core/assets/IAssetManager.js";
 export * from "./core/assets/AssetManager.js";

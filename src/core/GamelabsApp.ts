@@ -1,7 +1,8 @@
 import type { GamelabsAppConfig } from "./types.js";
 import { computeViewportRect, type ViewportConfig, type ViewportRect } from "./utilities/computeViewportRect.js";
 import { World } from "./world/World.js";
-import { DevUtils } from "./dev/DevUtils.js";
+import type { DevUtils } from "./dev/DevUtils.js";
+import { DevUtils3D } from "./dev/DevUtils3D.js";
 import { Logger } from "./dev/Logger.js";
 import { DIContainer } from "./di/DIContainer.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
@@ -269,7 +270,7 @@ export class GamelabsApp implements IApp {
       await this.createWorld();
       await this.createHud();
 
-      this._devUtils = new DevUtils(this.world!, this.hud!, this._logger);
+      this._devUtils = new DevUtils3D(this.world!, this.hud!, this._logger);
       this.diContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
       this.viewDiContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
 
