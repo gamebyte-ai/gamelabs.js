@@ -241,6 +241,20 @@ export class Physics3DManager {
   }
 
   /**
+   * Put a body to sleep immediately: the solver skips it (it won't move or jitter)
+   * until something wakes it — a {@link wakeUp} call, an applied force/velocity, or
+   * a collision. Lets callers simulate only part of the world. No-op for unknown ids.
+   */
+  public sleep(id: BodyId): void {
+    this._records.get(id)?.body.sleep();
+  }
+
+  /** Wake a sleeping body so it simulates again. No-op for unknown ids. */
+  public wakeUp(id: BodyId): void {
+    this._records.get(id)?.body.wakeUp();
+  }
+
+  /**
    * Teleport a kinematic body to `(x, y, z)` and zero its velocity. cannon-es
    * integrates kinematic bodies by their velocity, so this is a discrete
    * reposition — for continuous, momentum-transferring motion drive the body
