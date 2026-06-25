@@ -15,6 +15,11 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
+    },
     "./physics2d": {
       "types": "./dist/physics2d.d.ts",
       "import": "./dist/physics2d.js",
