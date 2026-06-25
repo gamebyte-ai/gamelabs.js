@@ -1,5 +1,7 @@
 # OnScreenControls Module
 
+> **Build target:** World-independent. PixiJS HUD only — works in both the default `@gamebyte/gamelabsjs` entry and the THREE-free `@gamebyte/gamelabsjs/core` entry.
+
 Touch-friendly virtual controls (buttons, joysticks) plus styled HUD labels, all rendered as a PixiJS overlay. Buttons and joysticks integrate with the `InputMapper` system through `IInputDeviceListener`, so on-screen input and keyboard can drive the same game actions. Labels are display-only — text content + optional sprite background — and use the same manager lifecycle for registration, enable/disable, visibility, and runtime updates.
 
 Every control supports runtime enable/disable and visibility toggles. Buttons additionally support an optional icon overlay and a circular progress ring for cooldowns or charge meters. Labels' text content is updated through `manager.setLabelText` and the bg sprite (if any) auto-resizes to the new bounds.

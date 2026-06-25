@@ -1,5 +1,7 @@
 # Physics2D Module (optional)
 
+> **Build target:** World-independent. Backed by matter-js — does not depend on the framework's 3D `World`. Works in both the default `@gamebyte/gamelabsjs` entry and the THREE-free `@gamebyte/gamelabsjs/core` entry.
+
 2D rigid-body physics backed by [matter-js](https://brm.io/matter-js/). Exposes a DI-bound `Physics2DManager` that owns the authoritative body state and steps it on a fixed timestep.
 
 Loaded from the **subpath** `@gamebyte/gamelabsjs/physics2d` — games that don't use physics never pull in matter-js. `matter-js` is an **optional peer dependency**; install it in the consuming game:

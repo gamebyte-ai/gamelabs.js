@@ -1,5 +1,7 @@
 # Physics3D Module (optional)
 
+> **Build target:** World-independent. The physics engine (cannon-es) owns its own world; the module does not require the framework's 3D `World`. Typically used with a `World` to mirror physics bodies into a THREE scene, but works in the THREE-free `@gamebyte/gamelabsjs/core` entry as well — the view-side sync is the consumer's responsibility.
+
 3D rigid-body physics backed by [cannon-es](https://pmndrs.github.io/cannon-es/). Exposes a DI-bound `Physics3DManager` that owns the authoritative body state and steps it on a fixed timestep.
 
 Loaded from the **subpath** `@gamebyte/gamelabsjs/physics3d` — games that don't use physics never pull in cannon-es. `cannon-es` is an **optional peer dependency** (it ships its own types):

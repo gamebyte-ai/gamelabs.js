@@ -1,5 +1,7 @@
 # UI Components Module
 
+> **Build target:** World-independent. PixiJS HUD only — works in both the default `@gamebyte/gamelabsjs` entry and the THREE-free `@gamebyte/gamelabsjs/core` entry.
+
 Reusable PixiJS UI components built on top of `@pixi/layout` and `@pixi/ui`. The components fall into two categories:
 
 - **Themed components** — driven by the framework's `StyleManager`. Construction takes `(assetManager, style, opts)` where the style is resolved via `styleManager.resolve(UIComponentsStyleIds.<Id>, override?)`. Adding `UIComponentsBinding` to the app registers the framework default style + skin asset requests for each one. See [Themed components do **not** use JSON presets](#themed-components-do-not-use-json-presets).

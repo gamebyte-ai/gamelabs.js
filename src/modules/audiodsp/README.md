@@ -1,5 +1,7 @@
 # AudioDsp Module
 
+> **Build target:** World-independent. Pure Web Audio API — works in both the default `@gamebyte/gamelabsjs` entry and the THREE-free `@gamebyte/gamelabsjs/core` entry.
+
 Web Audio DSP effects (filter, reverb, delay, distortion, compressor) composable as a serial chain. Each effect wraps one or more Web Audio nodes behind a uniform `DspEffect` interface; chains route audio from a source through the effect list to a destination AudioNode (e.g. `AudioService.sfxGain`).
 
 ## Purpose

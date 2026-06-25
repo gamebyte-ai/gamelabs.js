@@ -1,5 +1,7 @@
 # MainScreen Module
 
+> **Build target:** World-independent. PixiJS HUD only — works in both the default `@gamebyte/gamelabsjs` entry and the THREE-free `@gamebyte/gamelabsjs/core` entry.
+
 Main menu / title screen with a logo, play button, and settings button. Intended for use as the first screen when starting a game or navigating back to the main menu.
 
 ## Purpose

@@ -1,5 +1,7 @@
 # Settings Module
 
+> **Build target:** World-independent. PixiJS HUD only — works in both the default `@gamebyte/gamelabsjs` entry and the THREE-free `@gamebyte/gamelabsjs/core` entry.
+
 Typed game settings with boolean toggles and number sliders. Values are persisted in `localStorage` via `StorageService`, validated on write (clamp, step rounding), and broadcast via `SettingsEvents`. Includes a ready-to-use popup UI built from the framework's themed `uicomponents` (`ImageComponent`, `LabelComponent`, `ButtonComponent`, `ToggleComponent`, `SliderComponent`, `HorizontalLayoutComponent`).
 
 ## Usage
