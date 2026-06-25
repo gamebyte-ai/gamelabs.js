@@ -1,8 +1,11 @@
 import type { Camera, Object3D } from "three";
 import { AmbientLight, DirectionalLight, Fog, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 import type { ILogger } from "../dev/ILogger.js";
+import type { IInputManager } from "../input/IInputManager.js";
 import type { IWorld } from "./IWorld.js";
+import type { IWorldPointerInput } from "./IWorldPointerInput.js";
 import type { WorldViewBase } from "./WorldViewBase.three.js";
+import { WorldPointerInput } from "./WorldPointerInput.js";
 
 type Create3DRendererOptions = ConstructorParameters<typeof WebGLRenderer>[0];
 
@@ -32,6 +35,7 @@ export class World implements IWorld {
   //  MEMBERS
   private readonly _logger: ILogger | null;
   private _activeCamera: Camera;
+  private _worldPointerInput: WorldPointerInput | null = null;
 
   static async create(canvas?: HTMLCanvasElement, options: WorldCreateOptions = {}): Promise<World> {
     const c = canvas ?? document.createElement("canvas");
@@ -106,6 +110,15 @@ export class World implements IWorld {
     // Important when sharing a WebGL context with another renderer (e.g. PixiJS).
     this.renderer.resetState();
     this.renderer.render(this.scene, this._activeCamera);
+  }
+
+  attachInput(inputManager: IInputManager): void {
+    if (this._worldPointerInput) return;
+    this._worldPointerInput = new WorldPointerInput(this.renderer.domElement as HTMLCanvasElement, this, inputManager);
+  }
+
+  get worldPointerInput(): IWorldPointerInput | null {
+    return this._worldPointerInput;
   }
 
   destroy(): void {

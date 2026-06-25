@@ -1,4 +1,4 @@
-export * from "./core/GamelabsApp.js";
+export { GamelabsApp } from "./core/GamelabsApp3D.js";
 export * from "./core/di/DIContainer.js";
 export * from "./core/di/InjectionToken.js";
 export * from "./core/di/IInstanceResolver.js";

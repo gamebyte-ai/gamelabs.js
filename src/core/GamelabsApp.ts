@@ -1,8 +1,7 @@
-import type { GamelabsAppConfig } from "./types.js";
+import type { CreateWorldContext, GamelabsAppConfig } from "./types.js";
 import { computeViewportRect, type ViewportConfig, type ViewportRect } from "./utilities/computeViewportRect.js";
-import { World } from "./world/World.js";
-import type { DevUtils } from "./dev/DevUtils.js";
-import { DevUtils3D } from "./dev/DevUtils3D.js";
+import type { IWorld } from "./world/IWorld.js";
+import { DevUtils } from "./dev/DevUtils.js";
 import { Logger } from "./dev/Logger.js";
 import { DIContainer } from "./di/DIContainer.js";
 import type { IInstanceResolver } from "./di/IInstanceResolver.js";
@@ -11,7 +10,6 @@ import { UpdateManager } from "./utilities/UpdateManager.js";
 import { StorageService } from "./services/StorageService.js";
 import { Hud } from "./hud/Hud.js";
 import { AssetManager } from "./assets/AssetManager.js";
-import { WorldAssetManager } from "./assets/WorldAssetManager.js";
 import type { ModuleBinding } from "./ModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";
 import { LogTypes } from "./dev/LogTypes.js";
@@ -19,7 +17,6 @@ import { IDevUtils } from "./dev/IDevUtils.js";
 import { IViewFactory } from "./views/IViewFactory.js";
 import { InputManager } from "./input/InputManager.js";
 import { IInputManager } from "./input/IInputManager.js";
-import { WorldPointerInput } from "./world/WorldPointerInput.js";
 import { IWorldPointerInput } from "./world/IWorldPointerInput.js";
 import { UIEvents } from "./ui/UIEvents.js";
 import { KeyboardListener } from "./input/KeyboardListener.js";
@@ -32,7 +29,7 @@ export class GamelabsApp implements IApp {
   //  MEMBERS
   readonly canvas: HTMLCanvasElement;
   readonly mount: HTMLElement | undefined;
-  protected world: World | null = null;
+  protected world: IWorld | null = null;
   protected hud: Hud | null = null;
   private _devUtils: DevUtils | null = null;
   private _assetManager: AssetManager | null = null;
@@ -44,7 +41,9 @@ export class GamelabsApp implements IApp {
   public readonly viewDiContainer: DIContainer;
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
   private _inputManager: InputManager | null = null;
-  private _worldPointerInput: WorldPointerInput | null = null;
+  private readonly _createWorld: ((ctx: CreateWorldContext) => Promise<IWorld>) | undefined;
+  private readonly _createAssetManager: ((logger: Logger) => AssetManager) | undefined;
+  private readonly _createDevUtils: ((world: IWorld | null, hud: Hud, logger: Logger) => DevUtils) | undefined;
   private _keyboardListener: KeyboardListener | null = null;
   private _audioService: AudioService | null = null;
 
@@ -225,6 +224,9 @@ export class GamelabsApp implements IApp {
     this._width = config.width;
     this._height = config.height;
     this._viewport = config.viewport;
+    this._createWorld = config.createWorld;
+    this._createAssetManager = config.createAssetManager;
+    this._createDevUtils = config.createDevUtils;
 
     // Letterbox bars are simply the mount area not covered by the centered
     // canvases; paint the mount background so they read as deliberate bars.
@@ -273,11 +275,13 @@ export class GamelabsApp implements IApp {
       await this.createWorld();
       await this.createHud();
 
-      this._devUtils = new DevUtils3D(this.world!, this.hud!, this._logger);
+      this._devUtils = this._createDevUtils
+        ? this._createDevUtils(this.world, this.hud!, this._logger)
+        : new DevUtils(this.hud!, this._logger);
       this.diContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
       this.viewDiContainer.bindInstance(IDevUtils, this._devUtils as IDevUtils);
 
-      this._assetManager = new WorldAssetManager(this._logger);
+      this._assetManager = this._createAssetManager ? this._createAssetManager(this._logger) : new AssetManager(this._logger);
       this.viewDiContainer.bindInstance(AssetManager, this._assetManager);
 
       const uiEvents = new UIEvents();
@@ -292,8 +296,9 @@ export class GamelabsApp implements IApp {
       this.viewDiContainer.bindInstance(IInputManager, this._inputManager);
 
       if (this.world) {
-        this._worldPointerInput = new WorldPointerInput(this.canvas, this.world, this._inputManager);
-        this.viewDiContainer.bindInstance(IWorldPointerInput, this._worldPointerInput);
+        this.world.attachInput(this._inputManager);
+        const wpi = this.world.worldPointerInput;
+        if (wpi) this.viewDiContainer.bindInstance(IWorldPointerInput, wpi);
       }
 
       this._keyboardListener = new KeyboardListener();
@@ -336,13 +341,10 @@ export class GamelabsApp implements IApp {
   }
 
   private async createWorld(): Promise<void> {
-    if (!this.mount) {
-      this._logger.log("Missing mount element", LogTypes.Error);
-      throw new Error("Missing mount element");
-    }
-    this.world = await World.create(this.canvas, {
+    if (!this._createWorld) return;
+    this.world = await this._createWorld({
+      canvas: this.canvas,
       mount: this.mount,
-      canvasClassName: "layer world3d",
       logger: this._logger,
     });
   }
