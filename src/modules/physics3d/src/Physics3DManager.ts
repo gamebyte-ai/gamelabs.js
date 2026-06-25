@@ -53,7 +53,7 @@ export class Physics3DManager {
   private readonly _events = new Physics3DEvents();
 
   private readonly _worldMaterial: CANNON.Material;
-  private readonly _defaultFriction: number;
+  private _defaultFriction: number;
   private readonly _defaultRestitution: number;
 
   private readonly _records = new Map<BodyId, BodyRecord>();
@@ -252,6 +252,23 @@ export class Physics3DManager {
   /** Wake a sleeping body so it simulates again. No-op for unknown ids. */
   public wakeUp(id: BodyId): void {
     this._records.get(id)?.body.wakeUp();
+  }
+
+  /**
+   * Set the friction of the shared world contact material at runtime — governs
+   * contacts between bodies that use the default material (those created without a
+   * per-body `friction`/`restitution`). Lets callers briefly make the pile slippery
+   * (e.g. to fluidise it) and restore it after. Bodies with a custom material are
+   * unaffected.
+   */
+  public setDefaultFriction(friction: number): void {
+    this._defaultFriction = friction;
+    this._world.defaultContactMaterial.friction = friction;
+  }
+
+  /** Current default contact friction (so callers can restore it after a change). */
+  public get defaultFriction(): number {
+    return this._defaultFriction;
   }
 
   /**
