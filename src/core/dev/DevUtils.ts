@@ -1,4 +1,4 @@
-import type { Hud } from "../hud/Hud.js";
+import type { IHud } from "../hud/IHud.js";
 import type { IStatsPanel } from "./IStatsPanel.js";
 import type { IGroundGrid } from "./IGroundGrid.js";
 import type { Logger } from "./Logger.js";
@@ -10,12 +10,12 @@ import type { IDevUtils } from "./IDevUtils.js";
 export type { GroundGridOptions } from "./IGroundGrid.js";
 
 export class DevUtils implements IDevUtils {
-  protected readonly _hud: Hud;
+  protected readonly _hud: IHud;
   private readonly _logger: Logger;
   private readonly _logPanel: LogPanel;
   private readonly _statsPanel: StatsPanel;
 
-  public constructor(hud: Hud, logger: Logger) {
+  public constructor(hud: IHud, logger: Logger) {
     this._hud = hud;
 
     this._logger = logger;

@@ -1,4 +1,4 @@
-import type { CreateWorldContext, GamelabsAppConfig } from "./types.js";
+import type { CreateHudContext, CreateWorldContext, GamelabsAppConfig } from "./types.js";
 import { computeViewportRect, type ViewportConfig, type ViewportRect } from "./utilities/computeViewportRect.js";
 import type { IWorld } from "./world/IWorld.js";
 import { DevUtils } from "./dev/DevUtils.js";
@@ -8,7 +8,7 @@ import type { IInstanceResolver } from "./di/IInstanceResolver.js";
 import { ViewFactory } from "./views/ViewFactory.js";
 import { UpdateManager } from "./utilities/UpdateManager.js";
 import { StorageService } from "./services/StorageService.js";
-import { Hud } from "./hud/Hud.js";
+import type { IHud } from "./hud/IHud.js";
 import { AssetManager } from "./assets/AssetManager.js";
 import type { ModuleBinding } from "./ModuleBinding.js";
 import { ILogger } from "./dev/ILogger.js";
@@ -30,7 +30,7 @@ export class GamelabsApp implements IApp {
   readonly canvas: HTMLCanvasElement;
   readonly mount: HTMLElement | undefined;
   protected world: IWorld | null = null;
-  protected hud: Hud | null = null;
+  protected hud: IHud | null = null;
   private _devUtils: DevUtils | null = null;
   private _assetManager: AssetManager | null = null;
   private readonly _logger: Logger;
@@ -42,8 +42,9 @@ export class GamelabsApp implements IApp {
   private _viewFactory: ViewFactory<IInstanceResolver> | null = null;
   private _inputManager: InputManager | null = null;
   private readonly _createWorld: ((ctx: CreateWorldContext) => Promise<IWorld>) | undefined;
+  private readonly _createHud: ((ctx: CreateHudContext) => Promise<IHud>) | undefined;
   private readonly _createAssetManager: ((logger: Logger) => AssetManager) | undefined;
-  private readonly _createDevUtils: ((world: IWorld | null, hud: Hud, logger: Logger) => DevUtils) | undefined;
+  private readonly _createDevUtils: ((world: IWorld | null, hud: IHud, logger: Logger) => DevUtils) | undefined;
   private _keyboardListener: KeyboardListener | null = null;
   private _audioService: AudioService | null = null;
 
@@ -225,6 +226,7 @@ export class GamelabsApp implements IApp {
     this._height = config.height;
     this._viewport = config.viewport;
     this._createWorld = config.createWorld;
+    this._createHud = config.createHud;
     this._createAssetManager = config.createAssetManager;
     this._createDevUtils = config.createDevUtils;
 
@@ -350,12 +352,11 @@ export class GamelabsApp implements IApp {
   }
 
   private async createHud(): Promise<void> {
-    if (!this.mount) {
-      this._logger.log("Missing mount element", LogTypes.Error);
-      throw new Error("Missing mount element");
-    }
-
-    this.hud = await Hud.create(this.mount, { logger: this._logger });
+    if (!this._createHud) return;
+    this.hud = await this._createHud({
+      mount: this.mount,
+      logger: this._logger,
+    });
   }
 
   protected addModule(moduleBinding: ModuleBinding): void {

@@ -1,7 +1,9 @@
 import { GamelabsApp as GamelabsAppBase } from "./GamelabsApp.js";
-import type { CreateWorldContext, GamelabsAppConfig } from "./types.js";
+import type { CreateHudContext, CreateWorldContext, GamelabsAppConfig } from "./types.js";
 import { WorldAssetManager } from "./assets/WorldAssetManager.js";
 import { DevUtils3D } from "./dev/DevUtils3D.js";
+import { Hud } from "./hud/Hud.js";
+import type { IHud } from "./hud/IHud.js";
 import { World } from "./world/World.js";
 import type { IWorld } from "./world/IWorld.js";
 
@@ -26,12 +28,13 @@ export class GamelabsApp extends GamelabsAppBase {
     super({
       ...config,
       createWorld: config.createWorld ?? GamelabsApp._defaultCreateWorld,
+      createHud: config.createHud ?? GamelabsApp._defaultCreateHud,
       createAssetManager: config.createAssetManager ?? ((logger) => new WorldAssetManager(logger)),
       createDevUtils:
         config.createDevUtils ??
         ((world, hud, logger) => {
           if (!world) throw new Error("GamelabsApp (3D): DevUtils3D requires a World");
-          return new DevUtils3D(world as World, hud as never, logger);
+          return new DevUtils3D(world as World, hud, logger);
         }),
     });
   }
@@ -43,5 +46,10 @@ export class GamelabsApp extends GamelabsAppBase {
       canvasClassName: "layer world3d",
       logger: ctx.logger,
     });
+  };
+
+  private static _defaultCreateHud = async (ctx: CreateHudContext): Promise<IHud> => {
+    if (!ctx.mount) throw new Error("GamelabsApp (3D): missing mount element");
+    return Hud.create(ctx.mount, { logger: ctx.logger });
   };
 }

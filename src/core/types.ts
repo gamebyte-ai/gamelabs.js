@@ -19,6 +19,11 @@ export type CreateWorldContext = {
   logger: ILogger;
 };
 
+export type CreateHudContext = {
+  mount: HTMLElement | undefined;
+  logger: ILogger;
+};
+
 export type GamelabsAppConfig = WithCanvas & {
   /**
    * Optional mount element for measuring layout and/or attaching rendering layers.
@@ -47,6 +52,13 @@ export type GamelabsAppConfig = WithCanvas & {
    * it unset.
    */
   createWorld?: (ctx: CreateWorldContext) => Promise<IWorld>;
+
+  /**
+   * Optional factory that constructs the HUD. Defaults to `Hud.create` via
+   * the standard entry; supplying a custom factory lets a test or a custom
+   * Pixi setup inject its own `IHud` implementation.
+   */
+  createHud?: (ctx: CreateHudContext) => Promise<IHud>;
 
   /**
    * Optional factory that constructs the AssetManager. The 3D entry injects

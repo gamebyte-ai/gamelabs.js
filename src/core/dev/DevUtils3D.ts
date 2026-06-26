@@ -1,4 +1,4 @@
-import type { Hud } from "../hud/Hud.js";
+import type { IHud } from "../hud/IHud.js";
 import type { World } from "../world/World.js";
 import type { Logger } from "./Logger.js";
 import type { IGroundGrid } from "./IGroundGrid.js";
@@ -14,7 +14,7 @@ export class DevUtils3D extends DevUtils {
   public readonly world: World;
   private readonly _groundGrid: GroundGrid;
 
-  public constructor(world: World, hud: Hud, logger: Logger) {
+  public constructor(world: World, hud: IHud, logger: Logger) {
     super(hud, logger);
     this.world = world;
     this._groundGrid = new GroundGrid(this.world);
