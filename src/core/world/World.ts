@@ -81,11 +81,11 @@ export class World implements IWorld {
   }
 
   //  METHODS
-  addView(view: WorldViewBase): void {
+  addRootView(view: WorldViewBase): void {
     this.scene.add(view);
   }
 
-  removeView(view: WorldViewBase): void {
+  removeRootView(view: WorldViewBase): void {
     this.scene.remove(view);
   }
 
