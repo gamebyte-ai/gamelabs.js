@@ -1,4 +1,5 @@
-import * as CANNON from "cannon-es";
+import type { RayOptions, Shape } from "cannon-es";
+import { Body, Box, ContactMaterial, Material, Plane, Quaternion, RaycastResult, Sphere, Vec3, World } from "cannon-es";
 
 import { FixedStepAccumulator } from "../../../core/utilities/FixedStepAccumulator.js";
 import type { Unsubscribe } from "../../../core/events/subscriptions.js";
@@ -7,7 +8,7 @@ import type { Body3DDef, BodyId, ContactInfo3D, Physics3DConfig, RaycastHit3D, T
 
 interface BodyRecord {
   readonly id: BodyId;
-  readonly body: CANNON.Body;
+  readonly body: Body;
   readonly tag: string | undefined;
   readonly kinematic: boolean;
   // Interpolation snapshots (position + quaternion).
@@ -32,8 +33,8 @@ type PendingContact =
   | { kind: "end"; a: number; b: number };
 
 interface ContactEvent {
-  bodyA: CANNON.Body | null;
-  bodyB: CANNON.Body | null;
+  bodyA: Body | null;
+  bodyB: Body | null;
 }
 
 /**
@@ -47,13 +48,13 @@ interface ContactEvent {
  * register `step` with the `UpdateManager`).
  */
 export class Physics3DManager {
-  private readonly _world: CANNON.World;
+  private readonly _world: World;
   private readonly _accumulator: FixedStepAccumulator;
   private readonly _interpolation: boolean;
   private readonly _events = new Physics3DEvents();
 
-  private readonly _worldMaterial: CANNON.Material;
-  private readonly _defaultFriction: number;
+  private readonly _worldMaterial: Material;
+  private _defaultFriction: number;
   private readonly _defaultRestitution: number;
 
   private readonly _records = new Map<BodyId, BodyRecord>();
@@ -65,19 +66,19 @@ export class Physics3DManager {
   private _stepping = false;
 
   // Reused scratch objects to keep the force/raycast hot paths allocation-free.
-  private readonly _scratchVec = new CANNON.Vec3();
-  private readonly _rayFrom = new CANNON.Vec3();
-  private readonly _rayTo = new CANNON.Vec3();
-  private readonly _rayResult = new CANNON.RaycastResult();
+  private readonly _scratchVec = new Vec3();
+  private readonly _rayFrom = new Vec3();
+  private readonly _rayTo = new Vec3();
+  private readonly _rayResult = new RaycastResult();
 
   public constructor(config?: Physics3DConfig) {
     const g = config?.gravity ?? { x: 0, y: -9.82, z: 0 };
-    this._world = new CANNON.World({
-      gravity: new CANNON.Vec3(g.x, g.y, g.z),
+    this._world = new World({
+      gravity: new Vec3(g.x, g.y, g.z),
       allowSleep: config?.allowSleep ?? true,
     });
 
-    this._worldMaterial = new CANNON.Material("world");
+    this._worldMaterial = new Material("world");
     this._defaultFriction = config?.defaultFriction ?? 0.3;
     this._defaultRestitution = config?.defaultRestitution ?? 0;
     this._world.defaultContactMaterial.friction = this._defaultFriction;
@@ -118,19 +119,19 @@ export class Physics3DManager {
     const id = this._nextId++;
     const kinematic = def.type === "kinematic";
     const isStatic = def.type === "static";
-    const type = kinematic ? CANNON.Body.KINEMATIC : isStatic ? CANNON.Body.STATIC : CANNON.Body.DYNAMIC;
-    const mass = type === CANNON.Body.DYNAMIC ? (def.mass ?? 1) : 0;
+    const type = kinematic ? Body.KINEMATIC : isStatic ? Body.STATIC : Body.DYNAMIC;
+    const mass = type === Body.DYNAMIC ? (def.mass ?? 1) : 0;
     const rot = def.rotation ?? { x: 0, y: 0, z: 0, w: 1 };
 
     const hasCustomMaterial = def.friction !== undefined || def.restitution !== undefined;
     const material = hasCustomMaterial ? this._makeBodyMaterial(def.friction, def.restitution) : this._worldMaterial;
 
-    const body = new CANNON.Body({
+    const body = new Body({
       mass,
       type,
       material,
-      position: new CANNON.Vec3(def.x, def.y, def.z),
-      quaternion: new CANNON.Quaternion(rot.x, rot.y, rot.z, rot.w),
+      position: new Vec3(def.x, def.y, def.z),
+      quaternion: new Quaternion(rot.x, rot.y, rot.z, rot.w),
       isTrigger: def.isSensor ?? false,
       collisionFilterGroup: def.collisionGroup ?? 1,
       collisionFilterMask: def.collisionMask ?? -1,
@@ -163,22 +164,22 @@ export class Physics3DManager {
     return id;
   }
 
-  private _createShape(shape: Body3DDef["shape"]): CANNON.Shape {
+  private _createShape(shape: Body3DDef["shape"]): Shape {
     switch (shape.kind) {
       case "sphere":
-        return new CANNON.Sphere(shape.radius);
+        return new Sphere(shape.radius);
       case "box":
-        return new CANNON.Box(new CANNON.Vec3(shape.width / 2, shape.height / 2, shape.depth / 2));
+        return new Box(new Vec3(shape.width / 2, shape.height / 2, shape.depth / 2));
       case "plane":
-        return new CANNON.Plane();
+        return new Plane();
     }
   }
 
   /** Per-body material that contacts the shared world material with the given props. */
-  private _makeBodyMaterial(friction?: number, restitution?: number): CANNON.Material {
-    const mat = new CANNON.Material();
+  private _makeBodyMaterial(friction?: number, restitution?: number): Material {
+    const mat = new Material();
     this._world.addContactMaterial(
-      new CANNON.ContactMaterial(mat, this._worldMaterial, {
+      new ContactMaterial(mat, this._worldMaterial, {
         friction: friction ?? this._defaultFriction,
         restitution: restitution ?? this._defaultRestitution,
       }),
@@ -238,6 +239,37 @@ export class Physics3DManager {
     if (!body) return;
     body.angularVelocity.set(wx, wy, wz);
     body.wakeUp();
+  }
+
+  /**
+   * Put a body to sleep immediately: the solver skips it (it won't move or jitter)
+   * until something wakes it — a {@link wakeUp} call, an applied force/velocity, or
+   * a collision. Lets callers simulate only part of the world. No-op for unknown ids.
+   */
+  public sleep(id: BodyId): void {
+    this._records.get(id)?.body.sleep();
+  }
+
+  /** Wake a sleeping body so it simulates again. No-op for unknown ids. */
+  public wakeUp(id: BodyId): void {
+    this._records.get(id)?.body.wakeUp();
+  }
+
+  /**
+   * Set the friction of the shared world contact material at runtime — governs
+   * contacts between bodies that use the default material (those created without a
+   * per-body `friction`/`restitution`). Lets callers briefly make the pile slippery
+   * (e.g. to fluidise it) and restore it after. Bodies with a custom material are
+   * unaffected.
+   */
+  public setDefaultFriction(friction: number): void {
+    this._defaultFriction = friction;
+    this._world.defaultContactMaterial.friction = friction;
+  }
+
+  /** Current default contact friction (so callers can restore it after a change). */
+  public get defaultFriction(): number {
+    return this._defaultFriction;
   }
 
   /**
@@ -372,7 +404,7 @@ export class Physics3DManager {
   ): RaycastHit3D | null {
     this._rayFrom.set(x1, y1, z1);
     this._rayTo.set(x2, y2, z2);
-    const options: CANNON.RayOptions = {};
+    const options: RayOptions = {};
     if (filter?.collisionGroup !== undefined) options.collisionFilterGroup = filter.collisionGroup;
     if (filter?.collisionMask !== undefined) options.collisionFilterMask = filter.collisionMask;
     this._rayResult.reset();

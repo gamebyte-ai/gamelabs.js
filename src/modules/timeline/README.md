@@ -1,5 +1,7 @@
 # Timeline Module
 
+> **Build target:** World-independent. Pure JS timing — works in both the default `@gamebyte/gamelabsjs` entry and the THREE-free `@gamebyte/gamelabsjs/core` entry.
+
 Time-bounded lifecycle plumbing for game effects. A `TimelineManager` owns a clock and a set of `Track` instances; each track has a `startTime` + `duration` and emits `onStart` / `onUpdate` / `onEnd` / `onCancel` hooks at the right moments. Multiple tracks run concurrently, and any track can be queried or canceled by id or type at any time.
 
 ## Purpose

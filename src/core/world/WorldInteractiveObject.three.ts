@@ -1,17 +1,17 @@
-import * as THREE from "three";
-import type { IInputManager } from "../input/IInputManager.js";
+import { Group } from "three";
 import type { IPointerInputHandler } from "../input/IPointerInputHandler.js";
+import type { IWorldPointerInput } from "./IWorldPointerInput.js";
 
-export class WorldInteractiveObject extends THREE.Group {
+export class WorldInteractiveObject extends Group {
   //  MEMBERS
   private _isPointerInputHandlerCached: boolean | null = null;
-  private _inputManager: IInputManager | null = null;
+  private _worldPointerInput: IWorldPointerInput | null = null;
   private _isPointerListener: boolean = false;
 
   // Optional pointer handler methods. Subclasses that define all four
-  // are automatically registered with the input manager when added to
-  // the scene graph. Declared here so the duck-type check below is
-  // type-safe (no `as any` needed).
+  // are automatically registered with the world pointer input subsystem
+  // when added to the scene graph. Declared here so the duck-type check
+  // below is type-safe (no `as any` needed).
   onPointerDown?(event: PointerEvent, onThisObject: boolean): void;
   onPointerMove?(event: PointerEvent, onThisObject: boolean): void;
   onPointerUp?(event: PointerEvent, onThisObject: boolean): void;
@@ -25,8 +25,8 @@ export class WorldInteractiveObject extends THREE.Group {
   }
 
   //  PROPERTIES
-  public get inputManager(): IInputManager | null {
-    return this._inputManager;
+  public get worldPointerInput(): IWorldPointerInput | null {
+    return this._worldPointerInput;
   }
 
   public get isPointerInputHandler(): boolean {
@@ -41,11 +41,11 @@ export class WorldInteractiveObject extends THREE.Group {
   }
 
   //  METHODS
-  protected setInputManager(inputManager: IInputManager | null): void {
-    if (this._inputManager === null && inputManager !== null) {
-      this._inputManager = inputManager;
+  protected setWorldPointerInput(worldPointerInput: IWorldPointerInput | null): void {
+    if (this._worldPointerInput === null && worldPointerInput !== null) {
+      this._worldPointerInput = worldPointerInput;
       if (this._isPointerListener) {
-        this._inputManager.addPointerHandler(this as unknown as IPointerInputHandler);
+        this._worldPointerInput.addPointerHandler(this as unknown as IPointerInputHandler);
       }
     }
   }
@@ -58,14 +58,14 @@ export class WorldInteractiveObject extends THREE.Group {
   private onAdded(_event: object): void {
     if (this.isPointerInputHandler) {
       this._isPointerListener = true;
-      this._inputManager?.addPointerHandler(this as unknown as IPointerInputHandler);
+      this._worldPointerInput?.addPointerHandler(this as unknown as IPointerInputHandler);
     }
   }
 
   private onRemoved(_event: object): void {
     if (this._isPointerListener) {
       this._isPointerListener = false;
-      this._inputManager?.removePointerHandler(this as unknown as IPointerInputHandler);
+      this._worldPointerInput?.removePointerHandler(this as unknown as IPointerInputHandler);
     }
   }
 }

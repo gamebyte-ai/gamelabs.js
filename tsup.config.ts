@@ -4,6 +4,10 @@ import pkg from "./package.json";
 export default defineConfig({
   entry: {
     index: "src/index.ts",
+    // THREE-free entry. Importing from `@gamebyte/gamelabsjs/core` gives the
+    // base `GamelabsApp` (no default `createWorld`) plus only the Pixi/HUD/DI
+    // core. Three.js never enters this bundle graph.
+    core: "src/core.ts",
     // Optional physics modules ship as separate subpath entries so games that
     // don't use physics never load matter-js / cannon-es. They are NOT part of
     // the main `index` entry — importing physics is opt-in via the subpath.

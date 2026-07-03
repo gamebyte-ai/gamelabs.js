@@ -1,4 +1,5 @@
-import * as THREE from "three";
+import type { Camera } from "three";
+import { Vector3 } from "three";
 import type { GameCameraManager } from "../utilities/GameCameraManager.js";
 import { GameCameraMode } from "../constants/GameCameraMode.js";
 import {
@@ -108,7 +109,7 @@ export class Orbital3dCameraController extends BaseCameraController {
     this.distance = this._distance + delta;
   }
 
-  public applyPositionToCamera(camera: THREE.Camera, focus: THREE.Vector3, _orthoSize: number): void {
+  public applyPositionToCamera(camera: Camera, focus: Vector3, _orthoSize: number): void {
     camera.rotation.set(0, 0, 0);
     camera.up.set(0, 1, 0);
     const x = focus.x + this._distance * Math.cos(this._pitch) * Math.sin(this._azimuth);
@@ -118,8 +119,8 @@ export class Orbital3dCameraController extends BaseCameraController {
     camera.lookAt(focus.x, focus.y, focus.z);
   }
 
-  public getFocusFromOrthoPosition(orthoPos: THREE.Vector3, orthoSize: number): THREE.Vector3 {
-    return new THREE.Vector3(orthoPos.x, orthoPos.y - orthoSize * 0.5, orthoPos.z);
+  public getFocusFromOrthoPosition(orthoPos: Vector3, orthoSize: number): Vector3 {
+    return new Vector3(orthoPos.x, orthoPos.y - orthoSize * 0.5, orthoPos.z);
   }
 
   public move(x: number, y: number, z: number): void {

@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { MathUtils, Object3D, PerspectiveCamera, Vector3 } from "three";
 import { Track } from "../../../timeline/src/models/Track.js";
 import type { GameCameraManager } from "./GameCameraManager.js";
 
@@ -11,7 +11,7 @@ export type DollyZoomTrackOptions = {
   /** Delay before the effect starts. Default 0. */
   delay?: number;
   /** Object or fixed point used as the size-locked subject. */
-  target: THREE.Object3D | THREE.Vector3;
+  target: Object3D | Vector3;
   /** FOV offset in degrees applied at progress=1 (signed). Negative = narrow / zoom in. */
   fovDelta: number;
   /**
@@ -38,13 +38,13 @@ export type DollyZoomTrackOptions = {
  */
 export class DollyZoomTrack extends Track {
   private readonly _camera: GameCameraManager;
-  private readonly _target: THREE.Object3D | THREE.Vector3;
+  private readonly _target: Object3D | Vector3;
   private readonly _fovDeltaPeak: number;
   private readonly _curve: (t: number) => number;
-  private readonly _forward = new THREE.Vector3();
-  private readonly _tempCamPos = new THREE.Vector3();
-  private readonly _tempTargetPos = new THREE.Vector3();
-  private readonly _tempOffsetVec = new THREE.Vector3();
+  private readonly _forward = new Vector3();
+  private readonly _tempCamPos = new Vector3();
+  private readonly _tempTargetPos = new Vector3();
+  private readonly _tempOffsetVec = new Vector3();
   private _offsetId = "";
   private _initialFovDeg = 0;
   private _initialDistance = 0;
@@ -61,7 +61,7 @@ export class DollyZoomTrack extends Track {
   protected override onStart(): void {
     this._offsetId = `${OFFSET_ID_PREFIX}${this.uniqueId}`;
     const cam = this._camera.getCamera();
-    if (!(cam instanceof THREE.PerspectiveCamera)) {
+    if (!(cam instanceof PerspectiveCamera)) {
       this._inactive = true;
       return;
     }
@@ -83,8 +83,8 @@ export class DollyZoomTrack extends Track {
     const t = this._curve(rawProgress);
     const fovDeltaNow = this._fovDeltaPeak * t;
     const fovNow = this._initialFovDeg + fovDeltaNow;
-    const tanF0Half = Math.tan(THREE.MathUtils.degToRad(this._initialFovDeg) / 2);
-    const tanFHalf = Math.tan(THREE.MathUtils.degToRad(fovNow) / 2);
+    const tanF0Half = Math.tan(MathUtils.degToRad(this._initialFovDeg) / 2);
+    const tanFHalf = Math.tan(MathUtils.degToRad(fovNow) / 2);
     if (tanFHalf <= 0) return;
     const desiredDistance = (this._initialDistance * tanF0Half) / tanFHalf;
     const distanceDelta = desiredDistance - this._initialDistance;
@@ -103,8 +103,8 @@ export class DollyZoomTrack extends Track {
     if (this._offsetId !== "") this._camera.clearOffset(this._offsetId);
   }
 
-  private _readTargetPos(out: THREE.Vector3): void {
-    if (this._target instanceof THREE.Object3D) this._target.getWorldPosition(out);
+  private _readTargetPos(out: Vector3): void {
+    if (this._target instanceof Object3D) this._target.getWorldPosition(out);
     else out.copy(this._target);
   }
 }

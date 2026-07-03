@@ -1,5 +1,6 @@
 import type { LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import type { DestroyOptions, NineSliceSprite, Text } from "pixi.js";
+import { Container, Rectangle, Sprite, Texture } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
@@ -17,7 +18,7 @@ export type ListItem<T = unknown> = {
   /** Label text. Used by the `"text"` and `"text+image"` variants. */
   readonly label?: string;
   /**
-   * Asset id resolved to a `PIXI.Texture` via the asset manager at row-
+   * Asset id resolved to a `Texture` via the asset manager at row-
    * construction time. Used by the `"image"` and `"text+image"` variants.
    * Throws if the id is not loaded — register the texture before
    * constructing or calling `setItems`.
@@ -27,7 +28,7 @@ export type ListItem<T = unknown> = {
    * Pre-resolved texture (alternative to `textureId`). When both are
    * present, `texture` wins so callers can override resolution.
    */
-  readonly texture?: PIXI.Texture;
+  readonly texture?: Texture;
   /**
    * Caller-defined payload carried with the row. The type parameter
    * `T` threads through `setItems` / `selectedItems` / `onChange` /
@@ -94,10 +95,10 @@ type RowState = "idle" | "hover" | "selected";
 
 type RowEntry<T> = {
   item: ListItem<T>;
-  row: PIXI.Container;
-  bg: PIXI.Sprite | PIXI.NineSliceSprite;
-  sprite: PIXI.Sprite | null;
-  text: PIXI.Text | null;
+  row: Container;
+  bg: Sprite | NineSliceSprite;
+  sprite: Sprite | null;
+  text: Text | null;
 };
 
 /**
@@ -263,7 +264,7 @@ export class ListComponent<T = unknown> extends StyledHudObject<ListComponentSty
     return () => this._pressListeners.delete(cb);
   }
 
-  public override destroy(opts?: PIXI.DestroyOptions): void {
+  public override destroy(opts?: DestroyOptions): void {
     this._entries.length = 0;
     this._changeListeners.clear();
     this._pressListeners.clear();
@@ -308,13 +309,13 @@ export class ListComponent<T = unknown> extends StyledHudObject<ListComponentSty
   private _createRow(item: ListItem<T>): RowEntry<T> {
     const w = this._width - this._padding * 2;
     const h = this._itemHeight;
-    const row = new PIXI.Container();
+    const row = new Container();
     row.layout = { width: w, height: h };
     row.eventMode = "static";
     row.cursor = "pointer";
     // Explicit hit rect so the entire row catches hover / tap, not
     // just the bounds of whichever child happens to be drawn.
-    row.hitArea = new PIXI.Rectangle(0, 0, w, h);
+    row.hitArea = new Rectangle(0, 0, w, h);
 
     const isSelected = this._isSelected(item.id);
     const initialState: RowState = isSelected ? "selected" : "idle";
@@ -324,14 +325,14 @@ export class ListComponent<T = unknown> extends StyledHudObject<ListComponentSty
     bg.eventMode = "none";
     row.addChild(bg);
 
-    let sprite: PIXI.Sprite | null = null;
-    let text: PIXI.Text | null = null;
+    let sprite: Sprite | null = null;
+    let text: Text | null = null;
 
     if (this._variant === "image" || this._variant === "text+image") {
       // Per-item content texture — pre-resolved `texture` wins; else
       // resolve `textureId` via the base helper (throws on missing).
-      const tex = item.texture ?? (item.textureId !== undefined ? this._getTexture(item.textureId) : PIXI.Texture.EMPTY);
-      sprite = new PIXI.Sprite(tex);
+      const tex = item.texture ?? (item.textureId !== undefined ? this._getTexture(item.textureId) : Texture.EMPTY);
+      sprite = new Sprite(tex);
       sprite.eventMode = "none";
       sprite.anchor.set(0.5);
       sprite.width = this._imageSize;

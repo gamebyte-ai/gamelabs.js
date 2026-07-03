@@ -1,13 +1,13 @@
-import * as PIXI from "pixi.js";
+import { Graphics } from "pixi.js";
 import type { IScreenView } from "./IScreenView.js";
 import { SCREEN_TRANSITION_TYPES, type ScreenTransition } from "./ScreenTransition.js";
-import { HudViewBase } from "../hud/HudViewBase.js";
+import { HudViewBase } from "../hud/HudViewBase.pixi.js";
 
 /**
  * Base PixiJS screen view.
  *
  * This is a convenience implementation that:
- * - is a `PIXI.Container`
+ * - is a `Container`
  * - implements `IScreenView` (extends `IView`)
  * - provides safe default lifecycle hooks
  * - provides a `destroy()` that detaches from parent and removes listeners
@@ -22,7 +22,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
   private _isInTransition = false;
   private _transitionTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private _transitionRafId: number | null = null;
-  private _clipMask: PIXI.Graphics | null = null;
+  private _clipMask: Graphics | null = null;
   private _clipMaskWidth = 0;
   private _clipMaskHeight = 0;
   private _viewportWidth = 1;
@@ -66,7 +66,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
     const h = Math.max(1, Math.floor(height));
 
     if (!this._clipMask) {
-      this._clipMask = new PIXI.Graphics();
+      this._clipMask = new Graphics();
       this._clipMask.alpha = 0;
       this._clipMask.eventMode = "none";
       this.addChildAt(this._clipMask, 0);

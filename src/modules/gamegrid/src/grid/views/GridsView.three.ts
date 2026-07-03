@@ -1,6 +1,6 @@
 import type * as THREE from "three";
 import type { IInstanceResolver } from "../../../../../core/di/IInstanceResolver.js";
-import { WorldViewBase } from "../../../../../core/world/WorldViewBase.js";
+import { WorldViewBase } from "../../../../../core/world/WorldViewBase.three.js";
 import type { IGridView, AddGridData } from "./IGridView.js";
 import type { GridItemObjectOptions } from "./GridItemObject.js";
 import { GridObject } from "./GridObject.js";
@@ -22,7 +22,7 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
   }
 
   public addGrid(data: AddGridData): void {
-    const gridObj = new GridObject(data, this.creator, this, this.inputManager, this.assetLoader);
+    const gridObj = new GridObject(data, this.creator, this, this.worldPointerInput, this.assetLoader);
     this._gridObjects.set(data.id, gridObj);
     this.add(gridObj);
   }
@@ -59,7 +59,7 @@ export class GridsView extends WorldViewBase implements IGridView, IGridObjectLi
   public createItem(itemOptions: GridItemObjectOptions, gridId: number, col: number, row: number): void {
     const gridObj = this._gridObjects.get(gridId);
     if (!gridObj) return;
-    const itemObj = this.creator.createItemObject(itemOptions, this, this.inputManager, this.assetLoader);
+    const itemObj = this.creator.createItemObject(itemOptions, this, this.worldPointerInput, this.assetLoader);
     gridObj.addItem(itemObj, col, row);
   }
 

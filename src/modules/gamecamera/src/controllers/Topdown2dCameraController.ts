@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { Vector3 } from "three";
 import type { GameCameraManager } from "../utilities/GameCameraManager.js";
 import { GameCameraMode } from "../constants/GameCameraMode.js";
 import { DEFAULT_Y } from "../constants/GameCameraDefaults.js";
@@ -15,8 +15,8 @@ export class Topdown2dCameraController extends TopdownBaseCameraController {
     return true;
   }
 
-  public override getFocusFromOrthoPosition(_orthoPos: THREE.Vector3, _orthoSize: number): THREE.Vector3 {
-    return new THREE.Vector3();
+  public override getFocusFromOrthoPosition(_orthoPos: Vector3, _orthoSize: number): Vector3 {
+    return new Vector3();
   }
 
   public setDefaultY(y: number): void {

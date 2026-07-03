@@ -1,5 +1,7 @@
 # GameGrid Module
 
+> **Build target:** The grid model (`RectGrid`, `HexGrid`, `GridsModel`) is World-independent. The view layer (`GridsView.three.ts`, `GridObject`, `GridCellObject`, `GridItemObject`) is **THREE-bound and requires a World** — only usable from the default `@gamebyte/gamelabsjs` entry.
+
 Grid model + 3D render pipeline for board / puzzle games. Supports rectangular and hexagonal grids through one shape-agnostic core; per-cell item stacks for piles; group ids for multi-cell shapes.
 
 ## Module layout

@@ -1,4 +1,5 @@
-import * as THREE from "three";
+import type { Camera, Euler, Object3D } from "three";
+import { OrthographicCamera, PerspectiveCamera, Vector2, Vector3 } from "three";
 import type { World } from "../../../../core/world/World.js";
 import type { ICameraController } from "../controllers/ICameraController.js";
 import type { ICameraConstraint } from "./ICameraConstraint.js";
@@ -8,19 +9,19 @@ import { FollowPosition } from "./FollowPosition.js";
 import { DEFAULT_ORTHO_SIZE, DEFAULT_FOV, DEFAULT_EASING, PERSPECTIVE_TO_ORTHO_OFFSET } from "../constants/GameCameraDefaults.js";
 
 export type CameraOffset = {
-  focus?: THREE.Vector3;
-  localPosition?: THREE.Vector3;
-  worldPosition?: THREE.Vector3;
-  rotation?: THREE.Euler;
+  focus?: Vector3;
+  localPosition?: Vector3;
+  worldPosition?: Vector3;
+  rotation?: Euler;
   fov?: number;
   orthoSize?: number;
 };
 
 export class GameCameraManager {
   private _world: World | null = null;
-  private _camera: THREE.Camera | null = null;
-  private _orthoCamera: THREE.OrthographicCamera | null = null;
-  private _perspectiveCamera: THREE.PerspectiveCamera | null = null;
+  private _camera: Camera | null = null;
+  private _orthoCamera: OrthographicCamera | null = null;
+  private _perspectiveCamera: PerspectiveCamera | null = null;
   private _activeController: ICameraController | null = null;
   private _active = true;
   private _orthoSize = DEFAULT_ORTHO_SIZE;
@@ -28,17 +29,17 @@ export class GameCameraManager {
   private _viewportWidth = 1;
   private _viewportHeight = 1;
   private _follow: ICameraFollow | null = null;
-  private _currentPosition = new THREE.Vector3();
+  private _currentPosition = new Vector3();
   private _offsets = new Map<string, CameraOffset>();
   private _constraints = new Map<string, ICameraConstraint>();
-  private _tempVector = new THREE.Vector3();
-  private _tempDirection = new THREE.Vector3();
-  private _tempFocusBias = new THREE.Vector3();
-  private _tempLocalBias = new THREE.Vector3();
-  private _tempWorldBias = new THREE.Vector3();
-  private _tempBiasedFocus = new THREE.Vector3();
+  private _tempVector = new Vector3();
+  private _tempDirection = new Vector3();
+  private _tempFocusBias = new Vector3();
+  private _tempLocalBias = new Vector3();
+  private _tempWorldBias = new Vector3();
+  private _tempBiasedFocus = new Vector3();
 
-  public getCamera(): THREE.Camera | null {
+  public getCamera(): Camera | null {
     return this._camera;
   }
 
@@ -48,9 +49,9 @@ export class GameCameraManager {
     this._applyPositionToCamera();
   }
 
-  public initialize(world: World, camera?: THREE.Camera): void {
+  public initialize(world: World, camera?: Camera): void {
     this._world = world;
-    const size = new THREE.Vector2();
+    const size = new Vector2();
     world.renderer.getSize(size);
     this._viewportWidth = size.x;
     this._viewportHeight = size.y;
@@ -87,7 +88,7 @@ export class GameCameraManager {
     return this._follow;
   }
 
-  public followObject(object: THREE.Object3D, easing?: number): void {
+  public followObject(object: Object3D, easing?: number): void {
     this._follow = new FollowObject(object, easing ?? DEFAULT_EASING);
     object.getWorldPosition(this._tempVector);
     this._currentPosition.copy(this._tempVector);
@@ -175,7 +176,7 @@ export class GameCameraManager {
     this._applyPositionToCamera();
   }
 
-  private _ensureCameraForController(existing: THREE.Camera | null): void {
+  private _ensureCameraForController(existing: Camera | null): void {
     if (!this._activeController) return;
     const needsOrtho = this._activeController.isOrtho;
     let transitioned = false;
@@ -185,7 +186,7 @@ export class GameCameraManager {
         const aspect = this._viewportWidth / this._viewportHeight;
         const h = this._orthoSize / 2;
         const w = (this._orthoSize * aspect) / 2;
-        this._orthoCamera = new THREE.OrthographicCamera(-w, w, h, -h, 0.1, 1000);
+        this._orthoCamera = new OrthographicCamera(-w, w, h, -h, 0.1, 1000);
       }
       this._camera = this._orthoCamera;
       if (this._perspectiveCamera && this._world) {
@@ -195,7 +196,7 @@ export class GameCameraManager {
       }
     } else {
       if (!this._perspectiveCamera) {
-        this._perspectiveCamera = new THREE.PerspectiveCamera(this._baseFov, this._viewportWidth / this._viewportHeight, 0.1, 1000);
+        this._perspectiveCamera = new PerspectiveCamera(this._baseFov, this._viewportWidth / this._viewportHeight, 0.1, 1000);
       }
       this._camera = this._perspectiveCamera;
       if (this._orthoCamera && this._world) {

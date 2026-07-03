@@ -1,5 +1,7 @@
 # GameCamera Module
 
+> **Build target:** Requires the 3D `World`. Only usable from the default `@gamebyte/gamelabsjs` entry — **not** available in the THREE-free `@gamebyte/gamelabsjs/core` entry. Games using this module must supply a `World` instance (the default entry's `createWorld` factory does this automatically).
+
 Controls the 3D scene camera in Three.js. Supports multiple projection modes, object/position following, and smooth easing. The camera is not exposed — use `GameCameraManager` with `ICameraController` instances for camera behavior.
 
 ## Purpose

@@ -1,5 +1,5 @@
 import type { LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import { Container } from "pixi.js";
 
 export type GridLayoutComponentPreset = {
   /** X position. */
@@ -59,7 +59,7 @@ export function parseGridLayoutComponentPreset(json: string): GridLayoutComponen
  * {@link GridLayoutComponentPreset.columnGap} when rows and columns
  * need different spacing.
  */
-export class GridLayoutComponent extends PIXI.Container {
+export class GridLayoutComponent extends Container {
   public constructor(opts: GridLayoutComponentPreset = {}) {
     super();
 

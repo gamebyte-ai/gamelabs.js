@@ -12,7 +12,7 @@ import type { UIEvents } from "../ui/UIEvents.js";
 import type { IWorld } from "../world/IWorld.js";
 import type { IHud } from "../hud/IHud.js";
 import { HudLayer } from "../hud/HudLayer.js";
-import { HudViewBase } from "../hud/HudViewBase.js";
+import { HudViewBase } from "../hud/HudViewBase.pixi.js";
 
 export type ViewCtor<TView extends IView> = new () => TView;
 

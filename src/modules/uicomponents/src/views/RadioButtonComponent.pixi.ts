@@ -1,5 +1,6 @@
 import type { LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import type { DestroyOptions, NineSliceSprite, Sprite, Text } from "pixi.js";
+import { Rectangle } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import type { SpriteStyle } from "../../../../core/styles/SpriteStyle.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
@@ -55,8 +56,8 @@ type RadioState = "unselected" | "selected";
  * override the intrinsic size derived from indicator + label.
  */
 export class RadioButtonComponent extends StyledHudObject<RadioButtonComponentStyle> {
-  private readonly _indicator: PIXI.Sprite | PIXI.NineSliceSprite;
-  private readonly _label: PIXI.Text | null;
+  private readonly _indicator: Sprite | NineSliceSprite;
+  private readonly _label: Text | null;
   private readonly _radius: number;
   private readonly _stateStyles: Record<RadioState, SpriteStyle | undefined>;
   private readonly _pressListeners = new Set<() => void>();
@@ -114,7 +115,7 @@ export class RadioButtonComponent extends StyledHudObject<RadioButtonComponentSt
     this.cursor = "pointer";
     // Explicit hit area so taps anywhere in the bounding box (including
     // the gap between indicator and label) register as a press.
-    this.hitArea = new PIXI.Rectangle(0, 0, totalWidth, totalHeight);
+    this.hitArea = new Rectangle(0, 0, totalWidth, totalHeight);
     this.on("pointertap", () => this._firePress());
   }
 
@@ -142,7 +143,7 @@ export class RadioButtonComponent extends StyledHudObject<RadioButtonComponentSt
     return () => this._pressListeners.delete(cb);
   }
 
-  public override destroy(opts?: PIXI.DestroyOptions): void {
+  public override destroy(opts?: DestroyOptions): void {
     this._pressListeners.clear();
     super.destroy(opts);
   }

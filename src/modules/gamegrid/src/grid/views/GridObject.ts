@@ -6,9 +6,9 @@ import type { GridItemObject } from "./GridItemObject.js";
 import { GridCellObjectOptions } from "./GridCellObject.js";
 import type { GridCellObject } from "./GridCellObject.js";
 import type { IGridObjectListener } from "./IGridObjectListener.js";
-import type { IInputManager } from "../../../../../core/input/IInputManager.js";
+import type { IWorldPointerInput } from "../../../../../core/world/IWorldPointerInput.js";
 import type { IPointerInputHandler } from "../../../../../core/input/IPointerInputHandler.js";
-import { WorldInteractiveObject } from "../../../../../core/world/WorldInteractiveObject.js";
+import { WorldInteractiveObject } from "../../../../../core/world/WorldInteractiveObject.three.js";
 
 export class GridObject extends WorldInteractiveObject {
   public readonly gridId: number;
@@ -23,7 +23,7 @@ export class GridObject extends WorldInteractiveObject {
     data: AddGridData,
     creator: GridObjectCreator,
     pointerListener: IGridObjectListener,
-    inputManager: IInputManager | null,
+    inputManager: IWorldPointerInput | null,
     assetManager?: IAssetManager | null,
   ) {
     super();
@@ -35,7 +35,7 @@ export class GridObject extends WorldInteractiveObject {
     this.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z);
     this._creator = creator;
     this._pointerListener = pointerListener;
-    this.setInputManager(inputManager);
+    this.setWorldPointerInput(inputManager);
     this._cells = [] as GridCellObject[][];
 
     for (let col = 0; col < this.columnCount; col++) {
@@ -45,7 +45,7 @@ export class GridObject extends WorldInteractiveObject {
         const cell = this._creator.createCellObject(
           new GridCellObjectOptions(this.gridId, col, row, pos, this.preset),
           this._pointerListener,
-          this.inputManager,
+          this.worldPointerInput,
           assetManager,
         );
         colArr.push(cell);
@@ -89,10 +89,10 @@ export class GridObject extends WorldInteractiveObject {
   }
 
   public unregisterFromInputManager(): void {
-    if (!this.inputManager) return;
+    if (!this.worldPointerInput) return;
     for (const colArr of this._cells) {
       for (const cell of colArr) {
-        if (cell.isPointerInputHandler) this.inputManager.removePointerHandler(cell as unknown as IPointerInputHandler);
+        if (cell.isPointerInputHandler) this.worldPointerInput.removePointerHandler(cell as unknown as IPointerInputHandler);
       }
     }
   }

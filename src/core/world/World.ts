@@ -1,12 +1,16 @@
-import * as THREE from "three";
+import type { Camera, Object3D } from "three";
+import { AmbientLight, DirectionalLight, Fog, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 import type { ILogger } from "../dev/ILogger.js";
+import type { IInputManager } from "../input/IInputManager.js";
 import type { IWorld } from "./IWorld.js";
-import type { WorldViewBase } from "./WorldViewBase.js";
+import type { IWorldPointerInput } from "./IWorldPointerInput.js";
+import type { WorldViewBase } from "./WorldViewBase.three.js";
+import { WorldPointerInput } from "./WorldPointerInput.js";
 
-type Create3DRendererOptions = ConstructorParameters<typeof THREE.WebGLRenderer>[0];
+type Create3DRendererOptions = ConstructorParameters<typeof WebGLRenderer>[0];
 
-function create3DRenderer(options: Create3DRendererOptions = {}): THREE.WebGLRenderer {
-  const renderer = new THREE.WebGLRenderer(options);
+function create3DRenderer(options: Create3DRendererOptions = {}): WebGLRenderer {
+  const renderer = new WebGLRenderer(options);
   return renderer;
 }
 
@@ -30,7 +34,8 @@ export type WorldCreateOptions = {
 export class World implements IWorld {
   //  MEMBERS
   private readonly _logger: ILogger | null;
-  private _activeCamera: THREE.Camera;
+  private _activeCamera: Camera;
+  private _worldPointerInput: WorldPointerInput | null = null;
 
   static async create(canvas?: HTMLCanvasElement, options: WorldCreateOptions = {}): Promise<World> {
     const c = canvas ?? document.createElement("canvas");
@@ -41,11 +46,11 @@ export class World implements IWorld {
     return new World(params);
   }
 
-  readonly renderer: THREE.WebGLRenderer;
-  readonly scene: THREE.Scene;
-  readonly camera: THREE.PerspectiveCamera;
+  readonly renderer: WebGLRenderer;
+  readonly scene: Scene;
+  readonly camera: PerspectiveCamera;
 
-  get activeCamera(): THREE.Camera {
+  get activeCamera(): Camera {
     return this._activeCamera;
   }
 
@@ -59,16 +64,16 @@ export class World implements IWorld {
     });
     this.renderer.setClearColor(0x0b0f14, 1);
 
-    this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0x0b0f14, 4, 20);
+    this.scene = new Scene();
+    this.scene.fog = new Fog(0x0b0f14, 4, 20);
 
-    this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+    this.camera = new PerspectiveCamera(60, 1, 0.1, 100);
     this.camera.position.set(0, 1.2, 4);
     this._activeCamera = this.camera;
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    const ambient = new AmbientLight(0xffffff, 0.6);
     this.scene.add(ambient);
-    const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+    const dir = new DirectionalLight(0xffffff, 1.2);
     dir.position.set(3, 5, 2);
     this.scene.add(dir);
 
@@ -76,26 +81,26 @@ export class World implements IWorld {
   }
 
   //  METHODS
-  addView(view: WorldViewBase): void {
+  addRootView(view: WorldViewBase): void {
     this.scene.add(view);
   }
 
-  removeView(view: WorldViewBase): void {
+  removeRootView(view: WorldViewBase): void {
     this.scene.remove(view);
   }
 
-  add(object: THREE.Object3D): void {
+  add(object: Object3D): void {
     this.scene.add(object);
   }
 
-  setActiveCamera(camera: THREE.Camera): void {
+  setActiveCamera(camera: Camera): void {
     this._activeCamera = camera;
   }
 
   resize(width: number, height: number, dpr: number): void {
     this.renderer.setPixelRatio(dpr);
     this.renderer.setSize(width, height, false);
-    if (this._activeCamera instanceof THREE.PerspectiveCamera) {
+    if (this._activeCamera instanceof PerspectiveCamera) {
       this._activeCamera.aspect = width / height;
       this._activeCamera.updateProjectionMatrix();
     }
@@ -105,6 +110,15 @@ export class World implements IWorld {
     // Important when sharing a WebGL context with another renderer (e.g. PixiJS).
     this.renderer.resetState();
     this.renderer.render(this.scene, this._activeCamera);
+  }
+
+  attachInput(inputManager: IInputManager): void {
+    if (this._worldPointerInput) return;
+    this._worldPointerInput = new WorldPointerInput(this.renderer.domElement as HTMLCanvasElement, this, inputManager);
+  }
+
+  get worldPointerInput(): IWorldPointerInput | null {
+    return this._worldPointerInput;
   }
 
   destroy(): void {

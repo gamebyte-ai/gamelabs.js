@@ -1,26 +1,26 @@
+import { Container } from "pixi.js";
 import type { IView } from "../views/IView.js";
 import type { IViewController } from "../views/IViewController.js";
 import type { IInstanceResolver } from "../di/IInstanceResolver.js";
 import type { IViewFactory } from "../views/IViewFactory.js";
 import { AssetManager } from "../assets/AssetManager.js";
-import { WorldInteractiveObject } from "./WorldInteractiveObject.js";
 import { ILogger } from "../dev/ILogger.js";
-import { IInputManager as IInputManagerToken } from "../input/IInputManager.js";
 import { LogTypes } from "../dev/LogTypes.js";
 import { IApp } from "../app/IApp.js";
 import { AppEvents } from "../app/AppEvents.js";
+import { StyleManager } from "../styles/StyleManager.js";
 import { UnsubscribeBag } from "../events/subscriptions.js";
 
 /**
- * Base class for world (3D) views.
+ * Base class for HUD (2D) views.
  *
- * - Extends `THREE.Group` so it can be attached to a scene graph.
- * - Implements `IView` controller lifecycle.
+ * - Extends `Container` so it can be attached to the Pixi display tree.
+ * - Implements the `IView` lifecycle used by `ViewFactory`.
  * - Subscribes to `AppEvents.onResize` in `postInitialize()` and dispatches
  *   to `onResize(w, h, dpr)` with the current app size so subclasses only
  *   need to override `onResize`.
  */
-export class WorldViewBase extends WorldInteractiveObject implements IView {
+export class HudViewBase extends Container implements IView {
   //  MEMBERS
   private _viewFactory: IViewFactory | null = null;
   private _addedForFactory: (() => void) | null = null;
@@ -30,39 +30,48 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
   private _controller: IViewController | null = null;
   private _app: IApp | null = null;
   private _appEvents: AppEvents | null = null;
+  private _styleManager: StyleManager | null = null;
   protected readonly _subs = new UnsubscribeBag();
 
   //  PROPERTIES
   protected get viewFactory(): IViewFactory {
     if (!this._viewFactory) {
-      this._logger?.log("WorldViewBase is not initialized", LogTypes.Error);
-      throw new Error("WorldViewBase is not initialized");
+      this._logger?.log("HudViewBase is not initialized", LogTypes.Error);
+      throw new Error("HudViewBase is not initialized");
     }
     return this._viewFactory;
   }
 
   protected get assetLoader(): AssetManager {
     if (!this._assetLoader) {
-      this._logger?.log("WorldViewBase is not initialized", LogTypes.Error);
-      throw new Error("WorldViewBase is not initialized");
+      this._logger?.log("HudViewBase is not initialized", LogTypes.Error);
+      throw new Error("HudViewBase is not initialized");
     }
     return this._assetLoader;
   }
 
   protected get logger(): ILogger {
     if (!this._logger) {
-      throw new Error("WorldViewBase is not initialized");
+      throw new Error("HudViewBase is not initialized");
     }
     return this._logger;
   }
 
+  protected get styleManager(): StyleManager {
+    if (!this._styleManager) {
+      this._logger?.log("HudViewBase is not initialized", LogTypes.Error);
+      throw new Error("HudViewBase is not initialized");
+    }
+    return this._styleManager;
+  }
+
   //  METHODS
   public inject(resolver: IInstanceResolver): void {
-    this.setInputManager(resolver.getInstance(IInputManagerToken));
     this._assetLoader = resolver.getInstance(AssetManager);
     this._logger = resolver.getInstance(ILogger);
     this._app = resolver.getInstance(IApp);
     this._appEvents = resolver.getInstance(AppEvents);
+    this._styleManager = resolver.getInstance(StyleManager);
   }
 
   public setViewFactory(viewFactory: IViewFactory, addedForFactory: () => void, removedForFactory: () => void): void {
@@ -99,11 +108,11 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
   public postInitialize(): void {
     // Defer the initial onResize so subclass `postInitialize` bodies finish
     // creating their children before resize fires. Calling synchronously here
-    // crashes subclasses that build objects after `super.postInitialize()`.
+    // crashes subclasses that build graphics objects after `super.postInitialize()`.
     if (this._app) {
       const app = this._app;
       queueMicrotask(() => {
-        if (this._app !== app) return;
+        if (this._app !== app || this.destroyed) return;
         this.onResize(app.width, app.height, app.dpr);
       });
     }
@@ -132,8 +141,9 @@ export class WorldViewBase extends WorldInteractiveObject implements IView {
     this._logger = null;
     this._app = null;
     this._appEvents = null;
+    this._styleManager = null;
 
-    // Detach from scene graph. Subclasses should dispose their resources.
+    this.removeAllListeners();
     this.removeFromParent();
 
     super.destroy();

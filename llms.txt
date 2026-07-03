@@ -42,7 +42,7 @@ Portrait or fixed-aspect games: set `viewport` in the app config so the play are
 - Controllers reference view interfaces (`IMyView`), not concrete classes.
 - Cross-feature communication through event classes only. No direct controller-to-controller calls.
 - Scene setup (fog, lights) belongs in views, not app class.
-- Game objects render either in a World view (`*View.three.ts`, `world.addView`) — for 3D or World-only tools (gamecamera, 3D particles, lighting) — or in a HUD Content-layer Pixi view (`*View.pixi.ts`, `hud.addChild(HudLayer.Content, view)`) for pure-2D games using Pixi's 2D stack. Choose by the tools needed, not dimensionality. UI/chrome is always a separate Screen-layer view (`ScreenView`); never put gameplay objects in the UI screen view.
+- Game objects render either in a World view (`*View.three.ts`, `world.addRootView`) — for 3D or World-only tools (gamecamera, 3D particles, lighting) — or in a HUD Content-layer Pixi view (`*View.pixi.ts`, `hud.addChild(HudLayer.Content, view)`) for pure-2D games using Pixi's 2D stack. Choose by the tools needed, not dimensionality. UI/chrome is always a separate Screen-layer view (`ScreenView`); never put gameplay objects in the UI screen view.
 - Event classes use `Set<cb>` + `Unsubscribe`. Use `UnsubscribeBag` for cleanup.
 - No empty lifecycle overrides. Only override when adding behavior.
 - Modules must not depend on app-specific code.

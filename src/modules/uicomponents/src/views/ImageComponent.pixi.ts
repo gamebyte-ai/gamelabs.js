@@ -1,6 +1,6 @@
 import "@pixi/layout";
 import type { Layout, LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import { NineSliceSprite, Sprite, Texture } from "pixi.js";
 import type { AssetManager } from "../../../../core/assets/AssetManager.js";
 import { StyledHudObject } from "../../../../core/styles/StyledHudObject.js";
 import type { ImageComponentStyle } from "../UIComponentsStyleTypes.js";
@@ -90,15 +90,15 @@ export type ImageComponentOpts = {
  * box exactly) based on `opts.fit`.
  *
  * The bg sprite type is fixed at construction by the resolved `border`:
- * `border > 0` builds a `PIXI.NineSliceSprite` with a symmetric inset
+ * `border > 0` builds a `NineSliceSprite` with a symmetric inset
  * so corner detail (e.g. a rounded panel chrome) stays crisp at any
- * size; `border === 0` (the default) builds a plain `PIXI.Sprite`. The
+ * size; `border === 0` (the default) builds a plain `Sprite`. The
  * fit math is identical for both — the helper assigns `width` /
  * `height` directly, which Pixi maps to scale on plain Sprites and to
  * 9-slice dimensions on NineSliceSprites.
  */
 export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
-  private readonly _sprite: PIXI.Sprite | PIXI.NineSliceSprite;
+  private readonly _sprite: Sprite | NineSliceSprite;
   private readonly _styleScaleX: number;
   private readonly _styleScaleY: number;
   private readonly _fit: "contain" | "cover" | "stretch";
@@ -118,7 +118,7 @@ export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
 
     // Image's contract differs from other StyledHudObject subclasses:
     // when no `textureId` is supplied (neither in opts nor on the
-    // style slot), the sprite is built with `PIXI.Texture.EMPTY` and
+    // style slot), the sprite is built with `Texture.EMPTY` and
     // hidden until the consumer calls `setTexture` / `setTextureId`.
     // We deliberately don't fall back to the asset manager's default
     // HUD texture here — that would render the magenta placeholder for
@@ -129,22 +129,22 @@ export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
     this._styleScaleX = slot?.scaleX ?? 1;
     this._styleScaleY = slot?.scaleY ?? 1;
 
-    const initialTexture = resolvedTextureId !== undefined ? this._getTexture(resolvedTextureId) : PIXI.Texture.EMPTY;
+    const initialTexture = resolvedTextureId !== undefined ? this._getTexture(resolvedTextureId) : Texture.EMPTY;
     const border = slot?.border ?? 0;
     this._sprite =
       border > 0
-        ? new PIXI.NineSliceSprite({
+        ? new NineSliceSprite({
             texture: initialTexture,
             leftWidth: border,
             topHeight: border,
             rightWidth: border,
             bottomHeight: border,
           })
-        : new PIXI.Sprite(initialTexture);
+        : new Sprite(initialTexture);
     this._sprite.anchor.set(0.5, 0.5);
     if (slot?.color !== undefined) this._sprite.tint = slot.color;
     if (slot?.alpha !== undefined) this._sprite.alpha = slot.alpha;
-    this._sprite.visible = initialTexture !== PIXI.Texture.EMPTY;
+    this._sprite.visible = initialTexture !== Texture.EMPTY;
     this.addChild(this._sprite);
 
     this.layout = {
@@ -159,9 +159,9 @@ export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
    * Replace the rendered texture at runtime. The fit / cover / stretch
    * math re-runs against the current layout box.
    */
-  public setTexture(texture: PIXI.Texture): void {
+  public setTexture(texture: Texture): void {
     this._sprite.texture = texture;
-    this._sprite.visible = texture !== PIXI.Texture.EMPTY;
+    this._sprite.visible = texture !== Texture.EMPTY;
     this._applyFit();
   }
 
@@ -180,7 +180,7 @@ export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
   }
 
   private _applyFit(): void {
-    if (this._sprite.texture === PIXI.Texture.EMPTY) return;
+    if (this._sprite.texture === Texture.EMPTY) return;
     if (this._boxWidth <= 0 || this._boxHeight <= 0) return;
 
     const w = this._boxWidth;
@@ -206,9 +206,9 @@ export class ImageComponent extends StyledHudObject<ImageComponentStyle> {
     // The style's per-axis scale composes on top of the fit scale —
     // useful for apps that want a bit of zoom or letterboxing tuning
     // without overriding the chosen fit semantics. Assign width/height
-    // directly so the same code path works for both `PIXI.Sprite`
+    // directly so the same code path works for both `Sprite`
     // (Pixi's setter maps width/height onto scale) and
-    // `PIXI.NineSliceSprite` (which sizes via width/height natively).
+    // `NineSliceSprite` (which sizes via width/height natively).
     this._sprite.width = tw * scaleX * this._styleScaleX;
     this._sprite.height = th * scaleY * this._styleScaleY;
     this._sprite.position.set(w / 2, h / 2);

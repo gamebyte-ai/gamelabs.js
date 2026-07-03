@@ -1,5 +1,7 @@
 # LevelProgressScreen Module
 
+> **Build target:** World-independent. PixiJS HUD only — works in both the default `@gamebyte/gamelabsjs` entry and the THREE-free `@gamebyte/gamelabsjs/core` entry.
+
 Level selection / progress screen that shows a vertical list of level numbers with the current level highlighted and clickable. Includes a back button to return to the previous screen.
 
 ## Purpose

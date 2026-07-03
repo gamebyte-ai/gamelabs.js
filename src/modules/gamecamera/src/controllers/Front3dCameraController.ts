@@ -1,4 +1,5 @@
-import * as THREE from "three";
+import type { Camera } from "three";
+import { Vector3 } from "three";
 import type { GameCameraManager } from "../utilities/GameCameraManager.js";
 import { GameCameraMode } from "../constants/GameCameraMode.js";
 import { FRONT_OFFSET } from "../constants/GameCameraDefaults.js";
@@ -13,12 +14,12 @@ export class Front3dCameraController extends FrontBaseCameraController {
     return false;
   }
 
-  public override applyPositionToCamera(camera: THREE.Camera, focus: THREE.Vector3, orthoSize: number): void {
+  public override applyPositionToCamera(camera: Camera, focus: Vector3, orthoSize: number): void {
     super.applyPositionToCamera(camera, focus, orthoSize);
   }
 
-  public override getFocusFromOrthoPosition(orthoPos: THREE.Vector3, _orthoSize: number): THREE.Vector3 {
-    return new THREE.Vector3(orthoPos.x, orthoPos.y, orthoPos.z - FRONT_OFFSET);
+  public override getFocusFromOrthoPosition(orthoPos: Vector3, _orthoSize: number): Vector3 {
+    return new Vector3(orthoPos.x, orthoPos.y, orthoPos.z - FRONT_OFFSET);
   }
 
   public override move(x: number, y: number, z: number): void {

@@ -54,10 +54,12 @@ export default defineConfig({
     // Without this, UI components render with magenta missing-texture
     // markers in dev.
     exclude: ["@gamebyte/gamelabsjs"],
-    // Two CJS transitive deps the exclude above would otherwise also
-    // skip — `import { Signal }` / `import { vector }` would throw
-    // against their CJS-only modules without this.
-    include: ["@pixi/ui > typed-signals", "@gamebyte/gamelabsjs > @js-basics/vector"],
+    // Force-pre-bundle Pixi + its named CJS transitive dep. Without
+    // this, dev fails with `does not provide an export named 'default'`
+    // on eventemitter3 / parse-svg-path when the framework is served
+    // from a symlink (npm workspace or `file:` link) — Vite's dep scan
+    // no longer sees pixi.js as a direct consumer dep.
+    include: ["typed-signals", "pixi.js", "@pixi/layout", "@pixi/ui"],
   },
   resolve: {
     // One copy of three.js / Pixi shared between app and framework.

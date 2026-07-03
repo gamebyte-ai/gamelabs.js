@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { Vector3 } from "three";
 import { Track } from "../../../timeline/src/models/Track.js";
 import type { GameCameraManager } from "./GameCameraManager.js";
 
@@ -28,7 +28,7 @@ export type CameraShakeTrackOptions = {
 export class CameraShakeTrack extends Track {
   private readonly _camera: GameCameraManager;
   private readonly _amplitude: number;
-  private readonly _offset = new THREE.Vector3();
+  private readonly _offset = new Vector3();
   private _offsetId = "";
 
   public constructor(camera: GameCameraManager, options: CameraShakeTrackOptions) {

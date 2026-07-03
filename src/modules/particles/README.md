@@ -1,5 +1,7 @@
 # Particles Module
 
+> **Build target:** Dual-renderer. `HudParticleEmitter` is World-independent (works in any entry). `WorldParticleEmitter` is **THREE-bound and requires a World** — only usable from the default `@gamebyte/gamelabsjs` entry.
+
 View-side particle plumbing. A `ParticleManager` owns a registered set of `IParticleEmitter` instances and ticks them each frame; a `ParticleBudget` arbitrates a global cap shared across world (THREE) and HUD (Pixi) emitters; renderer-specific base classes (`WorldParticleEmitter`, `HudParticleEmitter`) handle pool management, lifetime ticking, and behavior dispatch on top of their respective scene-graph nodes.
 
 ## Purpose

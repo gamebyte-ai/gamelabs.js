@@ -1,17 +1,13 @@
-import * as THREE from "three";
 import { Assets, Texture } from "pixi.js";
 import { AssetTypes, type AssetType } from "./AssetTypes.js";
 import { AssetRequest } from "./AssetRequest.js";
 import type { IAssetManager } from "./IAssetManager.js";
 import type { ILogger } from "../dev/ILogger.js";
 import { LogTypes } from "../dev/LogTypes.js";
-import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 export class AssetManager implements IAssetManager {
   private _logger: ILogger;
   private _defaultHudTexture: Texture | null = null;
-  private _defaultWorldTexture: THREE.Texture | null = null;
-  private _defaultGltf: GLTF | null = null;
   private readonly _assetsById = new Map<string, unknown>();
   private readonly _inflightById = new Map<string, Promise<unknown>>();
   private readonly _failedIds = new Set<string>();
@@ -21,6 +17,10 @@ export class AssetManager implements IAssetManager {
 
   public constructor(logger: ILogger) {
     this._logger = logger;
+  }
+
+  protected get logger(): ILogger {
+    return this._logger;
   }
 
   public get totalItems(): number {
@@ -146,32 +146,22 @@ export class AssetManager implements IAssetManager {
     return this._defaultHudTexture;
   }
 
-  private getDefaultWorldTexture(): THREE.Texture {
-    if (this._defaultWorldTexture) return this._defaultWorldTexture;
-    const data = new Uint8Array([128, 0, 128, 255]);
-    this._defaultWorldTexture = new THREE.DataTexture(data, 1, 1);
-    this._defaultWorldTexture.needsUpdate = true;
-    return this._defaultWorldTexture;
+  /**
+   * Override point for renderer-specific (3D) asset defaults. The base
+   * manager has no concept of `WorldTexture`/`GLTF`; a subclass that
+   * bundles three.js (see `WorldAssetManager`) overrides this.
+   */
+  protected getDefaultWorldAsset(type: AssetType): unknown {
+    throw new Error(`AssetManager: ${String(type)} requires a renderer-aware subclass (e.g. WorldAssetManager)`);
   }
 
-  private getDefaultGltf(): GLTF {
-    if (this._defaultGltf) return this._defaultGltf;
-    const scene = new THREE.Group();
-    scene.name = "GLTF_Fallback";
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x800080 });
-    const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
-    this._defaultGltf = {
-      scene,
-      scenes: [scene],
-      animations: [],
-      cameras: [],
-      asset: { version: "2.0", generator: "Gamelab-Fallback" },
-      parser: null as unknown as GLTF["parser"],
-      userData: {},
-    };
-    return this._defaultGltf;
+  /**
+   * Override point for renderer-specific (3D) asset loading. The base
+   * manager has no concept of `WorldTexture`/`GLTF`; a subclass that
+   * bundles three.js (see `WorldAssetManager`) overrides this.
+   */
+  protected loadWorldAsset(type: AssetType, _url: string): Promise<unknown> {
+    return Promise.reject(new Error(`AssetManager: ${String(type)} requires a renderer-aware subclass (e.g. WorldAssetManager)`));
   }
 
   private getDefaultForType(type: AssetType): unknown {
@@ -179,9 +169,8 @@ export class AssetManager implements IAssetManager {
       case AssetTypes.HudTexture:
         return this.getDefaultHudTexture();
       case AssetTypes.WorldTexture:
-        return this.getDefaultWorldTexture();
       case AssetTypes.GLTF:
-        return this.getDefaultGltf();
+        return this.getDefaultWorldAsset(type);
       case AssetTypes.Text:
         return "";
       case AssetTypes.Audio:
@@ -199,9 +188,8 @@ export class AssetManager implements IAssetManager {
       case AssetTypes.HudTexture:
         return Assets.load(url);
       case AssetTypes.WorldTexture:
-        return this.loadWorldTexture(url);
       case AssetTypes.GLTF:
-        return this.loadGltf(url);
+        return this.loadWorldAsset(type, url);
       case AssetTypes.Text:
         return this.loadText(url);
       case AssetTypes.Audio:
@@ -213,17 +201,6 @@ export class AssetManager implements IAssetManager {
         throw new Error(msg);
       }
     }
-  }
-
-  private async loadWorldTexture(url: string): Promise<THREE.Texture> {
-    const loader = new THREE.TextureLoader();
-    return loader.loadAsync(url);
-  }
-
-  private async loadGltf(url: string): Promise<unknown> {
-    const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
-    const loader = new GLTFLoader();
-    return loader.loadAsync(url);
   }
 
   private async loadText(url: string): Promise<string> {

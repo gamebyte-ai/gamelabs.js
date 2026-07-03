@@ -1,9 +1,9 @@
-import * as THREE from "three";
+import { Vector3 } from "three";
 import type { ICameraConstraint } from "./ICameraConstraint.js";
 
 export type BoundsConstraintOptions = {
-  min: THREE.Vector3;
-  max: THREE.Vector3;
+  min: Vector3;
+  max: Vector3;
 };
 
 /**
@@ -25,31 +25,31 @@ export type BoundsConstraintOptions = {
  * with the same instance).
  */
 export class BoundsConstraint implements ICameraConstraint {
-  private readonly _min = new THREE.Vector3();
-  private readonly _max = new THREE.Vector3();
+  private readonly _min = new Vector3();
+  private readonly _max = new Vector3();
 
   public constructor(options: BoundsConstraintOptions) {
     this._min.copy(options.min);
     this._max.copy(options.max);
   }
 
-  public get min(): THREE.Vector3 {
+  public get min(): Vector3 {
     return this._min;
   }
 
-  public get max(): THREE.Vector3 {
+  public get max(): Vector3 {
     return this._max;
   }
 
-  public setMin(min: THREE.Vector3): void {
+  public setMin(min: Vector3): void {
     this._min.copy(min);
   }
 
-  public setMax(max: THREE.Vector3): void {
+  public setMax(max: Vector3): void {
     this._max.copy(max);
   }
 
-  public applyToCamera(position: THREE.Vector3): void {
+  public applyToCamera(position: Vector3): void {
     if (position.x < this._min.x) position.x = this._min.x;
     else if (position.x > this._max.x) position.x = this._max.x;
     if (position.y < this._min.y) position.y = this._min.y;

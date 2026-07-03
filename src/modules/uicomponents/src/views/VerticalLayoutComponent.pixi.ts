@@ -1,5 +1,5 @@
 import type { LayoutOptions } from "@pixi/layout";
-import * as PIXI from "pixi.js";
+import { Container } from "pixi.js";
 
 export type VerticalLayoutComponentPreset = {
   /** X position. */
@@ -30,10 +30,10 @@ export function parseVerticalLayoutComponentPreset(json: string): VerticalLayout
 /**
  * Reusable vertical layout container.
  *
- * Thin wrapper over a `PIXI.Container` with `flexDirection: "column"` and
+ * Thin wrapper over a `Container` with `flexDirection: "column"` and
  * common flex options (gap, padding, alignItems, justifyContent) preconfigured.
  */
-export class VerticalLayoutComponent extends PIXI.Container {
+export class VerticalLayoutComponent extends Container {
   public constructor(opts: VerticalLayoutComponentPreset = {}) {
     super();
 

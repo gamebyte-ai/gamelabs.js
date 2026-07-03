@@ -1,6 +1,6 @@
 {
   "name": "@gamebyte/gamelabsjs",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "description": "Gamelabsjs: a game framework powered by Three.js (3D) and PixiJS (2D).",
   "license": "MIT",
   "author": "Oguz Sandikci",
@@ -14,6 +14,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "require": "./dist/core.cjs"
     },
     "./physics2d": {
       "types": "./dist/physics2d.d.ts",

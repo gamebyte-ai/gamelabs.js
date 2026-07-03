@@ -1,4 +1,4 @@
-import * as PIXI from "pixi.js";
+import { Container } from "pixi.js";
 import { PopupView } from "../../../../core/ui/PopupView.pixi.js";
 import { ButtonComponent } from "../../../uicomponents/src/views/ButtonComponent.pixi.js";
 import { HorizontalLayoutComponent } from "../../../uicomponents/src/views/HorizontalLayoutComponent.pixi.js";
@@ -40,9 +40,9 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
   private static readonly TOGGLE_WIDTH = 44;
   private static readonly TOGGLE_HEIGHT = 24;
 
-  private _panel: PIXI.Container | null = null;
+  private _panel: Container | null = null;
   private _panelBg: ImageComponent | null = null;
-  private _rowsContainer: PIXI.Container | null = null;
+  private _rowsContainer: Container | null = null;
   private _closeBtn: ButtonComponent | null = null;
 
   private readonly _booleanRows: BooleanRow[] = [];
@@ -59,7 +59,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
   public override postInitialize(): void {
     super.postInitialize();
 
-    const panel = new PIXI.Container();
+    const panel = new Container();
     panel.layout = {
       width: SettingsPopupView.PANEL_WIDTH,
       flexDirection: "column",
@@ -88,7 +88,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     panel.addChild(title);
 
     // Rows container
-    this._rowsContainer = new PIXI.Container();
+    this._rowsContainer = new Container();
     this._rowsContainer.layout = {
       width: "100%",
       flexDirection: "column",
@@ -116,7 +116,7 @@ export class SettingsPopupView extends PopupView implements ISettingsPopupView {
     });
 
     // Wrapper to center panel
-    const wrapper = new PIXI.Container();
+    const wrapper = new Container();
     wrapper.layout = { width: "100%", height: "100%", justifyContent: "center", alignItems: "center" };
     wrapper.addChild(panel);
     this.addChild(wrapper);
