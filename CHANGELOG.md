@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-07-03
+
+**Breaking release.** The framework's renderer split is now explicit — `IWorld` (3D scene tree) and `IHud` (2D overlay) are interfaces on `GamelabsApp`, and the default 3D wiring is only pulled in when consumers import from `@gamebyte/gamelabsjs`. A new `@gamebyte/gamelabsjs/core` sub-entry ships the base framework without any THREE-bound code, letting 2D-only games skip WebGL entirely.
+
+### Added
+
+- **`/core` sub-entry — THREE-free build.** `import { GamelabsApp } from "@gamebyte/gamelabsjs/core"` gives a 2D-only game the framework without three.js, GLTFLoader, Raycaster, or any World implementation. Measured on a real 2D game (applovin playable build): 3.23 MB → **2.48 MB** (23% smaller), with zero `WebGLRenderer` / `GLTFLoader` / `BufferGeometry` symbols in the output. Consumers who still want a World supply their own `createWorld` factory via config; the base `GamelabsApp` has no default 3D factory. Design rationale in `docs/plans/2026-06-24-hud-world-full-isolation.md`.
+- **`IWorld` / `IHud` interfaces on `GamelabsApp`.** The app now types `world` as `IWorld | null` and `hud` as `IHud | null`. Concrete `World` (Three-side) and `Hud` (Pixi-side) implementations are separately importable but no longer the app's contract, so tests can supply mocks and alt-renderer shims.
+- **Renderer-aware factories in `GamelabsAppConfig`.** New optional `createWorld`, `createHud`, `createAssetManager`, `createDevUtils` fields on the app config, each an async factory receiving the app's context (canvas, mount, logger). Omitting a factory keeps the default 3D wiring on the main entry (or the null-world / null-hud on `/core`). Enables per-game renderer swaps without subclassing.
+- **`Physics3DManager.sleep(id)` / `.wakeUp(id)`.** Direct pass-through to `cannon-es` `Body.sleep()` / `.wakeUp()` on the manager surface. Lets a game simulate only a region of the world for a bounded wake window — asleep bodies are skipped by the solver, don't accumulate jitter, and their transforms freeze in place. Combined with `allowSleep` (already `true` by default), a resting pile costs effectively zero per frame until game code explicitly wakes it.
+- **`Physics3DManager.setDefaultFriction(f)` + `.defaultFriction` getter.** Runtime mutation of the shared world contact-material friction — governs contacts between bodies that use the default material (created without a per-body `friction`/`restitution`). Bodies with custom materials are unaffected. Useful for briefly making a pile "slippery" (e.g. to fluidise it during a booster) and restoring after.
+
+### Changed / Breaking
+
+- **`world.addView` / `world.removeView` → `world.addRootView` / `world.removeRootView`.** The method now spells out its semantics: it mounts a top-level scene node, not a generic container add. Mechanical rename — one `sed` pass across your `src/` handles it. Every existing example did this call; each `*App.ts` needs updating.
+- **`InputManager` constructor lost the `world` parameter.** Was `new InputManager(canvas, hud, world, mount)`, now `new InputManager(canvas, hud, mount)`. The World now owns its own pointer subsystem via `world.attachInput(inputManager)`. Only affects consumers that construct `InputManager` manually (rare — the framework does this by default).
+- **`DevUtils` constructor lost the `world` parameter; the 3D variant is now `DevUtils3D`.** The base `DevUtils` is renderer-free (`groundGrid` getter throws). `DevUtils3D` (constructed as `new DevUtils3D(world, hud, logger)`) is the class the default 3D entry auto-wires and the one that exposes the ground-grid dev panel.
+- **`WorldInteractiveObject.setInputManager` / `.inputManager` → `.setWorldPointerInput` / `.worldPointerInput`.** The raycast/pointer subsystem moved from the base `InputManager` into a World-side `WorldPointerInput`. Interface surfaces are identical (`addPointerHandler`, `removePointerHandler`), so this is a pure type-level rename.
+- **`gamegrid` base class parameter types: `IInputManager` → `IWorldPointerInput`.** Only relevant if your game overrides `GameBoardCellObject` / `GameBoardItemObject` / `GameBoardObjectCreator`. Surface-identical rename.
+- **`IWorld` / `IHud` interfaces expanded to mirror the concrete public surface** (`resize` / `render` / `destroy` / `hitTest` / `canvas` / `resolution` / `attachInput` / `worldPointerInput`). Custom `IWorld` / `IHud` implementations must add the new members — the concrete `World` and `Hud` already do.
+
+### Migration
+
+Full step-by-step guide with per-step `sed` commands: [`docs/migrations/2026-06-24-world-abstraction.md`](docs/migrations/2026-06-24-world-abstraction.md). A 2D-only game with no `world.` references only touches its `package.json` (bump `@gamebyte/gamelabsjs` to `^4.0.0`, optionally switch imports to `@gamebyte/gamelabsjs/core` for the THREE-free bundle).
+
+### Required consumer action — Vite `optimizeDeps.include` grew
+
+The 3.1.0 minimal Vite config force-pre-bundled two named CJS transitive deps (`@pixi/ui > typed-signals`, `@gamebyte/gamelabsjs > @js-basics/vector`). When gamelabs.js ships from a symlink (`file:` protocol or an npm workspace, common in monorepo dev), Vite's dep scan no longer sees `pixi.js` as a direct dep of the consumer, so its transitive CJS packages (`eventemitter3`, `parse-svg-path`, etc.) are served un-pre-bundled and fail with `does not provide an export named 'default'` in dev. Include `pixi.js`, `@pixi/layout`, `@pixi/ui` explicitly:
+
+```ts
+optimizeDeps: {
+  exclude: ["@gamebyte/gamelabsjs"],
+  include: ["typed-signals", "pixi.js", "@pixi/layout", "@pixi/ui"],
+},
+```
+
+`templates/example_template/vite.config.ts` and every example under `gamelabs.examples/*` ship the updated shape.
+
 ## [3.2.0] - 2026-06-09
 
 ### Added
