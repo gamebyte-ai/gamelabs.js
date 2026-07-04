@@ -1,4 +1,5 @@
 import { InjectionToken } from "../di/InjectionToken.js";
+import type { SafeAreaInsets } from "../utilities/safeAreaInsets.js";
 
 /**
  * Read-only view of app-wide state.
@@ -14,6 +15,11 @@ export interface IApp {
   readonly height: number;
   /** Current device pixel ratio. */
   readonly dpr: number;
+  /**
+   * Current safe-area insets, canvas-relative in logical px. Frozen snapshot,
+   * replaced on every resize pass — read live rather than caching the reference.
+   */
+  readonly safeAreaInsets: SafeAreaInsets;
 }
 
 export const IApp = new InjectionToken<IApp>("IApp");

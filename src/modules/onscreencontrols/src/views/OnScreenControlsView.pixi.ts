@@ -74,6 +74,15 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
     this._repositionAll();
   }
 
+  /**
+   * Rides the `HudViewBase` resize subscription so controls reposition — and
+   * re-read the safe-area insets — even when the host screen never forwards
+   * `resize()`. Hosts that do forward it just trigger an idempotent second pass.
+   */
+  public override onResize(width: number, height: number, _dpr: number): void {
+    this.resize(width, height);
+  }
+
   /** Builds the Pixi tree for a control. Called by the controller; apps don't call this directly. */
   public createControl(config: ControlConfig): void {
     if (config.type === ControlType.Button) this._createButton(config as VirtualButtonConfig);
@@ -135,6 +144,9 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
     };
     button.on("pointerup", releaseHandler);
     button.on("pointerupoutside", releaseHandler);
+    // iOS defers touches that start in system-gesture zones and reports them
+    // as cancels — without this a button stays latched down.
+    button.on("pointercancel", releaseHandler);
 
     this.addChild(button);
     this._repositionAll();
@@ -271,28 +283,39 @@ export class OnScreenControlsView extends HudViewBase implements IOnScreenContro
     const w = this._screenWidth;
     const h = this._screenHeight;
     if (w <= 0 || h <= 0) return;
+    const insets = this.safeAreaInsets;
 
     for (const b of this._buttons) {
-      const pos = resolveAnchorPosition(b.config.anchor, b.config.offsetX, b.config.offsetY, w, h);
+      const pos = resolveAnchorPosition(b.config.anchor, b.config.offsetX, b.config.offsetY, w, h, insets);
       b.button.position.set(pos.x - b.config.size / 2, pos.y - b.config.size / 2);
     }
 
     for (const j of this._joysticks) {
-      const pos = resolveAnchorPosition(j.config.anchor, j.config.offsetX, j.config.offsetY, w, h);
+      const pos = resolveAnchorPosition(j.config.anchor, j.config.offsetX, j.config.offsetY, w, h, insets);
       const baseR = j.config.baseSize;
 
       if (j.config.dynamic) {
         const areaW = j.config.dynamicAreaWidth ?? w / 2;
         const areaH = j.config.dynamicAreaHeight ?? h / 2;
         j.joystick.setDynamicArea(areaW, areaH);
-        j.joystick.position.set(pos.x - areaW / 2, pos.y - areaH / 2);
+        // Push the touch area off unsafe edges: a press starting under the
+        // home indicator is deferred by iOS and arrives as a pointercancel.
+        // Gated per edge on a non-zero inset so zero-inset devices keep the
+        // legacy (unclamped) position bit-for-bit.
+        let x = pos.x - areaW / 2;
+        let y = pos.y - areaH / 2;
+        if (insets.left > 0) x = Math.max(x, insets.left);
+        if (insets.right > 0) x = Math.min(x, w - insets.right - areaW);
+        if (insets.top > 0) y = Math.max(y, insets.top);
+        if (insets.bottom > 0) y = Math.min(y, h - insets.bottom - areaH);
+        j.joystick.position.set(x, y);
       } else {
         j.joystick.position.set(pos.x - baseR, pos.y - baseR);
       }
     }
 
     for (const l of this._labels) {
-      const pos = resolveAnchorPosition(l.config.anchor, l.config.offsetX, l.config.offsetY, w, h);
+      const pos = resolveAnchorPosition(l.config.anchor, l.config.offsetX, l.config.offsetY, w, h, insets);
       // Labels' inner anchorX/anchorY (set on text + bg) handle pivot;
       // the container just sits at the resolved screen anchor.
       l.label.position.set(pos.x, pos.y);

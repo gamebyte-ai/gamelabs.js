@@ -1,5 +1,6 @@
 import type { CreateHudContext, CreateWorldContext, GamelabsAppConfig } from "./types.js";
 import { computeViewportRect, type ViewportConfig, type ViewportRect } from "./utilities/computeViewportRect.js";
+import { readSafeAreaInsets, resolveCanvasSafeArea, ZERO_SAFE_AREA_INSETS, type SafeAreaInsets } from "./utilities/safeAreaInsets.js";
 import type { IWorld } from "./world/IWorld.js";
 import { DevUtils } from "./dev/DevUtils.js";
 import { Logger } from "./dev/Logger.js";
@@ -64,6 +65,12 @@ export class GamelabsApp implements IApp {
    */
   private readonly _viewport: ViewportConfig | undefined;
 
+  private readonly _safeAreaEnabled: boolean;
+  /** Canvas-relative, logical px — what `IApp.safeAreaInsets` exposes. */
+  private _safeAreaInsets: SafeAreaInsets = ZERO_SAFE_AREA_INSETS;
+  /** Mount-relative, CSS px — kept to detect inset changes that arrive without a mount resize. */
+  private _rawSafeAreaInsets: SafeAreaInsets = ZERO_SAFE_AREA_INSETS;
+
   /**
    * Last known logical dimensions (not DPR-scaled).
    */
@@ -102,6 +109,17 @@ export class GamelabsApp implements IApp {
     this.canvas.width = width;
     this.canvas.height = height;
 
+    // Resolve safe-area insets before the world/hud resize + emitResize below,
+    // so anything reading IApp mid-cascade sees this pass's values. The canvas
+    // CSS rect is derived, not measured: measuring would reflect the previous
+    // pass's layout (the inline styles for `contain` are written further down).
+    if (this._safeAreaEnabled) {
+      const host = this.mount ?? this.canvas.parentElement;
+      this._rawSafeAreaInsets = host ? readSafeAreaInsets(host) : ZERO_SAFE_AREA_INSETS;
+      const canvasCssRect = this._viewport?.fit === "contain" ? playRect : { x: 0, y: 0, width: measuredWidth, height: measuredHeight };
+      this._safeAreaInsets = resolveCanvasSafeArea(this._rawSafeAreaInsets, measuredWidth, measuredHeight, canvasCssRect, width, height);
+    }
+
     this.world?.resize(width, height, dpr);
     this.hud?.resize(width, height);
 
@@ -113,6 +131,23 @@ export class GamelabsApp implements IApp {
     this.onResize(width, height, dpr);
     this._devUtils?.resize(width, height, dpr);
     this._appEvents.emitResize(width, height, dpr);
+  };
+
+  /**
+   * Orientation flips at identical dimensions (landscape-primary ↔ secondary)
+   * and URL-bar / keyboard shifts change the safe-area insets without resizing
+   * the mount, so ResizeObserver stays silent. Re-run the resize pass only when
+   * the raw insets actually moved — these events are chatty and a redundant
+   * pass clears the canvases for a frame.
+   */
+  private readonly _onViewportEnvChange = (): void => {
+    if (!this._safeAreaEnabled) return;
+    const host = this.mount ?? this.canvas.parentElement;
+    if (!host) return;
+    const raw = readSafeAreaInsets(host);
+    const cur = this._rawSafeAreaInsets;
+    if (raw.top === cur.top && raw.right === cur.right && raw.bottom === cur.bottom && raw.left === cur.left) return;
+    this._onWindowResize();
   };
 
   /**
@@ -225,6 +260,7 @@ export class GamelabsApp implements IApp {
     this._width = config.width;
     this._height = config.height;
     this._viewport = config.viewport;
+    this._safeAreaEnabled = config.safeArea !== false;
     this._createWorld = config.createWorld;
     this._createHud = config.createHud;
     this._createAssetManager = config.createAssetManager;
@@ -248,6 +284,11 @@ export class GamelabsApp implements IApp {
       this._resizeObserver.observe(this.mount);
     } else if (typeof window !== "undefined") {
       window.addEventListener("resize", this._onWindowResize, { passive: true });
+    }
+
+    if (this._safeAreaEnabled && typeof window !== "undefined") {
+      window.visualViewport?.addEventListener("resize", this._onViewportEnvChange);
+      if (typeof screen !== "undefined") screen.orientation?.addEventListener("change", this._onViewportEnvChange);
     }
 
     // Base DI bindings (always available).
@@ -451,6 +492,14 @@ export class GamelabsApp implements IApp {
   }
 
   /**
+   * Current safe-area insets, canvas-relative in logical px. Frozen; replaced
+   * wholesale on each resize pass — read live rather than caching the reference.
+   */
+  get safeAreaInsets(): SafeAreaInsets {
+    return this._safeAreaInsets;
+  }
+
+  /**
    * Cleanup hook.
    * Removes any base listeners/timers.
    *
@@ -469,6 +518,10 @@ export class GamelabsApp implements IApp {
       this._resizeObserver = null;
     } else if (typeof window !== "undefined") {
       window.removeEventListener("resize", this._onWindowResize);
+    }
+    if (typeof window !== "undefined") {
+      window.visualViewport?.removeEventListener("resize", this._onViewportEnvChange);
+      if (typeof screen !== "undefined") screen.orientation?.removeEventListener("change", this._onViewportEnvChange);
     }
     this.preDestroy();
     this.updateManager.clear();
