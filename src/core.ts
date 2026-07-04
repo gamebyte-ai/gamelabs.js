@@ -28,6 +28,7 @@ export type { IWorldPointerInput } from "./core/world/IWorldPointerInput.js";
 export * from "./core/utilities/UpdateManager.js";
 export * from "./core/utilities/FixedStepAccumulator.js";
 export * from "./core/utilities/computeViewportRect.js";
+export * from "./core/utilities/safeAreaInsets.js";
 export * from "./core/styles/StyleManager.js";
 export * from "./core/styles/StyledHudObject.js";
 export * from "./core/styles/SpriteStyle.js";

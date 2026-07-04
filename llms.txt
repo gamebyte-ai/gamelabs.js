@@ -26,6 +26,10 @@ TypeScript skeleton + reusable modules for web games. Three.js (3D world) + Pixi
 
 Portrait or fixed-aspect games: set `viewport` in the app config so the play area never stretches to fill the window. `new MyApp({ mount, viewport: { fit: "contain", minAspect: 9 / 19.5, maxAspect: 9 / 16, background: "#0f172a" } })` letterboxes/pillarboxes both canvases to the clamped aspect; the bars are inert (pointer input ignored) and cameras/HUD/DPR all follow the play-rect — no per-view code. A single `aspectRatio` locks one exact aspect. Omit `viewport` (or use `fit: "fill"`) to fill the mount (default, unchanged).
 
+## Safe area (notch / home indicator)
+
+The app reads safe-area insets on every resize pass — `--safe-area-inset-top/right/bottom/left` CSS variables (published by the host), falling back to `env(safe-area-inset-*)`, else 0 — and exposes them as `IApp.safeAreaInsets` (`{top,right,bottom,left}`, logical px, canvas-relative: letterbox bars and fixed-size scaling already accounted for). Edge-anchored onscreencontrols shift inward automatically; the 3D world stays full-bleed. Game HUDs that hug edges read `this.safeAreaInsets` (protected on `HudViewBase`/`ScreenView`) inside `onResize`. Opt out app-wide with `safeArea: false` in the app config. Insets are frozen snapshots replaced on resize — read live, don't cache.
+
 ## File naming
 
 - `IFoo.ts` (interfaces), `FooView.pixi.ts` (HUD), `FooView.three.ts` (world), `FooViewController.ts` (every controller is a view controller — the suffix stays explicit), `FooEvents.ts`

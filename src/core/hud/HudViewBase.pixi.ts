@@ -10,6 +10,7 @@ import { IApp } from "../app/IApp.js";
 import { AppEvents } from "../app/AppEvents.js";
 import { StyleManager } from "../styles/StyleManager.js";
 import { UnsubscribeBag } from "../events/subscriptions.js";
+import { ZERO_SAFE_AREA_INSETS, type SafeAreaInsets } from "../utilities/safeAreaInsets.js";
 
 /**
  * Base class for HUD (2D) views.
@@ -63,6 +64,15 @@ export class HudViewBase extends Container implements IView {
       throw new Error("HudViewBase is not initialized");
     }
     return this._styleManager;
+  }
+
+  /**
+   * Current safe-area insets (logical px). Zero before injection and on
+   * devices without unsafe regions. Read in `onResize` when laying out
+   * edge-hugging HUD; the 3D world layer intentionally stays full-bleed.
+   */
+  protected get safeAreaInsets(): SafeAreaInsets {
+    return this._app?.safeAreaInsets ?? ZERO_SAFE_AREA_INSETS;
   }
 
   //  METHODS

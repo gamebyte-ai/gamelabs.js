@@ -26,10 +26,8 @@ this.addModule(binding);</code></pre>
 <h4>Create the view</h4>
 <pre><code>// In your screen view's postInitialize():
 this._controls = this.viewFactory.createView(OnScreenControlsView);
-this.addChild(this._controls);
-
-// In onResize:
-this._controls.resize(width, height);</code></pre>
+this.addChild(this._controls);</code></pre>
+<p>The view repositions itself on app resize (it subscribes via <code>HudViewBase</code>); calling <code>this._controls.resize(width, height)</code> from your screen's <code>onResize</code> is still supported but no longer required.</p>
 
 <h4>Map to InputMapper</h4>
 <pre><code>mapper.addDeviceListener(binding.manager); // deviceId = "onscreen"
@@ -55,6 +53,7 @@ mapper.mapKeyToAction("onscreen", "fire", "shoot");</code></pre>
 
 <h4>Positioning</h4>
 <p><code>ControlAnchor</code> enum positions controls relative to screen edges: <code>TopLeft</code>, <code>TopCenter</code>, <code>TopRight</code>, <code>CenterLeft</code>, <code>Center</code>, <code>CenterRight</code>, <code>BottomLeft</code>, <code>BottomCenter</code>, <code>BottomRight</code>. <code>offsetX</code>/<code>offsetY</code> move inward from the anchor.</p>
+<p>Edge anchors respect the device safe area automatically: offsets are measured from <code>IApp.safeAreaInsets</code> (notch / home indicator) rather than the raw canvas edge, so controls stay tappable on notched phones. Center axes are unaffected. Disable app-wide with <code>safeArea: false</code> in the app config.</p>
 
 <h4>Runtime changes</h4>
 <p>Controls can be added or removed at any time via <code>binding.addControl()</code> / <code>binding.removeControl(id)</code>. The view updates automatically through <code>OnScreenControlEvents</code> (<code>controlAdded</code>, <code>controlRemoved</code>).</p>

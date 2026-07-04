@@ -45,6 +45,15 @@ export type GamelabsAppConfig = WithCanvas & {
   viewport?: ViewportConfig;
 
   /**
+   * Safe-area awareness. Default `true`: insets are read from
+   * `--safe-area-inset-*` (fallback `env(safe-area-inset-*)`) on every resize
+   * pass and exposed as `IApp.safeAreaInsets`; edge-anchored on-screen
+   * controls shift inward automatically. Set `false` to pin everything to
+   * raw canvas edges.
+   */
+  safeArea?: boolean;
+
+  /**
    * Optional factory that constructs the 3D World. If omitted, no World is
    * created and `app.world` stays `null` — the renderer-free path. The default
    * 3D entry (`@gamebyte/gamelabsjs`) injects `World.create` here so existing
