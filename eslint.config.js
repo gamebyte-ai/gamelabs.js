@@ -20,4 +20,20 @@ export default tseslint.config(
       "no-console": "warn",
     },
   },
+  {
+    files: ["src/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/FbPlayableAd|mraid|Mintegral|AdMob|ExitApi|PokiSDK|ysdk|CrazyGames/i]",
+          message: "gamelabs.js/src/ must not reference network SDK names — the coupling invariant requires network-agnostic core. Adapter code lives in playable_builder shims or portal integration snippets.",
+        },
+        {
+          selector: "TemplateElement[value.raw=/FbPlayableAd|mraid|Mintegral|AdMob|ExitApi|PokiSDK|ysdk|CrazyGames/i]",
+          message: "gamelabs.js/src/ must not reference network SDK names in template literals either.",
+        },
+      ],
+    },
+  },
 );

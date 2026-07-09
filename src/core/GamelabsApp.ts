@@ -24,6 +24,10 @@ import { AudioService } from "./services/AudioService.js";
 import { IApp } from "./app/IApp.js";
 import { AppEvents } from "./app/AppEvents.js";
 import { StyleManager } from "./styles/StyleManager.js";
+import { HostEvents } from "./app/HostEvents.js";
+import type { HostEvent, HostListener } from "./app/HostEvent.js";
+import type { Unsubscribe } from "./events/subscriptions.js";
+import { computeIsDev } from "./app/isDev.js";
 
 export class GamelabsApp implements IApp {
   //  MEMBERS
@@ -71,6 +75,8 @@ export class GamelabsApp implements IApp {
   private _height: number | undefined;
   private _dpr: number = typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1;
   private readonly _appEvents = new AppEvents();
+  private readonly _hostEvents = new HostEvents();
+  private _globalBridgeSyncedCount = 0;
   private _rafId: number | null = null;
   private _lastFrameTimeMs: number | null = null;
   private _resizeObserver: ResizeObserver | null = null;
@@ -261,6 +267,10 @@ export class GamelabsApp implements IApp {
     this.viewDiContainer.bindInstance(ILogger, this._logger, [Logger]);
 
     this.viewDiContainer.bindInstance(StyleManager, new StyleManager());
+
+    this._syncGlobalBridge();
+    this.diContainer.bindInstance(HostEvents, this._hostEvents);
+    this.viewDiContainer.bindInstance(HostEvents, this._hostEvents);
   }
 
   //  METHODS
@@ -334,6 +344,7 @@ export class GamelabsApp implements IApp {
 
       this._inputManager.startListening();
       this._keyboardListener!.startListening();
+      this._attachInteractionAutoHook();
 
       this._isInitialized = true;
     } catch (err) {
@@ -357,6 +368,53 @@ export class GamelabsApp implements IApp {
       mount: this.mount,
       logger: this._logger,
     });
+  }
+
+  /**
+   * Picks up any listeners pushed to `window.__gamelabsHostListeners` that have
+   * not yet been registered. The cursor approach is idempotent — repeated calls
+   * never double-register the same slot.
+   */
+  private _syncGlobalBridge(): void {
+    if (typeof window === "undefined") return;
+    const arr = window.__gamelabsHostListeners;
+    if (!arr) return;
+    while (this._globalBridgeSyncedCount < arr.length) {
+      const listener = arr[this._globalBridgeSyncedCount];
+      if (listener) this._hostEvents.register(listener);
+      this._globalBridgeSyncedCount++;
+    }
+  }
+
+  public informHost(event: HostEvent): void {
+    this._syncGlobalBridge();
+    // Called per-emit rather than cached in a static field so tests can mock
+    // computeIsDev via vi.mock without needing vi.resetModules dances.
+    const isDev = computeIsDev();
+    if (isDev && this._hostEvents.size() === 0) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[gamelabs] informHost({ type: "${event.type}" }) fired but no host listener is registered. ` +
+          `Playable build? Register from your builder shim. Standalone web? Safe to ignore.`,
+      );
+    }
+    this._hostEvents.emit(event, isDev);
+  }
+
+  public registerHostListener(listener: HostListener): Unsubscribe {
+    return this._hostEvents.register(listener);
+  }
+
+  private _attachInteractionAutoHook(): void {
+    if (typeof window === "undefined") return;
+    const target = this.mount ?? this.canvas;
+    const fire = (): void => {
+      target.removeEventListener("pointerdown", fire, true);
+      target.removeEventListener("touchstart", fire, true);
+      this.informHost({ type: "interaction" });
+    };
+    target.addEventListener("pointerdown", fire, { capture: true, once: true });
+    target.addEventListener("touchstart", fire, { capture: true, once: true });
   }
 
   protected addModule(moduleBinding: ModuleBinding): void {

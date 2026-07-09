@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-07-08
+
+**Minor release.** New public API `GamelabsApp.informHost` — a one-way discriminated-union event emitter that lets game code signal lifecycle + CTA events (`ready`, `end`, `openStore`, `interaction`, `roundStart`, `roundEnd`) without knowing where it's deployed. Playable ad network shims and portal SDKs consume events by pushing listeners to `window.__gamelabsHostListeners`; the framework itself contains zero network-specific code, keeping the coupling invariant that gamelabs.js knows nothing about Meta, Mintegral, AppLovin, Unity, AdMob, Poki, or anything else. Design rationale in `docs/plans/2026-07-08-gamelabs-informhost-design.md`.
+
+### Added
+
+- **`GamelabsApp.informHost(event: HostEvent)`.** Fires a canonical event to whoever is listening. `HostEvent` is a discriminated union with six variants: `ready` (impression signal), `end` (with optional `outcome` / `score` / `durationMs` / `level`), `openStore` (with required `url` for QA fallback), `interaction` (first meaningful pointer — auto-hooked, see below), and `roundStart` / `roundEnd` for portal SDKs (Poki / Yandex / CrazyGames) that track per-round lifecycle. Adding a new variant is a minor bump; the union is the wire protocol.
+- **`GamelabsApp.registerHostListener(listener)`.** Adapter-side API for consumers who want to intercept events from within a bundled module (rare — most adapters use the global bridge). Returns an `Unsubscribe`.
+- **`window.__gamelabsHostListeners` global bridge.** Array-based multi-listener registry. Playable HTML shims, portal SDK snippets, and QA harnesses each `push(listener)` — all coexist, all receive events. The framework picks up new pushes on every `informHost` call (dirty-scan cursor), so late-registered listeners aren't lost. `HostEvent.ts` augments `Window` via `declare global`, so type-safe access requires no `as any` casts.
+- **`interaction` auto-hook.** First `pointerdown` or `touchstart` on the app's mount/canvas after `initialize()` fires `informHost({ type: "interaction" })` exactly once, then removes itself. Zero per-game work; playable ad engagement quality scores get the signal automatically.
+- **Dev-mode warning when no listener is registered.** Cross-bundler safe — `computeIsDev()` tries `import.meta.env.DEV` (Vite/Vitest) then falls back to `process.env.NODE_ENV` (Webpack/Node), never throws in any consumer. In prod, `informHost` is silent whether listeners exist or not.
+
 ## [4.0.0] - 2026-07-03
 
 **Breaking release.** The framework's renderer split is now explicit — `IWorld` (3D scene tree) and `IHud` (2D overlay) are interfaces on `GamelabsApp`, and the default 3D wiring is only pulled in when consumers import from `@gamebyte/gamelabsjs`. A new `@gamebyte/gamelabsjs/core` sub-entry ships the base framework without any THREE-bound code, letting 2D-only games skip WebGL entirely.
