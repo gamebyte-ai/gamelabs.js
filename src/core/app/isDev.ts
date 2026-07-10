@@ -1,3 +1,8 @@
+// Access `process` through `globalThis` so this module compiles without
+// `@types/node` (the framework targets both browser and Node runtimes but
+// depending on Node types would drag them into every consumer's DX).
+type MaybeProcess = { env?: { NODE_ENV?: string } } | undefined;
+
 export function computeIsDev(): boolean {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -8,9 +13,8 @@ export function computeIsDev(): boolean {
     // import.meta not available in this bundler
   }
   try {
-    if (typeof process !== "undefined" && process.env?.NODE_ENV !== "production") {
-      return true;
-    }
+    const proc = (globalThis as { process?: MaybeProcess }).process;
+    if (proc && proc.env?.NODE_ENV !== "production") return true;
   } catch {
     // process not available
   }
