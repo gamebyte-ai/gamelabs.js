@@ -1,5 +1,6 @@
 import { InjectionToken } from "../di/InjectionToken.js";
 import type { HostEvent } from "./HostEvent.js";
+import type { SafeAreaInsets } from "../utilities/safeAreaInsets.js";
 
 /**
  * Read-only view of app-wide state, plus the outbound `informHost` signal.
@@ -19,6 +20,11 @@ export interface IApp {
   readonly height: number;
   /** Current device pixel ratio. */
   readonly dpr: number;
+  /**
+   * Current safe-area insets, canvas-relative in logical px. Frozen snapshot,
+   * replaced on every resize pass — read live rather than caching the reference.
+   */
+  readonly safeAreaInsets: SafeAreaInsets;
   /** Signal a canonical lifecycle / CTA event to the deploy-target host. */
   informHost(event: HostEvent): void;
 }

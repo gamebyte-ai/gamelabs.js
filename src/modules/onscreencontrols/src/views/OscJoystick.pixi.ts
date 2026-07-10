@@ -84,6 +84,10 @@ export class OscJoystick extends StyledHudObject<OscJoystickStyle> {
     this._hitTarget.on("globalpointermove", (e: FederatedPointerEvent) => this._onMove(e));
     this._hitTarget.on("pointerup", (e: FederatedPointerEvent) => this._onUp(e));
     this._hitTarget.on("pointerupoutside", (e: FederatedPointerEvent) => this._onUp(e));
+    // iOS system-gesture deferral (edge swipes, home indicator) ends a press
+    // with a cancel, not an up — without this the last non-zero direction
+    // stays latched and the character keeps moving.
+    this._hitTarget.on("pointercancel", (e: FederatedPointerEvent) => this._onUp(e));
   }
 
   /**
