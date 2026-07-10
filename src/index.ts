@@ -57,6 +57,8 @@ export * from "./core/input/InputMapper.js";
 export { POINTER_INPUT_LAYER } from "./core/input/PointerInputLayer.js";
 export type { IPointerInputHandler } from "./core/input/IPointerInputHandler.js";
 
+export type { HostEvent, HostEventType, HostListener } from "./core/app/HostEvent.js";
+
 export * from "./modules/uicomponents/src/index.js";
 export * from "./modules/mainscreen/src/index.js";
 export * from "./modules/levelprogressscreen/src/index.js";
