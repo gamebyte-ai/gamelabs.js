@@ -29,6 +29,7 @@ import { HostEvents } from "./app/HostEvents.js";
 import type { HostEvent, HostListener } from "./app/HostEvent.js";
 import type { Unsubscribe } from "./events/subscriptions.js";
 import { computeIsDev } from "./app/isDev.js";
+import { applyConfigOverrides, loadConfigOverrides, type HasOverrideHook } from "./config/ConfigOverrides.js";
 
 export class GamelabsApp implements IApp {
   //  MEMBERS
@@ -68,6 +69,11 @@ export class GamelabsApp implements IApp {
    * Optional viewport fit (letterbox / pillarbox). Undefined ⇒ canvases fill the mount.
    */
   private readonly _viewport: ViewportConfig | undefined;
+
+  /**
+   * Optional runtime override JSON URL. See `GamelabsAppConfig.configOverridesUrl`.
+   */
+  private readonly _configOverridesUrl: string | undefined;
 
   private readonly _safeAreaEnabled: boolean;
   /** Canvas-relative, logical px — what `IApp.safeAreaInsets` exposes. */
@@ -271,6 +277,7 @@ export class GamelabsApp implements IApp {
     this._createHud = config.createHud;
     this._createAssetManager = config.createAssetManager;
     this._createDevUtils = config.createDevUtils;
+    this._configOverridesUrl = config.configOverridesUrl;
 
     // Letterbox bars are simply the mount area not covered by the centered
     // canvases; paint the mount background so they read as deliberate bars.
@@ -367,6 +374,7 @@ export class GamelabsApp implements IApp {
       for (const moduleBinding of this._moduleList) {
         moduleBinding.configureDI(this.diContainer, this.viewDiContainer);
       }
+      await this._applyConfigOverridesIfConfigured();
       this.configureDI();
 
       for (const moduleBinding of this._moduleList) {
@@ -467,6 +475,25 @@ export class GamelabsApp implements IApp {
   protected postInitialize(): void {}
 
   protected configureDI(): void {}
+
+  /**
+   * Return the config instance that should receive JSON overrides from
+   * `configOverridesUrl`. Return `null` (default) to opt out. Called once
+   * during `initialize()`, immediately before `configureDI()`.
+   */
+  protected getOverridableConfig(): object | null {
+    return null;
+  }
+
+  private async _applyConfigOverridesIfConfigured(): Promise<void> {
+    if (!this._configOverridesUrl) return;
+    const target = this.getOverridableConfig();
+    if (target == null) return;
+    const overrides = await loadConfigOverrides(this._configOverridesUrl, this._logger);
+    if (!overrides) return;
+    applyConfigOverrides(target, overrides);
+    (target as HasOverrideHook).onOverridesApplied?.();
+  }
 
   protected configureViews(): void {}
 

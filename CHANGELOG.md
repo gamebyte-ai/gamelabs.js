@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-07-17
+
+**Minor release.** One additive feature:
+
+**Runtime JSON config overrides.** `GamelabsApp` learned an opt-in override channel: pass `configOverridesUrl` in the app config (default convention `./game-config.json` placed under a Vite `public/` folder) and override an override-target config via a new virtual method. At `initialize()` time — right before `configureDI()` — the framework fetches the JSON with `cache: "no-cache"`, deep-merges matching keys onto the instance returned by `getOverridableConfig()`, and calls an optional `onOverridesApplied()` hook on the target for derived-field recomputation. Missing / unreachable / malformed JSON silently falls back to defaults with a logger warning. Playable ads that have no network reach can omit the URL entirely — no fetch, no cost.
+
+### Added
+
+- **`GamelabsAppConfig.configOverridesUrl?: string`.** Optional URL for the runtime override JSON. Unset ⇒ no fetch (backward-compatible; every existing consumer keeps its defaults).
+- **`GamelabsApp.getOverridableConfig(): object | null` virtual.** Subclasses return the config instance that should receive overrides. Default returns `null` (opt out).
+- **`loadConfigOverrides(url, logger?)`.** Fetches + validates the override JSON. Returns the parsed plain object on success, `null` on any failure path (404, network error, malformed JSON, non-object root). Every failure logs a warning if a logger is supplied.
+- **`applyConfigOverrides(target, overrides)`.** Pure recursive merge helper. Only keys present on the target are considered (unknown keys are silently ignored — the JSON author's mistakes don't extend the target's shape). Plain-object values recurse; arrays and class-instance values replace wholesale. Prototype methods on class targets are untouched.
+- **`HasOverrideHook` interface.** Optional `onOverridesApplied?()` marker. Configs with derived state computed in the constructor (e.g. `BlockPuzzleConfig.rotatedShapes` from `pieceTypes`) implement this to rebuild after overrides land.
+- **Package re-exports from `@gamebyte/gamelabsjs` and `@gamebyte/gamelabsjs/core`.** The three symbols above ship on both entries.
+
+### Downstream integration
+
+Every game under `gamelabs.examples/` and the `gamebyte_template` project were updated in the same release: each `MyGameApp` now wires `configOverridesUrl: "./game-config.json"` and overrides `getOverridableConfig()` to return its `_config` field. An empty `public/game-config.json` (`{}`) ships in each project so the runtime fetch resolves in dev + prod builds without noise.
+
+Design rationale + panel-side flow documented in `docs/game-config-overrides.md`.
+
 ## [4.1.0] - 2026-07-08
 
 **Minor release.** Two additive features:
