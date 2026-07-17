@@ -23,6 +23,7 @@ export * from "./core/styles/StyleManager.js";
 export * from "./core/styles/StyledHudObject.js";
 export * from "./core/styles/SpriteStyle.js";
 export * from "./core/styles/TextStyle.js";
+export * from "./core/config/ConfigOverrides.js";
 export * from "./core/services/StorageService.js";
 export * from "./core/services/AudioService.js";
 export * from "./core/dev/ILogger.js";

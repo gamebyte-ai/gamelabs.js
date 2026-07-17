@@ -82,4 +82,13 @@ export type GamelabsAppConfig = WithCanvas & {
    * unset and gets the base `DevUtils` (THREE-free, no ground grid).
    */
   createDevUtils?: (world: IWorld | null, hud: IHud, logger: Logger) => DevUtils;
+
+  /**
+   * Optional URL to a JSON file whose contents override matching fields on
+   * the config returned by `GamelabsApp.getOverridableConfig()`. Fetched
+   * during `initialize()` before `configureDI()`. Missing / unreachable /
+   * malformed → defaults win. Left unset ⇒ no fetch (playable ads where
+   * the runtime has no network reach can safely omit it).
+   */
+  configOverridesUrl?: string;
 };
