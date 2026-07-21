@@ -117,7 +117,13 @@ export class Hud implements IHud {
    * (empty area or stage only).
    */
   public hitTest(x: number, y: number): Container | null {
-    const hit = this._app.renderer.events.rootBoundary.hitTest(x, y);
+    const boundary = this._app.renderer.events.rootBoundary;
+    // Pixi only sets `rootTarget` from inside its native pointer handlers, which
+    // never fire when the HUD canvas is `pointer-events: none` (the default for a
+    // transparent overlay bridging input from the host). Without this seed,
+    // `hitTest` walks from a null root and throws "Cannot read eventMode of null".
+    boundary.rootTarget ??= this._app.stage;
+    const hit = boundary.hitTest(x, y);
     if (hit === null || hit === this._app.stage) return null;
     return hit;
   }
