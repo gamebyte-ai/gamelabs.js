@@ -66,9 +66,10 @@ export class ScreenView extends HudViewBase implements IScreenView {
     const h = Math.max(1, Math.floor(height));
 
     if (!this._clipMask) {
-      // Never hide the mask with alpha 0. Pixi already keeps a mask out of the
-      // drawn content, and its unbatched mask path skips a Graphics whose
-      // groupAlpha is 0, which leaves the stencil empty and blanks the screen.
+      // Hide the mask through its fill alpha, never the Graphics alpha. Pixi's
+      // unbatched mask path skips a Graphics whose groupAlpha is 0, which leaves
+      // the stencil empty and blanks the screen. A zero-alpha fill still writes
+      // the stencil, and stays invisible if the mask is ever detached.
       this._clipMask = new Graphics();
       this._clipMask.eventMode = "none";
       this.addChildAt(this._clipMask, 0);
@@ -80,7 +81,7 @@ export class ScreenView extends HudViewBase implements IScreenView {
     this._clipMaskHeight = h;
 
     this._clipMask.clear();
-    this._clipMask.rect(0, 0, w, h).fill({ color: 0xffffff });
+    this._clipMask.rect(0, 0, w, h).fill({ color: 0xffffff, alpha: 0 });
   }
 
   private runTransition(durationMs: number, onTick: (t: number) => void, onDone: () => void): void {

@@ -7,8 +7,8 @@ import { ScreenView } from "../src/core/ui/ScreenView.pixi.js";
 // a large shape) runs `GraphicsPipe.execute`, which skips any Graphics whose
 // `isRenderable` is false - and `isRenderable` requires `groupAlpha > 0`. A mask
 // skipped there writes nothing to the stencil, so the whole screen is clipped
-// away: a blank screen. The clip mask must therefore stay renderable; Pixi
-// already keeps a mask out of the drawn content on its own.
+// away: a blank screen. The clip mask must therefore stay renderable, and is
+// hidden through a zero-alpha fill instead, which still writes the stencil.
 function mountScreen(): { screen: ScreenView; mask: Graphics; stage: Container } {
   const stage = new Container({ isRenderGroup: true });
   const screen = new ScreenView();
@@ -35,9 +35,17 @@ describe("ScreenView clip mask", () => {
     expect(mask.isRenderable).toBe(true);
   });
 
-  it("is kept out of the screen's drawn content by Pixi", () => {
-    const { mask } = mountScreen();
+  it("draws nothing visible, even when a game detaches the mask", () => {
+    const { screen, mask } = mountScreen();
     expect(mask.includeInBuild).toBe(false);
-    expect(mask.measurable).toBe(false);
+    const fills = mask.context.instructions.filter((i) => i.action === "fill");
+    expect(fills.length).toBeGreaterThan(0);
+    for (const f of fills) expect((f.data as { style: { alpha: number } }).style.alpha).toBe(0);
+
+    // Detaching puts the Graphics back into the drawn content; the zero-alpha
+    // fill is what keeps a white rectangle from covering the screen then.
+    screen.mask = null;
+    expect(mask.includeInBuild).toBe(true);
+    expect(mask.isRenderable).toBe(true);
   });
 });
