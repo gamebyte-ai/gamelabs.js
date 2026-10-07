@@ -19,13 +19,20 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      # Full history and every branch, so the next step can see origin/main.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # No dependency cache: npm's trusted-publishing guide says never to cache in a release build.
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+
+      # Only reviewed code publishes: the tagged commit must already be merged to main.
+      - name: Tagged commit is on main
+        run: node scripts/release-guard.mjs main-ancestor
 
       - name: Tag matches package.json version
         run: |
@@ -36,7 +43,7 @@ jobs:
           fi
 
       - name: npm supports trusted publishing
-        run: npx -y semver@7 -r '>=11.5.1' "$(npm --version)"
+        run: node scripts/release-guard.mjs npm-version
 
       - name: Install dependencies
         run: npm ci
