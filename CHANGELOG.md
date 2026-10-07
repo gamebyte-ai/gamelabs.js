@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`ScreenView` clip mask no longer risks a blank screen.** The mask was created with `alpha = 0`. Pixi ignores a mask's alpha on its batched path, but its unbatched path (`batchMode: "no-batch"`, a custom shader, or a large shape) skips a Graphics whose group alpha is 0. The stencil then stays empty and the whole screen is clipped away. The mask now keeps the default alpha; Pixi already keeps a mask out of the drawn content. Measured on Pixi 8.0 to 8.19.
+
 ## [4.2.0] - 2026-07-17
 
 **Minor release.** One additive feature:

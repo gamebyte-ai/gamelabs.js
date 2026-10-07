@@ -66,8 +66,10 @@ export class ScreenView extends HudViewBase implements IScreenView {
     const h = Math.max(1, Math.floor(height));
 
     if (!this._clipMask) {
+      // Never hide the mask with alpha 0. Pixi already keeps a mask out of the
+      // drawn content, and its unbatched mask path skips a Graphics whose
+      // groupAlpha is 0, which leaves the stencil empty and blanks the screen.
       this._clipMask = new Graphics();
-      this._clipMask.alpha = 0;
       this._clipMask.eventMode = "none";
       this.addChildAt(this._clipMask, 0);
       this.mask = this._clipMask;
