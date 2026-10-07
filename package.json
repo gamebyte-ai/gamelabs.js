@@ -1,6 +1,6 @@
 {
   "name": "@gamebyte/gamelabsjs",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "Gamelabsjs: a game framework powered by Three.js (3D) and PixiJS (2D).",
   "license": "MIT",
   "author": "Oguz Sandikci",
@@ -37,12 +37,12 @@
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/oguzsan/Gamelab.js.git"
+    "url": "git+https://github.com/gamebyte-ai/gamelabs.js.git"
   },
   "bugs": {
-    "url": "https://github.com/oguzsan/Gamelab.js/issues"
+    "url": "https://github.com/gamebyte-ai/gamelabs.js/issues"
   },
-  "homepage": "https://github.com/oguzsan/Gamelab.js#readme",
+  "homepage": "https://github.com/gamebyte-ai/gamelabs.js#readme",
   "keywords": [
     "game",
     "framework",
