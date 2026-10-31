@@ -1,6 +1,6 @@
 {
   "name": "@gamebyte/gamelabsjs",
-  "version": "4.2.1",
+  "version": "4.2.2",
   "description": "Gamelabsjs: a game framework powered by Three.js (3D) and PixiJS (2D).",
   "license": "MIT",
   "author": "Oguz Sandikci",
@@ -61,11 +61,11 @@
     "@pixi/layout": "^3.2.0",
     "@pixi/ui": "^2.3.2",
     "@types/matter-js": "^0.20.0",
-    "@types/three": "^0.160.0 || ^0.182.0",
+    "@types/three": "^0.160.0 || ^0.182.0 || ^0.186.0",
     "cannon-es": "^0.20.0",
     "matter-js": "^0.20.0",
     "pixi.js": "^8.0.0",
-    "three": "^0.160.0 || ^0.182.0"
+    "three": "^0.160.0 || ^0.182.0 || ^0.186.0"
   },
   "peerDependenciesMeta": {
     "@types/matter-js": {
@@ -86,7 +86,7 @@
     "@pixi/layout": "^3.2.0",
     "@pixi/ui": "^2.3.2",
     "@types/matter-js": "^0.20.2",
-    "@types/three": "^0.182.0",
+    "@types/three": "^0.186.0",
     "cannon-es": "^0.20.0",
     "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
@@ -94,7 +94,7 @@
     "pixi.js": "^8.0.0",
     "prettier": "^3.8.1",
     "rimraf": "^6.0.0",
-    "three": "^0.182.0",
+    "three": "^0.186.1",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.58.0",
