@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.2] - 2026-10-31
+
+**Patch release.** No code change. The `three` and `@types/three` peer range now also accepts 0.186.
+
+### Changed
+
+- **Peer range `three` and `@types/three`: `^0.160.0 || ^0.182.0 || ^0.186.0`.** With only `^0.182.0`, a game on three 0.186.1 failed `npm ci` with ERESOLVE. Tested on three 0.186.1 and @types/three 0.186.0: typecheck, lint, 339 tests and build pass. A Vite game built on it loads in headless Chromium with three revision 186 and no console errors. The dev dependencies now use those versions.
+
 ## [4.2.1] - 2026-10-07
 
 **Patch release.** Two bug fixes, no API change. From this version the package is published by `.github/workflows/release.yml` on a `v*` tag, through npm trusted publishing (OIDC, no token), with provenance.
