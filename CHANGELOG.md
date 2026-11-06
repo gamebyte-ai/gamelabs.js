@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.3] - 2026-11-06
+
+**Patch release.** No code change. The `three` and `@types/three` peer range now also accepts 0.187.
+
+### Changed
+
+- **Peer range `three` and `@types/three`: `^0.160.0 || ^0.182.0 || ^0.186.0 || ^0.187.0`.** On 0.x, `^0.186.0` does not match 0.187, so a game on three 0.187.0 failed `npm install` with ERESOLVE against 4.2.2. Tested on three 0.187.0 and @types/three 0.187.0: typecheck, lint, 339 tests and build pass. A fresh project installs 4.2.3 with three 0.187.0 and no peer error. The dev dependencies now use those versions.
+
 ## [4.2.2] - 2026-10-31
 
 **Patch release.** No code change. The `three` and `@types/three` peer range now also accepts 0.186.
