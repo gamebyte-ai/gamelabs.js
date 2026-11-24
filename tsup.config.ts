@@ -31,7 +31,11 @@ export default defineConfig({
   clean: false,
   onSuccess: "node scripts/copy-module-assets.mjs",
   treeshake: true,
-  splitting: false,
+  // IMPORTANT: shared chunks give every entry ONE copy of each class it shares with another entry
+  // (`GamelabsApp`, `ModuleBinding`, the DI tokens, `HudViewBase`, ...). With one bundle per entry,
+  // a `/core` app that adds a full-entry module stops at boot ("No binding found for token").
+  // `node scripts/check-entry-apps.mjs` checks it after a build; CI runs it.
+  splitting: true,
   // Also set via esbuildOptions for older tsup behavior.
   esbuildOptions(options) {
     options.define = {
