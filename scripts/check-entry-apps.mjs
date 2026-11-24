@@ -22,7 +22,7 @@
  * and pixi.js in one chunk. It writes only under a scratch folder in the OS temp dir and removes
  * it, on failure too.
  */
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -175,7 +175,8 @@ async function bootApp(browser, name, built) {
   }
 }
 
-const scratch = mkdtempSync(join(tmpdir(), "entry-apps-"));
+// The real path: Vite refuses to build a root reached through a symlink, as macOS's /var/folders is.
+const scratch = realpathSync(mkdtempSync(join(tmpdir(), "entry-apps-")));
 let browser = null;
 try {
   if (!existsSync(join(dist, "core.js")) || !existsSync(join(dist, "index.cjs"))) {
