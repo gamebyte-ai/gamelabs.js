@@ -22,7 +22,7 @@
  * and pixi.js in one chunk. It writes only under a scratch folder in the OS temp dir and removes
  * it, on failure too.
  */
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -35,6 +35,13 @@ const dist = join(repoRoot, "dist");
 const fixtures = join(repoRoot, "tests", "fixtures", "entry-apps");
 const boot = process.argv.includes("--boot");
 const BOOT_TIMEOUT_MS = 30_000;
+
+/** Rejects when `promise` has not settled in `ms`: a page whose main thread hangs never answers. */
+function withDeadline(promise, ms, what) {
+  let timer;
+  const late = new Promise((_, fail) => (timer = setTimeout(() => fail(new Error(`${what}: no answer in ${ms} ms`)), ms)));
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+}
 
 let failed = 0;
 function check(name, ok, detail) {
@@ -63,11 +70,13 @@ async function buildApp(scratch, name) {
   const dir = join(scratch, name);
   mkdirSync(join(dir, "node_modules", "@gamebyte"), { recursive: true });
   // Installed the way npm links a local package: the name resolves through package.json `exports`.
-  symlinkSync(repoRoot, join(dir, "node_modules", "@gamebyte", "gamelabsjs"), "dir");
+  symlinkSync(repoRoot, join(dir, "node_modules", "@gamebyte", "gamelabsjs"), process.platform === "win32" ? "junction" : "dir");
   cpSync(fixtures, dir, { recursive: true });
   writeFileSync(
     join(dir, "index.html"),
     '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+      // No favicon request, so the only requests are the app's own.
+      '<link rel="icon" href="data:,">' +
       "<style>html,body,#stage{margin:0;width:100%;height:100%;overflow:hidden;background:#000}</style></head>" +
       `<body><div id="stage"></div><script type="module" src="./${name}.js"></script></body></html>`,
   );
@@ -99,7 +108,7 @@ const MIME = { ".html": "text/html", ".js": "text/javascript", ".png": "image/pn
 function serve(root) {
   const server = createServer((req, res) => {
     const path = normalize(join(root, decodeURIComponent(new URL(req.url, "http://x").pathname)));
-    if (!path.startsWith(root + sep) || !existsSync(path)) {
+    if (!path.startsWith(root + sep) || !existsSync(path) || !statSync(path).isFile()) {
       res.writeHead(404).end();
       return;
     }
@@ -137,17 +146,25 @@ async function bootApp(browser, name, built) {
       })
       .catch(() => errors.push(`no boot signal in ${BOOT_TIMEOUT_MS} ms`));
     // Ten drawn frames after boot, so an error in the first frames of the main screen shows too.
-    await page.evaluate(() => new Promise((ok) => {
-      let n = 0;
-      const tick = () => (++n >= 10 ? ok() : requestAnimationFrame(tick));
-      requestAnimationFrame(tick);
-    }));
-    const state = await page.evaluate(() => ({
-      ready: globalThis.__game?.ready === true,
-      world: globalThis.__game?.world === true,
-      hud: document.querySelector("canvas.layer.hud2d") !== null,
-      bootError: globalThis.__bootError ?? null,
-    }));
+    await withDeadline(
+      page.evaluate(() => new Promise((ok) => {
+        let n = 0;
+        const tick = () => (++n >= 10 ? ok() : requestAnimationFrame(tick));
+        requestAnimationFrame(tick);
+      })),
+      BOOT_TIMEOUT_MS,
+      "ten frames after boot",
+    );
+    const state = await withDeadline(
+      page.evaluate(() => ({
+        ready: globalThis.__game?.ready === true,
+        world: globalThis.__game?.world === true,
+        hud: document.querySelector("canvas.layer.hud2d") !== null,
+        bootError: globalThis.__bootError ?? null,
+      })),
+      BOOT_TIMEOUT_MS,
+      "the boot probe",
+    );
     if (process.env.SHOTS_DIR) {
       mkdirSync(process.env.SHOTS_DIR, { recursive: true });
       await page.screenshot({ path: join(process.env.SHOTS_DIR, `${name}.png`) });
@@ -155,6 +172,7 @@ async function bootApp(browser, name, built) {
     if (state.bootError) errors.push(`boot failed: ${state.bootError.split("\n")[0]}`);
     return { ...state, errors };
   } finally {
+    server.closeAllConnections();
     server.close();
   }
 }
@@ -169,7 +187,10 @@ try {
   globalThis.navigator ??= { userAgent: "" };
   compareEntries("ESM", await import(pathToFileURL(join(dist, "core.js")).href), await import(pathToFileURL(join(dist, "index.js")).href));
   const require = createRequire(import.meta.url);
+  // three.js warns once that its CJS build is deprecated; that is three's notice, not this check's.
+  process.noDeprecation = true;
   compareEntries("CJS", require(join(dist, "core.cjs")), require(join(dist, "index.cjs")));
+  process.noDeprecation = false;
 
   const core = await buildApp(scratch, "core-app");
   const full = await buildApp(scratch, "full-app");
@@ -197,7 +218,7 @@ try {
 } catch (err) {
   check("the run completed", false, String(err?.stack ?? err).slice(0, 600));
 } finally {
-  await browser?.close();
+  await browser?.close().catch(() => {});
   rmSync(scratch, { recursive: true, force: true, maxRetries: 3 });
 }
 console.log(failed ? `${failed} check(s) failed` : "all checks passed");
