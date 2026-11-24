@@ -75,8 +75,6 @@ async function buildApp(scratch, name) {
   writeFileSync(
     join(dir, "index.html"),
     '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-      // No favicon request, so the only requests are the app's own.
-      '<link rel="icon" href="data:,">' +
       "<style>html,body,#stage{margin:0;width:100%;height:100%;overflow:hidden;background:#000}</style></head>" +
       `<body><div id="stage"></div><script type="module" src="./${name}.js"></script></body></html>`,
   );
