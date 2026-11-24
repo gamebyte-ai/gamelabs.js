@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A 2D game on `@gamebyte/gamelabsjs/core` can use the full entry's modules.** Each entry was its own bundle, so `/core` and the full entry each held their own copy of the base `GamelabsApp` and of 38 more classes and objects they share, among them `ModuleBinding`, `InjectionToken`, `HudViewBase`, `ScreenView`, `AssetRequest` and `StyleManager`. A `/core` app that added `UIComponentsBinding`, `SettingsBinding` or `MainScreenBinding` from the full entry typechecked clean, then stopped at boot with `No binding found for token`. The entries now share chunks (`dist/chunk-*.js`), so each class exists once. Measured with Vite 8 and Chromium 156: a `/core` app with those three modules boots, shows the main screen and the settings popup, and its JavaScript holds no three.js (258.3 kB gzip, against 413.9 kB for the same game on the full entry). The imports of existing games do not change. `scripts/check-entry-apps.mjs` checks this in CI.
+
 ## [4.2.3] - 2026-11-06
 
 **Patch release.** No code change. The `three` and `@types/three` peer range now also accepts 0.187.
